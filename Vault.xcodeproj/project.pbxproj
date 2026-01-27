@@ -1,0 +1,603 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		001000001 /* VaultApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001000000 /* VaultApp.swift */; };
+		001000003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001000002 /* ContentView.swift */; };
+		001000005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 001000004 /* Assets.xcassets */; };
+		002000001 /* CryptoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000000 /* CryptoEngine.swift */; };
+		002000003 /* KeyDerivation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000002 /* KeyDerivation.swift */; };
+		002000005 /* PatternSerializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000004 /* PatternSerializer.swift */; };
+		003000001 /* VaultStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003000000 /* VaultStorage.swift */; };
+		003000003 /* EncryptedBlob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003000002 /* EncryptedBlob.swift */; };
+		003000005 /* SecureDelete.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003000004 /* SecureDelete.swift */; };
+		004000001 /* SecureEnclaveManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004000000 /* SecureEnclaveManager.swift */; };
+		004000003 /* WipePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004000002 /* WipePolicy.swift */; };
+		004000005 /* DuressHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004000004 /* DuressHandler.swift */; };
+		005000001 /* PatternLockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005000000 /* PatternLockView.swift */; };
+		005000003 /* PatternGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005000002 /* PatternGridView.swift */; };
+		005000005 /* PatternValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005000004 /* PatternValidator.swift */; };
+		005000007 /* PatternNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005000006 /* PatternNode.swift */; };
+		006000001 /* VaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006000000 /* VaultView.swift */; };
+		006000003 /* FileGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006000002 /* FileGridView.swift */; };
+		006000005 /* SecureImageViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006000004 /* SecureImageViewer.swift */; };
+		006000007 /* SecureVideoPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006000006 /* SecureVideoPlayer.swift */; };
+		006000009 /* FileImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006000008 /* FileImporter.swift */; };
+		007000001 /* SecureCameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007000000 /* SecureCameraView.swift */; };
+		007000003 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007000002 /* CameraManager.swift */; };
+		008000001 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008000000 /* SettingsView.swift */; };
+		008000003 /* VaultSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008000002 /* VaultSettingsView.swift */; };
+		008000005 /* RecoveryPhraseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008000004 /* RecoveryPhraseView.swift */; };
+		009000001 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009000000 /* OnboardingView.swift */; };
+		009000003 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009000002 /* WelcomeView.swift */; };
+		009000005 /* PatternSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009000004 /* PatternSetupView.swift */; };
+		010000001 /* LoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000 /* LoadingView.swift */; };
+		010000003 /* SecureTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000002 /* SecureTextField.swift */; };
+		011000001 /* RecoveryPhraseGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011000000 /* RecoveryPhraseGenerator.swift */; };
+		011000003 /* WordLists.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011000002 /* WordLists.swift */; };
+		012000001 /* VaultFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012000000 /* VaultFile.swift */; };
+		012000003 /* VaultMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012000002 /* VaultMetadata.swift */; };
+		013000001 /* iCloudBackupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 013000000 /* iCloudBackupManager.swift */; };
+		39EACF9D2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACF9C2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		001000000 /* VaultApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultApp.swift; sourceTree = "<group>"; };
+		001000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		001000004 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		002000000 /* CryptoEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoEngine.swift; sourceTree = "<group>"; };
+		002000002 /* KeyDerivation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyDerivation.swift; sourceTree = "<group>"; };
+		002000004 /* PatternSerializer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSerializer.swift; sourceTree = "<group>"; };
+		003000000 /* VaultStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultStorage.swift; sourceTree = "<group>"; };
+		003000002 /* EncryptedBlob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedBlob.swift; sourceTree = "<group>"; };
+		003000004 /* SecureDelete.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureDelete.swift; sourceTree = "<group>"; };
+		004000000 /* SecureEnclaveManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureEnclaveManager.swift; sourceTree = "<group>"; };
+		004000002 /* WipePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WipePolicy.swift; sourceTree = "<group>"; };
+		004000004 /* DuressHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuressHandler.swift; sourceTree = "<group>"; };
+		005000000 /* PatternLockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternLockView.swift; sourceTree = "<group>"; };
+		005000002 /* PatternGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternGridView.swift; sourceTree = "<group>"; };
+		005000004 /* PatternValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidator.swift; sourceTree = "<group>"; };
+		005000006 /* PatternNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternNode.swift; sourceTree = "<group>"; };
+		006000000 /* VaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultView.swift; sourceTree = "<group>"; };
+		006000002 /* FileGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileGridView.swift; sourceTree = "<group>"; };
+		006000004 /* SecureImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureImageViewer.swift; sourceTree = "<group>"; };
+		006000006 /* SecureVideoPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureVideoPlayer.swift; sourceTree = "<group>"; };
+		006000008 /* FileImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileImporter.swift; sourceTree = "<group>"; };
+		007000000 /* SecureCameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureCameraView.swift; sourceTree = "<group>"; };
+		007000002 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
+		008000000 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		008000002 /* VaultSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultSettingsView.swift; sourceTree = "<group>"; };
+		008000004 /* RecoveryPhraseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryPhraseView.swift; sourceTree = "<group>"; };
+		009000000 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		009000002 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
+		009000004 /* PatternSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupView.swift; sourceTree = "<group>"; };
+		010000000 /* LoadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingView.swift; sourceTree = "<group>"; };
+		010000002 /* SecureTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureTextField.swift; sourceTree = "<group>"; };
+		011000000 /* RecoveryPhraseGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryPhraseGenerator.swift; sourceTree = "<group>"; };
+		011000002 /* WordLists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordLists.swift; sourceTree = "<group>"; };
+		012000000 /* VaultFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFile.swift; sourceTree = "<group>"; };
+		012000002 /* VaultMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultMetadata.swift; sourceTree = "<group>"; };
+		013000000 /* iCloudBackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iCloudBackupManager.swift; sourceTree = "<group>"; };
+		088000000000 /* Vault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Vault.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		39EACF9C2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = NAVIGATION_REDESIGN.md; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		01100000F0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0100000001 /* Vault */ = {
+			isa = PBXGroup;
+			children = (
+				0100000010 /* App */,
+				0100000020 /* Core */,
+				0100000030 /* Features */,
+				0100000040 /* UI */,
+				0100000050 /* Models */,
+				0100000060 /* Resources */,
+			);
+			path = Vault;
+			sourceTree = "<group>";
+		};
+		0100000002 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				088000000000 /* Vault.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		0100000010 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				001000000 /* VaultApp.swift */,
+				001000002 /* ContentView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		0100000020 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				0100000021 /* Crypto */,
+				0100000022 /* Storage */,
+				0100000023 /* Security */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		0100000021 /* Crypto */ = {
+			isa = PBXGroup;
+			children = (
+				002000000 /* CryptoEngine.swift */,
+				002000002 /* KeyDerivation.swift */,
+				002000004 /* PatternSerializer.swift */,
+			);
+			path = Crypto;
+			sourceTree = "<group>";
+		};
+		0100000022 /* Storage */ = {
+			isa = PBXGroup;
+			children = (
+				003000000 /* VaultStorage.swift */,
+				003000002 /* EncryptedBlob.swift */,
+				003000004 /* SecureDelete.swift */,
+				013000000 /* iCloudBackupManager.swift */,
+			);
+			path = Storage;
+			sourceTree = "<group>";
+		};
+		0100000023 /* Security */ = {
+			isa = PBXGroup;
+			children = (
+				004000000 /* SecureEnclaveManager.swift */,
+				004000002 /* WipePolicy.swift */,
+				004000004 /* DuressHandler.swift */,
+				011000000 /* RecoveryPhraseGenerator.swift */,
+				011000002 /* WordLists.swift */,
+			);
+			path = Security;
+			sourceTree = "<group>";
+		};
+		0100000030 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				0100000031 /* PatternLock */,
+				0100000032 /* VaultViewer */,
+				0100000033 /* Camera */,
+				0100000034 /* Settings */,
+				0100000035 /* Onboarding */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		0100000031 /* PatternLock */ = {
+			isa = PBXGroup;
+			children = (
+				005000000 /* PatternLockView.swift */,
+				005000002 /* PatternGridView.swift */,
+				005000004 /* PatternValidator.swift */,
+				005000006 /* PatternNode.swift */,
+			);
+			path = PatternLock;
+			sourceTree = "<group>";
+		};
+		0100000032 /* VaultViewer */ = {
+			isa = PBXGroup;
+			children = (
+				006000000 /* VaultView.swift */,
+				006000002 /* FileGridView.swift */,
+				006000004 /* SecureImageViewer.swift */,
+				006000006 /* SecureVideoPlayer.swift */,
+				006000008 /* FileImporter.swift */,
+			);
+			path = VaultViewer;
+			sourceTree = "<group>";
+		};
+		0100000033 /* Camera */ = {
+			isa = PBXGroup;
+			children = (
+				007000000 /* SecureCameraView.swift */,
+				007000002 /* CameraManager.swift */,
+			);
+			path = Camera;
+			sourceTree = "<group>";
+		};
+		0100000034 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				008000000 /* SettingsView.swift */,
+				008000002 /* VaultSettingsView.swift */,
+				008000004 /* RecoveryPhraseView.swift */,
+				39EACF9C2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		0100000035 /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				009000000 /* OnboardingView.swift */,
+				009000002 /* WelcomeView.swift */,
+				009000004 /* PatternSetupView.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		0100000040 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				0100000041 /* Components */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		0100000041 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				010000000 /* LoadingView.swift */,
+				010000002 /* SecureTextField.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		0100000050 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				012000000 /* VaultFile.swift */,
+				012000002 /* VaultMetadata.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		0100000060 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				001000004 /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		089000000000 = {
+			isa = PBXGroup;
+			children = (
+				0100000001 /* Vault */,
+				0100000002 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0110000000 /* Vault */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 011000F000 /* Build configuration list for PBXNativeTarget "Vault" */;
+			buildPhases = (
+				01100000E0 /* Sources */,
+				01100000F0 /* Frameworks */,
+				011000100 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Vault;
+			productName = Vault;
+			productReference = 088000000000 /* Vault.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		0100000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 2620;
+				TargetAttributes = {
+					0110000000 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = 010000F000 /* Build configuration list for PBXProject "Vault" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 089000000000;
+			productRefGroup = 0100000002 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				0110000000 /* Vault */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		011000100 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				001000005 /* Assets.xcassets in Resources */,
+				39EACF9D2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		01100000E0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				001000001 /* VaultApp.swift in Sources */,
+				001000003 /* ContentView.swift in Sources */,
+				002000001 /* CryptoEngine.swift in Sources */,
+				002000003 /* KeyDerivation.swift in Sources */,
+				002000005 /* PatternSerializer.swift in Sources */,
+				003000001 /* VaultStorage.swift in Sources */,
+				003000003 /* EncryptedBlob.swift in Sources */,
+				003000005 /* SecureDelete.swift in Sources */,
+				004000001 /* SecureEnclaveManager.swift in Sources */,
+				004000003 /* WipePolicy.swift in Sources */,
+				004000005 /* DuressHandler.swift in Sources */,
+				005000001 /* PatternLockView.swift in Sources */,
+				005000003 /* PatternGridView.swift in Sources */,
+				005000005 /* PatternValidator.swift in Sources */,
+				005000007 /* PatternNode.swift in Sources */,
+				006000001 /* VaultView.swift in Sources */,
+				006000003 /* FileGridView.swift in Sources */,
+				006000005 /* SecureImageViewer.swift in Sources */,
+				006000007 /* SecureVideoPlayer.swift in Sources */,
+				006000009 /* FileImporter.swift in Sources */,
+				007000001 /* SecureCameraView.swift in Sources */,
+				007000003 /* CameraManager.swift in Sources */,
+				008000001 /* SettingsView.swift in Sources */,
+				008000003 /* VaultSettingsView.swift in Sources */,
+				008000005 /* RecoveryPhraseView.swift in Sources */,
+				009000001 /* OnboardingView.swift in Sources */,
+				009000003 /* WelcomeView.swift in Sources */,
+				009000005 /* PatternSetupView.swift in Sources */,
+				010000001 /* LoadingView.swift in Sources */,
+				010000003 /* SecureTextField.swift in Sources */,
+				011000001 /* RecoveryPhraseGenerator.swift in Sources */,
+				011000003 /* WordLists.swift in Sources */,
+				012000001 /* VaultFile.swift in Sources */,
+				012000003 /* VaultMetadata.swift in Sources */,
+				013000001 /* iCloudBackupManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		010000F001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		010000F002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		011000F001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Vault/Supporting/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Vault needs camera access to capture photos directly into your secure vault.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Vault needs photo library access to import photos into your secure vault.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vault.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		011000F002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Vault/Supporting/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Vault needs camera access to capture photos directly into your secure vault.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Vault needs photo library access to import photos into your secure vault.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vault.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		010000F000 /* Build configuration list for PBXProject "Vault" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				010000F001 /* Debug */,
+				010000F002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		011000F000 /* Build configuration list for PBXNativeTarget "Vault" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				011000F001 /* Debug */,
+				011000F002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 0100000000 /* Project object */;
+}
