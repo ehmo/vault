@@ -43,7 +43,17 @@
 		012000001 /* VaultFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012000000 /* VaultFile.swift */; };
 		012000003 /* VaultMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012000002 /* VaultMetadata.swift */; };
 		013000001 /* iCloudBackupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 013000000 /* iCloudBackupManager.swift */; };
+		014000001 /* CloudKitSharingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014000000 /* CloudKitSharingManager.swift */; };
+		015000001 /* ShareVaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 015000000 /* ShareVaultView.swift */; };
+		015000003 /* JoinVaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 015000002 /* JoinVaultView.swift */; };
 		39EACF9D2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACF9C2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md */; };
+		39EACF9F2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACF9E2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md */; };
+		39EACFA12F29B36D00FA7EC2 /* RecoveryPhraseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39EACFA02F29B36D00FA7EC2 /* RecoveryPhraseManager.swift */; };
+		39EACFA32F29B42100FA7EC2 /* RECOVERY_PHRASE_SYSTEM.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACFA22F29B42100FA7EC2 /* RECOVERY_PHRASE_SYSTEM.md */; };
+		39EACFA52F29B43C00FA7EC2 /* RECOVERY_QUICK_START.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACFA42F29B43C00FA7EC2 /* RECOVERY_QUICK_START.md */; };
+		39EACFA72F29E52000FA7EC2 /* ENCRYPTION_ARCHITECTURE.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACFA62F29E52000FA7EC2 /* ENCRYPTION_ARCHITECTURE.md */; };
+		39EACFA92F29E64000FA7EC2 /* VAULT_COLLISION_PROTECTION.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACFA82F29E64000FA7EC2 /* VAULT_COLLISION_PROTECTION.md */; };
+		39EACFAB2F29EDB600FA7EC2 /* DURESS_VAULT_IMPROVEMENTS.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACFAA2F29EDB600FA7EC2 /* DURESS_VAULT_IMPROVEMENTS.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -83,8 +93,18 @@
 		012000000 /* VaultFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFile.swift; sourceTree = "<group>"; };
 		012000002 /* VaultMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultMetadata.swift; sourceTree = "<group>"; };
 		013000000 /* iCloudBackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iCloudBackupManager.swift; sourceTree = "<group>"; };
+		014000000 /* CloudKitSharingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitSharingManager.swift; sourceTree = "<group>"; };
+		015000000 /* ShareVaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareVaultView.swift; sourceTree = "<group>"; };
+		015000002 /* JoinVaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinVaultView.swift; sourceTree = "<group>"; };
 		088000000000 /* Vault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Vault.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		39EACF9C2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = NAVIGATION_REDESIGN.md; sourceTree = "<group>"; };
+		39EACF9E2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEBUG_RESET_FEATURE.md; sourceTree = "<group>"; };
+		39EACFA02F29B36D00FA7EC2 /* RecoveryPhraseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryPhraseManager.swift; sourceTree = "<group>"; };
+		39EACFA22F29B42100FA7EC2 /* RECOVERY_PHRASE_SYSTEM.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = RECOVERY_PHRASE_SYSTEM.md; sourceTree = "<group>"; };
+		39EACFA42F29B43C00FA7EC2 /* RECOVERY_QUICK_START.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = RECOVERY_QUICK_START.md; sourceTree = "<group>"; };
+		39EACFA62F29E52000FA7EC2 /* ENCRYPTION_ARCHITECTURE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ENCRYPTION_ARCHITECTURE.md; sourceTree = "<group>"; };
+		39EACFA82F29E64000FA7EC2 /* VAULT_COLLISION_PROTECTION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = VAULT_COLLISION_PROTECTION.md; sourceTree = "<group>"; };
+		39EACFAA2F29EDB600FA7EC2 /* DURESS_VAULT_IMPROVEMENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DURESS_VAULT_IMPROVEMENTS.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -134,6 +154,7 @@
 				0100000021 /* Crypto */,
 				0100000022 /* Storage */,
 				0100000023 /* Security */,
+				0100000024 /* Sharing */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -167,8 +188,17 @@
 				004000004 /* DuressHandler.swift */,
 				011000000 /* RecoveryPhraseGenerator.swift */,
 				011000002 /* WordLists.swift */,
+				39EACFAA2F29EDB600FA7EC2 /* DURESS_VAULT_IMPROVEMENTS.md */,
 			);
 			path = Security;
+			sourceTree = "<group>";
+		};
+		0100000024 /* Sharing */ = {
+			isa = PBXGroup;
+			children = (
+				014000000 /* CloudKitSharingManager.swift */,
+			);
+			path = Sharing;
 			sourceTree = "<group>";
 		};
 		0100000030 /* Features */ = {
@@ -179,6 +209,7 @@
 				0100000033 /* Camera */,
 				0100000034 /* Settings */,
 				0100000035 /* Onboarding */,
+				0100000036 /* Sharing */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -202,6 +233,7 @@
 				006000004 /* SecureImageViewer.swift */,
 				006000006 /* SecureVideoPlayer.swift */,
 				006000008 /* FileImporter.swift */,
+				39EACF9E2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md */,
 			);
 			path = VaultViewer;
 			sourceTree = "<group>";
@@ -222,6 +254,8 @@
 				008000002 /* VaultSettingsView.swift */,
 				008000004 /* RecoveryPhraseView.swift */,
 				39EACF9C2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md */,
+				39EACFA62F29E52000FA7EC2 /* ENCRYPTION_ARCHITECTURE.md */,
+				39EACFA82F29E64000FA7EC2 /* VAULT_COLLISION_PROTECTION.md */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -232,8 +266,20 @@
 				009000000 /* OnboardingView.swift */,
 				009000002 /* WelcomeView.swift */,
 				009000004 /* PatternSetupView.swift */,
+				39EACFA02F29B36D00FA7EC2 /* RecoveryPhraseManager.swift */,
+				39EACFA22F29B42100FA7EC2 /* RECOVERY_PHRASE_SYSTEM.md */,
+				39EACFA42F29B43C00FA7EC2 /* RECOVERY_QUICK_START.md */,
 			);
 			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		0100000036 /* Sharing */ = {
+			isa = PBXGroup;
+			children = (
+				015000000 /* ShareVaultView.swift */,
+				015000002 /* JoinVaultView.swift */,
+			);
+			path = Sharing;
 			sourceTree = "<group>";
 		};
 		0100000040 /* UI */ = {
@@ -337,7 +383,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				001000005 /* Assets.xcassets in Resources */,
+				39EACFA32F29B42100FA7EC2 /* RECOVERY_PHRASE_SYSTEM.md in Resources */,
+				39EACF9F2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md in Resources */,
 				39EACF9D2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md in Resources */,
+				39EACFAB2F29EDB600FA7EC2 /* DURESS_VAULT_IMPROVEMENTS.md in Resources */,
+				39EACFA72F29E52000FA7EC2 /* ENCRYPTION_ARCHITECTURE.md in Resources */,
+				39EACFA52F29B43C00FA7EC2 /* RECOVERY_QUICK_START.md in Resources */,
+				39EACFA92F29E64000FA7EC2 /* VAULT_COLLISION_PROTECTION.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -349,6 +401,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				001000001 /* VaultApp.swift in Sources */,
+				39EACFA12F29B36D00FA7EC2 /* RecoveryPhraseManager.swift in Sources */,
 				001000003 /* ContentView.swift in Sources */,
 				002000001 /* CryptoEngine.swift in Sources */,
 				002000003 /* KeyDerivation.swift in Sources */,
@@ -383,6 +436,9 @@
 				012000001 /* VaultFile.swift in Sources */,
 				012000003 /* VaultMetadata.swift in Sources */,
 				013000001 /* iCloudBackupManager.swift in Sources */,
+				014000001 /* CloudKitSharingManager.swift in Sources */,
+				015000001 /* ShareVaultView.swift in Sources */,
+				015000003 /* JoinVaultView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
