@@ -16,10 +16,13 @@ struct AppSettingsView: View {
 
     @AppStorage("showPatternFeedback") private var showFeedback = true
     @AppStorage("randomizeGrid") private var randomizeGrid = false
-    @AppStorage("gridSize") private var gridSize = 4
 
     @State private var wipeThreshold: WipePolicyThreshold = .tenAttempts
     @State private var showingNuclearConfirmation = false
+    
+    #if DEBUG
+    @State private var showingDebugResetConfirmation = false
+    #endif
 
     var body: some View {
         List {
@@ -28,11 +31,6 @@ struct AppSettingsView: View {
                 Toggle("Show visual feedback", isOn: $showFeedback)
 
                 Toggle("Randomize grid (smudge defense)", isOn: $randomizeGrid)
-
-                Picker("Grid size", selection: $gridSize) {
-                    Text("4x4 (Recommended)").tag(4)
-                    Text("5x5 (More secure)").tag(5)
-                }
             }
 
             // Security Settings
@@ -94,14 +92,23 @@ struct AppSettingsView: View {
                         Text("Reset Onboarding")
                     }
                 }
+                
+                Button(action: { showingDebugResetConfirmation = true }) {
+                    HStack {
+                        Image(systemName: "trash.fill")
+                            .foregroundStyle(.red)
+                        Text("Full Reset / Wipe Everything")
+                            .foregroundStyle(.red)
+                    }
+                }
             } header: {
                 HStack {
                     Image(systemName: "hammer.fill")
                         .foregroundStyle(.orange)
-                    Text("Debug")
+                    Text("Debug Tools")
                 }
             } footer: {
-                Text("Development only: Reset the app to show onboarding again")
+                Text("Development only: Reset onboarding or completely wipe all data including vault files, recovery phrases, settings, and Keychain entries.")
             }
             #endif
 
@@ -135,16 +142,138 @@ struct AppSettingsView: View {
         } message: {
             Text("This will permanently destroy ALL vaults and ALL data. This action cannot be undone. The app will reset to its initial state.")
         }
+        #if DEBUG
+        .alert("Debug: Full Reset", isPresented: $showingDebugResetConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Wipe Everything", role: .destructive) {
+                performDebugFullReset()
+            }
+        } message: {
+            Text("This will completely wipe:\n• All vault files and indexes\n• Recovery phrase mappings\n• User preferences\n• Keychain entries\n• Onboarding state\n\nThe app will restart as if freshly installed.")
+        }
+        #endif
     }
 
     private func performNuclearWipe() {
         Task {
             await DuressHandler.shared.performNuclearWipe()
             await MainActor.run {
+                // Reset app state to trigger onboarding
+                appState.resetToOnboarding()
                 dismiss()
             }
         }
     }
+    
+    #if DEBUG
+    private func performDebugFullReset() {
+        Task {
+            await debugFullReset()
+            await MainActor.run {
+                dismiss()
+            }
+        }
+    }
+    
+    /// Performs a complete reset of all app data - DEBUG ONLY
+    private func debugFullReset() async {
+        #if DEBUG
+        print("🧹 [Debug] Starting full reset...")
+        #endif
+        
+        // 1. Clear vault files and storage
+        await clearVaultStorage()
+        
+        // 2. Clear recovery phrase mappings
+        clearRecoveryMappings()
+        
+        // 3. Clear all UserDefaults
+        clearUserDefaults()
+        
+        // 4. Clear Keychain entries
+        clearKeychain()
+        
+        // 5. Clear temporary files
+        clearTemporaryFiles()
+        
+        // 6. Reset app state
+        await MainActor.run {
+            appState.lockVault()
+            appState.resetToOnboarding()
+        }
+        
+        #if DEBUG
+        print("✅ [Debug] Full reset complete!")
+        #endif
+    }
+    
+    private func clearVaultStorage() async {
+        // Delete vault storage directory
+        let fileManager = FileManager.default
+        let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let vaultURL = documentsURL.appendingPathComponent("vault_storage")
+        
+        try? fileManager.removeItem(at: vaultURL)
+        
+        #if DEBUG
+        print("🧹 [Debug] Vault storage cleared")
+        #endif
+    }
+    
+    private func clearRecoveryMappings() {
+        UserDefaults.standard.removeObject(forKey: "recovery_mapping")
+        
+        #if DEBUG
+        print("🧹 [Debug] Recovery mappings cleared")
+        #endif
+    }
+    
+    private func clearUserDefaults() {
+        let domain = Bundle.main.bundleIdentifier!
+        UserDefaults.standard.removePersistentDomain(forName: domain)
+        UserDefaults.standard.synchronize()
+        
+        #if DEBUG
+        print("🧹 [Debug] UserDefaults cleared")
+        #endif
+    }
+    
+    private func clearKeychain() {
+        // Clear all keychain items for the app
+        let secItemClasses = [
+            kSecClassGenericPassword,
+            kSecClassInternetPassword,
+            kSecClassCertificate,
+            kSecClassKey,
+            kSecClassIdentity
+        ]
+        
+        for itemClass in secItemClasses {
+            let spec: [String: Any] = [kSecClass as String: itemClass]
+            SecItemDelete(spec as CFDictionary)
+        }
+        
+        #if DEBUG
+        print("🧹 [Debug] Keychain cleared")
+        #endif
+    }
+    
+    private func clearTemporaryFiles() {
+        let fileManager = FileManager.default
+        let tempURL = fileManager.temporaryDirectory
+        
+        // Remove all temporary files
+        if let contents = try? fileManager.contentsOfDirectory(at: tempURL, includingPropertiesForKeys: nil) {
+            for fileURL in contents {
+                try? fileManager.removeItem(at: fileURL)
+            }
+        }
+        
+        #if DEBUG
+        print("🧹 [Debug] Temporary files cleared")
+        #endif
+    }
+    #endif
 }
 
 // MARK: - Legacy SettingsView (Kept for compatibility)

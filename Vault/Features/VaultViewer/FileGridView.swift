@@ -28,23 +28,57 @@ struct FileThumbnailView: View {
 
     var body: some View {
         ZStack {
-            // Placeholder background
+            // Background
             Rectangle()
                 .fill(Color(.systemGray5))
 
-            // File icon (actual thumbnails would be generated in memory)
-            VStack(spacing: 4) {
-                Image(systemName: "photo.fill")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
+            // Display thumbnail or icon
+            if let thumbnailData = file.thumbnailData,
+               let uiImage = UIImage(data: thumbnailData) {
+                // Show actual thumbnail
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                // Show icon for non-image files
+                VStack(spacing: 4) {
+                    Image(systemName: iconName(for: file.mimeType))
+                        .font(.title)
+                        .foregroundStyle(.secondary)
 
-                Text(formatSize(file.size))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    if let filename = file.filename {
+                        Text(filename)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 4)
+                    } else {
+                        Text(formatSize(file.size))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
         }
         .aspectRatio(1, contentMode: .fill)
         .clipShape(RoundedRectangle(cornerRadius: 4))
+    }
+
+    private func iconName(for mimeType: String?) -> String {
+        guard let mimeType = mimeType else { return "doc.fill" }
+        
+        if mimeType.hasPrefix("image/") {
+            return "photo.fill"
+        } else if mimeType.hasPrefix("video/") {
+            return "video.fill"
+        } else if mimeType.hasPrefix("application/pdf") {
+            return "doc.text.fill"
+        } else if mimeType.hasPrefix("text/") {
+            return "doc.text.fill"
+        } else {
+            return "doc.fill"
+        }
     }
 
     private func formatSize(_ bytes: Int) -> String {
@@ -60,9 +94,9 @@ struct FileThumbnailView: View {
 #Preview {
     FileGridView(
         files: [
-            VaultFileItem(id: UUID(), size: 1024 * 500),
-            VaultFileItem(id: UUID(), size: 1024 * 1024 * 2),
-            VaultFileItem(id: UUID(), size: 1024 * 100),
+            VaultFileItem(id: UUID(), size: 1024 * 500, thumbnailData: nil, mimeType: "image/jpeg", filename: "Photo.jpg"),
+            VaultFileItem(id: UUID(), size: 1024 * 1024 * 2, thumbnailData: nil, mimeType: "video/mp4", filename: "Video.mp4"),
+            VaultFileItem(id: UUID(), size: 1024 * 100, thumbnailData: nil, mimeType: "application/pdf", filename: "Document.pdf"),
         ],
         onSelect: { _ in }
     )

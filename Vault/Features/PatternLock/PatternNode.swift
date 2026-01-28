@@ -33,7 +33,7 @@ final class PatternState: ObservableObject {
     @Published var selectedNodes: [Int] = []
     @Published var currentPoint: CGPoint?
     @Published var isDrawing = false
-    @Published var gridSize: Int = 4
+    let gridSize: Int = 5  // Fixed 5x5 grid
 
     var nodes: [PatternNode] {
         var result: [PatternNode] = []

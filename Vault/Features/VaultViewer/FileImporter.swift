@@ -1,5 +1,6 @@
 import Foundation
 import UniformTypeIdentifiers
+import UIKit
 
 /// Handles importing files from various sources into the vault.
 final class FileImporter {
@@ -40,16 +41,21 @@ final class FileImporter {
         let filename = url.lastPathComponent
         let mimeType = mimeTypeFor(url: url)
 
-        return try storage.storeFile(data: data, filename: filename, mimeType: mimeType, with: key)
+        // Generate thumbnail if it's an image
+        let thumbnail = generateThumbnail(from: data, mimeType: mimeType)
+
+        return try storage.storeFile(data: data, filename: filename, mimeType: mimeType, with: key, thumbnailData: thumbnail)
     }
 
     func importData(_ data: Data, filename: String, mimeType: String, with key: Data) throws -> UUID {
-        return try storage.storeFile(data: data, filename: filename, mimeType: mimeType, with: key)
+        let thumbnail = generateThumbnail(from: data, mimeType: mimeType)
+        return try storage.storeFile(data: data, filename: filename, mimeType: mimeType, with: key, thumbnailData: thumbnail)
     }
 
     func importImageData(_ imageData: Data, with key: Data) throws -> UUID {
         let filename = "IMG_\(Int(Date().timeIntervalSince1970)).jpg"
-        return try storage.storeFile(data: imageData, filename: filename, mimeType: "image/jpeg", with: key)
+        let thumbnail = generateThumbnail(from: imageData, mimeType: "image/jpeg")
+        return try storage.storeFile(data: imageData, filename: filename, mimeType: "image/jpeg", with: key, thumbnailData: thumbnail)
     }
 
     // MARK: - MIME Type Detection
@@ -84,6 +90,32 @@ final class FileImporter {
         default: return "application/octet-stream"
         }
     }
+    
+    // MARK: - Thumbnail Generation
+    
+    /// Generates a thumbnail from image data
+    /// Returns JPEG data at 200x200 max size, or nil if not an image
+    private func generateThumbnail(from data: Data, mimeType: String) -> Data? {
+        // Only generate thumbnails for images
+        guard mimeType.hasPrefix("image/") else { return nil }
+        
+        guard let image = UIImage(data: data) else { return nil }
+        
+        // Calculate thumbnail size (max 200x200, maintaining aspect ratio)
+        let maxSize: CGFloat = 200
+        let size = image.size
+        let scale = min(maxSize / size.width, maxSize / size.height)
+        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+        
+        // Generate thumbnail
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        let thumbnail = renderer.image { context in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+        
+        // Convert to JPEG with moderate compression
+        return thumbnail.jpegData(compressionQuality: 0.7)
+    }
 
     // MARK: - Error Types
 
@@ -103,8 +135,10 @@ extension FileImporter {
         let imageFilename = "LIVE_\(Int(Date().timeIntervalSince1970)).jpg"
         let videoFilename = "LIVE_\(Int(Date().timeIntervalSince1970)).mov"
 
-        let imageId = try storage.storeFile(data: imageData, filename: imageFilename, mimeType: "image/jpeg", with: key)
-        let videoId = try storage.storeFile(data: videoData, filename: videoFilename, mimeType: "video/quicktime", with: key)
+        let imageThumbnail = generateThumbnail(from: imageData, mimeType: "image/jpeg")
+
+        let imageId = try storage.storeFile(data: imageData, filename: imageFilename, mimeType: "image/jpeg", with: key, thumbnailData: imageThumbnail)
+        let videoId = try storage.storeFile(data: videoData, filename: videoFilename, mimeType: "video/quicktime", with: key, thumbnailData: nil)
 
         return (imageId, videoId)
     }

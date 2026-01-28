@@ -112,7 +112,13 @@ struct SecureVideoPlayer: View {
 
 #Preview {
     SecureVideoPlayer(
-        file: VaultFileItem(id: UUID(), size: 1024),
+        file: VaultFileItem(
+            id: UUID(),
+            size: 1024, thumbnailData: nil,
+            mimeType: "video/mp4",
+            filename: "preview-video.mp4"
+        ),
         vaultKey: nil
     )
 }
+

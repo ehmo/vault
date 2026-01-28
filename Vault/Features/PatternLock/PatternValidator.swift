@@ -7,9 +7,21 @@ struct PatternValidationResult {
     let metrics: PatternSerializer.PatternMetrics
 }
 
-enum PatternValidationError: String {
-    case tooFewNodes = "Pattern must connect at least 6 nodes"
-    case tooFewDirectionChanges = "Pattern must have at least 2 direction changes"
+enum PatternValidationError {
+    case tooFewNodes
+    case tooFewDirectionChanges
+    case custom(String)
+    
+    var message: String {
+        switch self {
+        case .tooFewNodes:
+            return "Pattern must connect at least 6 nodes"
+        case .tooFewDirectionChanges:
+            return "Pattern must have at least 2 direction changes"
+        case .custom(let message):
+            return message
+        }
+    }
 }
 
 enum PatternValidationWarning: String {

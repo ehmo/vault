@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UIKit
 
 struct VaultView: View {
     @EnvironmentObject var appState: AppState
@@ -56,6 +57,21 @@ struct VaultView: View {
             }
         }
         .onAppear(perform: loadFiles)
+        .onChange(of: appState.currentVaultKey) { _, newKey in
+            // If the vault key is cleared, clear our files immediately
+            if newKey == nil {
+                files = []
+                isLoading = false
+            }
+        }
+        .onChange(of: showingSettings) { _, isShowing in
+            // Reload files when returning from settings (in case of nuclear wipe)
+            if !isShowing {
+                files = []
+                isLoading = true
+                loadFiles()
+            }
+        }
         .confirmationDialog("Add to Vault", isPresented: $showingImportOptions) {
             Button("Take Photo") { showingCamera = true }
             Button("Choose from Photos") { showingPhotoPicker = true }
@@ -76,7 +92,16 @@ struct VaultView: View {
             handleImportedFiles(result)
         }
         .sheet(item: $selectedFile) { file in
-            SecureImageViewer(file: file, vaultKey: appState.currentVaultKey)
+            SecureImageViewer(
+                file: file,
+                vaultKey: appState.currentVaultKey,
+                onDelete: { deletedId in
+                    if let idx = files.firstIndex(where: { $0.id == deletedId }) {
+                        files.remove(at: idx)
+                    }
+                    selectedFile = nil
+                }
+            )
         }
         .sheet(isPresented: $showingSettings) {
             NavigationStack {
@@ -119,7 +144,19 @@ struct VaultView: View {
     }
 
     private func loadFiles() {
+        #if DEBUG
+        print("📂 [VaultView] loadFiles() called")
+        print("📂 [VaultView] currentVaultKey exists: \(appState.currentVaultKey != nil)")
+        print("📂 [VaultView] isUnlocked: \(appState.isUnlocked)")
+        if let key = appState.currentVaultKey {
+            print("📂 [VaultView] Key hash: \(key.hashValue)")
+        }
+        #endif
+        
         guard let key = appState.currentVaultKey else {
+            #if DEBUG
+            print("⚠️ [VaultView] No vault key available, stopping loadFiles")
+            #endif
             isLoading = false
             return
         }
@@ -127,14 +164,27 @@ struct VaultView: View {
         Task {
             do {
                 let fileEntries = try VaultStorage.shared.listFiles(with: key)
+                #if DEBUG
+                print("📂 [VaultView] Loaded \(fileEntries.count) files from storage")
+                #endif
+                
                 let items = fileEntries.map { entry in
-                    VaultFileItem(id: entry.fileId, size: entry.size)
+                    VaultFileItem(
+                        id: entry.fileId,
+                        size: entry.size,
+                        thumbnailData: entry.thumbnailData,
+                        mimeType: entry.mimeType,
+                        filename: entry.filename
+                    )
                 }
                 await MainActor.run {
                     files = items
                     isLoading = false
                 }
             } catch {
+                #if DEBUG
+                print("❌ [VaultView] Error loading files: \(error)")
+                #endif
                 await MainActor.run {
                     files = []
                     isLoading = false
@@ -149,14 +199,25 @@ struct VaultView: View {
         Task {
             do {
                 let filename = "IMG_\(Date().timeIntervalSince1970).jpg"
+                
+                // Generate thumbnail
+                let thumbnail = generateThumbnail(from: imageData)
+                
                 let fileId = try VaultStorage.shared.storeFile(
                     data: imageData,
                     filename: filename,
                     mimeType: "image/jpeg",
-                    with: key
+                    with: key,
+                    thumbnailData: thumbnail
                 )
                 await MainActor.run {
-                    files.append(VaultFileItem(id: fileId, size: imageData.count))
+                    files.append(VaultFileItem(
+                        id: fileId,
+                        size: imageData.count,
+                        thumbnailData: thumbnail,
+                        mimeType: "image/jpeg",
+                        filename: filename
+                    ))
                 }
             } catch {
                 // Handle error silently
@@ -165,27 +226,62 @@ struct VaultView: View {
     }
 
     private func handleSelectedImages(_ imagesData: [Data]) {
-        guard let key = appState.currentVaultKey else { return }
+        #if DEBUG
+        print("📸 [VaultView] handleSelectedImages called with \(imagesData.count) images")
+        print("📸 [VaultView] currentVaultKey exists: \(appState.currentVaultKey != nil)")
+        if let key = appState.currentVaultKey {
+            print("📸 [VaultView] Key hash: \(key.hashValue)")
+        }
+        #endif
+        
+        guard let key = appState.currentVaultKey else {
+            #if DEBUG
+            print("❌ [VaultView] No vault key - cannot upload images!")
+            #endif
+            return
+        }
 
-        for data in imagesData {
+        for (index, data) in imagesData.enumerated() {
+            #if DEBUG
+            print("📸 [VaultView] Processing image \(index + 1)/\(imagesData.count), size: \(data.count) bytes")
+            #endif
+            
             Task {
                 do {
                     let filename = "IMG_\(Date().timeIntervalSince1970).jpg"
+                    
+                    // Generate thumbnail
+                    let thumbnail = generateThumbnail(from: data)
+                    #if DEBUG
+                    print("📸 [VaultView] Generated thumbnail: \(thumbnail != nil)")
+                    #endif
+                    
                     let fileId = try VaultStorage.shared.storeFile(
                         data: data,
                         filename: filename,
                         mimeType: "image/jpeg",
-                        with: key
+                        with: key,
+                        thumbnailData: thumbnail
                     )
+                    #if DEBUG
+                    print("✅ [VaultView] Image stored with ID: \(fileId)")
+                    #endif
+                    
                     await MainActor.run {
-                        files.append(VaultFileItem(id: fileId, size: data.count))
+                        files.append(VaultFileItem(
+                            id: fileId,
+                            size: data.count,
+                            thumbnailData: thumbnail,
+                            mimeType: "image/jpeg",
+                            filename: filename
+                        ))
                         #if DEBUG
-                        print("✅ Image added to vault: \(fileId)")
+                        print("✅ [VaultView] Image added to files array. Total files: \(files.count)")
                         #endif
                     }
                 } catch {
                     #if DEBUG
-                    print("❌ Failed to add image: \(error)")
+                    print("❌ [VaultView] Failed to add image \(index + 1): \(error)")
                     #endif
                 }
             }
@@ -205,19 +301,51 @@ struct VaultView: View {
                 if let data = try? Data(contentsOf: url) {
                     let filename = url.lastPathComponent
                     let mimeType = mimeTypeForExtension(url.pathExtension)
+                    
+                    // Generate thumbnail if it's an image
+                    let thumbnail = mimeType.hasPrefix("image/") ? generateThumbnail(from: data) : nil
+                    
                     if let fileId = try? VaultStorage.shared.storeFile(
                         data: data,
                         filename: filename,
                         mimeType: mimeType,
-                        with: key
+                        with: key,
+                        thumbnailData: thumbnail
                     ) {
                         await MainActor.run {
-                            files.append(VaultFileItem(id: fileId, size: data.count))
+                            files.append(VaultFileItem(
+                                id: fileId,
+                                size: data.count,
+                                thumbnailData: thumbnail,
+                                mimeType: mimeType,
+                                filename: filename
+                            ))
                         }
                     }
                 }
             }
         }
+    }
+    
+    // MARK: - Thumbnail Generation
+    
+    private func generateThumbnail(from data: Data) -> Data? {
+        guard let image = UIImage(data: data) else { return nil }
+        
+        // Calculate thumbnail size (max 200x200, maintaining aspect ratio)
+        let maxSize: CGFloat = 200
+        let size = image.size
+        let scale = min(maxSize / size.width, maxSize / size.height)
+        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+        
+        // Generate thumbnail
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        let thumbnail = renderer.image { context in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+        
+        // Convert to JPEG with moderate compression
+        return thumbnail.jpegData(compressionQuality: 0.7)
     }
 
     private func mimeTypeForExtension(_ ext: String) -> String {
@@ -239,6 +367,9 @@ struct VaultView: View {
 struct VaultFileItem: Identifiable {
     let id: UUID
     let size: Int
+    let thumbnailData: Data?
+    let mimeType: String?
+    let filename: String?
 }
 
 // MARK: - Photo Picker Wrapper
@@ -270,16 +401,30 @@ struct PhotoPicker: UIViewControllerRepresentable {
         }
 
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            #if DEBUG
+            print("🖼️ [PhotoPicker] Picker finished with \(results.count) results")
+            #endif
+            
             picker.dismiss(animated: true)
             
-            guard !results.isEmpty else { return }
+            guard !results.isEmpty else {
+                #if DEBUG
+                print("🖼️ [PhotoPicker] No results selected")
+                #endif
+                return
+            }
             
             var imagesData: [Data] = []
             let group = DispatchGroup()
             
             // Process each result
-            for result in results {
+            for (index, result) in results.enumerated() {
                 let itemProvider = result.itemProvider
+                
+                #if DEBUG
+                print("🖼️ [PhotoPicker] Processing result \(index + 1)/\(results.count)")
+                print("🖼️ [PhotoPicker] Can load as UIImage: \(itemProvider.canLoadObject(ofClass: UIImage.self))")
+                #endif
                 
                 // Load as image
                 if itemProvider.canLoadObject(ofClass: UIImage.self) {
@@ -287,9 +432,24 @@ struct PhotoPicker: UIViewControllerRepresentable {
                     itemProvider.loadObject(ofClass: UIImage.self) { image, error in
                         defer { group.leave() }
                         
-                        guard let image = image as? UIImage,
-                              let data = image.jpegData(compressionQuality: 0.8) else { return }
+                        if let error = error {
+                            #if DEBUG
+                            print("❌ [PhotoPicker] Error loading image \(index + 1): \(error)")
+                            #endif
+                            return
+                        }
                         
+                        guard let image = image as? UIImage,
+                              let data = image.jpegData(compressionQuality: 0.8) else {
+                            #if DEBUG
+                            print("❌ [PhotoPicker] Failed to convert image \(index + 1) to data")
+                            #endif
+                            return
+                        }
+                        
+                        #if DEBUG
+                        print("✅ [PhotoPicker] Image \(index + 1) loaded, size: \(data.count) bytes")
+                        #endif
                         imagesData.append(data)
                     }
                 }
@@ -297,6 +457,10 @@ struct PhotoPicker: UIViewControllerRepresentable {
             
             // When all images are loaded, call the callback
             group.notify(queue: .main) {
+                #if DEBUG
+                print("🖼️ [PhotoPicker] All images loaded. Total: \(imagesData.count)")
+                print("🖼️ [PhotoPicker] Calling onImagesSelected callback")
+                #endif
                 self.onImagesSelected(imagesData)
             }
         }

@@ -1,15 +1,20 @@
 import SwiftUI
 
+import SwiftUI
+import CryptoKit
+
 struct PatternLockView: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var patternState = PatternState()
 
     @AppStorage("showPatternFeedback") private var showFeedback = true
     @AppStorage("randomizeGrid") private var randomizeGrid = false
-    @AppStorage("gridSize") private var gridSize = 4
 
     @State private var isProcessing = false
     @State private var showRecoveryOption = false
+    @State private var showJoinSharedVault = false
+    @State private var errorMessage: String?
+    @State private var showError = false
 
     var body: some View {
         VStack(spacing: 40) {
@@ -38,57 +43,103 @@ struct PatternLockView: View {
             .frame(maxWidth: 280, maxHeight: 280)
             .disabled(isProcessing)
             .opacity(isProcessing ? 0.5 : 1)
+            
+            // Error message
+            if showError, let message = errorMessage {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .foregroundStyle(.red)
+                    Text(message)
+                        .font(.subheadline)
+                        .foregroundStyle(.red)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color.red.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .transition(.scale.combined(with: .opacity))
+            }
 
             Spacer()
 
-            // Recovery option
-            Button(action: { showRecoveryOption = true }) {
-                Text("Use recovery phrase")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            // Options
+            VStack(spacing: 12) {
+                Button(action: { showRecoveryOption = true }) {
+                    Text("Use recovery phrase")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Button(action: { showJoinSharedVault = true }) {
+                    Text("Join shared vault")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Spacer()
         }
         .padding()
+        .animation(.spring(response: 0.3), value: showError)
         .sheet(isPresented: $showRecoveryOption) {
             RecoveryPhraseInputView()
         }
-        .onAppear {
-            patternState.gridSize = gridSize
+        .sheet(isPresented: $showJoinSharedVault) {
+            JoinVaultView()
         }
     }
 
     private func handlePatternComplete(_ pattern: [Int]) {
         #if DEBUG
-        print("🎯 Pattern completed: \(pattern) (count: \(pattern.count))")
+        print("🎯 [PatternLock] Pattern completed: \(pattern) (count: \(pattern.count))")
+        print("🎯 [PatternLock] Grid size: 5x5")
         #endif
         
         guard !isProcessing else {
             #if DEBUG
-            print("⚠️ Already processing, ignoring pattern")
+            print("⚠️ [PatternLock] Already processing, ignoring pattern")
             #endif
             return
         }
         
         // Require minimum pattern length to prevent accidental taps
-        guard pattern.count >= 4 else {
+        guard pattern.count >= 6 else {
             #if DEBUG
-            print("❌ Pattern too short (\(pattern.count) nodes), minimum 4 required")
+            print("❌ [PatternLock] Pattern too short (\(pattern.count) nodes), minimum 6 required")
             #endif
+            
+            // Show error message to user
+            errorMessage = "Pattern must connect at least 6 dots"
+            withAnimation {
+                showError = true
+            }
+            
+            // Hide error after 2 seconds and reset pattern
+            Task {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                await MainActor.run {
+                    withAnimation {
+                        showError = false
+                    }
+                }
+            }
+            
             patternState.reset()
             return
         }
 
+        // Clear any previous error
+        showError = false
+        
         #if DEBUG
-        print("✅ Pattern accepted, processing unlock...")
+        print("✅ [PatternLock] Pattern accepted, processing unlock...")
         #endif
         
         isProcessing = true
 
         Task {
-            // Attempt to unlock with the pattern, using the current grid size
-            _ = await appState.unlockWithPattern(pattern, gridSize: gridSize)
+            // Attempt to unlock with the pattern, using the fixed 5x5 grid size
+            _ = await appState.unlockWithPattern(pattern, gridSize: 5)
 
             await MainActor.run {
                 isProcessing = false
@@ -106,6 +157,7 @@ struct RecoveryPhraseInputView: View {
 
     @State private var phrase = ""
     @State private var isProcessing = false
+    @State private var errorMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -146,6 +198,19 @@ struct RecoveryPhraseInputView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(phrase.isEmpty || isProcessing)
+                
+                if let error = errorMessage {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .foregroundStyle(.red)
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                    .padding()
+                    .background(Color.red.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
 
                 Spacer()
             }
@@ -158,22 +223,54 @@ struct RecoveryPhraseInputView: View {
 
         Task {
             do {
-                let key = try await KeyDerivation.deriveKey(from: phrase)
+                // Use the recovery manager to recover the vault
+                let patternKey = try await RecoveryPhraseManager.shared.recoverVault(using: phrase)
+                
+                #if DEBUG
+                print("✅ [Recovery] Vault recovered successfully")
+                #endif
+                
+                // Use the recovered pattern key to unlock the vault
                 await MainActor.run {
-                    appState.currentVaultKey = key
+                    appState.currentVaultKey = patternKey
                     appState.isUnlocked = true
                     dismiss()
+                    
+                    #if DEBUG
+                    print("🔓 [Recovery] Vault unlocked with recovery phrase")
+                    #endif
+                }
+            } catch RecoveryError.invalidPhrase {
+                #if DEBUG
+                print("❌ [Recovery] Invalid recovery phrase")
+                #endif
+                await MainActor.run {
+                    showRecoveryError("Incorrect recovery phrase. Please check and try again.")
                 }
             } catch {
-                // Recovery failed - show empty vault anyway
+                #if DEBUG
+                print("❌ [Recovery] Recovery failed: \(error)")
+                #endif
                 await MainActor.run {
-                    appState.isUnlocked = true
-                    dismiss()
+                    showRecoveryError("Recovery failed: \(error.localizedDescription)")
                 }
             }
         }
     }
+    
+    @MainActor
+    private func showRecoveryError(_ message: String) {
+        errorMessage = message
+        isProcessing = false
+    }
+    
+    private struct RecoveryData: Codable {
+        let pattern: [Int]
+        let gridSize: Int
+        let patternKey: Data
+    }
 }
+
 
 #Preview {
     PatternLockView()

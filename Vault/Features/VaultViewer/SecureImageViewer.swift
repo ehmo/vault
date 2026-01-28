@@ -3,6 +3,7 @@ import SwiftUI
 struct SecureImageViewer: View {
     let file: VaultFileItem
     let vaultKey: Data?
+    var onDelete: ((UUID) -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var image: UIImage?
@@ -10,6 +11,10 @@ struct SecureImageViewer: View {
     @State private var error: String?
     @State private var showingExportConfirmation = false
     @State private var showingDeleteConfirmation = false
+    @State private var showingActions = false
+    @State private var isSharing = false
+    @State private var shareURL: URL?
+    @AppStorage("screenshotProtectionEnabled") private var screenshotProtectionEnabled = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,14 +24,7 @@ struct SecureImageViewer: View {
                 }
                 .foregroundStyle(.white)
                 Spacer()
-                Menu {
-                    Button(action: { showingExportConfirmation = true }) {
-                        Label("Export", systemImage: "square.and.arrow.up")
-                    }
-                    Button(role: .destructive, action: { showingDeleteConfirmation = true }) {
-                        Label("Delete", systemImage: "trash")
-                    }
-                } label: {
+                Button(action: { showingActions = true }) {
                     Image(systemName: "ellipsis.circle")
                         .foregroundStyle(.white)
                         .imageScale(.large)
@@ -49,6 +47,12 @@ struct SecureImageViewer: View {
                     errorView(error)
                 }
             }
+            .overlay {
+                if screenshotProtectionEnabled {
+                    SecureContainerView()
+                        .allowsHitTesting(false)
+                }
+            }
         }
         .onAppear(perform: loadImage)
         .onDisappear(perform: clearImage)
@@ -64,9 +68,20 @@ struct SecureImageViewer: View {
         } message: {
             Text("This file will be permanently deleted from the vault.")
         }
-        // Prevent screenshots
-        .overlay {
-            SecureContainerView()
+        .confirmationDialog("Actions", isPresented: $showingActions, titleVisibility: .visible) {
+            Button("Export") { showingExportConfirmation = true }
+            Button("Delete", role: .destructive) { showingDeleteConfirmation = true }
+            Button("Cancel", role: .cancel) { }
+        }
+        .sheet(isPresented: $isSharing, onDismiss: {
+            if let url = shareURL {
+                try? FileManager.default.removeItem(at: url)
+                shareURL = nil
+            }
+        }) {
+            if let url = shareURL {
+                ActivityView(activityItems: [url])
+            }
         }
     }
 
@@ -147,16 +162,36 @@ struct SecureImageViewer: View {
     }
 
     private func exportFile() {
-        // Export would save to Photos or Files
-        // Implementation would use PHPhotoLibrary or UIActivityViewController
+        guard let image = image, let data = image.jpegData(compressionQuality: 0.95) else { return }
+
+        // Write to a temporary location for sharing
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+        let filename = "Export_\(file.id.uuidString).jpg"
+        let url = tempDir.appendingPathComponent(filename)
+
+        do {
+            try data.write(to: url, options: [.atomic])
+            shareURL = url
+            isSharing = true
+        } catch {
+            // Ignore share if we cannot write
+        }
     }
 
     private func deleteFile() {
-        guard let key = vaultKey else { return }
+        guard let key = vaultKey else {
+            // Even if key is missing, notify parent to refresh UI
+            onDelete?(file.id)
+            dismiss()
+            return
+        }
 
         Task {
             try? VaultStorage.shared.deleteFile(id: file.id, with: key)
             await MainActor.run {
+                // Inform parent to remove this item from its list
+                onDelete?(file.id)
+                // Dismiss the viewer
                 dismiss()
             }
         }
@@ -167,19 +202,29 @@ struct SecureImageViewer: View {
 
 struct SecureContainerView: UIViewRepresentable {
     func makeUIView(context: Context) -> UIView {
-        let secureField = UITextField()
+        // Use a UITextField with secure text entry as the root view.
+        // Anything rendered inside this view will be protected in screenshots.
+        let secureField = UITextField(frame: .zero)
         secureField.isSecureTextEntry = true
+        secureField.backgroundColor = .clear
+        secureField.isUserInteractionEnabled = false
+        secureField.text = " " // ensure secure rendering layer is established
 
-        // The secure text field's layer is used to capture screenshots
-        // Adding a child view to it makes that view also "secure"
-        let containerView = UIView()
-        containerView.backgroundColor = .clear
+        // Add a transparent content view that fills the secure field.
+        let contentView = UIView(frame: .zero)
+        contentView.backgroundColor = .clear
+        contentView.isUserInteractionEnabled = false
 
-        if let secureLayer = secureField.layer.sublayers?.first {
-            secureLayer.addSublayer(containerView.layer)
-        }
+        secureField.addSubview(contentView)
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            contentView.leadingAnchor.constraint(equalTo: secureField.leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: secureField.trailingAnchor),
+            contentView.topAnchor.constraint(equalTo: secureField.topAnchor),
+            contentView.bottomAnchor.constraint(equalTo: secureField.bottomAnchor)
+        ])
 
-        return containerView
+        return secureField
     }
 
     func updateUIView(_ uiView: UIView, context: Context) {}
@@ -187,8 +232,28 @@ struct SecureContainerView: UIViewRepresentable {
 
 #Preview {
     SecureImageViewer(
-        file: VaultFileItem(id: UUID(), size: 1024),
-        vaultKey: nil
+        file: VaultFileItem(
+            id: UUID(),
+            size: 1024,
+            thumbnailData: nil,
+            mimeType: "image/jpeg",
+            filename: "preview.jpg"
+        ),
+        vaultKey: nil,
+        onDelete: { _ in }
     )
+}
+
+// MARK: - Activity View (Share Sheet)
+struct ActivityView: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    var applicationActivities: [UIActivity]? = nil
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 

@@ -1,14 +1,21 @@
 import SwiftUI
 
+import SwiftUI
+import CryptoKit
+
 struct PatternSetupView: View {
     let onComplete: () -> Void
 
+    @EnvironmentObject var appState: AppState
     @StateObject private var patternState = PatternState()
     @State private var step: SetupStep = .create
     @State private var firstPattern: [Int] = []
     @State private var validationResult: PatternValidationResult?
     @State private var showRecoveryOption = false
     @State private var generatedPhrase = ""
+    @State private var useCustomPhrase = false
+    @State private var customPhrase = ""
+    @State private var customPhraseValidation: RecoveryPhraseGenerator.PhraseValidation?
 
     enum SetupStep {
         case create
@@ -65,11 +72,6 @@ struct PatternSetupView: View {
             bottomButtons
         }
         .padding()
-        .onChange(of: step) { _, newStep in
-            if newStep == .recovery {
-                generatedPhrase = RecoveryPhraseGenerator.shared.generatePhrase()
-            }
-        }
     }
 
     // MARK: - Computed Properties
@@ -93,7 +95,7 @@ struct PatternSetupView: View {
 
     private var headerSubtitle: String {
         switch step {
-        case .create: return "Connect at least 6 dots with 2+ direction changes"
+        case .create: return "Connect at least 6 dots on the 5×5 grid with 2+ direction changes"
         case .confirm: return "Draw the same pattern to confirm"
         case .recovery: return "Save this phrase to recover your vault if you forget the pattern"
         case .complete: return "Your vault is ready to use"
@@ -119,13 +121,51 @@ struct PatternSetupView: View {
 
     private var recoverySection: some View {
         VStack(spacing: 20) {
-            Text(generatedPhrase)
-                .font(.title3)
-                .fontWeight(.medium)
-                .multilineTextAlignment(.center)
-                .padding()
-                .background(Color(.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+            // Toggle between generated and custom phrase
+            Picker("Phrase Type", selection: $useCustomPhrase) {
+                Text("Auto-Generated").tag(false)
+                Text("Custom Phrase").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            
+            if useCustomPhrase {
+                // Custom phrase input
+                VStack(spacing: 12) {
+                    Text("Enter Your Custom Recovery Phrase")
+                        .font(.headline)
+                    
+                    TextEditor(text: $customPhrase)
+                        .frame(height: 100)
+                        .padding(8)
+                        .background(Color(.systemGray6))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .autocorrectionDisabled()
+                        .onChange(of: customPhrase) { _, newValue in
+                            validateCustomPhrase(newValue)
+                        }
+                    
+                    // Validation feedback
+                    if let validation = customPhraseValidation {
+                        HStack(spacing: 8) {
+                            Image(systemName: validation.isAcceptable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundStyle(validation.isAcceptable ? .green : .orange)
+                            Text(validation.message)
+                                .font(.caption)
+                        }
+                        .padding(.horizontal)
+                    }
+                }
+            } else {
+                // Generated phrase display
+                Text(generatedPhrase)
+                    .font(.title3)
+                    .fontWeight(.medium)
+                    .multilineTextAlignment(.center)
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
 
             VStack(alignment: .leading, spacing: 12) {
                 Label("Write this down", systemImage: "pencil")
@@ -154,18 +194,18 @@ struct PatternSetupView: View {
     private func validationFeedback(_ result: PatternValidationResult) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             // Errors
-            ForEach(result.errors, id: \.rawValue) { error in
+            ForEach(Array(result.errors.enumerated()), id: \.offset) { _, error in
                 HStack {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.red)
-                    Text(error.rawValue)
+                    Text(error.message)
                         .font(.caption)
                 }
             }
 
             // Warnings (only if no errors)
             if result.errors.isEmpty {
-                ForEach(result.warnings.prefix(2), id: \.rawValue) { warning in
+                ForEach(Array(result.warnings.prefix(2).enumerated()), id: \.offset) { _, warning in
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
@@ -212,13 +252,23 @@ struct PatternSetupView: View {
                 }
 
             case .recovery:
-                Button(action: { step = .complete }) {
+                Button(action: {
+                    if useCustomPhrase {
+                        // Validate custom phrase before proceeding
+                        if let validation = customPhraseValidation, validation.isAcceptable {
+                            step = .complete
+                        }
+                    } else {
+                        step = .complete
+                    }
+                }) {
                     Text("I've Saved It")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(useCustomPhrase && !(customPhraseValidation?.isAcceptable ?? false))
 
                 Button("Skip for Now") {
                     step = .complete
@@ -240,26 +290,60 @@ struct PatternSetupView: View {
     // MARK: - Actions
 
     private func handlePatternComplete(_ pattern: [Int]) {
+        #if DEBUG
+        print("🎨 [PatternSetup] Pattern completed in \(step) step: \(pattern) (count: \(pattern.count))")
+        #endif
+        
         switch step {
         case .create:
             let result = PatternValidator.shared.validate(pattern, gridSize: patternState.gridSize)
             validationResult = result
 
+            #if DEBUG
+            print("🎨 [PatternSetup] Validation result - isValid: \(result.isValid)")
+            print("🎨 [PatternSetup] Errors: \(result.errors)")
+            print("🎨 [PatternSetup] Warnings: \(result.warnings)")
+            #endif
+
             if result.isValid {
                 firstPattern = pattern
                 step = .confirm
                 patternState.reset()
+                
+                #if DEBUG
+                print("✅ [PatternSetup] Pattern valid, moving to confirm step")
+                print("✅ [PatternSetup] First pattern saved: \(firstPattern)")
+                #endif
             } else {
+                #if DEBUG
+                print("❌ [PatternSetup] Pattern invalid, resetting")
+                #endif
                 patternState.reset()
             }
 
         case .confirm:
+            #if DEBUG
+            print("🎨 [PatternSetup] Confirming pattern")
+            print("🎨 [PatternSetup] First pattern: \(firstPattern)")
+            print("🎨 [PatternSetup] Confirm pattern: \(pattern)")
+            print("🎨 [PatternSetup] Patterns match: \(pattern == firstPattern)")
+            #endif
+            
             if pattern == firstPattern {
                 // Patterns match - save and continue
+                #if DEBUG
+                print("✅ [PatternSetup] Patterns match! Saving...")
+                #endif
+                // Generate the phrase now, before saving
+                if !useCustomPhrase {
+                    generatedPhrase = RecoveryPhraseGenerator.shared.generatePhrase()
+                }
                 savePattern(pattern)
-                step = .recovery
             } else {
                 // Patterns don't match - show error and reset
+                #if DEBUG
+                print("❌ [PatternSetup] Patterns don't match! Resetting...")
+                #endif
                 patternState.reset()
             }
 
@@ -269,10 +353,48 @@ struct PatternSetupView: View {
     }
 
     private func savePattern(_ pattern: [Int]) {
+        #if DEBUG
+        print("🔐 [PatternSetup] Saving pattern with gridSize: \(patternState.gridSize)")
+        #endif
+        
         Task {
             do {
                 // Derive key from pattern with the current grid size
                 let key = try await KeyDerivation.deriveKey(from: pattern, gridSize: patternState.gridSize)
+                
+                #if DEBUG
+                print("🔑 [PatternSetup] Key derived successfully. Key hash: \(key.hashValue)")
+                #endif
+                
+                // Check if a vault already exists with this pattern
+                if VaultStorage.shared.vaultExists(for: key) {
+                    #if DEBUG
+                    print("⚠️ [PatternSetup] Vault already exists for this pattern!")
+                    #endif
+                    
+                    await MainActor.run {
+                        // Reset to create step with error message
+                        step = .create
+                        patternState.reset()
+                        firstPattern = []
+                        
+                        // Show validation error for duplicate pattern
+                        validationResult = PatternValidationResult(
+                            isValid: false,
+                            errors: [.custom("This pattern is already used by another vault. Please choose a different pattern.")],
+                            warnings: [],
+                            metrics: PatternSerializer.PatternMetrics(
+                                nodeCount: pattern.count,
+                                directionChanges: 0,
+                                startsAtCorner: (Set(pattern).count != 0),
+                                endsAtCorner: false,
+                                crossesCenter: false,
+                                touchesAllQuadrants: false
+                            )
+                        )
+                    }
+                    return
+                }
 
                 // Initialize empty vault index for this key
                 let emptyIndex = VaultStorage.VaultIndex(
@@ -281,13 +403,66 @@ struct PatternSetupView: View {
                     totalSize: 500 * 1024 * 1024
                 )
                 try VaultStorage.shared.saveIndex(emptyIndex, with: key)
+                
+                #if DEBUG
+                print("💾 [PatternSetup] Empty vault index saved")
+                #endif
+                
+                // Determine which phrase to use
+                let finalPhrase = useCustomPhrase ? customPhrase.trimmingCharacters(in: .whitespacesAndNewlines) : generatedPhrase
+                
+                // Save recovery data using the new manager
+                try await RecoveryPhraseManager.shared.saveRecoveryPhrase(
+                    phrase: finalPhrase,
+                    pattern: pattern,
+                    gridSize: patternState.gridSize,
+                    patternKey: key
+                )
+                
+                #if DEBUG
+                print("✅ [PatternSetup] Recovery phrase saved via RecoveryPhraseManager")
+                #endif
+                
+                // Unlock the vault with the new key
+                await MainActor.run {
+                    appState.currentVaultKey = key
+                    appState.isUnlocked = true
+                    
+                    #if DEBUG
+                    print("🔓 [PatternSetup] Vault unlocked. currentVaultKey set: \(appState.currentVaultKey != nil)")
+                    print("🔓 [PatternSetup] isUnlocked: \(appState.isUnlocked)")
+                    #endif
+                    
+                    // Move to recovery step AFTER everything is saved
+                    step = .recovery
+                }
             } catch {
-                // Handle error silently - vault will be created on first use
+                #if DEBUG
+                print("❌ [PatternSetup] Error saving pattern: \(error)")
+                #endif
+                // TODO: Show error to user
             }
         }
     }
+    
+    private func validateCustomPhrase(_ phrase: String) {
+        guard !phrase.isEmpty else {
+            customPhraseValidation = nil
+            return
+        }
+        customPhraseValidation = RecoveryPhraseGenerator.shared.validatePhrase(phrase)
+    }
+    
+    private struct RecoveryData: Codable {
+        let pattern: [Int]
+        let gridSize: Int
+        let patternKey: Data
+    }
 }
+
+
 
 #Preview {
     PatternSetupView(onComplete: {})
+        .environmentObject(AppState())
 }

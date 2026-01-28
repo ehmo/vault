@@ -1,11 +1,14 @@
 import SwiftUI
+import CryptoKit
 
 struct RecoveryPhraseView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var appState: AppState
 
     @State private var phrase: String = ""
     @State private var isRevealed = false
     @State private var showingCopiedAlert = false
+    @State private var errorMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -22,17 +25,31 @@ struct RecoveryPhraseView: View {
             Divider()
 
             VStack(spacing: 24) {
-                // Warning
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                    Text("Keep this phrase secret and secure")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                // Error message if any
+                if let errorMessage = errorMessage {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                        Text(errorMessage)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                    .padding()
+                    .background(Color.red.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                } else {
+                    // Warning
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Text("Keep this phrase secret and secure")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                    .padding()
+                    .background(Color.orange.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                .padding()
-                .background(Color.orange.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 // Phrase display
                 VStack(spacing: 12) {
@@ -91,8 +108,54 @@ struct RecoveryPhraseView: View {
     }
 
     private func generateOrLoadPhrase() {
-        // In real implementation, would load from secure storage or generate new
-        phrase = RecoveryPhraseGenerator.shared.generatePhrase()
+        // Load the saved recovery phrase for the current vault
+        guard let currentKey = appState.currentVaultKey else {
+            errorMessage = "No vault key available"
+            return
+        }
+        
+        Task {
+            do {
+                // Load the recovery phrase from the manager
+                if let loadedPhrase = try await RecoveryPhraseManager.shared.loadRecoveryPhrase(for: currentKey) {
+                    await MainActor.run {
+                        phrase = loadedPhrase
+                    }
+                } else {
+                    #if DEBUG
+                    print("⚠️ [RecoveryPhraseView] No recovery phrase found - generating one now")
+                    #endif
+                    
+                    // Generate and save a recovery phrase if one doesn't exist
+                    // This handles the edge case where a vault was created without a recovery phrase
+                    let newPhrase = RecoveryPhraseGenerator.shared.generatePhrase()
+                    
+                    // We need the pattern to save it, but we don't have it
+                    // So we save with an empty pattern array (the phrase alone is enough for recovery)
+                    try await RecoveryPhraseManager.shared.saveRecoveryPhrase(
+                        phrase: newPhrase,
+                        pattern: [], // Empty pattern since we don't know what it is
+                        gridSize: 5, // Default grid size
+                        patternKey: currentKey
+                    )
+                    
+                    await MainActor.run {
+                        phrase = newPhrase
+                    }
+                    
+                    #if DEBUG
+                    print("✅ [RecoveryPhraseView] New recovery phrase generated and saved: \(newPhrase)")
+                    #endif
+                }
+            } catch {
+                #if DEBUG
+                print("❌ [RecoveryPhraseView] Error loading phrase: \(error)")
+                #endif
+                await MainActor.run {
+                    errorMessage = "Failed to load recovery phrase: \(error.localizedDescription)"
+                }
+            }
+        }
     }
 
     private func revealPhrase() {
@@ -115,5 +178,8 @@ struct RecoveryPhraseView: View {
 }
 
 #Preview {
+    @Previewable @State var appState = AppState()
+    
     RecoveryPhraseView()
+        .environmentObject(appState)
 }

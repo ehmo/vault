@@ -10,14 +10,17 @@ struct SecureCameraView: View {
     @State private var flashMode: AVCaptureDevice.FlashMode = .auto
     @State private var showingCaptureConfirmation = false
     @State private var capturedImageData: Data?
+    @State private var sessionConfigured = false
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            // Camera preview
-            CameraPreviewView(session: cameraManager.session)
-                .ignoresSafeArea()
+            // Camera preview - only show after configuration
+            if sessionConfigured {
+                CameraPreviewView(session: cameraManager.session)
+                    .ignoresSafeArea()
+            }
 
             // Controls overlay
             VStack {
@@ -67,8 +70,16 @@ struct SecureCameraView: View {
                 .padding(.bottom, 40)
             }
         }
-        .onAppear {
-            cameraManager.checkPermissions()
+        .task {
+            await cameraManager.requestAuthorizationIfNeeded()
+            guard cameraManager.isAuthorized else { return }
+            
+            await cameraManager.configureSessionAsync()
+            sessionConfigured = true
+            
+            // Small delay to let configuration settle before starting
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+            
             cameraManager.startSession()
         }
         .onDisappear {
@@ -109,16 +120,21 @@ struct SecureCameraView: View {
         case .off: flashMode = .auto
         @unknown default: flashMode = .auto
         }
-        cameraManager.flashMode = flashMode
     }
 
     // MARK: - Capture
 
     private func capturePhoto() {
-        cameraManager.capturePhoto { imageData in
-            // Image captured to memory only - never written to disk unencrypted
-            capturedImageData = imageData
-            showingCaptureConfirmation = true
+        cameraManager.capturePhoto(flashMode: flashMode) { result in
+            switch result {
+            case .success(let imageData):
+                // Image captured to memory only - never written to disk unencrypted
+                capturedImageData = imageData
+                showingCaptureConfirmation = true
+            case .failure(let error):
+                // Handle error - could show an alert or log
+                print("Photo capture failed: \(error)")
+            }
         }
     }
 }
@@ -156,3 +172,4 @@ struct CameraPreviewView: UIViewRepresentable {
 #Preview {
     SecureCameraView(onCapture: { _ in })
 }
+
