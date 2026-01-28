@@ -65,6 +65,10 @@ final class AppState: ObservableObject {
     }
 
     func unlockWithPattern(_ pattern: [Int], gridSize: Int = 4) async -> Bool {
+        #if DEBUG
+        print("🔓 [AppState] unlockWithPattern called with pattern length: \(pattern.count), gridSize: \(gridSize)")
+        #endif
+        
         isLoading = true
 
         // Always delay 1-2 seconds for consistent timing
@@ -73,17 +77,34 @@ final class AppState: ObservableObject {
 
         do {
             let key = try await KeyDerivation.deriveKey(from: pattern, gridSize: gridSize)
+            
+            #if DEBUG
+            print("🔑 [AppState] Key derived. Hash: \(key.hashValue)")
+            #endif
 
             // Check if this is a duress pattern
             if await DuressHandler.shared.isDuressKey(key) {
+                #if DEBUG
+                print("⚠️ [AppState] Duress key detected!")
+                #endif
                 await DuressHandler.shared.triggerDuress(preservingKey: key)
             }
 
             currentVaultKey = key
             isUnlocked = true
             isLoading = false
+            
+            #if DEBUG
+            print("✅ [AppState] Vault unlocked successfully")
+            print("✅ [AppState] currentVaultKey set: \(currentVaultKey != nil)")
+            print("✅ [AppState] isUnlocked: \(isUnlocked)")
+            #endif
+            
             return true
         } catch {
+            #if DEBUG
+            print("❌ [AppState] Error unlocking: \(error)")
+            #endif
             isLoading = false
             // Still show as "unlocked" with empty vault - no error indication
             currentVaultKey = nil
@@ -93,19 +114,36 @@ final class AppState: ObservableObject {
     }
 
     func lockVault() {
+        #if DEBUG
+        print("🔒 [AppState] lockVault() called")
+        print("🔒 [AppState] Before lock - currentVaultKey exists: \(currentVaultKey != nil)")
+        #endif
+        
         // Securely clear the key from memory
         if var key = currentVaultKey {
             key.resetBytes(in: 0..<key.count)
         }
         currentVaultKey = nil
         isUnlocked = false
+        
+        #if DEBUG
+        print("🔒 [AppState] After lock - currentVaultKey: nil, isUnlocked: false")
+        #endif
+    }
+    
+    func resetToOnboarding() {
+        lockVault()
+        showOnboarding = true
+        
+        #if DEBUG
+        print("🔄 [AppState] Reset to onboarding state")
+        #endif
     }
     
     #if DEBUG
     func resetOnboarding() {
         UserDefaults.standard.removeObject(forKey: "hasCompletedOnboarding")
-        showOnboarding = true
-        lockVault()
+        resetToOnboarding()
     }
     #endif
 }

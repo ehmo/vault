@@ -42,37 +42,108 @@ actor DuressHandler {
 
     /// Triggers duress mode: destroys all vault data EXCEPT the duress vault.
     /// This happens silently - no UI indication.
+    /// The duress vault remains fully functional to appear legitimate.
+    /// After triggering, the vault is no longer marked as the duress vault.
     func triggerDuress(preservingKey duressKey: Data) async {
-        // The duress vault's data is preserved because:
-        // 1. We only destroy the encrypted index (which is per-key)
-        // 2. The blob data for the duress vault remains intact
-        // 3. The duress key can still decrypt its own index
-
-        // However, we need to:
-        // 1. Destroy the device salt so other keys can't be derived
-        // 2. Regenerate a new salt
-        // 3. Re-encrypt the duress vault's index with a new derived key
-
-        // For simplicity in this implementation, we destroy all vault data
-        // and let the duress vault appear empty.
-        // A more sophisticated implementation would preserve the duress vault's data.
-
-        await destroyAllNonDuressData()
+        #if DEBUG
+        print("🚨 [DuressHandler] Triggering duress mode - preserving duress vault, destroying all others")
+        #endif
+        
+        // Strategy: The duress vault's encrypted index and blob data are stored per-key.
+        // We need to:
+        // 1. Backup the duress vault's encrypted index file (it's already encrypted with the vault key)
+        // 2. Destroy all vault data and recovery phrases
+        // 3. Regenerate device salt (invalidates all keys)
+        // 4. Restore the duress vault's encrypted index
+        // 5. The duress pattern will still derive the same key (salt is per-device, not per-pattern)
+        
+        // Actually, regenerating the salt will break the key derivation!
+        // Better strategy: Just destroy all OTHER vault indexes, but leave the duress one intact
+        
+        // 1. Load and backup the duress vault's index data before destruction
+        guard let duressIndex = try? storage.loadIndex(with: duressKey) else {
+            #if DEBUG
+            print("❌ [DuressHandler] Could not load duress vault index - cannot preserve data")
+            #endif
+            await destroyAllNonDuressData(duressKey: nil)
+            return
+        }
+        
+        #if DEBUG
+        print("💾 [DuressHandler] Duress vault index backed up: \(duressIndex.files.count) files")
+        #endif
+        
+        // 2. Destroy all recovery phrase data EXCEPT for the duress vault
+        // Actually, destroy ALL recovery data - we'll regenerate for duress vault only
+        do {
+            try RecoveryPhraseManager.shared.destroyAllRecoveryData()
+            #if DEBUG
+            print("🗑️ [DuressHandler] All recovery data destroyed")
+            #endif
+        } catch {
+            #if DEBUG
+            print("❌ [DuressHandler] Error destroying recovery data: \(error)")
+            #endif
+        }
+        
+        // 3. The blob file contains data for ALL vaults
+        // We can't selectively destroy other vaults' data without breaking the duress vault
+        // Solution: Keep the blob intact, but all other indexes will be destroyed
+        // Only the duress vault's index will exist, so only it can be accessed
+        
+        // Don't regenerate salt - that would invalidate the duress key too!
+        // Instead, just delete all index files except the duress vault's index
+        storage.destroyAllIndexesExcept(duressKey)
+        
+        #if DEBUG
+        print("🗑️ [DuressHandler] All vault indexes destroyed except duress vault")
+        #endif
+        
+        // 5. Regenerate recovery phrase for duress vault only
+        let newPhrase = RecoveryPhraseGenerator.shared.generatePhrase()
+        do {
+            try await RecoveryPhraseManager.shared.saveRecoveryPhrase(
+                phrase: newPhrase,
+                pattern: [], // We don't know the pattern, but the phrase is what matters
+                gridSize: 5,
+                patternKey: duressKey
+            )
+            
+            // 6. Clear the duress vault designation
+            // This allows the user to continue using this vault normally after duress is triggered
+            clearDuressVault()
+            
+            #if DEBUG
+            print("✅ [DuressHandler] Duress mode complete - duress vault preserved with \(duressIndex.files.count) files")
+            print("📝 [DuressHandler] New recovery phrase for duress vault: \(newPhrase)")
+            print("🚨 [DuressHandler] All other vaults have been destroyed")
+            print("🔓 [DuressHandler] Duress designation cleared - vault can now be used normally")
+            #endif
+        } catch {
+            #if DEBUG
+            print("❌ [DuressHandler] Error creating new recovery phrase: \(error)")
+            #endif
+        }
     }
 
-    private func destroyAllNonDuressData() async {
-        // This implementation destroys everything
-        // The duress vault will appear as an empty vault after this
-        // This is intentional - it's the safest approach
-
-        // Overwrite the main blob with random data
-        storage.destroyAllVaultData()
+    private func destroyAllNonDuressData(duressKey: Data?) async {
+        #if DEBUG
+        print("🚨 [DuressHandler] Destroying all vault data")
+        #endif
+        
+        // Destroy all recovery data
+        try? RecoveryPhraseManager.shared.destroyAllRecoveryData()
+        
+        // If we have a duress key, preserve its index
+        if let key = duressKey {
+            storage.destroyAllIndexesExcept(key)
+        } else {
+            // Otherwise destroy everything
+            storage.destroyAllVaultData()
+        }
 
         // Clear the wipe counter
         secureEnclave.resetWipeCounter()
-
-        // Generate a new device salt (makes old keys invalid)
-        _ = try? await secureEnclave.getDeviceSalt()
     }
 
     // MARK: - Nuclear Option
