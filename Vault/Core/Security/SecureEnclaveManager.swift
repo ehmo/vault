@@ -18,6 +18,7 @@ final class SecureEnclaveManager {
     private let saltKeyTag = "is.thevault.app.device.salt"
     private let wipeCounterTag = "is.thevault.app.wipe.counter"
     private let duressKeyTag = "is.thevault.app.duress.key"
+    private let blobCursorXORKeyTag = "is.thevault.app.blob.cursor.key"
 
     private init() {}
 
@@ -185,12 +186,51 @@ final class SecureEnclaveManager {
         SecItemDelete(query as CFDictionary)
     }
 
+    // MARK: - Blob Cursor XOR Key
+
+    /// Gets or creates a 16-byte random key used to XOR the global blob cursor.
+    /// Stored in Keychain with device-only access.
+    func getBlobCursorXORKey() -> Data {
+        // Try to retrieve existing key
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: blobCursorXORKeyTag,
+            kSecReturnData as String: true,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        ]
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        if status == errSecSuccess, let data = result as? Data, data.count == 16 {
+            return data
+        }
+
+        // Generate new 16-byte key
+        var keyBytes = [UInt8](repeating: 0, count: 16)
+        SecRandomCopyBytes(kSecRandomDefault, keyBytes.count, &keyBytes)
+        let keyData = Data(keyBytes)
+
+        // Store in keychain
+        let addQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: blobCursorXORKeyTag,
+            kSecValueData as String: keyData,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        ]
+
+        SecItemDelete(addQuery as CFDictionary)
+        SecItemAdd(addQuery as CFDictionary, nil)
+
+        return keyData
+    }
+
     // MARK: - Nuclear Wipe
 
     /// Destroys all vault-related keychain data.
     func performNuclearWipe() {
         // Delete all vault-related keychain items
-        let services = [saltKeyTag, wipeCounterTag, duressKeyTag]
+        let services = [saltKeyTag, wipeCounterTag, duressKeyTag, blobCursorXORKeyTag]
 
         for service in services {
             let query: [String: Any] = [

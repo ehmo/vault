@@ -18,12 +18,19 @@ final class VaultStorage {
 
     private let fileManager = FileManager.default
     private let blobFileName = "vault_data.bin"
-    
+
     // Note: We don't use a single index file anymore - each vault gets its own
     // based on a hash of the vault key
 
     // Pre-allocated blob size (500 MB)
     private let defaultBlobSize: Int = 500 * 1024 * 1024
+
+    // Global cursor block lives in the last 16 bytes of the blob
+    private var cursorBlockOffset: Int { defaultBlobSize - 16 }
+    private let cursorMagic: UInt64 = 0x5641553100000000
+
+    private let initQueue = DispatchQueue(label: "vault.blob.init")
+    private var blobReady = false
 
     private var blobURL: URL {
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -60,10 +67,27 @@ final class VaultStorage {
     // MARK: - Blob Initialization
 
     private func initializeBlobIfNeeded() {
-        guard !fileManager.fileExists(atPath: blobURL.path) else { return }
+        if fileManager.fileExists(atPath: blobURL.path) {
+            blobReady = true
+            return
+        }
 
-        // Create pre-allocated blob filled with random data
-        createRandomBlob()
+        // Dispatch blob creation to background queue so init() doesn't block
+        initQueue.async { [self] in
+            createRandomBlob()
+            blobReady = true
+            #if DEBUG
+            print("✅ [VaultStorage] Background blob creation complete")
+            #endif
+        }
+    }
+
+    /// Blocks until the blob file is ready. Call before any blob read/write operation.
+    private func ensureBlobReady() {
+        guard !blobReady else { return }
+        initQueue.sync {
+            // By the time we acquire the lock, blob creation has finished
+        }
     }
 
     private func createRandomBlob() {
@@ -73,7 +97,6 @@ final class VaultStorage {
         ])
 
         guard let handle = try? FileHandle(forWritingTo: blobURL) else { return }
-        defer { try? handle.close() }
 
         // Write random data in chunks
         let chunkSize = 1024 * 1024 // 1 MB chunks
@@ -83,6 +106,88 @@ final class VaultStorage {
             if let randomData = CryptoEngine.shared.generateRandomBytes(count: chunkSize) {
                 handle.write(randomData)
             }
+        }
+
+        try? handle.close()
+
+        // Initialize the global cursor to 0
+        writeGlobalCursor(0)
+    }
+
+    // MARK: - Global Blob Cursor
+
+    /// Reads the global write cursor from the last 16 bytes of the blob.
+    /// Returns 0 if the cursor is uninitialized (magic validation fails).
+    private func readGlobalCursor() -> Int {
+        guard let handle = try? FileHandle(forReadingFrom: blobURL) else { return 0 }
+        defer { try? handle.close() }
+
+        do {
+            try handle.seek(toOffset: UInt64(cursorBlockOffset))
+            guard let block = try handle.read(upToCount: 16), block.count == 16 else { return 0 }
+
+            let xorKey = SecureEnclaveManager.shared.getBlobCursorXORKey()
+
+            // XOR the block with the key
+            var decoded = Data(count: 16)
+            for i in 0..<16 {
+                decoded[i] = block[i] ^ xorKey[i]
+            }
+
+            // Extract offset (first 8 bytes) and magic (last 8 bytes)
+            let storedOffset = decoded.withUnsafeBytes { ptr -> UInt64 in
+                ptr.load(fromByteOffset: 0, as: UInt64.self)
+            }
+            let storedMagic = decoded.withUnsafeBytes { ptr -> UInt64 in
+                ptr.load(fromByteOffset: 8, as: UInt64.self)
+            }
+
+            guard storedMagic == cursorMagic else {
+                #if DEBUG
+                print("⚠️ [VaultStorage] Global cursor magic mismatch — treating as uninitialized")
+                #endif
+                return 0
+            }
+
+            #if DEBUG
+            print("📍 [VaultStorage] readGlobalCursor: \(storedOffset)")
+            #endif
+            return Int(storedOffset)
+        } catch {
+            return 0
+        }
+    }
+
+    /// Writes the global write cursor to the last 16 bytes of the blob.
+    private func writeGlobalCursor(_ offset: Int) {
+        guard let handle = try? FileHandle(forWritingTo: blobURL) else { return }
+        defer { try? handle.close() }
+
+        let xorKey = SecureEnclaveManager.shared.getBlobCursorXORKey()
+
+        // Build plaintext: [offset (8 bytes)][magic (8 bytes)]
+        var plain = Data(count: 16)
+        plain.withUnsafeMutableBytes { ptr in
+            ptr.storeBytes(of: UInt64(offset), toByteOffset: 0, as: UInt64.self)
+            ptr.storeBytes(of: cursorMagic, toByteOffset: 8, as: UInt64.self)
+        }
+
+        // XOR with key
+        var encoded = Data(count: 16)
+        for i in 0..<16 {
+            encoded[i] = plain[i] ^ xorKey[i]
+        }
+
+        do {
+            try handle.seek(toOffset: UInt64(cursorBlockOffset))
+            handle.write(encoded)
+            #if DEBUG
+            print("📍 [VaultStorage] writeGlobalCursor: \(offset)")
+            #endif
+        } catch {
+            #if DEBUG
+            print("❌ [VaultStorage] Failed to write global cursor: \(error)")
+            #endif
         }
     }
 
@@ -199,9 +304,9 @@ final class VaultStorage {
             let masterKey = CryptoEngine.shared.generateRandomBytes(count: 32)!
             let encryptedMasterKey = try CryptoEngine.shared.encrypt(masterKey, with: key)
             return VaultIndex(
-                files: [], 
-                nextOffset: 0, 
-                totalSize: defaultBlobSize,
+                files: [],
+                nextOffset: 0,
+                totalSize: cursorBlockOffset,
                 encryptedMasterKey: encryptedMasterKey,
                 version: 2
             )
@@ -249,9 +354,9 @@ final class VaultStorage {
             let masterKey = CryptoEngine.shared.generateRandomBytes(count: 32)!
             let encryptedMasterKey = try CryptoEngine.shared.encrypt(masterKey, with: key)
             return VaultIndex(
-                files: [], 
-                nextOffset: 0, 
-                totalSize: defaultBlobSize,
+                files: [],
+                nextOffset: 0,
+                totalSize: cursorBlockOffset,
                 encryptedMasterKey: encryptedMasterKey,
                 version: 2
             )
@@ -303,6 +408,7 @@ final class VaultStorage {
     // MARK: - File Operations
 
     func storeFile(data: Data, filename: String, mimeType: String, with key: Data, thumbnailData: Data? = nil) throws -> UUID {
+        ensureBlobReady()
         #if DEBUG
         print("💾 [VaultStorage] storeFile called")
         print("💾 [VaultStorage] filename: \(filename), size: \(data.count) bytes")
@@ -335,15 +441,23 @@ final class VaultStorage {
         print("💾 [VaultStorage] File encrypted with master key. Size: \(fileSize) bytes")
         #endif
 
-        // Check if we have space
-        guard index.nextOffset + fileSize <= index.totalSize else {
+        // Resolve write offset from global cursor vs vault's own nextOffset
+        let globalCursor = readGlobalCursor()
+        let writeOffset = max(globalCursor, index.nextOffset)
+
+        #if DEBUG
+        print("💾 [VaultStorage] globalCursor: \(globalCursor), index.nextOffset: \(index.nextOffset), writeOffset: \(writeOffset)")
+        #endif
+
+        // Check if we have space (usable region ends at cursorBlockOffset)
+        guard writeOffset + fileSize <= cursorBlockOffset else {
             #if DEBUG
-            print("❌ [VaultStorage] Insufficient space! nextOffset: \(index.nextOffset), fileSize: \(fileSize), totalSize: \(index.totalSize)")
+            print("❌ [VaultStorage] Insufficient space! writeOffset: \(writeOffset), fileSize: \(fileSize), limit: \(cursorBlockOffset)")
             #endif
             throw VaultStorageError.insufficientSpace
         }
 
-        // Write to blob at next available offset
+        // Write to blob at resolved offset
         guard let handle = try? FileHandle(forWritingTo: blobURL) else {
             #if DEBUG
             print("❌ [VaultStorage] Cannot open blob file for writing")
@@ -352,11 +466,11 @@ final class VaultStorage {
         }
         defer { try? handle.close() }
 
-        try handle.seek(toOffset: UInt64(index.nextOffset))
+        try handle.seek(toOffset: UInt64(writeOffset))
         handle.write(fileData)
-        
+
         #if DEBUG
-        print("💾 [VaultStorage] Data written to blob at offset \(index.nextOffset)")
+        print("💾 [VaultStorage] Data written to blob at offset \(writeOffset)")
         #endif
 
         // Encrypt thumbnail with MASTER KEY if provided
@@ -368,10 +482,14 @@ final class VaultStorage {
             #endif
         }
 
+        // Update global cursor
+        let newCursor = writeOffset + fileSize
+        writeGlobalCursor(newCursor)
+
         // Update index
         let entry = VaultIndex.VaultFileEntry(
             fileId: encryptedFile.header.fileId,
-            offset: index.nextOffset,
+            offset: writeOffset,
             size: fileSize,
             encryptedHeaderPreview: fileData.prefix(64),
             isDeleted: false,
@@ -380,7 +498,7 @@ final class VaultStorage {
             filename: filename
         )
         index.files.append(entry)
-        index.nextOffset += fileSize
+        index.nextOffset = newCursor
 
         try saveIndex(index, with: key)
         
@@ -393,6 +511,7 @@ final class VaultStorage {
     }
 
     func retrieveFile(id: UUID, with key: Data) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
+        ensureBlobReady()
         let index = try loadIndex(with: key)
         
         // Get the master key for decrypting file data
@@ -418,6 +537,7 @@ final class VaultStorage {
     }
 
     func deleteFile(id: UUID, with key: Data) throws {
+        ensureBlobReady()
         var index = try loadIndex(with: key)
 
         guard let entryIndex = index.files.firstIndex(where: { $0.fileId == id && !$0.isDeleted }) else {
@@ -574,24 +694,31 @@ final class VaultStorage {
     }
 
     func destroyAllVaultData() {
+        ensureBlobReady()
         #if DEBUG
         print("💣 [VaultStorage] Destroying all vault data!")
         #endif
-        
+
         // Overwrite entire blob with random data
-        guard let handle = try? FileHandle(forWritingTo: blobURL) else { return }
-        defer { try? handle.close() }
+        do {
+            let handle = try FileHandle(forWritingTo: blobURL)
+            let chunkSize = 1024 * 1024
+            var offset = 0
 
-        let chunkSize = 1024 * 1024
-        var offset = 0
-
-        while offset < defaultBlobSize {
-            if let randomData = CryptoEngine.shared.generateRandomBytes(count: chunkSize) {
-                try? handle.seek(toOffset: UInt64(offset))
-                handle.write(randomData)
+            while offset < defaultBlobSize {
+                if let randomData = CryptoEngine.shared.generateRandomBytes(count: chunkSize) {
+                    try? handle.seek(toOffset: UInt64(offset))
+                    handle.write(randomData)
+                }
+                offset += chunkSize
             }
-            offset += chunkSize
+            try? handle.close()
+        } catch {
+            return
         }
+
+        // Re-initialize global cursor to 0
+        writeGlobalCursor(0)
 
         // Delete ALL index files (all vaults)
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
