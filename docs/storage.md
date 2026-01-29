@@ -46,6 +46,15 @@ struct VaultIndex: Codable {
     var files: [VaultFileEntry]
     var nextOffset: Int
     var totalSize: Int  // 500 MB
+
+    // Owner sharing fields
+    var activeShares: [ShareRecord]?   // nil = not shared
+
+    // Recipient sharing fields
+    var isSharedVault: Bool?           // true = restricted mode
+    var sharedVaultId: String?         // for update checks
+    var sharePolicy: SharePolicy?      // restrictions set by owner
+    var openCount: Int?                // track opens for maxOpens
 }
 
 struct VaultFileEntry: Codable {
@@ -54,6 +63,19 @@ struct VaultFileEntry: Codable {
     let size: Int
     let encryptedHeaderPreview: Data  // First 64 bytes
     let isDeleted: Bool
+}
+
+struct ShareRecord: Codable, Identifiable {
+    let id: String                     // share vault ID
+    let createdAt: Date
+    let policy: SharePolicy
+    var lastSyncedAt: Date?
+}
+
+struct SharePolicy: Codable, Equatable {
+    var expiresAt: Date?               // nil = never
+    var maxOpens: Int?                 // nil = unlimited
+    var allowScreenshots: Bool         // default false
 }
 ```
 

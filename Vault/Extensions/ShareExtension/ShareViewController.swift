@@ -66,7 +66,7 @@ class ShareViewController: UIViewController {
     // MARK: - Actions
 
     @objc private func cancelTapped() {
-        extensionContext?.cancelRequest(withError: NSError(domain: "com.vault.app", code: 0))
+        extensionContext?.cancelRequest(withError: NSError(domain: "is.thevault.app", code: 0))
     }
 
     private func completeWithSuccess() {
@@ -116,7 +116,7 @@ class ShareViewController: UIViewController {
 
     private func saveToVault(data: Data, filename: String, mimeType: String, key: Data) {
         // Save to App Group shared container for main app to process
-        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.vault.app") else {
+        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.is.thevault.app") else {
             return
         }
 
@@ -361,8 +361,8 @@ enum KeyDerivationShared {
         // Access shared keychain
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.vault.app.device.salt",
-            kSecAttrAccessGroup as String: "group.com.vault.app",
+            kSecAttrService as String: "is.thevault.app.device.salt",
+            kSecAttrAccessGroup as String: "group.is.thevault.app",
             kSecReturnData as String: true
         ]
 

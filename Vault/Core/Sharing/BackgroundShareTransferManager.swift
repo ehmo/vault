@@ -1,0 +1,212 @@
+import Foundation
+import Combine
+
+/// Manages background upload/import of shared vaults so the UI is not blocked.
+/// Keys are captured by value in Task closures, so transfers survive lockVault().
+@MainActor
+final class BackgroundShareTransferManager: ObservableObject {
+    static let shared = BackgroundShareTransferManager()
+
+    enum TransferStatus: Equatable {
+        case idle
+        case uploading(progress: Int, total: Int)
+        case uploadComplete
+        case uploadFailed(String)
+        case importing
+        case importComplete
+        case importFailed(String)
+    }
+
+    @Published var status: TransferStatus = .idle
+
+    private var activeTask: Task<Void, Never>?
+
+    private init() {}
+
+    // MARK: - Background Upload
+
+    /// Starts a background upload of vault data. All crypto material is captured by value.
+    func startBackgroundUpload(
+        vaultKey: Data,
+        phrase: String,
+        hasExpiration: Bool,
+        expiresAt: Date?,
+        hasMaxOpens: Bool,
+        maxOpens: Int?
+    ) {
+        activeTask?.cancel()
+        status = .uploading(progress: 0, total: 1)
+
+        // Capture everything by value
+        let capturedVaultKey = vaultKey
+        let capturedPhrase = phrase
+        let capturedHasExpiration = hasExpiration
+        let capturedExpiresAt = expiresAt
+        let capturedHasMaxOpens = hasMaxOpens
+        let capturedMaxOpens = maxOpens
+
+        activeTask = Task { [weak self] in
+            do {
+                let shareVaultId = CloudKitSharingManager.generateShareVaultId()
+                let shareKey = try CloudKitSharingManager.deriveShareKey(from: capturedPhrase)
+
+                let policy = VaultStorage.SharePolicy(
+                    expiresAt: capturedHasExpiration ? capturedExpiresAt : nil,
+                    maxOpens: capturedHasMaxOpens ? capturedMaxOpens : nil,
+                    allowScreenshots: false
+                )
+
+                // Build vault data
+                let index = try VaultStorage.shared.loadIndex(with: capturedVaultKey)
+                var sharedFiles: [SharedVaultData.SharedFile] = []
+
+                for entry in index.files where !entry.isDeleted {
+                    let (header, content) = try VaultStorage.shared.retrieveFile(id: entry.fileId, with: capturedVaultKey)
+                    let reencrypted = try CryptoEngine.shared.encrypt(content, with: shareKey)
+                    sharedFiles.append(SharedVaultData.SharedFile(
+                        id: header.fileId,
+                        filename: header.originalFilename,
+                        mimeType: header.mimeType,
+                        size: Int(header.originalSize),
+                        encryptedContent: reencrypted,
+                        createdAt: header.createdAt
+                    ))
+                }
+
+                let sharedData = SharedVaultData(
+                    files: sharedFiles,
+                    metadata: SharedVaultData.SharedVaultMetadata(
+                        ownerFingerprint: KeyDerivation.keyFingerprint(from: capturedVaultKey),
+                        sharedAt: Date()
+                    ),
+                    createdAt: Date(),
+                    updatedAt: Date()
+                )
+
+                let encodedData = try JSONEncoder().encode(sharedData)
+
+                guard !Task.isCancelled else { return }
+
+                try await CloudKitSharingManager.shared.uploadSharedVault(
+                    shareVaultId: shareVaultId,
+                    phrase: capturedPhrase,
+                    vaultData: encodedData,
+                    shareKey: shareKey,
+                    policy: policy,
+                    ownerFingerprint: KeyDerivation.keyFingerprint(from: capturedVaultKey),
+                    onProgress: { current, total in
+                        Task { @MainActor [weak self] in
+                            guard let self else { return }
+                            self.status = .uploading(progress: current, total: total)
+                        }
+                    }
+                )
+
+                guard !Task.isCancelled else { return }
+
+                // Save share record
+                let shareRecord = VaultStorage.ShareRecord(
+                    id: shareVaultId,
+                    createdAt: Date(),
+                    policy: policy,
+                    lastSyncedAt: Date(),
+                    shareKeyData: shareKey
+                )
+
+                var updatedIndex = try VaultStorage.shared.loadIndex(with: capturedVaultKey)
+                if updatedIndex.activeShares == nil {
+                    updatedIndex.activeShares = []
+                }
+                updatedIndex.activeShares?.append(shareRecord)
+                try VaultStorage.shared.saveIndex(updatedIndex, with: capturedVaultKey)
+
+                await MainActor.run {
+                    self?.status = .uploadComplete
+                }
+
+                LocalNotificationManager.shared.sendUploadComplete()
+            } catch {
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    self?.status = .uploadFailed(error.localizedDescription)
+                }
+                LocalNotificationManager.shared.sendUploadFailed()
+            }
+        }
+    }
+
+    // MARK: - Background Import
+
+    /// Starts a background import of downloaded vault data. All keys captured by value.
+    func startBackgroundImport(
+        downloadedData: Data,
+        downloadedPolicy: VaultStorage.SharePolicy,
+        shareVaultId: String,
+        phrase: String,
+        patternKey: Data,
+        pattern: [Int]
+    ) {
+        activeTask?.cancel()
+        status = .importing
+
+        // Capture everything by value
+        let capturedData = downloadedData
+        let capturedPolicy = downloadedPolicy
+        let capturedShareVaultId = shareVaultId
+        let capturedPhrase = phrase
+        let capturedPatternKey = patternKey
+
+        activeTask = Task { [weak self] in
+            do {
+                let sharedVault = try JSONDecoder().decode(SharedVaultData.self, from: capturedData)
+                let shareKey = try CloudKitSharingManager.deriveShareKey(from: capturedPhrase)
+
+                for file in sharedVault.files {
+                    guard !Task.isCancelled else { return }
+                    let decrypted = try CryptoEngine.shared.decrypt(file.encryptedContent, with: shareKey)
+                    _ = try VaultStorage.shared.storeFile(
+                        data: decrypted,
+                        filename: file.filename,
+                        mimeType: file.mimeType,
+                        with: capturedPatternKey
+                    )
+                }
+
+                guard !Task.isCancelled else { return }
+
+                // Mark vault index as shared vault
+                var index = try VaultStorage.shared.loadIndex(with: capturedPatternKey)
+                index.isSharedVault = true
+                index.sharedVaultId = capturedShareVaultId
+                index.sharePolicy = capturedPolicy
+                index.openCount = 0
+                index.shareKeyData = shareKey
+                try VaultStorage.shared.saveIndex(index, with: capturedPatternKey)
+
+                await MainActor.run {
+                    self?.status = .importComplete
+                }
+
+                LocalNotificationManager.shared.sendImportComplete()
+            } catch {
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    self?.status = .importFailed(error.localizedDescription)
+                }
+                LocalNotificationManager.shared.sendImportFailed()
+            }
+        }
+    }
+
+    // MARK: - Control
+
+    func cancel() {
+        activeTask?.cancel()
+        activeTask = nil
+        status = .idle
+    }
+
+    func reset() {
+        status = .idle
+    }
+}

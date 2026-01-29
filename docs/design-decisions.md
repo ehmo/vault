@@ -127,20 +127,19 @@ This document captures key product decisions, trade-offs, and the reasoning behi
 
 ## Sharing Decisions
 
-### Phrase = Identity + Key
+### One-Time Phrases with Per-Recipient Control
 
-**Decision:** Single phrase serves as both vault ID and encryption key.
+**Decision:** Each share generates a unique, one-time phrase. The phrase serves as both vault ID (SHA256) and encryption key (PBKDF2). After the recipient claims it, the phrase is burned.
 
 **Reasoning:**
-- Simplest possible user experience
-- No account creation
-- No key exchange protocol
-- Easy to share via any channel
+- Owner controls exactly who has access
+- Forwarding the phrase after claim is useless
+- Individual revocation possible via CloudKit `revoked` flag
+- Enables per-recipient policies (expiration, view limits, screenshot prevention)
 
 **Trade-off:**
-- Cannot revoke access
-- No permission levels
-- Phrase is single point of failure
+- More complex than a simple shared phrase
+- Requires CloudKit for state tracking (claimed, revoked)
 
 ### CloudKit Public Database
 
@@ -157,16 +156,17 @@ This document captures key product decisions, trade-offs, and the reasoning behi
 - Subject to CloudKit quotas
 - Public database means anyone can fetch records (security is encryption-based)
 
-### No Real-Time Sync
+### Background Sync with Debounce
 
-**Decision:** Shared vaults are one-time import, not live sync.
+**Decision:** Owner file changes auto-sync to all active share recipients after a 30-second debounce.
 
 **Reasoning:**
-- Simpler implementation
-- Avoids conflict resolution complexity
-- Clear mental model for users
+- Recipient always gets latest files
+- Debounce prevents excessive uploads during batch changes
+- No conflict resolution needed (owner is sole writer)
+- Recipient can manually check for updates on vault open
 
-**Trade-off:** Changes don't propagate automatically. Future enhancement could add pull-to-refresh.
+**Trade-off:** 30-second delay before sync starts. Large vaults take time to re-upload all chunks.
 
 ### Memorable Phrase Generation
 
@@ -179,6 +179,30 @@ This document captures key product decisions, trade-offs, and the reasoning behi
 - Easy to communicate verbally
 
 **Trade-off:** Longer than cryptographic phrases. ~80 bits vs potential 128+ bits.
+
+### Chunked Uploads
+
+**Decision:** Split shared vault data into ~50 MB chunks for CloudKit upload.
+
+**Reasoning:**
+- CloudKit asset limit is 250 MB
+- Smaller chunks allow progress tracking
+- Failed chunks can be retried individually
+- Sequential upload with progress feedback
+
+**Trade-off:** More CloudKit records to manage. Sync must delete old chunks and upload new ones.
+
+### Client-Side Restrictions (DRM-lite)
+
+**Decision:** Enforce screenshot prevention, expiration, and view limits client-side.
+
+**Reasoning:**
+- No server infrastructure to enforce server-side
+- Prevents casual copying and sharing
+- UITextField.isSecureTextEntry trick blocks iOS screen capture natively
+- Good enough for trusted recipients
+
+**Trade-off:** A determined attacker with a jailbroken device can bypass. Encryption is the real security layer; restrictions are convenience controls.
 
 ## UX Decisions
 

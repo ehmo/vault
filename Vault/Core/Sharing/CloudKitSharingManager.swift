@@ -1,8 +1,9 @@
 import Foundation
 import CloudKit
 import CryptoKit
+import CommonCrypto
 
-enum CloudKitSharingError: Error {
+enum CloudKitSharingError: Error, LocalizedError {
     case notAvailable
     case uploadFailed(Error)
     case downloadFailed(Error)
@@ -10,46 +11,64 @@ enum CloudKitSharingError: Error {
     case encryptionFailed
     case decryptionFailed
     case invalidData
+    case alreadyClaimed
+    case revoked
+
+    var errorDescription: String? {
+        switch self {
+        case .notAvailable: return "CloudKit is not available"
+        case .uploadFailed(let e): return "Upload failed: \(e.localizedDescription)"
+        case .downloadFailed(let e): return "Download failed: \(e.localizedDescription)"
+        case .vaultNotFound: return "No vault found with this phrase"
+        case .encryptionFailed: return "Encryption failed"
+        case .decryptionFailed: return "Could not decrypt the vault. The phrase may be incorrect."
+        case .invalidData: return "Invalid vault data"
+        case .alreadyClaimed: return "This share phrase has already been used"
+        case .revoked: return "Access to this vault has been revoked"
+        }
+    }
 }
 
 /// Manages shared vault storage in CloudKit's public database.
-/// Vaults are stored encrypted and identified by a hash of the share phrase.
+/// Supports chunked uploads, one-time claim phrases, and multi-recipient sync.
 final class CloudKitSharingManager {
     static let shared = CloudKitSharingManager()
 
     private let container: CKContainer
     private let publicDatabase: CKDatabase
-    private let recordType = "SharedVault"
+    private let manifestRecordType = "SharedVault"
+    private let chunkRecordType = "SharedVaultChunk"
+
+    /// Target chunk size for uploads (~50 MB)
+    private let chunkSize = 50 * 1024 * 1024
 
     private init() {
-        container = CKContainer(identifier: "iCloud.com.vault.shared")
+        container = CKContainer(identifier: "iCloud.is.thevault.shared")
         publicDatabase = container.publicCloudDatabase
     }
 
-    // MARK: - Vault ID and Key Derivation from Phrase
+    // MARK: - Key & ID Derivation
 
-    /// Derives a vault ID from the share phrase (for looking up in CloudKit).
-    /// Uses SHA256 hash of normalized phrase.
+    /// Generates a unique share vault ID (UUID-based, not phrase-derived).
+    static func generateShareVaultId() -> String {
+        UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+    }
+
+    /// Derives a vault ID from a share phrase (for lookup by recipient).
     static func vaultId(from phrase: String) -> String {
         let normalized = normalizePhrase(phrase)
         let data = Data(normalized.utf8)
         let hash = SHA256.hash(data: data)
-        // Use first 16 bytes (32 hex chars) as vault ID
         return hash.prefix(16).map { String(format: "%02x", $0) }.joined()
     }
 
     /// Derives an encryption key from the share phrase.
-    /// Uses PBKDF2 with a fixed salt (since this key must be derivable on any device).
     static func deriveShareKey(from phrase: String) throws -> Data {
         let normalized = normalizePhrase(phrase)
         let password = Data(normalized.utf8)
-
-        // Fixed salt for share keys (must be same across all devices)
-        // This is intentionally not device-bound unlike the main vault key
         let salt = "vault-share-v1-salt".data(using: .utf8)!
 
         var derivedKey = Data(count: 32)
-
         let result = derivedKey.withUnsafeMutableBytes { derivedKeyPtr in
             password.withUnsafeBytes { passwordPtr in
                 salt.withUnsafeBytes { saltPtr in
@@ -60,7 +79,7 @@ final class CloudKitSharingManager {
                         saltPtr.baseAddress?.assumingMemoryBound(to: UInt8.self),
                         salt.count,
                         CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA512),
-                        UInt32(800_000), // High iteration count
+                        UInt32(800_000),
                         derivedKeyPtr.baseAddress?.assumingMemoryBound(to: UInt8.self),
                         32
                     )
@@ -71,133 +90,388 @@ final class CloudKitSharingManager {
         guard result == kCCSuccess else {
             throw CloudKitSharingError.encryptionFailed
         }
-
         return derivedKey
     }
 
-    /// Normalizes a phrase for consistent hashing/derivation.
     private static func normalizePhrase(_ phrase: String) -> String {
-        phrase
-            .lowercased()
+        phrase.lowercased()
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .components(separatedBy: .whitespaces)
             .filter { !$0.isEmpty }
             .joined(separator: " ")
     }
 
-    // MARK: - Upload Shared Vault
+    // MARK: - Upload (Chunked)
 
-    /// Uploads an encrypted vault to CloudKit's public database.
+    /// Uploads vault data to CloudKit in chunks for a specific share vault ID.
     /// - Parameters:
-    ///   - vaultData: The vault data to share (index + files)
-    ///   - phrase: The share phrase (used to derive vault ID and encryption key)
-    func uploadSharedVault(_ vaultData: SharedVaultData, phrase: String) async throws {
-        let vaultId = Self.vaultId(from: phrase)
-        let shareKey = try Self.deriveShareKey(from: phrase)
+    ///   - shareVaultId: The unique ID for this share recipient
+    ///   - phrase: The one-time share phrase (used for lookup by recipient)
+    ///   - vaultData: Serialized vault data to upload
+    ///   - shareKey: Encryption key derived from phrase
+    ///   - policy: Share policy (expiration, view limits, etc.)
+    ///   - ownerFingerprint: Key fingerprint of the vault owner
+    ///   - onProgress: Progress callback (current chunk, total chunks)
+    func uploadSharedVault(
+        shareVaultId: String,
+        phrase: String,
+        vaultData: Data,
+        shareKey: Data,
+        policy: VaultStorage.SharePolicy,
+        ownerFingerprint: String,
+        onProgress: ((Int, Int) -> Void)? = nil
+    ) async throws {
+        let phraseVaultId = Self.vaultId(from: phrase)
 
-        // Serialize and encrypt the vault data
-        let encoded = try JSONEncoder().encode(vaultData)
-        let encrypted = try CryptoEngine.shared.encrypt(encoded, with: shareKey)
+        // Encrypt the vault data
+        let encryptedData = try CryptoEngine.shared.encrypt(vaultData, with: shareKey)
 
-        // Create or update the CloudKit record
-        let recordID = CKRecord.ID(recordName: vaultId)
-
-        // Try to fetch existing record first
-        let existingRecord: CKRecord?
-        do {
-            existingRecord = try await publicDatabase.record(for: recordID)
-        } catch {
-            existingRecord = nil
+        // Split into chunks
+        let chunks = stride(from: 0, to: encryptedData.count, by: chunkSize).map { start in
+            let end = min(start + chunkSize, encryptedData.count)
+            return encryptedData[start..<end]
         }
 
-        let record = existingRecord ?? CKRecord(recordType: recordType, recordID: recordID)
+        let totalChunks = chunks.count
 
-        // Store encrypted data as asset (better for large data)
-        let tempURL = FileManager.default.temporaryDirectory
+        // Upload chunks
+        for (index, chunkData) in chunks.enumerated() {
+            let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(index)")
+            let chunkRecord = CKRecord(recordType: chunkRecordType, recordID: chunkRecordId)
+
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+            try Data(chunkData).write(to: tempURL)
+
+            chunkRecord["chunkData"] = CKAsset(fileURL: tempURL)
+            chunkRecord["chunkIndex"] = index
+            chunkRecord["vaultId"] = shareVaultId
+
+            do {
+                try await publicDatabase.save(chunkRecord)
+                try? FileManager.default.removeItem(at: tempURL)
+            } catch {
+                try? FileManager.default.removeItem(at: tempURL)
+                throw CloudKitSharingError.uploadFailed(error)
+            }
+
+            onProgress?(index + 1, totalChunks)
+        }
+
+        // Encrypt policy
+        let policyData = try JSONEncoder().encode(policy)
+        let encryptedPolicy = try CryptoEngine.shared.encrypt(policyData, with: shareKey)
+
+        // Create manifest record (keyed by phrase-derived ID for recipient lookup)
+        let manifestRecordId = CKRecord.ID(recordName: phraseVaultId)
+        let manifest = CKRecord(recordType: manifestRecordType, recordID: manifestRecordId)
+
+        manifest["shareVaultId"] = shareVaultId
+        manifest["updatedAt"] = Date()
+        manifest["version"] = 1
+        manifest["ownerFingerprint"] = ownerFingerprint
+        manifest["chunkCount"] = totalChunks
+        manifest["claimed"] = false
+        manifest["revoked"] = false
+
+        // Store encrypted policy as asset
+        let policyURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
-        try encrypted.write(to: tempURL)
-
-        record["encryptedData"] = CKAsset(fileURL: tempURL)
-        record["updatedAt"] = Date()
-        record["version"] = 1
+        try encryptedPolicy.write(to: policyURL)
+        manifest["policy"] = CKAsset(fileURL: policyURL)
 
         do {
-            try await publicDatabase.save(record)
-            // Clean up temp file
-            try? FileManager.default.removeItem(at: tempURL)
+            try await publicDatabase.save(manifest)
+            try? FileManager.default.removeItem(at: policyURL)
         } catch {
-            try? FileManager.default.removeItem(at: tempURL)
+            try? FileManager.default.removeItem(at: policyURL)
             throw CloudKitSharingError.uploadFailed(error)
         }
     }
 
-    // MARK: - Download Shared Vault
+    /// Re-uploads vault data to an existing share vault ID (for sync updates).
+    /// Deletes old chunks and uploads new ones, then updates the manifest.
+    func syncSharedVault(
+        shareVaultId: String,
+        vaultData: Data,
+        shareKey: Data,
+        currentVersion: Int,
+        onProgress: ((Int, Int) -> Void)? = nil
+    ) async throws {
+        // Delete old chunks
+        try await deleteChunks(for: shareVaultId)
 
-    /// Downloads and decrypts a shared vault from CloudKit.
-    /// - Parameter phrase: The share phrase
-    /// - Returns: The decrypted vault data
-    func downloadSharedVault(phrase: String) async throws -> SharedVaultData {
-        let vaultId = Self.vaultId(from: phrase)
+        // Encrypt and re-chunk
+        let encryptedData = try CryptoEngine.shared.encrypt(vaultData, with: shareKey)
+        let chunks = stride(from: 0, to: encryptedData.count, by: chunkSize).map { start in
+            let end = min(start + chunkSize, encryptedData.count)
+            return encryptedData[start..<end]
+        }
+
+        let totalChunks = chunks.count
+
+        for (index, chunkData) in chunks.enumerated() {
+            let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(index)")
+            let chunkRecord = CKRecord(recordType: chunkRecordType, recordID: chunkRecordId)
+
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+            try Data(chunkData).write(to: tempURL)
+
+            chunkRecord["chunkData"] = CKAsset(fileURL: tempURL)
+            chunkRecord["chunkIndex"] = index
+            chunkRecord["vaultId"] = shareVaultId
+
+            do {
+                try await publicDatabase.save(chunkRecord)
+                try? FileManager.default.removeItem(at: tempURL)
+            } catch {
+                try? FileManager.default.removeItem(at: tempURL)
+                throw CloudKitSharingError.uploadFailed(error)
+            }
+
+            onProgress?(index + 1, totalChunks)
+        }
+
+        // Update manifest version & timestamp
+        // Find the manifest that references this shareVaultId
+        let predicate = NSPredicate(format: "shareVaultId == %@", shareVaultId)
+        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
+        let results = try await publicDatabase.records(matching: query)
+
+        for (_, result) in results.matchResults {
+            if let record = try? result.get() {
+                record["version"] = currentVersion + 1
+                record["updatedAt"] = Date()
+                record["chunkCount"] = totalChunks
+                try await publicDatabase.save(record)
+            }
+        }
+    }
+
+    // MARK: - Download (Chunked)
+
+    /// Downloads and decrypts a shared vault using a share phrase.
+    /// Checks claimed status and sets it after successful download.
+    func downloadSharedVault(
+        phrase: String,
+        onProgress: ((Int, Int) -> Void)? = nil
+    ) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy) {
+        let phraseVaultId = Self.vaultId(from: phrase)
         let shareKey = try Self.deriveShareKey(from: phrase)
 
-        let recordID = CKRecord.ID(recordName: vaultId)
-
-        let record: CKRecord
+        // Fetch manifest
+        let manifestRecordId = CKRecord.ID(recordName: phraseVaultId)
+        let manifest: CKRecord
         do {
-            record = try await publicDatabase.record(for: recordID)
+            manifest = try await publicDatabase.record(for: manifestRecordId)
         } catch let error as CKError where error.code == .unknownItem {
             throw CloudKitSharingError.vaultNotFound
         } catch {
             throw CloudKitSharingError.downloadFailed(error)
         }
 
-        guard let asset = record["encryptedData"] as? CKAsset,
-              let fileURL = asset.fileURL else {
+        // Check if already claimed
+        if let claimed = manifest["claimed"] as? Bool, claimed {
+            throw CloudKitSharingError.alreadyClaimed
+        }
+
+        // Check if revoked
+        if let revoked = manifest["revoked"] as? Bool, revoked {
+            throw CloudKitSharingError.revoked
+        }
+
+        guard let shareVaultId = manifest["shareVaultId"] as? String,
+              let chunkCount = manifest["chunkCount"] as? Int else {
             throw CloudKitSharingError.invalidData
         }
 
-        let encrypted = try Data(contentsOf: fileURL)
+        // Decrypt policy
+        var policy = VaultStorage.SharePolicy()
+        if let policyAsset = manifest["policy"] as? CKAsset,
+           let policyURL = policyAsset.fileURL {
+            let encryptedPolicy = try Data(contentsOf: policyURL)
+            let decryptedPolicy = try CryptoEngine.shared.decrypt(encryptedPolicy, with: shareKey)
+            policy = try JSONDecoder().decode(VaultStorage.SharePolicy.self, from: decryptedPolicy)
+        }
+
+        // Download chunks in order
+        var encryptedData = Data()
+        for i in 0..<chunkCount {
+            let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(i)")
+            let chunkRecord: CKRecord
+            do {
+                chunkRecord = try await publicDatabase.record(for: chunkRecordId)
+            } catch {
+                throw CloudKitSharingError.downloadFailed(error)
+            }
+
+            guard let chunkAsset = chunkRecord["chunkData"] as? CKAsset,
+                  let chunkURL = chunkAsset.fileURL else {
+                throw CloudKitSharingError.invalidData
+            }
+
+            let chunkBytes = try Data(contentsOf: chunkURL)
+            encryptedData.append(chunkBytes)
+
+            onProgress?(i + 1, chunkCount)
+        }
+
+        // Decrypt
+        let decryptedData: Data
+        do {
+            decryptedData = try CryptoEngine.shared.decrypt(encryptedData, with: shareKey)
+        } catch {
+            throw CloudKitSharingError.decryptionFailed
+        }
+
+        // Mark as claimed
+        manifest["claimed"] = true
+        try await publicDatabase.save(manifest)
+
+        return (decryptedData, shareVaultId, policy)
+    }
+
+    // MARK: - Check for Updates (Recipient)
+
+    /// Checks if a shared vault has been updated since last sync.
+    /// Returns the new version number if updated, nil if up to date.
+    func checkForUpdates(shareVaultId: String, currentVersion: Int) async throws -> Int? {
+        let predicate = NSPredicate(format: "shareVaultId == %@", shareVaultId)
+        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
+        let results = try await publicDatabase.records(matching: query)
+
+        for (_, result) in results.matchResults {
+            if let record = try? result.get() {
+                // Check revoked
+                if let revoked = record["revoked"] as? Bool, revoked {
+                    throw CloudKitSharingError.revoked
+                }
+
+                if let version = record["version"] as? Int, version > currentVersion {
+                    return version
+                }
+            }
+        }
+        return nil
+    }
+
+    /// Downloads updated vault data for a recipient (no claim check needed - already claimed).
+    func downloadUpdatedVault(
+        shareVaultId: String,
+        shareKey: Data,
+        onProgress: ((Int, Int) -> Void)? = nil
+    ) async throws -> Data {
+        // Find manifest
+        let predicate = NSPredicate(format: "shareVaultId == %@", shareVaultId)
+        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
+        let results = try await publicDatabase.records(matching: query)
+
+        var chunkCount = 0
+        for (_, result) in results.matchResults {
+            if let record = try? result.get() {
+                if let revoked = record["revoked"] as? Bool, revoked {
+                    throw CloudKitSharingError.revoked
+                }
+                chunkCount = (record["chunkCount"] as? Int) ?? 0
+            }
+        }
+
+        guard chunkCount > 0 else {
+            throw CloudKitSharingError.vaultNotFound
+        }
+
+        // Download chunks
+        var encryptedData = Data()
+        for i in 0..<chunkCount {
+            let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(i)")
+            let chunkRecord = try await publicDatabase.record(for: chunkRecordId)
+
+            guard let chunkAsset = chunkRecord["chunkData"] as? CKAsset,
+                  let chunkURL = chunkAsset.fileURL else {
+                throw CloudKitSharingError.invalidData
+            }
+
+            encryptedData.append(try Data(contentsOf: chunkURL))
+            onProgress?(i + 1, chunkCount)
+        }
 
         do {
-            let decrypted = try CryptoEngine.shared.decrypt(encrypted, with: shareKey)
-            return try JSONDecoder().decode(SharedVaultData.self, from: decrypted)
+            return try CryptoEngine.shared.decrypt(encryptedData, with: shareKey)
         } catch {
             throw CloudKitSharingError.decryptionFailed
         }
     }
 
-    // MARK: - Check Vault Exists
+    // MARK: - Revoke
 
-    /// Checks if a shared vault exists without downloading it.
-    func sharedVaultExists(phrase: String) async -> Bool {
-        let vaultId = Self.vaultId(from: phrase)
-        let recordID = CKRecord.ID(recordName: vaultId)
+    /// Revokes a specific share by setting revoked=true on the manifest.
+    func revokeShare(shareVaultId: String) async throws {
+        let predicate = NSPredicate(format: "shareVaultId == %@", shareVaultId)
+        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
+        let results = try await publicDatabase.records(matching: query)
 
-        do {
-            _ = try await publicDatabase.record(for: recordID)
-            return true
-        } catch {
-            return false
+        for (_, result) in results.matchResults {
+            if let record = try? result.get() {
+                record["revoked"] = true
+                try await publicDatabase.save(record)
+            }
         }
     }
 
-    // MARK: - Delete Shared Vault
+    /// Deletes all CloudKit records for a share vault ID (manifest + chunks).
+    func deleteSharedVault(shareVaultId: String) async throws {
+        // Delete chunks
+        try await deleteChunks(for: shareVaultId)
 
-    /// Deletes a shared vault from CloudKit.
+        // Delete manifest
+        let predicate = NSPredicate(format: "shareVaultId == %@", shareVaultId)
+        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
+        let results = try await publicDatabase.records(matching: query)
+
+        for (recordId, _) in results.matchResults {
+            _ = try? await publicDatabase.deleteRecord(withID: recordId)
+        }
+    }
+
+    /// Deletes a manifest by phrase-derived vault ID.
     func deleteSharedVault(phrase: String) async throws {
         let vaultId = Self.vaultId(from: phrase)
         let recordID = CKRecord.ID(recordName: vaultId)
-
         do {
+            let record = try await publicDatabase.record(for: recordID)
+            // Also delete associated chunks
+            if let shareVaultId = record["shareVaultId"] as? String {
+                try await deleteChunks(for: shareVaultId)
+            }
             try await publicDatabase.deleteRecord(withID: recordID)
         } catch let error as CKError where error.code == .unknownItem {
-            // Already deleted, that's fine
+            // Already deleted
         } catch {
             throw CloudKitSharingError.downloadFailed(error)
         }
     }
 
-    // MARK: - Check iCloud Availability
+    // MARK: - Helpers
+
+    private func deleteChunks(for shareVaultId: String) async throws {
+        let predicate = NSPredicate(format: "vaultId == %@", shareVaultId)
+        let query = CKQuery(recordType: chunkRecordType, predicate: predicate)
+
+        do {
+            let results = try await publicDatabase.records(matching: query)
+            for (recordId, _) in results.matchResults {
+                _ = try? await publicDatabase.deleteRecord(withID: recordId)
+            }
+        } catch {
+            // Non-fatal: chunks may not exist yet
+            #if DEBUG
+            print("⚠️ [CloudKit] Failed to delete chunks: \(error)")
+            #endif
+        }
+    }
+
+    // MARK: - iCloud Status
 
     func checkiCloudStatus() async -> CKAccountStatus {
         do {
@@ -208,9 +482,9 @@ final class CloudKitSharingManager {
     }
 }
 
-// MARK: - Shared Vault Data Structure
+// MARK: - Shared Vault Data Structure (for serialization)
 
-/// The data structure stored in CloudKit for a shared vault.
+/// The data structure serialized and stored encrypted in CloudKit chunks.
 struct SharedVaultData: Codable {
     let files: [SharedFile]
     let metadata: SharedVaultMetadata
@@ -227,10 +501,7 @@ struct SharedVaultData: Codable {
     }
 
     struct SharedVaultMetadata: Codable {
-        let ownerFingerprint: String // Key fingerprint of original creator
+        let ownerFingerprint: String
         let sharedAt: Date
     }
 }
-
-// CommonCrypto bridge
-import CommonCrypto

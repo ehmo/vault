@@ -102,6 +102,25 @@ Share Phrase
 - Same phrase → same key everywhere
 - Security relies on phrase entropy (~80+ bits)
 
+### Per-Share Sync Keys
+
+For background sync after initial share, each share gets a unique key derived without storing the original phrase:
+
+```
+Vault Key + Share ID
+        │
+        ▼
+┌─────────────────────────────────┐
+│ SHA256(vaultKey + shareId)       │
+│ → 32-byte share sync key        │
+└─────────────────────────────────┘
+```
+
+**Why separate key?**
+- Owner doesn't store original share phrases
+- Each recipient gets uniquely encrypted data
+- Owner can always regenerate from vault key + stored share ID
+
 ## Encryption
 
 ### Algorithm: AES-256-GCM
@@ -278,6 +297,9 @@ App locks immediately when:
 | Coercion | Duress vault, empty vault on wrong pattern |
 | Memory dump | Keys cleared on lock |
 | Network sniffing | Share data encrypted before upload |
+| Phrase forwarding | One-time claim, phrase burned after use |
+| Unauthorized access | Per-recipient revocation |
+| Screenshots | UITextField.isSecureTextEntry layer trick |
 
 ### Not Protected Against
 
@@ -288,6 +310,29 @@ App locks immediately when:
 | Shoulder surfing | Visual pattern entry |
 | $5 wrench attack | Physical coercion beyond duress |
 | State-level adversary | May have device exploits |
+
+## Screenshot Prevention
+
+When `isSharedVault == true` and `sharePolicy.allowScreenshots == false`, VaultView applies screenshot prevention:
+
+```
+┌─────────────────────────────────┐
+│ Hidden UITextField              │
+│   isSecureTextEntry = true      │
+│   ┌─────────────────────────┐   │
+│   │ Vault content placed    │   │
+│   │ in its layer hierarchy  │   │
+│   └─────────────────────────┘   │
+└─────────────────────────────────┘
+```
+
+iOS automatically blocks screen capture/recording of secure text field content. In screenshots and screen recordings, the vault content appears black.
+
+**Limitations (DRM-lite):**
+- Client-side enforcement only
+- Jailbroken devices can bypass
+- Prevents casual copying, not determined attackers
+- Encryption remains the primary security layer
 
 ## Security Recommendations
 

@@ -1,7 +1,9 @@
 import SwiftUI
+import UserNotifications
 
 @main
 struct VaultApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var appState = AppState()
 
     var body: some Scene {
@@ -10,6 +12,9 @@ struct VaultApp: App {
                 .environmentObject(appState)
                 .onAppear {
                     setupSecurityMeasures()
+                }
+                .task {
+                    let _ = await LocalNotificationManager.shared.requestPermission()
                 }
         }
     }
@@ -45,14 +50,25 @@ struct VaultApp: App {
 final class AppState: ObservableObject {
     @Published var isUnlocked = false
     @Published var currentVaultKey: Data?
+    @Published var currentPattern: [Int]?
     @Published var showOnboarding = false
     @Published var isLoading = false
+    @Published var isSharedVault = false
 
     private let secureEnclave = SecureEnclaveManager.shared
     private let storage = VaultStorage.shared
 
     init() {
         checkFirstLaunch()
+    }
+    
+    /// Returns the vault name based on the current pattern
+    var vaultName: String {
+        guard let pattern = currentPattern else {
+            return "Vault"
+        }
+        let letters = GridLetterManager.shared.vaultName(for: pattern)
+        return letters.isEmpty ? "Vault" : "Vault \(letters)"
     }
 
     private func checkFirstLaunch() {
@@ -91,13 +107,21 @@ final class AppState: ObservableObject {
             }
 
             currentVaultKey = key
+            currentPattern = pattern
             isUnlocked = true
             isLoading = false
-            
+
+            // Check if this is a shared vault
+            if let index = try? VaultStorage.shared.loadIndex(with: key) {
+                isSharedVault = index.isSharedVault ?? false
+            }
+
             #if DEBUG
             print("✅ [AppState] Vault unlocked successfully")
+            print("✅ [AppState] Vault name: \(vaultName)")
             print("✅ [AppState] currentVaultKey set: \(currentVaultKey != nil)")
             print("✅ [AppState] isUnlocked: \(isUnlocked)")
+            print("✅ [AppState] isSharedVault: \(isSharedVault)")
             #endif
             
             return true
@@ -108,6 +132,7 @@ final class AppState: ObservableObject {
             isLoading = false
             // Still show as "unlocked" with empty vault - no error indication
             currentVaultKey = nil
+            currentPattern = nil
             isUnlocked = true
             return true
         }
@@ -124,7 +149,9 @@ final class AppState: ObservableObject {
             key.resetBytes(in: 0..<key.count)
         }
         currentVaultKey = nil
+        currentPattern = nil
         isUnlocked = false
+        isSharedVault = false
         
         #if DEBUG
         print("🔒 [AppState] After lock - currentVaultKey: nil, isUnlocked: false")
@@ -147,3 +174,25 @@ final class AppState: ObservableObject {
     }
     #endif
 }
+
+// MARK: - AppDelegate for Foreground Notifications
+
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
+    /// Show notification banners even when app is in foreground.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
+    }
+}
+

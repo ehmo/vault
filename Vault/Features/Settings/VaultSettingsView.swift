@@ -11,6 +11,8 @@ struct VaultSettingsView: View {
     @State private var showingDeleteConfirmation = false
     @State private var showingShareVault = false
     @State private var showingRegenerateConfirmation = false
+    @State private var isSharedVault = false
+    @State private var activeShareCount = 0
     @State private var showingCustomPhraseInput = false
     @State private var showingDuressConfirmation = false
     @State private var isDuressVault = false
@@ -61,13 +63,34 @@ struct VaultSettingsView: View {
 
             // Sharing
             Section {
-                Button("Share This Vault") {
-                    showingShareVault = true
+                if isSharedVault {
+                    HStack {
+                        Text("This is a shared vault")
+                        Spacer()
+                        Image(systemName: "person.2.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Button("Share This Vault") {
+                        showingShareVault = true
+                    }
+                    if activeShareCount > 0 {
+                        HStack {
+                            Text("Shared with")
+                            Spacer()
+                            Text("\(activeShareCount) \(activeShareCount == 1 ? "person" : "people")")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             } header: {
                 Text("Sharing")
             } footer: {
-                Text("Share this vault with others via a memorable phrase. Anyone with the phrase has full access.")
+                if isSharedVault {
+                    Text("This vault was shared with you. You cannot reshare it.")
+                } else {
+                    Text("Share this vault with others via a one-time phrase. You can revoke access individually.")
+                }
             }
 
             // Duress
@@ -172,7 +195,43 @@ struct VaultSettingsView: View {
     }
 
     private func deleteVault() {
-        // Would delete all vault data
+        guard let key = appState.currentVaultKey else {
+            dismiss()
+            return
+        }
+
+        // Delete all files and the vault index
+        do {
+            let index = try VaultStorage.shared.loadIndex(with: key)
+            for file in index.files where !file.isDeleted {
+                try? VaultStorage.shared.deleteFile(id: file.fileId, with: key)
+            }
+
+            // Remove any active CloudKit shares
+            if let shares = index.activeShares {
+                for share in shares {
+                    Task {
+                        try? await CloudKitSharingManager.shared.deleteSharedVault(shareVaultId: share.id)
+                    }
+                }
+            }
+
+            try VaultStorage.shared.deleteVaultIndex(for: key)
+        } catch {
+            #if DEBUG
+            print("❌ [VaultSettings] Delete vault error: \(error)")
+            #endif
+        }
+
+        // Clean up recovery data and duress status
+        Task {
+            try? await RecoveryPhraseManager.shared.deleteRecoveryData(for: key)
+            if await DuressHandler.shared.isDuressKey(key) {
+                await DuressHandler.shared.clearDuressVault()
+            }
+        }
+
+        appState.lockVault()
         dismiss()
     }
     
@@ -206,11 +265,18 @@ struct VaultSettingsView: View {
                 
                 // Check if this is the duress vault
                 let isDuress = await DuressHandler.shared.isDuressKey(key)
-                
+
+                // Load sharing info
+                let index = try VaultStorage.shared.loadIndex(with: key)
+                let shared = index.isSharedVault ?? false
+                let shareCount = index.activeShares?.count ?? 0
+
                 await MainActor.run {
                     fileCount = files.count
                     storageUsed = totalSize
                     isDuressVault = isDuress
+                    isSharedVault = shared
+                    activeShareCount = shareCount
                 }
             } catch {
                 #if DEBUG

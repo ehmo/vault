@@ -19,14 +19,14 @@ This guide covers the CloudKit configuration required for vault sharing function
 5. Add "iCloud"
 6. Check "CloudKit"
 7. Click "+" next to Containers
-8. Create: `iCloud.com.vault.shared`
+8. Create: `iCloud.is.thevault.shared`
 
 ```
 Signing & Capabilities
 ├── iCloud
 │   ├── [✓] CloudKit
 │   └── Containers
-│       └── iCloud.com.vault.shared (selected)
+│       └── iCloud.is.thevault.shared (selected)
 ```
 
 ## 2. CloudKit Dashboard Configuration
@@ -35,35 +35,69 @@ Signing & Capabilities
 
 1. Go to [CloudKit Dashboard](https://icloud.developer.apple.com/)
 2. Sign in with your Apple Developer account
-3. Select your container: `iCloud.com.vault.shared`
+3. Select your container: `iCloud.is.thevault.shared`
 
-### Create Record Type
+### Create Record Types
+
+Two record types are needed: `SharedVault` (manifest) and `SharedVaultChunk` (file data).
+
+#### SharedVault (Manifest)
 
 1. Go to "Schema" → "Record Types"
 2. Click "+" to add new record type
 3. Name: `SharedVault`
-4. Add fields:
+4. Click "Create Record Type"
 
-| Field Name | Type | Attributes |
-|------------|------|------------|
-| `encryptedData` | Asset | - |
-| `updatedAt` | Date/Time | Queryable, Sortable |
-| `version` | Int64 | - |
+**Note:** CloudKit auto-creates fields in Development when the app first saves a record. The expected fields are:
+
+| Field Name | Type | Purpose |
+|------------|------|---------|
+| `shareVaultId` | String | Unique ID for this share |
+| `updatedAt` | Date/Time | Last sync timestamp |
+| `version` | Int64 | Manifest version for update detection |
+| `ownerFingerprint` | String | Key fingerprint of vault owner |
+| `chunkCount` | Int64 | Number of chunk records |
+| `claimed` | Int64 | 1 after recipient downloads (one-time use) |
+| `revoked` | Int64 | 1 when owner revokes access |
+| `policy` | Asset | Encrypted SharePolicy (expiration, max opens) |
+
+#### SharedVaultChunk (File Data)
+
+1. Click "+" to add another record type
+2. Name: `SharedVaultChunk`
+3. Click "Create Record Type"
+
+| Field Name | Type | Purpose |
+|------------|------|---------|
+| `chunkData` | Asset | Encrypted file data (~50 MB per chunk) |
+| `chunkIndex` | Int64 | Order index (0-based) |
+| `vaultId` | String | Reference to parent shareVaultId |
 
 ### Configure Indexes
 
-1. Go to "Schema" → "Indexes"
-2. For `SharedVault` record type, ensure:
-   - `recordName` is queryable (automatic)
-   - `updatedAt` is queryable and sortable
+After fields exist (either manually created or auto-created by first upload):
+
+**SharedVault:**
+1. Click "Edit Indexes" on the SharedVault record type
+2. Ensure `recordName` is queryable (automatic)
+3. Add queryable + sortable index for `updatedAt`
+4. Add queryable index for `shareVaultId`
+
+**SharedVaultChunk:**
+1. Click "Edit Indexes" on the SharedVaultChunk record type
+2. Ensure `recordName` is queryable (automatic)
+3. Add queryable index for `vaultId`
+4. Add sortable index for `chunkIndex`
 
 ### Deploy to Production
 
-1. Go to "Schema" → "Deploy to Production"
-2. Review changes
-3. Click "Deploy"
+1. Run the app in Development first to auto-create the schema
+2. Go to "Schema" → "Deploy to Production"
+3. Review changes
+4. Click "Deploy"
 
 **Important:** Schema changes must be deployed before the app can use them in production.
+Run the app once in Development to ensure all fields are created before deploying.
 
 ## 3. Code Configuration
 
@@ -73,7 +107,7 @@ In `CloudKitSharingManager.swift`:
 
 ```swift
 private init() {
-    container = CKContainer(identifier: "iCloud.com.vault.shared")
+    container = CKContainer(identifier: "iCloud.is.thevault.shared")
     publicDatabase = container.publicCloudDatabase
 }
 ```
@@ -91,7 +125,7 @@ Verify `Vault.entitlements` contains:
 <dict>
     <key>com.apple.developer.icloud-container-identifiers</key>
     <array>
-        <string>iCloud.com.vault.shared</string>
+        <string>iCloud.is.thevault.shared</string>
     </array>
     <key>com.apple.developer.icloud-services</key>
     <array>
@@ -129,31 +163,50 @@ Possible statuses:
 - `.couldNotDetermine` - Network or other error
 - `.temporarilyUnavailable` - iCloud temporarily unavailable
 
-### Test Upload
+### Test Upload (Manifest + Chunk)
 
 ```swift
-// Create test record
-let record = CKRecord(recordType: "SharedVault", recordID: CKRecord.ID(recordName: "test"))
-record["updatedAt"] = Date()
-record["version"] = 1
+// Create manifest record
+let manifestId = CKRecord.ID(recordName: "test-share-id")
+let manifest = CKRecord(recordType: "SharedVault", recordID: manifestId)
+manifest["shareVaultId"] = "test-share-id"
+manifest["updatedAt"] = Date()
+manifest["version"] = 1
+manifest["ownerFingerprint"] = "test-fingerprint"
+manifest["chunkCount"] = 1
+manifest["claimed"] = 0
+manifest["revoked"] = 0
 
-// Test data as asset
+try await container.publicCloudDatabase.save(manifest)
+print("Manifest upload successful!")
+
+// Create chunk record
+let chunkId = CKRecord.ID(recordName: "test-share-id_chunk_0")
+let chunk = CKRecord(recordType: "SharedVaultChunk", recordID: chunkId)
 let testData = "Hello CloudKit".data(using: .utf8)!
-let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("test.bin")
+let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("chunk0.bin")
 try testData.write(to: tempURL)
-record["encryptedData"] = CKAsset(fileURL: tempURL)
+chunk["chunkData"] = CKAsset(fileURL: tempURL)
+chunk["chunkIndex"] = 0
+chunk["vaultId"] = "test-share-id"
 
-// Upload
-try await container.publicCloudDatabase.save(record)
-print("Upload successful!")
+try await container.publicCloudDatabase.save(chunk)
+print("Chunk upload successful!")
 ```
 
 ### Test Download
 
 ```swift
-let recordID = CKRecord.ID(recordName: "test")
-let record = try await container.publicCloudDatabase.record(for: recordID)
-print("Download successful: \(record)")
+// Fetch manifest
+let manifestId = CKRecord.ID(recordName: "test-share-id")
+let manifest = try await container.publicCloudDatabase.record(for: manifestId)
+let chunkCount = manifest["chunkCount"] as? Int ?? 0
+print("Manifest: \(chunkCount) chunks")
+
+// Fetch chunk
+let chunkId = CKRecord.ID(recordName: "test-share-id_chunk_0")
+let chunk = try await container.publicCloudDatabase.record(for: chunkId)
+print("Chunk download successful: \(chunk)")
 ```
 
 ### Verify in Dashboard
@@ -209,22 +262,26 @@ Shared vaults use CloudKit's **public database**:
 | Field | Content | Privacy |
 |-------|---------|---------|
 | `recordName` | SHA256(phrase) | Cannot reverse to phrase |
-| `encryptedData` | AES-encrypted vault | Unreadable without phrase |
+| `shareVaultId` | Random UUID | No link to owner |
+| `chunkData` | AES-encrypted file data | Unreadable without phrase |
+| `policy` | Encrypted SharePolicy | Unreadable without phrase |
 | `updatedAt` | Timestamp | Reveals when shared |
-| `version` | Integer | No sensitive info |
+| `claimed` | Boolean flag | Reveals if phrase was used |
+| `ownerFingerprint` | Key fingerprint | Identifies owner's vault key |
 
 ### What's NOT Stored
 
 - User identity
 - Device information
 - IP addresses (handled by CloudKit)
-- Original filenames (encrypted)
+- Original filenames (encrypted within chunks)
 
 ### Data Retention
 
-- Records persist until deleted
-- No automatic expiration
-- User can delete via `deleteSharedVault(phrase:)`
+- Records persist until owner deletes or revokes
+- Owner can revoke individual shares or stop all sharing
+- Revoked shares set `revoked = true` on manifest
+- Recipient detects revocation on next vault open
 
 ## 7. Quotas and Limits
 
@@ -239,20 +296,24 @@ Shared vaults use CloudKit's **public database**:
 
 ### Vault Size Considerations
 
-- Each shared vault uploads all files
-- Large vaults may hit asset size limit
-- Consider chunking for large vaults (future enhancement)
+- Files are split into ~50 MB chunks to stay within CloudKit's 250 MB asset limit
+- Each chunk is a separate `SharedVaultChunk` record
+- Large vaults generate many chunk records (e.g. 500 MB vault = ~10 chunks)
+- Sync updates delete old chunks and upload new ones
 
 ## 8. Production Checklist
 
 - [ ] Container created in Apple Developer portal
 - [ ] CloudKit capability enabled in Xcode
 - [ ] Container identifier matches code
-- [ ] Record type created in CloudKit Dashboard
-- [ ] All fields added with correct types
-- [ ] Indexes configured for queries
+- [ ] `SharedVault` record type created in CloudKit Dashboard
+- [ ] `SharedVaultChunk` record type created in CloudKit Dashboard
+- [ ] All fields added with correct types on both record types
+- [ ] Indexes configured for queries (shareVaultId, vaultId, chunkIndex)
 - [ ] Schema deployed to Production
-- [ ] Tested on physical device
+- [ ] Tested manifest + chunk upload/download on physical device
+- [ ] Tested one-time claim (claimed flag prevents reuse)
+- [ ] Tested revocation (revoked flag)
 - [ ] Tested with different iCloud accounts
 - [ ] Error handling implemented
 - [ ] Network retry logic added
@@ -279,6 +340,7 @@ Shared vaults use CloudKit's **public database**:
 
 ### "Asset upload failed"
 
-1. Check file size (< 250 MB)
+1. Each chunk must be < 250 MB (default ~50 MB)
 2. Check temp file exists before creating CKAsset
 3. Verify file has read permissions
+4. Check that chunkIndex and vaultId are set on SharedVaultChunk records

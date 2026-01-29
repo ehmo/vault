@@ -28,7 +28,8 @@ Vault/
 │   │   └── WordLists.swift
 │   │
 │   └── Sharing/                 # Vault sharing
-│       └── CloudKitSharingManager.swift
+│       ├── CloudKitSharingManager.swift  # Chunked upload/download, claim, revoke
+│       └── ShareSyncManager.swift        # Background sync with debounce
 │
 ├── Features/                     # Feature modules
 │   ├── PatternLock/             # Pattern authentication
@@ -113,13 +114,15 @@ final class AppState: ObservableObject {
     @Published var currentVaultKey: Data?
     @Published var showOnboarding = false
     @Published var isLoading = false
+    @Published var isSharedVault = false  // true when viewing a received shared vault
 }
 ```
 
 **Key behaviors:**
-- `unlockWithPattern(_:gridSize:)` - Derives key, checks duress, sets unlock state
-- `lockVault()` - Securely clears key from memory, resets state
+- `unlockWithPattern(_:gridSize:)` - Derives key, checks duress, sets unlock state, detects shared vaults
+- `lockVault()` - Securely clears key from memory, resets state (including `isSharedVault`)
 - Always unlocks (even with wrong pattern) - shows empty vault instead of error
+- On unlock, checks `index.isSharedVault` and sets `isSharedVault` flag for restricted mode
 
 ## Data Flow
 
@@ -204,6 +207,41 @@ enum VaultSettingsDestination: Hashable {
 
 Sheets used for modal flows (change pattern, share, join).
 
+## Sharing Architecture
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ Owner Device                                                  │
+│                                                               │
+│  ShareVaultView ──► CloudKitSharingManager ──► CloudKit      │
+│  (policy, phrase)    (chunked upload/download)   (public DB) │
+│                                                               │
+│  ShareSyncManager ──► Debounce (30s) ──► Upload to all       │
+│  (file changes)       active share IDs                        │
+└──────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────────────────────────────────────┐
+│ CloudKit Public Database                                      │
+│                                                               │
+│  SharedVault (manifest) ─── SharedVaultChunk (data, ~50 MB)  │
+│  claimed, revoked, policy    chunkData, chunkIndex, vaultId  │
+└──────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────────────────────────────────────┐
+│ Recipient Device                                              │
+│                                                               │
+│  JoinVaultView ──► CloudKitSharingManager ──► Claim + Store  │
+│  (enter phrase)    (download, claim)           (local vault)  │
+│                                                               │
+│  VaultView (restricted mode)                                  │
+│  - No add/delete/import                                       │
+│  - Screenshot prevention                                      │
+│  - Self-destruct checks (expiry, view count, revocation)     │
+└──────────────────────────────────────────────────────────────┘
+```
+
 ## Security Boundaries
 
 | Boundary | Protection |
@@ -213,3 +251,5 @@ Sheets used for modal flows (change pattern, share, join).
 | Storage | All data AES-256-GCM encrypted |
 | Device | Salt bound to Secure Enclave (non-extractable) |
 | Network | Shared vaults encrypted before upload |
+| Sharing | One-time phrases, per-recipient revocation |
+| Screenshots | Secure text field layer blocks capture |

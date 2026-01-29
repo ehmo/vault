@@ -13,6 +13,18 @@ struct VaultView: View {
     @State private var showingSettings = false
     @State private var isLoading = true
 
+    // Transfer status
+    @ObservedObject private var transferManager = BackgroundShareTransferManager.shared
+
+    // Shared vault state
+    @State private var isSharedVault = false
+    @State private var sharePolicy: VaultStorage.SharePolicy?
+    @State private var sharedVaultId: String?
+    @State private var updateAvailable = false
+    @State private var isUpdating = false
+    @State private var selfDestructMessage: String?
+    @State private var showSelfDestructAlert = false
+
     var body: some View {
         NavigationStack {
             Group {
@@ -26,7 +38,7 @@ struct VaultView: View {
                     })
                 }
             }
-            .navigationTitle("Vault")
+            .navigationTitle(appState.vaultName)
             .toolbar {
                 if !showingSettings {
                     ToolbarItem(placement: .topBarLeading) {
@@ -42,8 +54,16 @@ struct VaultView: View {
                     }
                 }
             }
+            .safeAreaInset(edge: .top) {
+                VStack(spacing: 0) {
+                    if isSharedVault {
+                        sharedVaultBanner
+                    }
+                    transferStatusBanner
+                }
+            }
             .safeAreaInset(edge: .bottom) {
-                if !files.isEmpty && !showingSettings {
+                if !isSharedVault && !files.isEmpty && !showingSettings {
                     Button(action: { showingImportOptions = true }) {
                         Label("Add Files", systemImage: "plus.circle.fill")
                             .font(.headline)
@@ -55,21 +75,31 @@ struct VaultView: View {
                     .background(.thinMaterial)
                 }
             }
+            .overlay {
+                // Screenshot prevention for shared vaults
+                if isSharedVault && !(sharePolicy?.allowScreenshots ?? false) {
+                    ScreenshotPreventionView()
+                        .allowsHitTesting(false)
+                }
+            }
         }
-        .onAppear(perform: loadFiles)
+        .onAppear {
+            loadFiles()
+            checkSharedVaultStatus()
+        }
         .onChange(of: appState.currentVaultKey) { _, newKey in
-            // If the vault key is cleared, clear our files immediately
             if newKey == nil {
                 files = []
                 isLoading = false
+                isSharedVault = false
             }
         }
         .onChange(of: showingSettings) { _, isShowing in
-            // Reload files when returning from settings (in case of nuclear wipe)
             if !isShowing {
                 files = []
                 isLoading = true
                 loadFiles()
+                checkSharedVaultStatus()
             }
         }
         .confirmationDialog("Add to Vault", isPresented: $showingImportOptions) {
@@ -95,7 +125,7 @@ struct VaultView: View {
             SecureImageViewer(
                 file: file,
                 vaultKey: appState.currentVaultKey,
-                onDelete: { deletedId in
+                onDelete: isSharedVault ? nil : { deletedId in
                     if let idx = files.firstIndex(where: { $0.id == deletedId }) {
                         files.remove(at: idx)
                     }
@@ -107,6 +137,194 @@ struct VaultView: View {
             NavigationStack {
                 VaultSettingsView()
             }
+        }
+        .alert("Vault Unavailable", isPresented: $showSelfDestructAlert) {
+            Button("OK") {
+                selfDestruct()
+            }
+        } message: {
+            Text(selfDestructMessage ?? "This shared vault is no longer available.")
+        }
+    }
+
+    // MARK: - Shared Vault Banner
+
+    private var sharedVaultBanner: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: "person.2.fill")
+                    .font(.caption)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Shared Vault")
+                        .font(.caption).fontWeight(.medium)
+
+                    if let expires = sharePolicy?.expiresAt {
+                        Text("Expires: \(expires, style: .date)")
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                if updateAvailable {
+                    Button(action: { Task { await downloadUpdate() } }) {
+                        if isUpdating {
+                            ProgressView().scaleEffect(0.7)
+                        } else {
+                            Text("Update Now")
+                                .font(.caption).fontWeight(.medium)
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.mini)
+                    .disabled(isUpdating)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial)
+
+            if updateAvailable {
+                HStack {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .foregroundStyle(.blue)
+                    Text("New files available")
+                        .font(.caption)
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 4)
+                .background(Color.blue.opacity(0.1))
+            }
+        }
+    }
+
+    // MARK: - Transfer Status Banner
+
+    @ViewBuilder
+    private var transferStatusBanner: some View {
+        switch transferManager.status {
+        case .idle:
+            EmptyView()
+
+        case .uploading(let progress, let total):
+            HStack(spacing: 8) {
+                ProgressView().scaleEffect(0.7)
+                Text("Uploading shared vault...")
+                    .font(.caption)
+                Spacer()
+                Text("\(progress)/\(total)")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Color.blue.opacity(0.1))
+
+        case .uploadComplete:
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                Text("Vault shared successfully")
+                    .font(.caption)
+                Spacer()
+                Button("Dismiss") {
+                    transferManager.reset()
+                }
+                .font(.caption2)
+                .buttonStyle(.bordered)
+                .controlSize(.mini)
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Color.green.opacity(0.1))
+            .onAppear {
+                // Auto-dismiss after 5 seconds
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                    if case .uploadComplete = transferManager.status {
+                        transferManager.reset()
+                    }
+                }
+            }
+
+        case .uploadFailed(let message):
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .foregroundStyle(.red)
+                Text("Upload failed: \(message)")
+                    .font(.caption)
+                    .lineLimit(1)
+                Spacer()
+                Button("Dismiss") {
+                    transferManager.reset()
+                }
+                .font(.caption2)
+                .buttonStyle(.bordered)
+                .controlSize(.mini)
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Color.red.opacity(0.1))
+
+        case .importing:
+            HStack(spacing: 8) {
+                ProgressView().scaleEffect(0.7)
+                Text("Setting up shared vault...")
+                    .font(.caption)
+                Spacer()
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Color.blue.opacity(0.1))
+
+        case .importComplete:
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                Text("Shared vault is ready")
+                    .font(.caption)
+                Spacer()
+                Button("Dismiss") {
+                    transferManager.reset()
+                    // Reload files since import completed
+                    loadFiles()
+                }
+                .font(.caption2)
+                .buttonStyle(.bordered)
+                .controlSize(.mini)
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Color.green.opacity(0.1))
+            .onAppear {
+                // Reload files and auto-dismiss
+                loadFiles()
+                checkSharedVaultStatus()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                    if case .importComplete = transferManager.status {
+                        transferManager.reset()
+                    }
+                }
+            }
+
+        case .importFailed(let message):
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .foregroundStyle(.red)
+                Text("Import failed: \(message)")
+                    .font(.caption)
+                    .lineLimit(1)
+                Spacer()
+                Button("Dismiss") {
+                    transferManager.reset()
+                }
+                .font(.caption2)
+                .buttonStyle(.bordered)
+                .controlSize(.mini)
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Color.red.opacity(0.1))
         }
     }
 
@@ -122,19 +340,166 @@ struct VaultView: View {
                 .font(.title2)
                 .fontWeight(.medium)
 
-            Text("Add photos, videos, or files to keep them secure")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            if isSharedVault {
+                Text("Waiting for the vault owner to add files")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            } else {
+                Text("Add photos, videos, or files to keep them secure")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
 
-            Button(action: { showingImportOptions = true }) {
-                Label("Add Files", systemImage: "plus.circle.fill")
-                    .font(.headline)
+                Button(action: { showingImportOptions = true }) {
+                    Label("Add Files", systemImage: "plus.circle.fill")
+                        .font(.headline)
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.top)
             }
-            .buttonStyle(.borderedProminent)
-            .padding(.top)
         }
         .padding()
+    }
+
+    // MARK: - Shared Vault Checks
+
+    private func checkSharedVaultStatus() {
+        guard let key = appState.currentVaultKey else { return }
+
+        Task {
+            do {
+                var index = try VaultStorage.shared.loadIndex(with: key)
+
+                let shared = index.isSharedVault ?? false
+                await MainActor.run {
+                    isSharedVault = shared
+                    sharePolicy = index.sharePolicy
+                    sharedVaultId = index.sharedVaultId
+                }
+
+                guard shared else { return }
+
+                // Check expiration
+                if let expires = index.sharePolicy?.expiresAt, Date() > expires {
+                    await MainActor.run {
+                        selfDestructMessage = "This shared vault has expired. The vault owner set an expiration date of \(expires.formatted(date: .abbreviated, time: .omitted)). All shared files have been removed."
+                        showSelfDestructAlert = true
+                    }
+                    return
+                }
+
+                // Check view count
+                let currentOpens = (index.openCount ?? 0) + 1
+                if let maxOpens = index.sharePolicy?.maxOpens, currentOpens > maxOpens {
+                    await MainActor.run {
+                        selfDestructMessage = "This shared vault has reached its maximum number of opens. All shared files have been removed."
+                        showSelfDestructAlert = true
+                    }
+                    return
+                }
+
+                // Increment open count
+                index.openCount = currentOpens
+                try VaultStorage.shared.saveIndex(index, with: key)
+
+                // Check for revocation / updates
+                if let vaultId = index.sharedVaultId {
+                    do {
+                        if let _ = try await CloudKitSharingManager.shared.checkForUpdates(
+                            shareVaultId: vaultId, currentVersion: 0
+                        ) {
+                            await MainActor.run {
+                                updateAvailable = true
+                            }
+                        }
+                    } catch CloudKitSharingError.revoked {
+                        await MainActor.run {
+                            selfDestructMessage = "The vault owner has revoked your access to this shared vault. All shared files have been removed."
+                            showSelfDestructAlert = true
+                        }
+                    } catch {
+                        // Network error - continue with cached data
+                        #if DEBUG
+                        print("⚠️ [VaultView] Failed to check for updates: \(error)")
+                        #endif
+                    }
+                }
+            } catch {
+                #if DEBUG
+                print("❌ [VaultView] Failed to check shared vault status: \(error)")
+                #endif
+            }
+        }
+    }
+
+    private func downloadUpdate() async {
+        guard let key = appState.currentVaultKey,
+              let vaultId = sharedVaultId else { return }
+
+        isUpdating = true
+        defer { isUpdating = false }
+
+        do {
+            let index = try VaultStorage.shared.loadIndex(with: key)
+
+            // Use the stored phrase-derived share key
+            guard let shareKey = index.shareKeyData else {
+                #if DEBUG
+                print("❌ [VaultView] No share key stored in vault index")
+                #endif
+                return
+            }
+
+            let data = try await CloudKitSharingManager.shared.downloadUpdatedVault(
+                shareVaultId: vaultId,
+                shareKey: shareKey
+            )
+
+            let sharedVault = try JSONDecoder().decode(SharedVaultData.self, from: data)
+
+            // Re-import files (delete old, add new)
+            for existingFile in index.files where !existingFile.isDeleted {
+                try? VaultStorage.shared.deleteFile(id: existingFile.fileId, with: key)
+            }
+
+            for file in sharedVault.files {
+                // Decrypt from share key (files are re-encrypted per-file in SharedVaultData)
+                let decrypted = try CryptoEngine.shared.decrypt(file.encryptedContent, with: shareKey)
+                _ = try VaultStorage.shared.storeFile(
+                    data: decrypted,
+                    filename: file.filename,
+                    mimeType: file.mimeType,
+                    with: key
+                )
+            }
+
+            updateAvailable = false
+            loadFiles()
+        } catch {
+            #if DEBUG
+            print("❌ [VaultView] Failed to download update: \(error)")
+            #endif
+        }
+    }
+
+    private func selfDestruct() {
+        guard let key = appState.currentVaultKey else { return }
+
+        // Delete all files and the vault index
+        do {
+            let index = try VaultStorage.shared.loadIndex(with: key)
+            for file in index.files where !file.isDeleted {
+                try? VaultStorage.shared.deleteFile(id: file.fileId, with: key)
+            }
+            try VaultStorage.shared.deleteVaultIndex(for: key)
+        } catch {
+            #if DEBUG
+            print("❌ [VaultView] Self-destruct error: \(error)")
+            #endif
+        }
+
+        appState.lockVault()
     }
 
     // MARK: - Actions
@@ -146,17 +511,9 @@ struct VaultView: View {
     private func loadFiles() {
         #if DEBUG
         print("📂 [VaultView] loadFiles() called")
-        print("📂 [VaultView] currentVaultKey exists: \(appState.currentVaultKey != nil)")
-        print("📂 [VaultView] isUnlocked: \(appState.isUnlocked)")
-        if let key = appState.currentVaultKey {
-            print("📂 [VaultView] Key hash: \(key.hashValue)")
-        }
         #endif
-        
+
         guard let key = appState.currentVaultKey else {
-            #if DEBUG
-            print("⚠️ [VaultView] No vault key available, stopping loadFiles")
-            #endif
             isLoading = false
             return
         }
@@ -164,10 +521,6 @@ struct VaultView: View {
         Task {
             do {
                 let fileEntries = try VaultStorage.shared.listFiles(with: key)
-                #if DEBUG
-                print("📂 [VaultView] Loaded \(fileEntries.count) files from storage")
-                #endif
-                
                 let items = fileEntries.map { entry in
                     VaultFileItem(
                         id: entry.fileId,
@@ -194,15 +547,12 @@ struct VaultView: View {
     }
 
     private func handleCapturedImage(_ imageData: Data) {
-        guard let key = appState.currentVaultKey else { return }
+        guard !isSharedVault, let key = appState.currentVaultKey else { return }
 
         Task {
             do {
                 let filename = "IMG_\(Date().timeIntervalSince1970).jpg"
-                
-                // Generate thumbnail
                 let thumbnail = generateThumbnail(from: imageData)
-                
                 let fileId = try VaultStorage.shared.storeFile(
                     data: imageData,
                     filename: filename,
@@ -219,6 +569,9 @@ struct VaultView: View {
                         filename: filename
                     ))
                 }
+
+                // Trigger sync if sharing
+                ShareSyncManager.shared.scheduleSync(vaultKey: key)
             } catch {
                 // Handle error silently
             }
@@ -226,36 +579,13 @@ struct VaultView: View {
     }
 
     private func handleSelectedImages(_ imagesData: [Data]) {
-        #if DEBUG
-        print("📸 [VaultView] handleSelectedImages called with \(imagesData.count) images")
-        print("📸 [VaultView] currentVaultKey exists: \(appState.currentVaultKey != nil)")
-        if let key = appState.currentVaultKey {
-            print("📸 [VaultView] Key hash: \(key.hashValue)")
-        }
-        #endif
-        
-        guard let key = appState.currentVaultKey else {
-            #if DEBUG
-            print("❌ [VaultView] No vault key - cannot upload images!")
-            #endif
-            return
-        }
+        guard !isSharedVault, let key = appState.currentVaultKey else { return }
 
-        for (index, data) in imagesData.enumerated() {
-            #if DEBUG
-            print("📸 [VaultView] Processing image \(index + 1)/\(imagesData.count), size: \(data.count) bytes")
-            #endif
-            
+        for (_, data) in imagesData.enumerated() {
             Task {
                 do {
                     let filename = "IMG_\(Date().timeIntervalSince1970).jpg"
-                    
-                    // Generate thumbnail
                     let thumbnail = generateThumbnail(from: data)
-                    #if DEBUG
-                    print("📸 [VaultView] Generated thumbnail: \(thumbnail != nil)")
-                    #endif
-                    
                     let fileId = try VaultStorage.shared.storeFile(
                         data: data,
                         filename: filename,
@@ -263,10 +593,6 @@ struct VaultView: View {
                         with: key,
                         thumbnailData: thumbnail
                     )
-                    #if DEBUG
-                    print("✅ [VaultView] Image stored with ID: \(fileId)")
-                    #endif
-                    
                     await MainActor.run {
                         files.append(VaultFileItem(
                             id: fileId,
@@ -275,22 +601,21 @@ struct VaultView: View {
                             mimeType: "image/jpeg",
                             filename: filename
                         ))
-                        #if DEBUG
-                        print("✅ [VaultView] Image added to files array. Total files: \(files.count)")
-                        #endif
                     }
                 } catch {
                     #if DEBUG
-                    print("❌ [VaultView] Failed to add image \(index + 1): \(error)")
+                    print("❌ [VaultView] Failed to add image: \(error)")
                     #endif
                 }
             }
         }
+
+        // Trigger sync if sharing
+        ShareSyncManager.shared.scheduleSync(vaultKey: key)
     }
 
     private func handleImportedFiles(_ result: Result<[URL], Error>) {
-        guard let key = appState.currentVaultKey else { return }
-
+        guard !isSharedVault, let key = appState.currentVaultKey else { return }
         guard case .success(let urls) = result else { return }
 
         for url in urls {
@@ -301,10 +626,8 @@ struct VaultView: View {
                 if let data = try? Data(contentsOf: url) {
                     let filename = url.lastPathComponent
                     let mimeType = mimeTypeForExtension(url.pathExtension)
-                    
-                    // Generate thumbnail if it's an image
                     let thumbnail = mimeType.hasPrefix("image/") ? generateThumbnail(from: data) : nil
-                    
+
                     if let fileId = try? VaultStorage.shared.storeFile(
                         data: data,
                         filename: filename,
@@ -325,26 +648,26 @@ struct VaultView: View {
                 }
             }
         }
+
+        // Trigger sync if sharing
+        ShareSyncManager.shared.scheduleSync(vaultKey: key)
     }
-    
+
     // MARK: - Thumbnail Generation
-    
+
     private func generateThumbnail(from data: Data) -> Data? {
         guard let image = UIImage(data: data) else { return nil }
-        
-        // Calculate thumbnail size (max 200x200, maintaining aspect ratio)
+
         let maxSize: CGFloat = 200
         let size = image.size
         let scale = min(maxSize / size.width, maxSize / size.height)
         let newSize = CGSize(width: size.width * scale, height: size.height * scale)
-        
-        // Generate thumbnail
+
         let renderer = UIGraphicsImageRenderer(size: newSize)
-        let thumbnail = renderer.image { context in
+        let thumbnail = renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: newSize))
         }
-        
-        // Convert to JPEG with moderate compression
+
         return thumbnail.jpegData(compressionQuality: 0.7)
     }
 
@@ -372,6 +695,40 @@ struct VaultFileItem: Identifiable {
     let filename: String?
 }
 
+// MARK: - Screenshot Prevention
+
+/// Uses the UITextField.isSecureTextEntry trick to prevent screen capture.
+/// Content placed in this view's layer hierarchy appears black in screenshots/recordings.
+struct ScreenshotPreventionView: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let secureField = UITextField()
+        secureField.isSecureTextEntry = true
+
+        // The secure field's subview blocks screen capture
+        guard let secureView = secureField.subviews.first else {
+            return UIView()
+        }
+
+        let container = UIView()
+        container.addSubview(secureView)
+        secureView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            secureView.topAnchor.constraint(equalTo: container.topAnchor),
+            secureView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            secureView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            secureView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+        ])
+
+        // Make it invisible but still blocking captures
+        container.isUserInteractionEnabled = false
+        container.alpha = 0.01
+
+        return container
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {}
+}
+
 // MARK: - Photo Picker Wrapper
 
 struct PhotoPicker: UIViewControllerRepresentable {
@@ -379,7 +736,7 @@ struct PhotoPicker: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> PHPickerViewController {
         var config = PHPickerConfiguration()
-        config.selectionLimit = 0 // No limit
+        config.selectionLimit = 0
         config.filter = .any(of: [.images, .videos])
 
         let picker = PHPickerViewController(configuration: config)
@@ -401,66 +758,26 @@ struct PhotoPicker: UIViewControllerRepresentable {
         }
 
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-            #if DEBUG
-            print("🖼️ [PhotoPicker] Picker finished with \(results.count) results")
-            #endif
-            
             picker.dismiss(animated: true)
-            
-            guard !results.isEmpty else {
-                #if DEBUG
-                print("🖼️ [PhotoPicker] No results selected")
-                #endif
-                return
-            }
-            
+            guard !results.isEmpty else { return }
+
             var imagesData: [Data] = []
             let group = DispatchGroup()
-            
-            // Process each result
-            for (index, result) in results.enumerated() {
+
+            for result in results {
                 let itemProvider = result.itemProvider
-                
-                #if DEBUG
-                print("🖼️ [PhotoPicker] Processing result \(index + 1)/\(results.count)")
-                print("🖼️ [PhotoPicker] Can load as UIImage: \(itemProvider.canLoadObject(ofClass: UIImage.self))")
-                #endif
-                
-                // Load as image
                 if itemProvider.canLoadObject(ofClass: UIImage.self) {
                     group.enter()
-                    itemProvider.loadObject(ofClass: UIImage.self) { image, error in
+                    itemProvider.loadObject(ofClass: UIImage.self) { image, _ in
                         defer { group.leave() }
-                        
-                        if let error = error {
-                            #if DEBUG
-                            print("❌ [PhotoPicker] Error loading image \(index + 1): \(error)")
-                            #endif
-                            return
-                        }
-                        
                         guard let image = image as? UIImage,
-                              let data = image.jpegData(compressionQuality: 0.8) else {
-                            #if DEBUG
-                            print("❌ [PhotoPicker] Failed to convert image \(index + 1) to data")
-                            #endif
-                            return
-                        }
-                        
-                        #if DEBUG
-                        print("✅ [PhotoPicker] Image \(index + 1) loaded, size: \(data.count) bytes")
-                        #endif
+                              let data = image.jpegData(compressionQuality: 0.8) else { return }
                         imagesData.append(data)
                     }
                 }
             }
-            
-            // When all images are loaded, call the callback
+
             group.notify(queue: .main) {
-                #if DEBUG
-                print("🖼️ [PhotoPicker] All images loaded. Total: \(imagesData.count)")
-                print("🖼️ [PhotoPicker] Calling onImagesSelected callback")
-                #endif
                 self.onImagesSelected(imagesData)
             }
         }

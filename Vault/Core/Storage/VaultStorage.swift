@@ -88,13 +88,47 @@ final class VaultStorage {
 
     // MARK: - Vault Index Management
 
+    // MARK: - Share Policy & Records
+
+    struct SharePolicy: Codable, Equatable {
+        var expiresAt: Date?        // nil = never
+        var maxOpens: Int?          // nil = unlimited
+        var allowScreenshots: Bool  // default false
+
+        init(expiresAt: Date? = nil, maxOpens: Int? = nil, allowScreenshots: Bool = false) {
+            self.expiresAt = expiresAt
+            self.maxOpens = maxOpens
+            self.allowScreenshots = allowScreenshots
+        }
+    }
+
+    struct ShareRecord: Codable, Identifiable {
+        let id: String              // share vault ID in CloudKit
+        let createdAt: Date
+        let policy: SharePolicy
+        var lastSyncedAt: Date?
+        var shareKeyData: Data?     // phrase-derived share key (stored in encrypted index)
+
+        var shareId: String { id }
+    }
+
     struct VaultIndex: Codable {
         var files: [VaultFileEntry]
         var nextOffset: Int
         var totalSize: Int
         var encryptedMasterKey: Data? // Master key encrypted with vault key (32 bytes encrypted)
         var version: Int // Index format version for future migrations
-        
+
+        // Owner side: active shares for this vault
+        var activeShares: [ShareRecord]?
+
+        // Recipient side: marks this as a received shared vault
+        var isSharedVault: Bool?
+        var sharedVaultId: String?       // CloudKit vault ID for update checks
+        var sharePolicy: SharePolicy?    // restrictions set by owner
+        var openCount: Int?              // track opens for maxOpens
+        var shareKeyData: Data?          // phrase-derived share key for update downloads
+
         // Legacy initializer for backward compatibility
         init(files: [VaultFileEntry], nextOffset: Int, totalSize: Int) {
             self.files = files
@@ -103,7 +137,7 @@ final class VaultStorage {
             self.encryptedMasterKey = nil
             self.version = 1
         }
-        
+
         // New initializer with master key
         init(files: [VaultFileEntry], nextOffset: Int, totalSize: Int, encryptedMasterKey: Data, version: Int = 2) {
             self.files = files

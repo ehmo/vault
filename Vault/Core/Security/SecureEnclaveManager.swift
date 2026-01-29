@@ -15,9 +15,9 @@ enum SecureEnclaveError: Error {
 final class SecureEnclaveManager {
     static let shared = SecureEnclaveManager()
 
-    private let saltKeyTag = "com.vault.app.device.salt"
-    private let wipeCounterTag = "com.vault.app.wipe.counter"
-    private let duressKeyTag = "com.vault.app.duress.key"
+    private let saltKeyTag = "is.thevault.app.device.salt"
+    private let wipeCounterTag = "is.thevault.app.wipe.counter"
+    private let duressKeyTag = "is.thevault.app.duress.key"
 
     private init() {}
 
@@ -203,9 +203,12 @@ final class SecureEnclaveManager {
         // Also delete all recovery phrase keys
         let recoveryQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.vault.app.recovery"
+            kSecAttrService as String: "is.thevault.app.recovery"
         ]
         SecItemDelete(recoveryQuery as CFDictionary)
+        
+        // Clear grid letter assignments (will be regenerated on next app launch)
+        GridLetterManager.shared.clearLetterAssignments()
     }
 
     // MARK: - Secure Enclave Availability

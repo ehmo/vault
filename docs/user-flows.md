@@ -198,116 +198,156 @@ Vault View
 
 **Note:** File is decrypted only when viewed, never written to temp storage.
 
-## Sharing a Vault
+## Sharing a Vault (Owner)
+
+### First Share / New Share
 
 ```
-Vault View
+Vault Settings → "Share This Vault"
         │
-        ▼ (tap ⚙️)
-┌─────────────────────────────┐
-│  Vault Settings             │
-│                             │
-│  This Vault                 │
-│  ├─ Files: 12               │
-│  └─ Storage: 45 MB          │
-│                             │
-│  Pattern                    │
-│  └─ Change pattern          │
-│                             │
-│  Sharing                    │
-│  └─ [Share This Vault]  ◄───┼─── NEW
-│                             │
-│  ...                        │
-└─────────────────────────────┘
+        ▼
+┌─────────────────────────────────────┐
+│ Share Settings                      │
+│                                     │
+│ [Toggle] Set expiration date        │
+│          [Date picker if on]        │
+│ [Toggle] Limit number of opens      │
+│          [Stepper if on: 10]        │
+│                                     │
+│ [Generate Share Phrase]             │
+└─────────────────────────────────────┘
         │
-        ▼ (tap Share This Vault)
-┌─────────────────────────────┐
-│  Share Vault                │
-│                             │
-│  Generating phrase...       │
-│         ⟳                   │
-└─────────────────────────────┘
+        ▼
+┌─────────────────────────────────────┐
+│ Share phrase (one-time use):        │
+│                                     │
+│ "The purple elephant dances         │
+│  quietly under broken umbrellas"    │
+│                                     │
+│ [Copy to Clipboard]                 │
+│                                     │
+│ ⚠ This phrase works once.          │
+│ After your recipient uses it,       │
+│ it will no longer work.             │
+│                                     │
+│ Uploading: 3 of 12 chunks... ██░░░  │
+└─────────────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────────┐
+│ ✓ Vault Shared!                     │
+│                                     │
+│ Share this phrase with your         │
+│ recipient:                          │
+│ "The purple elephant..."            │
+│                                     │
+│ [Copy]        [Done]                │
+└─────────────────────────────────────┘
+```
+
+### Manage Shares
+
+```
+Vault Settings → Sharing
+├── Shared with 2 people
+├── Share #1: Created Jan 28 · Active
+│   ├── Expires: Never
+│   ├── Last synced: 1h ago
+│   └── [Revoke Access]
+├── Share #2: Created Jan 29 · Active
+│   ├── Expires: Feb 28
+│   └── [Revoke Access]
+├── [Share with someone new]
+└── [Stop All Sharing]
+```
+
+### Background Sync
+
+After owner adds/removes files:
+1. `ShareSyncManager` debounces changes (30s)
+2. Builds `SharedVaultData` from current files
+3. Uploads to ALL active share vault IDs
+4. Each share encrypted with `SHA256(vaultKey + shareId)`
+
+## Joining a Shared Vault (Recipient)
+
+```
+Pattern Lock Screen → "Join shared vault"
         │
         ▼
 ┌─────────────────────────────┐
-│  Share Vault                │
-│                             │
-│  Share phrase:              │
-│                             │
-│  "The purple elephant       │
-│   dances quietly under      │
-│   broken umbrellas"         │
-│                             │
-│  [Copy to Clipboard]        │
-│                             │
-│  ⚠️ Important               │
-│  Anyone with this phrase    │
-│  has full access.           │
-│                             │
-│  [Upload & Share]           │
-└─────────────────────────────┘
-        │
-        ▼ (tap Upload & Share)
-┌─────────────────────────────┐
-│  Uploading...               │
-│         ⟳                   │
-│                             │
-│  Encrypting files...        │
-│  Uploading to iCloud...     │
-└─────────────────────────────┘
-        │
-        ▼
-┌─────────────────────────────┐
-│  ✓ Vault Shared!            │
-│                             │
-│  Share this phrase:         │
-│  "The purple elephant..."   │
-│                             │
-│  [Copy]        [Done]       │
-└─────────────────────────────┘
-```
-
-## Joining a Shared Vault
-
-```
-Pattern Lock Screen
-        │
-        ▼ (tap "Join shared vault")
-┌─────────────────────────────┐
-│  Join Shared Vault          │
-│                             │
 │  Enter share phrase:        │
 │  ┌───────────────────────┐  │
 │  │                       │  │
 │  └───────────────────────┘  │
-│                             │
 │  [Join Vault]               │
 └─────────────────────────────┘
         │
-        ▼ (enter phrase, tap Join)
+        ▼ (download with progress)
 ┌─────────────────────────────┐
-│  Joining...                 │
-│         ⟳                   │
-│                             │
 │  Downloading vault...       │
-│  Decrypting files...        │
+│  Chunk 3 of 12  ████░░░░    │
 └─────────────────────────────┘
         │
-        ├─ Success ──────────────────────────────────┐
-        │                                            │
-        └─ Error ───────────────────┐                │
-                                    ▼                ▼
-                    ┌─────────────────────┐  ┌─────────────────────┐
-                    │  Could Not Join     │  │  ✓ Vault Joined!    │
-                    │                     │  │                     │
-                    │  No vault found     │  │  Files: 12          │
-                    │  with this phrase   │  │  Size: 45 MB        │
-                    │                     │  │                     │
-                    │  [Try Again]        │  │  [Open Vault]       │
-                    └─────────────────────┘  └─────────────────────┘
-                                                      │
-                                                      ▼
-                                                  Vault View
+        ▼ (phrase is burned: claimed=true)
+┌─────────────────────────────┐
+│  Set a pattern to unlock    │
+│  this vault                 │
+│                             │
+│  ┌─────────────┐            │
+│  │  4x4 Grid   │            │
+│  └─────────────┘            │
+│  (draw, then confirm)       │
+└─────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────┐
+│  ✓ Vault Joined!            │
+│  Files imported to vault.   │
+│  [Open Vault]               │
+└─────────────────────────────┘
+        │
+        ▼
+    Vault View (restricted mode)
+```
+
+### Recipient: Daily Use
+
+```
+Lock Screen → draw pattern → shared vault opens
+┌─────────────────────────────────────┐
+│ [Shared Vault · Updated 2h ago]     │
+│ [Expires: Feb 28, 2026]             │
+│                                     │
+│  📷 photo1   📷 photo2             │
+│  📄 doc.pdf  📷 photo3             │
+│                                     │
+│ Banner: "3 new files available"     │
+│         [Update Now]                │
+└─────────────────────────────────────┘
+```
+
+- No camera, import, or delete buttons
+- No share sheet on files
+- Screenshot blocked (screen goes black on capture)
+- Auto-checks for updates on open
+
+### Self-Destruct Scenarios
+
+```
+Expired:     "This shared vault has expired." → data deleted
+View limit:  "Maximum number of opens reached." → data deleted
+Revoked:     "Access has been revoked by owner." → data deleted
+```
+
+On destruct: overwrite file data with random bytes, delete index entry, lock vault.
+
+### Error Cases
+
+```
+Already claimed: "This share phrase has already been used"
+Not found:       "No vault found with this phrase"
+Decrypt failed:  "Could not decrypt. Check your phrase."
 ```
 
 ## Duress Flow

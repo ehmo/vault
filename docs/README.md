@@ -8,7 +8,8 @@ Vault is a secure file storage app for iOS with pattern-based encryption and pla
 |----------|-------------|
 | [Architecture](./architecture.md) | System design, components, and data flow |
 | [Security Model](./security-model.md) | Encryption, key derivation, and threat model |
-| [Sharing](./sharing.md) | Vault sharing via memorable phrases |
+| [Sharing](./sharing.md) | One-time phrase sharing with per-recipient controls |
+| [Design Decisions](./design-decisions.md) | Key product decisions and trade-offs |
 | [User Flows](./user-flows.md) | Key user journeys and interactions |
 | [Storage](./storage.md) | File storage and plausible deniability |
 | [CloudKit Setup](./cloudkit-setup.md) | iCloud configuration for sharing |
@@ -23,7 +24,7 @@ Vault is a secure file storage app for iOS with pattern-based encryption and pla
 
 **Duress Protection**: A special pattern can be designated to silently destroy all other vaults while appearing normal.
 
-**Sharing**: Vaults can be shared via memorable phrases that both identify and decrypt the vault.
+**Sharing**: Vaults can be shared via one-time phrases with per-recipient controls. Each phrase can only be claimed once. The owner can revoke access, set expiration dates, limit view counts, and prevent screenshots. Changes auto-sync to all recipients.
 
 ### Key Technologies
 
