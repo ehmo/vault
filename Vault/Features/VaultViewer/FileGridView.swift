@@ -33,8 +33,7 @@ struct FileThumbnailView: View {
                 .fill(Color(.systemGray5))
 
             // Display thumbnail or icon
-            if let thumbnailData = file.thumbnailData,
-               let uiImage = UIImage(data: thumbnailData) {
+            if let uiImage = file.thumbnailImage ?? file.thumbnailData.flatMap({ UIImage(data: $0) }) {
                 // Show actual thumbnail
                 Image(uiImage: uiImage)
                     .resizable()

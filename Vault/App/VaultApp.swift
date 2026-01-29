@@ -13,9 +13,6 @@ struct VaultApp: App {
                 .onAppear {
                     setupSecurityMeasures()
                 }
-                .task {
-                    let _ = await LocalNotificationManager.shared.requestPermission()
-                }
         }
     }
 
@@ -55,9 +52,6 @@ final class AppState: ObservableObject {
     @Published var isLoading = false
     @Published var isSharedVault = false
 
-    private let secureEnclave = SecureEnclaveManager.shared
-    private let storage = VaultStorage.shared
-
     init() {
         checkFirstLaunch()
     }
@@ -87,12 +81,14 @@ final class AppState: ObservableObject {
         
         isLoading = true
 
-        // Always delay 1-2 seconds for consistent timing
-        let delay = Double.random(in: 1.0...2.0)
-        try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-
         do {
-            let key = try await KeyDerivation.deriveKey(from: pattern, gridSize: gridSize)
+            // Run delay and key derivation concurrently: total time = max(delay, derivation)
+            let delay = Double.random(in: 0.5...1.0)
+            async let delayTask: Void = Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            async let keyTask = KeyDerivation.deriveKey(from: pattern, gridSize: gridSize)
+
+            let key = try await keyTask
+            try? await delayTask
             
             #if DEBUG
             print("🔑 [AppState] Key derived. Hash: \(key.hashValue)")
@@ -183,6 +179,11 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+
+        // Eagerly init VaultStorage so blob existence check (and potential background
+        // blob creation on first launch) overlaps with the user drawing their pattern.
+        _ = VaultStorage.shared
+
         return true
     }
 

@@ -84,8 +84,7 @@ struct VaultView: View {
             }
         }
         .onAppear {
-            loadFiles()
-            checkSharedVaultStatus()
+            loadVault()
         }
         .onChange(of: appState.currentVaultKey) { _, newKey in
             if newKey == nil {
@@ -98,8 +97,7 @@ struct VaultView: View {
             if !isShowing {
                 files = []
                 isLoading = true
-                loadFiles()
-                checkSharedVaultStatus()
+                loadVault()
             }
         }
         .confirmationDialog("Add to Vault", isPresented: $showingImportOptions) {
@@ -298,8 +296,7 @@ struct VaultView: View {
             .background(Color.green.opacity(0.1))
             .onAppear {
                 // Reload files and auto-dismiss
-                loadFiles()
-                checkSharedVaultStatus()
+                loadVault()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
                     if case .importComplete = transferManager.status {
                         transferManager.reset()
@@ -508,6 +505,18 @@ struct VaultView: View {
         appState.lockVault()
     }
 
+    /// Loads the vault index once and uses it for both file listing and shared-vault checks.
+    private func loadVault() {
+        guard let key = appState.currentVaultKey else {
+            isLoading = false
+            return
+        }
+
+        // File listing runs off main thread; shared vault check can run concurrently
+        loadFiles()
+        checkSharedVaultStatus()
+    }
+
     private func loadFiles() {
         #if DEBUG
         print("📂 [VaultView] loadFiles() called")
@@ -518,7 +527,7 @@ struct VaultView: View {
             return
         }
 
-        Task {
+        Task.detached(priority: .userInitiated) {
             do {
                 let fileEntries = try VaultStorage.shared.listFiles(with: key)
                 let items = fileEntries.map { entry in
@@ -526,21 +535,22 @@ struct VaultView: View {
                         id: entry.fileId,
                         size: entry.size,
                         thumbnailData: entry.thumbnailData,
+                        thumbnailImage: entry.thumbnailData.flatMap { UIImage(data: $0) },
                         mimeType: entry.mimeType,
                         filename: entry.filename
                     )
                 }
                 await MainActor.run {
-                    files = items
-                    isLoading = false
+                    self.files = items
+                    self.isLoading = false
                 }
             } catch {
                 #if DEBUG
                 print("❌ [VaultView] Error loading files: \(error)")
                 #endif
                 await MainActor.run {
-                    files = []
-                    isLoading = false
+                    self.files = []
+                    self.isLoading = false
                 }
             }
         }
@@ -691,8 +701,27 @@ struct VaultFileItem: Identifiable {
     let id: UUID
     let size: Int
     let thumbnailData: Data?
+    let thumbnailImage: UIImage?
     let mimeType: String?
     let filename: String?
+
+    init(id: UUID, size: Int, thumbnailData: Data?, mimeType: String?, filename: String?) {
+        self.id = id
+        self.size = size
+        self.thumbnailData = thumbnailData
+        self.thumbnailImage = nil
+        self.mimeType = mimeType
+        self.filename = filename
+    }
+
+    init(id: UUID, size: Int, thumbnailData: Data?, thumbnailImage: UIImage?, mimeType: String?, filename: String?) {
+        self.id = id
+        self.size = size
+        self.thumbnailData = thumbnailData
+        self.thumbnailImage = thumbnailImage
+        self.mimeType = mimeType
+        self.filename = filename
+    }
 }
 
 // MARK: - Screenshot Prevention

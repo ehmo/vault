@@ -13,7 +13,7 @@ final class KeyDerivation {
 
     // MARK: - Key Derivation from Pattern
 
-    static func deriveKey(from pattern: [Int], gridSize: Int = 5) async throws -> Data {
+    static nonisolated func deriveKey(from pattern: [Int], gridSize: Int = 5) async throws -> Data {
         guard pattern.count >= 6 else {
             throw KeyDerivationError.invalidPattern
         }
@@ -39,7 +39,7 @@ final class KeyDerivation {
 
     // MARK: - Key Derivation from Recovery Phrase
 
-    static func deriveKey(from recoveryPhrase: String) async throws -> Data {
+    static nonisolated func deriveKey(from recoveryPhrase: String) async throws -> Data {
         // Normalize the phrase
         let normalizedPhrase = recoveryPhrase
             .lowercased()
