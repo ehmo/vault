@@ -18,6 +18,7 @@ final class CryptoEngine {
 
     func encrypt(_ data: Data, with key: Data) throws -> Data {
         guard key.count == 32 else {
+            SentryManager.shared.captureError(CryptoError.keyGenerationFailed)
             throw CryptoError.keyGenerationFailed
         }
 
@@ -46,6 +47,7 @@ final class CryptoEngine {
 
     func decrypt(_ encryptedData: Data, with key: Data) throws -> Data {
         guard key.count == 32 else {
+            SentryManager.shared.captureError(CryptoError.keyGenerationFailed)
             throw CryptoError.keyGenerationFailed
         }
 
@@ -193,6 +195,7 @@ final class CryptoEngine {
 
     func decryptFile(data: Data, with key: Data) throws -> (header: EncryptedFileHeader, content: Data) {
         guard data.count > 4 else {
+            SentryManager.shared.captureError(CryptoError.invalidData)
             throw CryptoError.invalidData
         }
 

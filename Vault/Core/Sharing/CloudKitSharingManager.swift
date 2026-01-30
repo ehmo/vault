@@ -121,10 +121,19 @@ final class CloudKitSharingManager {
         ownerFingerprint: String,
         onProgress: ((Int, Int) -> Void)? = nil
     ) async throws {
+        let transaction = SentryManager.shared.startTransaction(name: "share.upload", operation: "share.upload")
+
         let phraseVaultId = Self.vaultId(from: phrase)
 
         // Encrypt the vault data
-        let encryptedData = try CryptoEngine.shared.encrypt(vaultData, with: shareKey)
+        let encryptedData: Data
+        do {
+            encryptedData = try CryptoEngine.shared.encrypt(vaultData, with: shareKey)
+        } catch {
+            SentryManager.shared.captureError(error)
+            transaction.finish(status: .internalError)
+            throw error
+        }
 
         // Split into chunks
         let chunks = stride(from: 0, to: encryptedData.count, by: chunkSize).map { start in
@@ -185,8 +194,14 @@ final class CloudKitSharingManager {
             try? FileManager.default.removeItem(at: policyURL)
         } catch {
             try? FileManager.default.removeItem(at: policyURL)
+            SentryManager.shared.captureError(error)
+            transaction.finish(status: .internalError)
             throw CloudKitSharingError.uploadFailed(error)
         }
+
+        transaction.setTag(value: "\(totalChunks)", key: "chunkCount")
+        transaction.setTag(value: "\(vaultData.count / 1024)", key: "totalSizeKB")
+        transaction.finish(status: .ok)
     }
 
     /// Re-uploads vault data to an existing share vault ID (for sync updates).
@@ -257,6 +272,7 @@ final class CloudKitSharingManager {
         phrase: String,
         onProgress: ((Int, Int) -> Void)? = nil
     ) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy) {
+        let transaction = SentryManager.shared.startTransaction(name: "share.download", operation: "share.download")
         let phraseVaultId = Self.vaultId(from: phrase)
         let shareKey = try Self.deriveShareKey(from: phrase)
 
@@ -266,8 +282,11 @@ final class CloudKitSharingManager {
         do {
             manifest = try await publicDatabase.record(for: manifestRecordId)
         } catch let error as CKError where error.code == .unknownItem {
+            transaction.finish(status: .notFound)
             throw CloudKitSharingError.vaultNotFound
         } catch {
+            SentryManager.shared.captureError(error)
+            transaction.finish(status: .internalError)
             throw CloudKitSharingError.downloadFailed(error)
         }
 
@@ -329,6 +348,7 @@ final class CloudKitSharingManager {
         manifest["claimed"] = true
         try await publicDatabase.save(manifest)
 
+        transaction.finish(status: .ok)
         return (decryptedData, shareVaultId, policy)
     }
 

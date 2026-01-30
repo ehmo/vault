@@ -31,6 +31,7 @@ struct ContentView: View {
             #if DEBUG
             print("📸 [ContentView] Screenshot notification received!")
             #endif
+            SentryManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "screenshot"])
             appState.screenshotDetected = true
             Task {
                 try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
@@ -43,6 +44,7 @@ struct ContentView: View {
                 #if DEBUG
                 print("🎥 [ContentView] Screen recording detected!")
                 #endif
+                SentryManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "recording"])
                 appState.lockVault()
             }
         }
@@ -51,6 +53,7 @@ struct ContentView: View {
             #if DEBUG
             print("⏸️ [ContentView] App resigning active — locking vault")
             #endif
+            SentryManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "background"])
             appState.lockVault()
         }
         #if DEBUG

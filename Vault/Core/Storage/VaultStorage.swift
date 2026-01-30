@@ -292,12 +292,15 @@ final class VaultStorage {
     }
 
     func loadIndex(with key: Data) throws -> VaultIndex {
+        let span = SentryManager.shared.startTransaction(name: "storage.index_load", operation: "storage.index_load")
+        defer { span.finish(status: .ok) }
+
         #if DEBUG
         print("📇 [VaultStorage] loadIndex called with key hash: \(key.hashValue)")
         #endif
-        
+
         let indexURL = indexURL(for: key)
-        
+
         guard fileManager.fileExists(atPath: indexURL.path) else {
             #if DEBUG
             print("📇 [VaultStorage] No index file exists, creating new vault with master key")
@@ -366,12 +369,15 @@ final class VaultStorage {
     }
 
     func saveIndex(_ index: VaultIndex, with key: Data) throws {
+        let span = SentryManager.shared.startTransaction(name: "storage.index_save", operation: "storage.index_save")
+        defer { span.finish(status: .ok) }
+
         #if DEBUG
         print("💾 [VaultStorage] saveIndex called")
         print("💾 [VaultStorage] Files: \(index.files.count), nextOffset: \(index.nextOffset)")
         print("💾 [VaultStorage] Key hash: \(key.hashValue)")
         #endif
-        
+
         let encoded = try JSONEncoder().encode(index)
         
         #if DEBUG
@@ -410,6 +416,10 @@ final class VaultStorage {
     // MARK: - File Operations
 
     func storeFile(data: Data, filename: String, mimeType: String, with key: Data, thumbnailData: Data? = nil) throws -> UUID {
+        let span = SentryManager.shared.startTransaction(name: "storage.store_file", operation: "storage.store_file")
+        span.setTag(value: "\(data.count / 1024)", key: "fileSizeKB")
+        span.setTag(value: mimeType, key: "mimeType")
+
         ensureBlobReady()
         #if DEBUG
         print("💾 [VaultStorage] storeFile called")
@@ -503,7 +513,9 @@ final class VaultStorage {
         index.nextOffset = newCursor
 
         try saveIndex(index, with: key)
-        
+
+        span.finish(status: .ok)
+
         #if DEBUG
         print("✅ [VaultStorage] File stored successfully with ID: \(encryptedFile.header.fileId)")
         print("✅ [VaultStorage] New index: \(index.files.count) files, nextOffset: \(index.nextOffset)")
@@ -513,6 +525,7 @@ final class VaultStorage {
     }
 
     func retrieveFile(id: UUID, with key: Data) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
+        let span = SentryManager.shared.startTransaction(name: "storage.retrieve_file", operation: "storage.retrieve_file")
         ensureBlobReady()
         let index = try loadIndex(with: key)
         
@@ -535,7 +548,10 @@ final class VaultStorage {
         }
 
         // Decrypt with MASTER KEY (not vault key)
-        return try CryptoEngine.shared.decryptFile(data: encryptedData, with: masterKey)
+        let result = try CryptoEngine.shared.decryptFile(data: encryptedData, with: masterKey)
+        span.setTag(value: "\(entry.size / 1024)", key: "fileSizeKB")
+        span.finish(status: .ok)
+        return result
     }
 
     func deleteFile(id: UUID, with key: Data) throws {
@@ -575,6 +591,8 @@ final class VaultStorage {
     }
 
     func listFiles(with key: Data) throws -> [VaultFileEntry] {
+        let span = SentryManager.shared.startTransaction(name: "storage.list_files", operation: "storage.list_files")
+        defer { span.finish(status: .ok) }
         let index = try loadIndex(with: key)
         
         // Get the master key for decrypting thumbnails

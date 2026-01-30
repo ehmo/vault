@@ -42,29 +42,37 @@ final class AppState: ObservableObject {
         #if DEBUG
         print("🔓 [AppState] unlockWithPattern called with pattern length: \(pattern.count), gridSize: \(gridSize)")
         #endif
-        
+
+        let transaction = SentryManager.shared.startTransaction(name: "vault.unlock", operation: "vault.unlock")
+        transaction.setTag(value: "\(gridSize)", key: "gridSize")
+
         isLoading = true
 
         do {
             // Run delay and key derivation concurrently: total time = max(delay, derivation)
             let delay = Double.random(in: 0.5...1.0)
             async let delayTask: Void = Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+
+            let keySpan = SentryManager.shared.startSpan(parent: transaction, operation: "crypto.key_derivation", description: "PBKDF2 key derivation")
             async let keyTask = KeyDerivation.deriveKey(from: pattern, gridSize: gridSize)
 
             let key = try await keyTask
+            keySpan.finish()
             try? await delayTask
-            
+
             #if DEBUG
             print("🔑 [AppState] Key derived. Hash: \(key.hashValue)")
             #endif
 
             // Check if this is a duress pattern
+            let duressSpan = SentryManager.shared.startSpan(parent: transaction, operation: "security.duress_check", description: "Check duress key")
             if await DuressHandler.shared.isDuressKey(key) {
                 #if DEBUG
                 print("⚠️ [AppState] Duress key detected!")
                 #endif
                 await DuressHandler.shared.triggerDuress(preservingKey: key)
             }
+            duressSpan.finish()
 
             currentVaultKey = key
             currentPattern = pattern
@@ -74,9 +82,15 @@ final class AppState: ObservableObject {
             isLoading = false
 
             // Check if this is a shared vault
+            let indexSpan = SentryManager.shared.startSpan(parent: transaction, operation: "storage.index_load", description: "Load vault index")
             if let index = try? VaultStorage.shared.loadIndex(with: key) {
                 isSharedVault = index.isSharedVault ?? false
+                let fileCount = index.files.filter { !$0.isDeleted }.count
+                transaction.setTag(value: "\(fileCount)", key: "fileCount")
             }
+            indexSpan.finish()
+
+            transaction.finish(status: .ok)
 
             #if DEBUG
             print("✅ [AppState] Vault unlocked successfully")
@@ -85,12 +99,13 @@ final class AppState: ObservableObject {
             print("✅ [AppState] isUnlocked: \(isUnlocked)")
             print("✅ [AppState] isSharedVault: \(isSharedVault)")
             #endif
-            
+
             return true
         } catch {
             #if DEBUG
             print("❌ [AppState] Error unlocking: \(error)")
             #endif
+            transaction.finish(status: .internalError)
             isLoading = false
             // Still show as "unlocked" with empty vault - no error indication
             currentVaultKey = nil
@@ -105,7 +120,9 @@ final class AppState: ObservableObject {
         print("🔒 [AppState] lockVault() called")
         print("🔒 [AppState] Before lock - currentVaultKey exists: \(currentVaultKey != nil)")
         #endif
-        
+
+        SentryManager.shared.addBreadcrumb(category: "vault.locked")
+
         // Securely clear the key from memory
         if var key = currentVaultKey {
             key.resetBytes(in: 0..<key.count)
@@ -116,7 +133,7 @@ final class AppState: ObservableObject {
         isUnlocked = false
         isSharedVault = false
         screenshotDetected = false
-        
+
         #if DEBUG
         print("🔒 [AppState] After lock - currentVaultKey: nil, isUnlocked: false")
         #endif
@@ -146,6 +163,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        // Initialize Sentry before anything else
+        SentryManager.shared.start()
+
         UNUserNotificationCenter.current().delegate = self
 
         // Eagerly init VaultStorage so blob existence check (and potential background

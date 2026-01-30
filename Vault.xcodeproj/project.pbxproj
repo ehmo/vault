@@ -58,6 +58,8 @@
 		39EACFAD2F2AC5C500FA7EC2 /* GridLetterManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39EACFAC2F2AC5C500FA7EC2 /* GridLetterManager.swift */; };
 		016000001 /* LocalNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016000000 /* LocalNotificationManager.swift */; };
 		016000003 /* BackgroundShareTransferManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016000002 /* BackgroundShareTransferManager.swift */; };
+		017000001 /* SentryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017000000 /* SentryManager.swift */; };
+		6D5554047A7544D7954CEF9B /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = E8320F0CD52C4885B07B350E /* Sentry */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -113,6 +115,7 @@
 		39EACFAC2F2AC5C500FA7EC2 /* GridLetterManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridLetterManager.swift; sourceTree = "<group>"; };
 		016000000 /* LocalNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNotificationManager.swift; sourceTree = "<group>"; };
 		016000002 /* BackgroundShareTransferManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundShareTransferManager.swift; sourceTree = "<group>"; };
+		017000000 /* SentryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentryManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -120,6 +123,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6D5554047A7544D7954CEF9B /* Sentry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -164,8 +168,17 @@
 				0100000023 /* Security */,
 				0100000024 /* Sharing */,
 				0100000025 /* Notifications */,
+				0100000026 /* Telemetry */,
 			);
 			path = Core;
+			sourceTree = "<group>";
+		};
+		0100000026 /* Telemetry */ = {
+			isa = PBXGroup;
+			children = (
+				017000000 /* SentryManager.swift */,
+			);
+			path = Telemetry;
 			sourceTree = "<group>";
 		};
 		0100000021 /* Crypto */ = {
@@ -354,6 +367,7 @@
 				01100000E0 /* Sources */,
 				01100000F0 /* Frameworks */,
 				011000100 /* Resources */,
+				1B6F904DF6C54504915C2F83 /* Upload Debug Symbols to Sentry */,
 			);
 			buildRules = (
 			);
@@ -363,6 +377,9 @@
 			productName = Vault;
 			productReference = 088000000000 /* Vault.app */;
 			productType = "com.apple.product-type.application";
+			packageProductDependencies = (
+				E8320F0CD52C4885B07B350E /* Sentry */,
+			);
 		};
 /* End PBXNativeTarget section */
 
@@ -393,6 +410,9 @@
 			projectRoot = "";
 			targets = (
 				0110000000 /* Vault */,
+			);
+			packageReferences = (
+				E5E387BF1AA14DDCA8D53E3C /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
 			);
 		};
 /* End PBXProject section */
@@ -463,6 +483,7 @@
 				015000003 /* JoinVaultView.swift in Sources */,
 				016000001 /* LocalNotificationManager.swift in Sources */,
 				016000003 /* BackgroundShareTransferManager.swift in Sources */,
+				017000001 /* SentryManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -626,6 +647,8 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_USER_SCRIPT_SANDBOXING = "NO";
 			};
 			name = Debug;
 		};
@@ -665,6 +688,8 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_USER_SCRIPT_SANDBOXING = "NO";
 			};
 			name = Release;
 		};
@@ -690,6 +715,55 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		1B6F904DF6C54504915C2F83 /* Upload Debug Symbols to Sentry */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}",
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script is responsible for uploading debug symbols and source context for Sentry.
+if which sentry-cli >/dev/null; then
+  export SENTRY_ORG=wraxle
+  export SENTRY_PROJECT=vault
+  ERROR=$(sentry-cli debug-files upload --include-sources \"$DWARF_DSYM_FOLDER_PATH\" 2>&1 >/dev/null)
+  if [ ! $? -eq 0 ]; then
+    echo \"warning: sentry-cli - $ERROR\"
+  fi
+else
+  echo \"warning: sentry-cli not installed, download from https://github.com/getsentry/sentry-cli/releases\"
+fi
+";
+			name = "Upload Debug Symbols to Sentry";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E5E387BF1AA14DDCA8D53E3C /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa/";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E8320F0CD52C4885B07B350E /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E5E387BF1AA14DDCA8D53E3C /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = Sentry;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 0100000000 /* Project object */;
 }

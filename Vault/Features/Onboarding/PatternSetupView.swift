@@ -423,16 +423,18 @@ struct PatternSetupView: View {
                 print("✅ [PatternSetup] Recovery phrase saved via RecoveryPhraseManager")
                 #endif
                 
+                SentryManager.shared.addBreadcrumb(category: "onboarding.complete", data: ["gridSize": patternState.gridSize])
+
                 // Unlock the vault with the new key
                 await MainActor.run {
                     appState.currentVaultKey = key
                     appState.isUnlocked = true
-                    
+
                     #if DEBUG
                     print("🔓 [PatternSetup] Vault unlocked. currentVaultKey set: \(appState.currentVaultKey != nil)")
                     print("🔓 [PatternSetup] isUnlocked: \(appState.isUnlocked)")
                     #endif
-                    
+
                     // Move to recovery step AFTER everything is saved
                     step = .recovery
                 }

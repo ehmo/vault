@@ -49,19 +49,28 @@ final class ShareSyncManager: ObservableObject {
     // MARK: - Sync Implementation
 
     private func performSync(vaultKey: Data) async {
+        let transaction = SentryManager.shared.startTransaction(name: "share.sync", operation: "share.sync")
+
         // Load index and check for active shares
         let index: VaultStorage.VaultIndex
         do {
             index = try VaultStorage.shared.loadIndex(with: vaultKey)
         } catch {
             syncStatus = .error("Failed to load vault: \(error.localizedDescription)")
+            SentryManager.shared.captureError(error)
+            transaction.finish(status: .internalError)
             return
         }
 
         guard let activeShares = index.activeShares, !activeShares.isEmpty else {
             syncStatus = .idle
+            transaction.finish(status: .ok)
             return
         }
+
+        let fileCount = index.files.filter { !$0.isDeleted }.count
+        transaction.setTag(value: "\(fileCount)", key: "fileCount")
+        transaction.setTag(value: "\(activeShares.count)", key: "shareCount")
 
         syncStatus = .syncing
 
@@ -118,13 +127,17 @@ final class ShareSyncManager: ObservableObject {
         if successCount == totalShares {
             syncStatus = .upToDate
             lastSyncedAt = Date()
+            transaction.finish(status: .ok)
         } else if missingKeyCount == totalShares {
             syncStatus = .error("Shares need to be re-created to enable sync")
+            transaction.finish(status: .internalError)
         } else if successCount > 0 {
             syncStatus = .error("Synced \(successCount)/\(totalShares) shares")
             lastSyncedAt = Date()
+            transaction.finish(status: .ok)
         } else {
             syncStatus = .error("Sync failed for all shares")
+            transaction.finish(status: .internalError)
         }
     }
 

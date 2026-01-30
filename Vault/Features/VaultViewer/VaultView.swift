@@ -67,6 +67,7 @@ struct VaultView: View {
                             )
                         } else {
                             FileGridView(files: filteredFiles, onSelect: { file in
+                                SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                                 selectedFile = file
                             })
                         }
@@ -132,6 +133,14 @@ struct VaultView: View {
                 isLoading = false
                 isSharedVault = false
             }
+        }
+        .onChange(of: searchText) { _, newValue in
+            if !newValue.isEmpty {
+                SentryManager.shared.addBreadcrumb(category: "search.used")
+            }
+        }
+        .onChange(of: fileFilter) { _, _ in
+            SentryManager.shared.addBreadcrumb(category: "filter.changed")
         }
         .onChange(of: showingSettings) { _, isShowing in
             if !isShowing {
@@ -592,6 +601,7 @@ struct VaultView: View {
                 await MainActor.run {
                     self.files = items
                     self.isLoading = false
+                    SentryManager.shared.addBreadcrumb(category: "vault.opened", data: ["fileCount": items.count])
                 }
             } catch {
                 #if DEBUG
