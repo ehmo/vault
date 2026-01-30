@@ -256,7 +256,7 @@ struct PatternSetupView: View {
                     if useCustomPhrase {
                         // Validate custom phrase before proceeding
                         if let validation = customPhraseValidation, validation.isAcceptable {
-                            step = .complete
+                            saveCustomRecoveryPhrase()
                         }
                     } else {
                         step = .complete
@@ -445,6 +445,28 @@ struct PatternSetupView: View {
         }
     }
     
+    private func saveCustomRecoveryPhrase() {
+        guard let key = appState.currentVaultKey else { return }
+
+        Task {
+            do {
+                try await RecoveryPhraseManager.shared.saveRecoveryPhrase(
+                    phrase: customPhrase.trimmingCharacters(in: .whitespacesAndNewlines),
+                    pattern: firstPattern,
+                    gridSize: patternState.gridSize,
+                    patternKey: key
+                )
+                await MainActor.run {
+                    step = .complete
+                }
+            } catch {
+                #if DEBUG
+                print("❌ [PatternSetup] Failed to save custom phrase: \(error)")
+                #endif
+            }
+        }
+    }
+
     private func validateCustomPhrase(_ phrase: String) {
         guard !phrase.isEmpty else {
             customPhraseValidation = nil

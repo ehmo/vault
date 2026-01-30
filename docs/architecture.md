@@ -112,15 +112,18 @@ Central state management via `@EnvironmentObject`:
 final class AppState: ObservableObject {
     @Published var isUnlocked = false
     @Published var currentVaultKey: Data?
+    @Published var currentPattern: [Int]?
     @Published var showOnboarding = false
     @Published var isLoading = false
-    @Published var isSharedVault = false  // true when viewing a received shared vault
+    @Published var isSharedVault = false
+    @Published private(set) var vaultName: String = "Vault"  // cached, set on unlock
 }
 ```
 
 **Key behaviors:**
-- `unlockWithPattern(_:gridSize:)` - Derives key, checks duress, sets unlock state, detects shared vaults
-- `lockVault()` - Securely clears key from memory, resets state (including `isSharedVault`)
+- `unlockWithPattern(_:gridSize:)` - Derives key, checks duress, caches vault name from `GridLetterManager`, detects shared vaults
+- `lockVault()` - Securely clears key from memory, resets all state including `vaultName`
+- `vaultName` is a stored property (not computed) to avoid repeated Keychain lookups on every SwiftUI re-render
 - Always unlocks (even with wrong pattern) - shows empty vault instead of error
 - On unlock, checks `index.isSharedVault` and sets `isSharedVault` flag for restricted mode
 

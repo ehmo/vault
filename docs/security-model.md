@@ -100,7 +100,7 @@ Share Phrase
 **Why fixed salt?**
 - Share keys must be derivable on ANY device
 - Same phrase → same key everywhere
-- Security relies on phrase entropy (~80+ bits)
+- Security relies on phrase entropy (~51-59 bits for auto-generated; see analysis below)
 
 ### Per-Share Sync Keys
 
@@ -120,6 +120,48 @@ Vault Key + Share ID
 - Owner doesn't store original share phrases
 - Each recipient gets uniquely encrypted data
 - Owner can always regenerate from vault key + stored share ID
+
+## Recovery Phrase Entropy Analysis
+
+Auto-generated phrases use 4 sentence templates with 9 word slots drawn from categorized word lists.
+
+### Word List Sizes
+
+| List | Count | Bits |
+|------|-------|------|
+| articles | 9 | 3.2 |
+| possessives | 7 | 2.8 |
+| numbers | 21 | 4.4 |
+| adjectives | 154 | 7.3 |
+| nouns | 252 | 8.0 |
+| pluralNouns | 75 | 6.2 |
+| verbs | 77 | 6.3 |
+| pastVerbs | 77 | 6.3 |
+| adverbs | 63 | 6.0 |
+| prepositions | 26 | 4.7 |
+
+### Per-Template Entropy
+
+| Template | Structure | Entropy |
+|----------|-----------|---------|
+| 1 | article+adj+noun+verb+adverb+prep+article+adj+noun | ~56.6 bits |
+| 2 | possessive+adj+noun+verb+adverb+prep+article+adj+noun | ~56.2 bits |
+| 3 | number+adj+pluralNoun+pastVerb+adverb+prep+possessive+adj+noun | ~55.4 bits |
+| 4 | article+noun+pastVerb+adverb+prep+article+adj+noun | ~49.2 bits |
+
+Template selection adds +2 bits (4 options). **Effective entropy: ~51-59 bits.**
+
+### Collision Probability
+
+- Total phrase space: ~3.6 × 10^16 (at ~55 bits)
+- 2 vaults: ~1 in 36 quadrillion — effectively impossible
+- 1 million vaults (birthday paradox): ~1 in 72 billion
+
+Auto-generated phrase collisions are not a practical concern. A duplicate phrase check is enforced for **custom phrases** where users might choose identical values.
+
+### Duplicate Phrase Protection
+
+Both `saveRecoveryPhrase` and `regenerateRecoveryPhrase` reject phrases (case-insensitive) that are already assigned to a different vault, throwing `RecoveryError.duplicatePhrase`.
 
 ## Encryption
 

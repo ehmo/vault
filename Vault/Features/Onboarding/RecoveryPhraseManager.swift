@@ -48,9 +48,15 @@ final class RecoveryPhraseManager {
         let keyHash = SHA256.hash(data: patternKey)
         let keyHashString = keyHash.compactMap { String(format: "%02x", $0) }.joined()
         
+        // Check for duplicate phrase across other vaults
+        let normalizedPhrase = phrase.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        if database.vaults.contains(where: { $0.vaultKeyHash != keyHashString && $0.phrase.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == normalizedPhrase }) {
+            throw RecoveryError.duplicatePhrase
+        }
+
         // Remove existing entry if present (for regeneration)
         database.vaults.removeAll { $0.vaultKeyHash == keyHashString }
-        
+
         // Add new entry
         let info = RecoveryDatabase.VaultRecoveryInfo(
             vaultKeyHash: keyHashString,
@@ -140,6 +146,11 @@ final class RecoveryPhraseManager {
             let validation = RecoveryPhraseGenerator.shared.validatePhrase(customPhrase)
             guard validation.isAcceptable else {
                 throw RecoveryError.weakPhrase(message: validation.message)
+            }
+            // Check for duplicate phrase across other vaults
+            let normalizedPhrase = customPhrase.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            if database.vaults.contains(where: { $0.vaultKeyHash != keyHashString && $0.phrase.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == normalizedPhrase }) {
+                throw RecoveryError.duplicatePhrase
             }
             newPhrase = customPhrase
         } else {
@@ -353,6 +364,7 @@ enum RecoveryError: LocalizedError {
     case invalidPhrase
     case vaultNotFound
     case weakPhrase(message: String)
+    case duplicatePhrase
     case encryptionFailed
     case keychainError(status: OSStatus)
     case keyGenerationFailed
@@ -365,6 +377,8 @@ enum RecoveryError: LocalizedError {
             return "No recovery data found for this vault."
         case .weakPhrase(let message):
             return message
+        case .duplicatePhrase:
+            return "This recovery phrase is already used by another vault. Please choose a different phrase."
         case .encryptionFailed:
             return "Failed to encrypt recovery data."
         case .keychainError(let status):

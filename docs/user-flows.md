@@ -43,7 +43,7 @@
 │     first vault (minimum 6 points)          │
 │                                             │
 │          ┌─────────────┐                    │
-│          │  4x4 Grid   │                    │
+│          │  5x5 Grid   │                    │
 │          └─────────────┘                    │
 │                                             │
 │     This pattern is your key.               │
@@ -57,7 +57,7 @@
 │     Draw the same pattern again             │
 │                                             │
 │          ┌─────────────┐                    │
-│          │  4x4 Grid   │                    │
+│          │  5x5 Grid   │                    │
 │          └─────────────┘                    │
 └─────────────────────────────────────────────┘
                     │
@@ -65,13 +65,19 @@
 ┌─────────────────────────────────────────────┐
 │           Recovery Phrase                    │
 │                                             │
-│  Save this phrase - it can recover          │
-│  your vault if you forget the pattern:      │
+│  [Auto-Generated] [Custom Phrase]           │
 │                                             │
+│  Auto-Generated:                            │
 │  "The purple elephant dances quietly        │
 │   under the broken umbrella"                │
 │                                             │
-│         [Copy]  [I've Saved It]             │
+│  Custom Phrase:                             │
+│  ┌───────────────────────────┐              │
+│  │ Enter your own phrase...  │              │
+│  └───────────────────────────┘              │
+│  ✓ Strong phrase (82 bits)                  │
+│                                             │
+│     [I've Saved It]  [Skip for Now]         │
 └─────────────────────────────────────────────┘
                     │
                     ▼
@@ -154,6 +160,29 @@ Pattern Lock Screen
         ▼
     Vault View
 ```
+
+## Search and Filter
+
+```
+Vault View (with files)
+┌─────────────────────────────────────┐
+│ Vault ABCD                    🔒 ⚙️ │
+│                                     │
+│ 🔍 Search files                     │
+│                                     │
+│ [  All  ] [ Images ] [ Other ]      │
+│                                     │
+│  📷 photo1   📷 photo2              │
+│  📄 doc.pdf  📷 photo3              │
+└─────────────────────────────────────┘
+```
+
+- Search bar is always visible (no pull-to-reveal)
+- Filters by filename and MIME type (case-insensitive)
+- Segmented picker: All / Images / Other
+- Search + filter compose together
+- Empty vault: "This vault is empty" + Add Files button
+- No matches: "No matching files" with search term shown
 
 ## Adding Files
 
@@ -295,7 +324,7 @@ Pattern Lock Screen → "Join shared vault"
 │  this vault                 │
 │                             │
 │  ┌─────────────┐            │
-│  │  4x4 Grid   │            │
+│  │  5x5 Grid   │            │
 │  └─────────────┘            │
 │  (draw, then confirm)       │
 └─────────────────────────────┘
@@ -399,7 +428,8 @@ Vault View → ⚙️ → Vault Settings
 │                             │
 │  Recovery                   │
 │  ├─ View recovery phrase    │
-│  └─ Regenerate phrase       │
+│  ├─ Regenerate phrase       │
+│  └─ Set custom phrase       │
 │                             │
 │  Sharing                    │
 │  └─ Share This Vault        │

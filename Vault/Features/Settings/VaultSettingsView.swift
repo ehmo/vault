@@ -1,13 +1,11 @@
 import SwiftUI
 
-import SwiftUI
-
 struct VaultSettingsView: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
 
     @State private var showingChangePattern = false
-    @State private var showingRecoveryPhrase = false
+    @State private var showingRegeneratedPhrase = false
     @State private var showingDeleteConfirmation = false
     @State private var showingShareVault = false
     @State private var showingRegenerateConfirmation = false
@@ -48,14 +46,10 @@ struct VaultSettingsView: View {
 
             // Recovery
             Section("Recovery") {
-                Button("View recovery phrase") {
-                    showingRecoveryPhrase = true
-                }
-
                 Button("Regenerate recovery phrase") {
                     showingRegenerateConfirmation = true
                 }
-                
+
                 Button("Set custom recovery phrase") {
                     showingCustomPhraseInput = true
                 }
@@ -95,11 +89,20 @@ struct VaultSettingsView: View {
 
             // Duress
             Section {
-                Toggle("Use as duress vault", isOn: $isDuressVault)
+                if isSharedVault {
+                    Text("Shared vaults cannot be set as duress vaults")
+                        .foregroundStyle(.secondary)
+                } else {
+                    Toggle("Use as duress vault", isOn: $isDuressVault)
+                }
             } header: {
                 Text("Duress")
             } footer: {
-                Text("When this pattern is entered, all OTHER vaults are silently destroyed. This is irreversible and extremely destructive.")
+                if isSharedVault {
+                    Text("Duress mode is not available for vaults shared with you.")
+                } else {
+                    Text("When this pattern is entered, all OTHER vaults are silently destroyed. This is irreversible and extremely destructive.")
+                }
             }
 
             // App Settings
@@ -129,7 +132,7 @@ struct VaultSettingsView: View {
         .sheet(isPresented: $showingChangePattern) {
             ChangePatternView()
         }
-        .sheet(isPresented: $showingRecoveryPhrase) {
+        .sheet(isPresented: $showingRegeneratedPhrase) {
             RecoveryPhraseView()
         }
         .sheet(isPresented: $showingShareVault) {
@@ -165,6 +168,10 @@ struct VaultSettingsView: View {
             Text("⚠️ EXTREMELY DESTRUCTIVE ⚠️\n\nWhen this pattern is entered, ALL OTHER VAULTS will be PERMANENTLY DESTROYED with no warning or confirmation.\n\nThis includes:\n• All files in other vaults\n• All recovery phrases for other vaults\n• No way to undo this action\n\nOnly use this if you understand you may lose important data under duress.\n\nAre you absolutely sure?")
         }
         .onChange(of: isDuressVault) { oldValue, newValue in
+            guard !isSharedVault else {
+                isDuressVault = oldValue
+                return
+            }
             if newValue != oldValue {
                 pendingDuressValue = newValue
                 if newValue {
@@ -245,7 +252,7 @@ struct VaultSettingsView: View {
                 #endif
                 // Show the new phrase
                 await MainActor.run {
-                    showingRecoveryPhrase = true
+                    showingRegeneratedPhrase = true
                 }
             } catch {
                 #if DEBUG
@@ -968,11 +975,25 @@ struct CustomRecoveryPhraseInputView: View {
         
         Task {
             do {
-                _ = try await RecoveryPhraseManager.shared.regenerateRecoveryPhrase(
-                    for: key,
-                    customPhrase: customPhrase.trimmingCharacters(in: .whitespacesAndNewlines)
-                )
-                
+                let phrase = customPhrase.trimmingCharacters(in: .whitespacesAndNewlines)
+                do {
+                    _ = try await RecoveryPhraseManager.shared.regenerateRecoveryPhrase(
+                        for: key,
+                        customPhrase: phrase
+                    )
+                } catch RecoveryError.vaultNotFound {
+                    // Vault has no recovery data yet — create it
+                    guard let pattern = appState.currentPattern else {
+                        throw RecoveryError.vaultNotFound
+                    }
+                    try await RecoveryPhraseManager.shared.saveRecoveryPhrase(
+                        phrase: phrase,
+                        pattern: pattern,
+                        gridSize: 5,
+                        patternKey: key
+                    )
+                }
+
                 await MainActor.run {
                     isProcessing = false
                     showSuccess = true

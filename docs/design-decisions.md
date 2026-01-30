@@ -178,7 +178,7 @@ This document captures key product decisions, trade-offs, and the reasoning behi
 - Fun and distinctive
 - Easy to communicate verbally
 
-**Trade-off:** Longer than cryptographic phrases. ~80 bits vs potential 128+ bits.
+**Trade-off:** Longer than cryptographic phrases. ~51-59 bits (see security-model.md for analysis) vs potential 128+ bits. Sufficient to prevent collisions but not brute-force resistant at the level of BIP-39.
 
 ### Chunked Uploads
 
@@ -272,17 +272,39 @@ This document captures key product decisions, trade-offs, and the reasoning behi
 
 ### Recovery Phrase
 
-**Decision:** Generate memorable recovery phrase during setup.
+**Decision:** Generate memorable recovery phrase during setup, with option for custom phrases.
 
 **Reasoning:**
 - Backup if pattern forgotten
 - Can recover on same device
 - User-friendly format
+- Custom phrases supported during onboarding and in vault settings
 
 **Trade-off:**
 - Must be stored securely by user
 - If found, provides vault access
 - Device-bound (same device only)
+- Custom phrases must pass entropy validation (6+ words, 70+ bits recommended)
+- Duplicate phrases across vaults are rejected to prevent ambiguous recovery
+
+### Cached Vault Name
+
+**Decision:** `AppState.vaultName` is a stored `@Published` property set once on unlock, not a computed property.
+
+**Reasoning:**
+- Vault name is derived from `GridLetterManager`, which reads from the Keychain
+- As a computed property, every SwiftUI re-render triggered a Keychain lookup
+- Caching eliminates redundant I/O on every state change
+
+### File Search and Filtering
+
+**Decision:** VaultView includes an always-visible search bar and a segmented file type filter (All/Images/Other).
+
+**Reasoning:**
+- Vaults with many files need discoverability
+- Search matches filename and MIME type (case-insensitive)
+- Filter and search compose — both are applied simultaneously
+- Distinct empty states: "No files yet" (empty vault) vs "No matching files" (filtered to empty)
 
 ### Auto-Lock on Background
 
@@ -329,12 +351,14 @@ This document captures key product decisions, trade-offs, and the reasoning behi
 - Requires server infrastructure
 - Changes security model fundamentally
 
-### No File Preview Thumbnails
+### Encrypted Thumbnails
 
-**Why not:**
-- Would require decryption
-- Could leak information
-- Grid shows generic icons only
+**Decision:** Thumbnails are generated on import, encrypted, and stored in the vault index.
+
+**Reasoning:**
+- Grid shows actual image thumbnails for visual browsing
+- Thumbnails encrypted at rest — decrypted only with vault key
+- Non-image files show type-appropriate system icons
 
 ### No "Forgot Pattern" Flow
 

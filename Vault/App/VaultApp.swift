@@ -10,35 +10,6 @@ struct VaultApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
-                .onAppear {
-                    setupSecurityMeasures()
-                }
-        }
-    }
-
-    private func setupSecurityMeasures() {
-        // Prevent screenshots and screen recording
-        NotificationCenter.default.addObserver(
-            forName: UIScreen.capturedDidChangeNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            if UIScreen.main.isCaptured {
-                Task { @MainActor in
-                    appState.lockVault()
-                }
-            }
-        }
-
-        // Lock on background
-        NotificationCenter.default.addObserver(
-            forName: UIApplication.willResignActiveNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            Task { @MainActor in
-                appState.lockVault()
-            }
         }
     }
 }
@@ -51,18 +22,11 @@ final class AppState: ObservableObject {
     @Published var showOnboarding = false
     @Published var isLoading = false
     @Published var isSharedVault = false
+    @Published var screenshotDetected = false
+    @Published private(set) var vaultName: String = "Vault"
 
     init() {
         checkFirstLaunch()
-    }
-    
-    /// Returns the vault name based on the current pattern
-    var vaultName: String {
-        guard let pattern = currentPattern else {
-            return "Vault"
-        }
-        let letters = GridLetterManager.shared.vaultName(for: pattern)
-        return letters.isEmpty ? "Vault" : "Vault \(letters)"
     }
 
     private func checkFirstLaunch() {
@@ -104,6 +68,8 @@ final class AppState: ObservableObject {
 
             currentVaultKey = key
             currentPattern = pattern
+            let letters = GridLetterManager.shared.vaultName(for: pattern)
+            vaultName = letters.isEmpty ? "Vault" : "Vault \(letters)"
             isUnlocked = true
             isLoading = false
 
@@ -146,8 +112,10 @@ final class AppState: ObservableObject {
         }
         currentVaultKey = nil
         currentPattern = nil
+        vaultName = "Vault"
         isUnlocked = false
         isSharedVault = false
+        screenshotDetected = false
         
         #if DEBUG
         print("🔒 [AppState] After lock - currentVaultKey: nil, isUnlocked: false")

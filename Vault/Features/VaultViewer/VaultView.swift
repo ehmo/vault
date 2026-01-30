@@ -2,6 +2,12 @@ import SwiftUI
 import PhotosUI
 import UIKit
 
+enum FileFilter: String, CaseIterable {
+    case all = "All"
+    case images = "Images"
+    case other = "Other"
+}
+
 struct VaultView: View {
     @EnvironmentObject var appState: AppState
     @State private var files: [VaultFileItem] = []
@@ -12,6 +18,8 @@ struct VaultView: View {
     @State private var showingFilePicker = false
     @State private var showingSettings = false
     @State private var isLoading = true
+    @State private var searchText = ""
+    @State private var fileFilter: FileFilter = .all
 
     // Transfer status
     @ObservedObject private var transferManager = BackgroundShareTransferManager.shared
@@ -25,6 +33,23 @@ struct VaultView: View {
     @State private var selfDestructMessage: String?
     @State private var showSelfDestructAlert = false
 
+    private var filteredFiles: [VaultFileItem] {
+        var result = files
+        switch fileFilter {
+        case .all: break
+        case .images: result = result.filter { ($0.mimeType ?? "").hasPrefix("image/") }
+        case .other: result = result.filter { !($0.mimeType ?? "").hasPrefix("image/") }
+        }
+        if !searchText.isEmpty {
+            let query = searchText.lowercased()
+            result = result.filter {
+                ($0.filename ?? "").lowercased().contains(query) ||
+                ($0.mimeType ?? "").lowercased().contains(query)
+            }
+        }
+        return result
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -33,12 +58,23 @@ struct VaultView: View {
                 } else if files.isEmpty {
                     emptyStateView
                 } else {
-                    FileGridView(files: files, onSelect: { file in
-                        selectedFile = file
-                    })
+                    ZStack {
+                        if filteredFiles.isEmpty {
+                            ContentUnavailableView(
+                                "No matching files",
+                                systemImage: "magnifyingglass",
+                                description: Text("No files match \"\(searchText.isEmpty ? fileFilter.rawValue : searchText)\"")
+                            )
+                        } else {
+                            FileGridView(files: filteredFiles, onSelect: { file in
+                                selectedFile = file
+                            })
+                        }
+                    }
                 }
             }
             .navigationTitle(appState.vaultName)
+            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search files")
             .toolbar {
                 if !showingSettings {
                     ToolbarItem(placement: .topBarLeading) {
@@ -50,6 +86,17 @@ struct VaultView: View {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(action: lockVault) {
                             Image(systemName: "lock.fill")
+                        }
+                    }
+
+                    if !files.isEmpty {
+                        ToolbarItem(placement: .bottomBar) {
+                            Picker("Filter", selection: $fileFilter) {
+                                ForEach(FileFilter.allCases, id: \.self) { filter in
+                                    Text(filter.rawValue).tag(filter)
+                                }
+                            }
+                            .pickerStyle(.segmented)
                         }
                     }
                 }
@@ -73,13 +120,6 @@ struct VaultView: View {
                     .buttonStyle(.borderedProminent)
                     .padding(.horizontal)
                     .background(.thinMaterial)
-                }
-            }
-            .overlay {
-                // Screenshot prevention for shared vaults
-                if isSharedVault && !(sharePolicy?.allowScreenshots ?? false) {
-                    ScreenshotPreventionView()
-                        .allowsHitTesting(false)
                 }
             }
         }
@@ -128,7 +168,8 @@ struct VaultView: View {
                         files.remove(at: idx)
                     }
                     selectedFile = nil
-                }
+                },
+                allowDownloads: sharePolicy?.allowDownloads ?? true
             )
         }
         .sheet(isPresented: $showingSettings) {
@@ -463,11 +504,19 @@ struct VaultView: View {
             for file in sharedVault.files {
                 // Decrypt from share key (files are re-encrypted per-file in SharedVaultData)
                 let decrypted = try CryptoEngine.shared.decrypt(file.encryptedContent, with: shareKey)
+
+                // Generate thumbnail for images if available; shared file may not carry a separate encrypted thumbnail
+                var thumbnailData: Data? = nil
+                if file.mimeType.hasPrefix("image/") {
+                    thumbnailData = generateThumbnail(from: decrypted)
+                }
+
                 _ = try VaultStorage.shared.storeFile(
                     data: decrypted,
                     filename: file.filename,
                     mimeType: file.mimeType,
-                    with: key
+                    with: key,
+                    thumbnailData: thumbnailData
                 )
             }
 
@@ -507,7 +556,7 @@ struct VaultView: View {
 
     /// Loads the vault index once and uses it for both file listing and shared-vault checks.
     private func loadVault() {
-        guard let key = appState.currentVaultKey else {
+        guard appState.currentVaultKey != nil else {
             isLoading = false
             return
         }
@@ -625,7 +674,7 @@ struct VaultView: View {
     }
 
     private func handleImportedFiles(_ result: Result<[URL], Error>) {
-        guard !isSharedVault, let key = appState.currentVaultKey else { return }
+        guard !isSharedVault, appState.currentVaultKey != nil else { return }
         guard case .success(let urls) = result else { return }
 
         for url in urls {
@@ -642,7 +691,7 @@ struct VaultView: View {
                         data: data,
                         filename: filename,
                         mimeType: mimeType,
-                        with: key,
+                        with: appState.currentVaultKey!,
                         thumbnailData: thumbnail
                     ) {
                         await MainActor.run {
@@ -660,7 +709,7 @@ struct VaultView: View {
         }
 
         // Trigger sync if sharing
-        ShareSyncManager.shared.scheduleSync(vaultKey: key)
+        ShareSyncManager.shared.scheduleSync(vaultKey: appState.currentVaultKey!)
     }
 
     // MARK: - Thumbnail Generation
@@ -724,40 +773,6 @@ struct VaultFileItem: Identifiable {
     }
 }
 
-// MARK: - Screenshot Prevention
-
-/// Uses the UITextField.isSecureTextEntry trick to prevent screen capture.
-/// Content placed in this view's layer hierarchy appears black in screenshots/recordings.
-struct ScreenshotPreventionView: UIViewRepresentable {
-    func makeUIView(context: Context) -> UIView {
-        let secureField = UITextField()
-        secureField.isSecureTextEntry = true
-
-        // The secure field's subview blocks screen capture
-        guard let secureView = secureField.subviews.first else {
-            return UIView()
-        }
-
-        let container = UIView()
-        container.addSubview(secureView)
-        secureView.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            secureView.topAnchor.constraint(equalTo: container.topAnchor),
-            secureView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            secureView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            secureView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-        ])
-
-        // Make it invisible but still blocking captures
-        container.isUserInteractionEnabled = false
-        container.alpha = 0.01
-
-        return container
-    }
-
-    func updateUIView(_ uiView: UIView, context: Context) {}
-}
-
 // MARK: - Photo Picker Wrapper
 
 struct PhotoPicker: UIViewControllerRepresentable {
@@ -817,3 +832,4 @@ struct PhotoPicker: UIViewControllerRepresentable {
     VaultView()
         .environmentObject(AppState())
 }
+
