@@ -3,6 +3,7 @@ import Sentry
 
 final class SentryManager {
     static let shared = SentryManager()
+    private var isStarted = false
     private init() {}
 
     // MARK: - Sensitive Keywords
@@ -11,9 +12,11 @@ final class SentryManager {
         "key", "pattern", "phrase", "salt", "password", "secret", "token"
     ]
 
-    // MARK: - Start
+    // MARK: - Start / Stop
 
     func start() {
+        guard !isStarted else { return }
+        isStarted = true
         SentrySDK.start { options in
             options.dsn = "https://5c2cd9ddb6a7514efdb3903e09d76e59@o4510751132745728.ingest.us.sentry.io/4510798192181248"
 
@@ -38,6 +41,12 @@ final class SentryManager {
             options.debug = true
             #endif
         }
+    }
+
+    func stop() {
+        guard isStarted else { return }
+        SentrySDK.close()
+        isStarted = false
     }
 
     // MARK: - Scrubbing

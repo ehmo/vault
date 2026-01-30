@@ -59,7 +59,11 @@
 		016000001 /* LocalNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016000000 /* LocalNotificationManager.swift */; };
 		016000003 /* BackgroundShareTransferManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016000002 /* BackgroundShareTransferManager.swift */; };
 		017000001 /* SentryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017000000 /* SentryManager.swift */; };
+		018000001 /* TelemetryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018000000 /* TelemetryManager.swift */; };
+		018000003 /* AnalyticsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018000002 /* AnalyticsManager.swift */; };
+		019000001 /* AnalyticsConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000000 /* AnalyticsConsentView.swift */; };
 		6D5554047A7544D7954CEF9B /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = E8320F0CD52C4885B07B350E /* Sentry */; };
+		A1B2C3D4E5F64789A1B2C3D4 /* TelemetryDeck in Frameworks */ = {isa = PBXBuildFile; productRef = F1E2D3C4B5A647890123ABCD /* TelemetryDeck */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -116,6 +120,9 @@
 		016000000 /* LocalNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNotificationManager.swift; sourceTree = "<group>"; };
 		016000002 /* BackgroundShareTransferManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundShareTransferManager.swift; sourceTree = "<group>"; };
 		017000000 /* SentryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentryManager.swift; sourceTree = "<group>"; };
+		018000000 /* TelemetryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryManager.swift; sourceTree = "<group>"; };
+		018000002 /* AnalyticsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsManager.swift; sourceTree = "<group>"; };
+		019000000 /* AnalyticsConsentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsConsentView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -124,6 +131,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6D5554047A7544D7954CEF9B /* Sentry in Frameworks */,
+				A1B2C3D4E5F64789A1B2C3D4 /* TelemetryDeck in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -177,6 +185,8 @@
 			isa = PBXGroup;
 			children = (
 				017000000 /* SentryManager.swift */,
+				018000000 /* TelemetryManager.swift */,
+				018000002 /* AnalyticsManager.swift */,
 			);
 			path = Telemetry;
 			sourceTree = "<group>";
@@ -299,6 +309,7 @@
 				009000000 /* OnboardingView.swift */,
 				009000002 /* WelcomeView.swift */,
 				009000004 /* PatternSetupView.swift */,
+				019000000 /* AnalyticsConsentView.swift */,
 				39EACFA02F29B36D00FA7EC2 /* RecoveryPhraseManager.swift */,
 				39EACFA22F29B42100FA7EC2 /* RECOVERY_PHRASE_SYSTEM.md */,
 				39EACFA42F29B43C00FA7EC2 /* RECOVERY_QUICK_START.md */,
@@ -379,6 +390,7 @@
 			productType = "com.apple.product-type.application";
 			packageProductDependencies = (
 				E8320F0CD52C4885B07B350E /* Sentry */,
+				F1E2D3C4B5A647890123ABCD /* TelemetryDeck */,
 			);
 		};
 /* End PBXNativeTarget section */
@@ -413,6 +425,7 @@
 			);
 			packageReferences = (
 				E5E387BF1AA14DDCA8D53E3C /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
+				A9B8C7D6E5F4A3B2C1D0E9F8 /* XCRemoteSwiftPackageReference "SwiftSDK" */,
 			);
 		};
 /* End PBXProject section */
@@ -484,6 +497,9 @@
 				016000001 /* LocalNotificationManager.swift in Sources */,
 				016000003 /* BackgroundShareTransferManager.swift in Sources */,
 				017000001 /* SentryManager.swift in Sources */,
+				018000001 /* TelemetryManager.swift in Sources */,
+				018000003 /* AnalyticsManager.swift in Sources */,
+				019000001 /* AnalyticsConsentView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -755,6 +771,14 @@ fi
 				minimumVersion = 8.0.0;
 			};
 		};
+		A9B8C7D6E5F4A3B2C1D0E9F8 /* XCRemoteSwiftPackageReference "SwiftSDK" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/TelemetryDeck/SwiftSDK";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -762,6 +786,11 @@ fi
 			isa = XCSwiftPackageProductDependency;
 			package = E5E387BF1AA14DDCA8D53E3C /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
 			productName = Sentry;
+		};
+		F1E2D3C4B5A647890123ABCD /* TelemetryDeck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A9B8C7D6E5F4A3B2C1D0E9F8 /* XCRemoteSwiftPackageReference "SwiftSDK" */;
+			productName = TelemetryDeck;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

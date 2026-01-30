@@ -163,8 +163,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        // Initialize Sentry before anything else
-        SentryManager.shared.start()
+        // Initialize analytics (Sentry + TelemetryDeck) if user opted in
+        AnalyticsManager.shared.startIfEnabled()
 
         UNUserNotificationCenter.current().delegate = self
 

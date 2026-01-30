@@ -12,6 +12,8 @@ struct OnboardingView: View {
             case 1:
                 HowItWorksView(onContinue: { currentStep = 2 })
             case 2:
+                AnalyticsConsentView(onContinue: { currentStep = 3 })
+            case 3:
                 PatternSetupView(onComplete: completeOnboarding)
             default:
                 EmptyView()

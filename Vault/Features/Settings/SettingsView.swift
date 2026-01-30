@@ -16,6 +16,7 @@ struct AppSettingsView: View {
 
     @AppStorage("showPatternFeedback") private var showFeedback = true
     @AppStorage("randomizeGrid") private var randomizeGrid = false
+    @AppStorage("analyticsEnabled") private var analyticsEnabled = false
 
     @State private var wipeThreshold: WipePolicyThreshold = .tenAttempts
     @State private var showingNuclearConfirmation = false
@@ -51,6 +52,18 @@ struct AppSettingsView: View {
                 NavigationLink("iCloud Backup") {
                     iCloudBackupSettingsView()
                 }
+            }
+
+            // Privacy
+            Section {
+                Toggle("Help improve Vault", isOn: $analyticsEnabled)
+            } header: {
+                Text("Privacy")
+            } footer: {
+                Text("Share anonymous crash reports and usage statistics. No personal data is collected.")
+            }
+            .onChange(of: analyticsEnabled) { _, newValue in
+                AnalyticsManager.shared.setEnabled(newValue)
             }
 
             // About
