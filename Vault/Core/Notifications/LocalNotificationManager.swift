@@ -8,19 +8,21 @@ final class LocalNotificationManager {
     static let shared = LocalNotificationManager()
 
     private let center = UNUserNotificationCenter.current()
+    private var permissionGranted = false
 
     private init() {}
 
     // MARK: - Permission
 
-    func requestPermission() async -> Bool {
+    /// Ensures notification permission has been requested. Called lazily before first send.
+    private func ensurePermission() async {
+        guard !permissionGranted else { return }
         do {
-            return try await center.requestAuthorization(options: [.alert, .sound])
+            permissionGranted = try await center.requestAuthorization(options: [.alert, .sound])
         } catch {
             #if DEBUG
             print("⚠️ [Notifications] Permission request failed: \(error)")
             #endif
-            return false
         }
     }
 
@@ -63,23 +65,27 @@ final class LocalNotificationManager {
     // MARK: - Private
 
     private func send(id: String, title: String, body: String) {
-        let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = body
-        content.sound = .default
+        Task {
+            await ensurePermission()
 
-        let request = UNNotificationRequest(
-            identifier: id,
-            content: content,
-            trigger: nil // Immediate delivery
-        )
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            content.sound = .default
 
-        center.add(request) { error in
-            #if DEBUG
-            if let error {
+            let request = UNNotificationRequest(
+                identifier: id,
+                content: content,
+                trigger: nil // Immediate delivery
+            )
+
+            do {
+                try await center.add(request)
+            } catch {
+                #if DEBUG
                 print("⚠️ [Notifications] Failed to send \(id): \(error)")
+                #endif
             }
-            #endif
         }
     }
 }

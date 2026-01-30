@@ -498,6 +498,17 @@ struct SharedVaultData: Codable {
         let size: Int
         let encryptedContent: Data
         let createdAt: Date
+        let encryptedThumbnail: Data?
+
+        init(id: UUID, filename: String, mimeType: String, size: Int, encryptedContent: Data, createdAt: Date, encryptedThumbnail: Data? = nil) {
+            self.id = id
+            self.filename = filename
+            self.mimeType = mimeType
+            self.size = size
+            self.encryptedContent = encryptedContent
+            self.createdAt = createdAt
+            self.encryptedThumbnail = encryptedThumbnail
+        }
     }
 
     struct SharedVaultMetadata: Codable {

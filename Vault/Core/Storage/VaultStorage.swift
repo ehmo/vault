@@ -199,11 +199,13 @@ final class VaultStorage {
         var expiresAt: Date?        // nil = never
         var maxOpens: Int?          // nil = unlimited
         var allowScreenshots: Bool  // default false
+        var allowDownloads: Bool    // default true
 
-        init(expiresAt: Date? = nil, maxOpens: Int? = nil, allowScreenshots: Bool = false) {
+        init(expiresAt: Date? = nil, maxOpens: Int? = nil, allowScreenshots: Bool = false, allowDownloads: Bool = true) {
             self.expiresAt = expiresAt
             self.maxOpens = maxOpens
             self.allowScreenshots = allowScreenshots
+            self.allowDownloads = allowDownloads
         }
     }
 

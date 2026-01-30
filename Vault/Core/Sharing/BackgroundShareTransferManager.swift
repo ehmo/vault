@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Combine
 
 /// Manages background upload/import of shared vaults so the UI is not blocked.
@@ -32,7 +33,8 @@ final class BackgroundShareTransferManager: ObservableObject {
         hasExpiration: Bool,
         expiresAt: Date?,
         hasMaxOpens: Bool,
-        maxOpens: Int?
+        maxOpens: Int?,
+        allowDownloads: Bool = true
     ) {
         activeTask?.cancel()
         status = .uploading(progress: 0, total: 1)
@@ -44,6 +46,7 @@ final class BackgroundShareTransferManager: ObservableObject {
         let capturedExpiresAt = expiresAt
         let capturedHasMaxOpens = hasMaxOpens
         let capturedMaxOpens = maxOpens
+        let capturedAllowDownloads = allowDownloads
 
         activeTask = Task { [weak self] in
             do {
@@ -53,23 +56,34 @@ final class BackgroundShareTransferManager: ObservableObject {
                 let policy = VaultStorage.SharePolicy(
                     expiresAt: capturedHasExpiration ? capturedExpiresAt : nil,
                     maxOpens: capturedHasMaxOpens ? capturedMaxOpens : nil,
-                    allowScreenshots: false
+                    allowScreenshots: false,
+                    allowDownloads: capturedAllowDownloads
                 )
 
                 // Build vault data
                 let index = try VaultStorage.shared.loadIndex(with: capturedVaultKey)
+                let masterKey = try CryptoEngine.shared.decrypt(index.encryptedMasterKey!, with: capturedVaultKey)
                 var sharedFiles: [SharedVaultData.SharedFile] = []
 
                 for entry in index.files where !entry.isDeleted {
                     let (header, content) = try VaultStorage.shared.retrieveFile(id: entry.fileId, with: capturedVaultKey)
                     let reencrypted = try CryptoEngine.shared.encrypt(content, with: shareKey)
+
+                    // Re-encrypt thumbnail with share key
+                    var encryptedThumb: Data? = nil
+                    if let thumbData = entry.thumbnailData {
+                        let decryptedThumb = try CryptoEngine.shared.decrypt(thumbData, with: masterKey)
+                        encryptedThumb = try CryptoEngine.shared.encrypt(decryptedThumb, with: shareKey)
+                    }
+
                     sharedFiles.append(SharedVaultData.SharedFile(
                         id: header.fileId,
                         filename: header.originalFilename,
                         mimeType: header.mimeType,
                         size: Int(header.originalSize),
                         encryptedContent: reencrypted,
-                        createdAt: header.createdAt
+                        createdAt: header.createdAt,
+                        encryptedThumbnail: encryptedThumb
                     ))
                 }
 
@@ -164,11 +178,26 @@ final class BackgroundShareTransferManager: ObservableObject {
                 for file in sharedVault.files {
                     guard !Task.isCancelled else { return }
                     let decrypted = try CryptoEngine.shared.decrypt(file.encryptedContent, with: shareKey)
+
+                    // Decrypt thumbnail from share key, or generate from image data
+                    var thumbnailData: Data? = nil
+                    if let encThumb = file.encryptedThumbnail {
+                        thumbnailData = try? CryptoEngine.shared.decrypt(encThumb, with: shareKey)
+                    } else if file.mimeType.hasPrefix("image/"), let img = UIImage(data: decrypted) {
+                        let maxSize: CGFloat = 200
+                        let scale = min(maxSize / img.size.width, maxSize / img.size.height)
+                        let newSize = CGSize(width: img.size.width * scale, height: img.size.height * scale)
+                        let renderer = UIGraphicsImageRenderer(size: newSize)
+                        let thumb = renderer.image { _ in img.draw(in: CGRect(origin: .zero, size: newSize)) }
+                        thumbnailData = thumb.jpegData(compressionQuality: 0.7)
+                    }
+
                     _ = try VaultStorage.shared.storeFile(
                         data: decrypted,
                         filename: file.filename,
                         mimeType: file.mimeType,
-                        with: capturedPatternKey
+                        with: capturedPatternKey,
+                        thumbnailData: thumbnailData
                     )
                 }
 

@@ -208,8 +208,14 @@ final class SecureEnclaveManager {
 
         // Generate new 16-byte key
         var keyBytes = [UInt8](repeating: 0, count: 16)
-        SecRandomCopyBytes(kSecRandomDefault, keyBytes.count, &keyBytes)
-        let keyData = Data(keyBytes)
+        let randStatus = SecRandomCopyBytes(kSecRandomDefault, keyBytes.count, &keyBytes)
+        let keyData: Data
+        if randStatus == errSecSuccess {
+            keyData = Data(keyBytes)
+        } else {
+            // Fallback to zeroed key if random generation fails
+            keyData = Data(repeating: 0, count: 16)
+        }
 
         // Store in keychain
         let addQuery: [String: Any] = [

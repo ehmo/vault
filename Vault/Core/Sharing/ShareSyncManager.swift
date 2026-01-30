@@ -133,21 +133,52 @@ final class ShareSyncManager: ObservableObject {
     /// Builds serialized SharedVaultData from the current vault index.
     /// Re-encrypts each file with the share key (matching initial upload format).
     private func buildSharedVaultData(index: VaultStorage.VaultIndex, vaultKey: Data, shareKey: Data) throws -> Data {
+        let masterKey = try CryptoEngine.shared.decrypt(index.encryptedMasterKey!, with: vaultKey)
         var sharedFiles: [SharedVaultData.SharedFile] = []
+        var skippedFiles = 0
 
         for entry in index.files where !entry.isDeleted {
-            let (header, content) = try VaultStorage.shared.retrieveFile(id: entry.fileId, with: vaultKey)
-            // Re-encrypt file content with share key (same as initial upload)
-            let reencrypted = try CryptoEngine.shared.encrypt(content, with: shareKey)
-            sharedFiles.append(SharedVaultData.SharedFile(
-                id: header.fileId,
-                filename: header.originalFilename,
-                mimeType: header.mimeType,
-                size: Int(header.originalSize),
-                encryptedContent: reencrypted,
-                createdAt: header.createdAt
-            ))
+            do {
+                let (header, content) = try VaultStorage.shared.retrieveFile(id: entry.fileId, with: vaultKey)
+                // Re-encrypt file content with share key (same as initial upload)
+                let reencrypted = try CryptoEngine.shared.encrypt(content, with: shareKey)
+
+                // Re-encrypt thumbnail with share key
+                var encryptedThumb: Data? = nil
+                if let thumbData = entry.thumbnailData {
+                    let decryptedThumb = try CryptoEngine.shared.decrypt(thumbData, with: masterKey)
+                    encryptedThumb = try CryptoEngine.shared.encrypt(decryptedThumb, with: shareKey)
+                }
+
+                sharedFiles.append(SharedVaultData.SharedFile(
+                    id: header.fileId,
+                    filename: header.originalFilename,
+                    mimeType: header.mimeType,
+                    size: Int(header.originalSize),
+                    encryptedContent: reencrypted,
+                    createdAt: header.createdAt,
+                    encryptedThumbnail: encryptedThumb
+                ))
+            } catch {
+                skippedFiles += 1
+                #if DEBUG
+                print("⚠️ [ShareSync] Skipping corrupted file \(entry.fileId) (offset: \(entry.offset), size: \(entry.size)): \(error)")
+                #endif
+            }
         }
+
+        guard !sharedFiles.isEmpty else {
+            #if DEBUG
+            print("❌ [ShareSync] All \(skippedFiles) files are unreadable — cannot build share data")
+            #endif
+            throw VaultStorageError.readError
+        }
+
+        #if DEBUG
+        if skippedFiles > 0 {
+            print("⚠️ [ShareSync] Built share data with \(sharedFiles.count) files, skipped \(skippedFiles) corrupted")
+        }
+        #endif
 
         let data = SharedVaultData(
             files: sharedFiles,

@@ -24,6 +24,7 @@ struct ShareVaultView: View {
     @State private var hasExpiration = false
     @State private var maxOpens: Int?
     @State private var hasMaxOpens = false
+    @State private var allowDownloads = true
     @State private var copiedToClipboard = false
 
     // Active shares data
@@ -163,6 +164,11 @@ struct ShareVaultView: View {
                         set: { maxOpens = $0 }
                     ), in: 1...1000)
                 }
+
+                Divider()
+
+                // Allow downloads
+                Toggle("Allow file exports", isOn: $allowDownloads)
             }
             .padding()
             .background(Color(.systemGray6))
@@ -451,23 +457,36 @@ struct ShareVaultView: View {
                 let policy = VaultStorage.SharePolicy(
                     expiresAt: hasExpiration ? expiresAt : nil,
                     maxOpens: hasMaxOpens ? maxOpens : nil,
-                    allowScreenshots: false
+                    allowScreenshots: false,
+                    allowDownloads: allowDownloads
                 )
 
                 // Build vault data
                 let index = try VaultStorage.shared.loadIndex(with: vaultKey)
                 var sharedFiles: [SharedVaultData.SharedFile] = []
 
+                // Get master key for decrypting thumbnails
+                let masterKey = try CryptoEngine.shared.decrypt(index.encryptedMasterKey!, with: vaultKey)
+
                 for entry in index.files where !entry.isDeleted {
                     let (header, content) = try VaultStorage.shared.retrieveFile(id: entry.fileId, with: vaultKey)
                     let reencrypted = try CryptoEngine.shared.encrypt(content, with: shareKey)
+
+                    // Re-encrypt thumbnail with share key
+                    var encryptedThumb: Data? = nil
+                    if let thumbData = entry.thumbnailData {
+                        let decryptedThumb = try CryptoEngine.shared.decrypt(thumbData, with: masterKey)
+                        encryptedThumb = try CryptoEngine.shared.encrypt(decryptedThumb, with: shareKey)
+                    }
+
                     sharedFiles.append(SharedVaultData.SharedFile(
                         id: header.fileId,
                         filename: header.originalFilename,
                         mimeType: header.mimeType,
                         size: Int(header.originalSize),
                         encryptedContent: reencrypted,
-                        createdAt: header.createdAt
+                        createdAt: header.createdAt,
+                        encryptedThumbnail: encryptedThumb
                     ))
                 }
 
@@ -541,7 +560,8 @@ struct ShareVaultView: View {
             hasExpiration: hasExpiration,
             expiresAt: expiresAt,
             hasMaxOpens: hasMaxOpens,
-            maxOpens: maxOpens
+            maxOpens: maxOpens,
+            allowDownloads: allowDownloads
         )
 
         mode = .backgroundUploadStarted(phrase)

@@ -4,6 +4,7 @@ struct SecureImageViewer: View {
     let file: VaultFileItem
     let vaultKey: Data?
     var onDelete: ((UUID) -> Void)? = nil
+    var allowDownloads: Bool = true
 
     @Environment(\.dismiss) private var dismiss
     @State private var image: UIImage?
@@ -14,8 +15,6 @@ struct SecureImageViewer: View {
     @State private var showingActions = false
     @State private var isSharing = false
     @State private var shareURL: URL?
-    @AppStorage("screenshotProtectionEnabled") private var screenshotProtectionEnabled = true
-
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -47,12 +46,6 @@ struct SecureImageViewer: View {
                     errorView(error)
                 }
             }
-            .overlay {
-                if screenshotProtectionEnabled {
-                    SecureContainerView()
-                        .allowsHitTesting(false)
-                }
-            }
         }
         .onAppear(perform: loadImage)
         .onDisappear(perform: clearImage)
@@ -69,7 +62,9 @@ struct SecureImageViewer: View {
             Text("This file will be permanently deleted from the vault.")
         }
         .confirmationDialog("Actions", isPresented: $showingActions, titleVisibility: .visible) {
-            Button("Export") { showingExportConfirmation = true }
+            if allowDownloads {
+                Button("Export") { showingExportConfirmation = true }
+            }
             Button("Delete", role: .destructive) { showingDeleteConfirmation = true }
             Button("Cancel", role: .cancel) { }
         }
@@ -196,38 +191,6 @@ struct SecureImageViewer: View {
             }
         }
     }
-}
-
-// MARK: - Secure Container (Screenshot Prevention)
-
-struct SecureContainerView: UIViewRepresentable {
-    func makeUIView(context: Context) -> UIView {
-        // Use a UITextField with secure text entry as the root view.
-        // Anything rendered inside this view will be protected in screenshots.
-        let secureField = UITextField(frame: .zero)
-        secureField.isSecureTextEntry = true
-        secureField.backgroundColor = .clear
-        secureField.isUserInteractionEnabled = false
-        secureField.text = " " // ensure secure rendering layer is established
-
-        // Add a transparent content view that fills the secure field.
-        let contentView = UIView(frame: .zero)
-        contentView.backgroundColor = .clear
-        contentView.isUserInteractionEnabled = false
-
-        secureField.addSubview(contentView)
-        contentView.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            contentView.leadingAnchor.constraint(equalTo: secureField.leadingAnchor),
-            contentView.trailingAnchor.constraint(equalTo: secureField.trailingAnchor),
-            contentView.topAnchor.constraint(equalTo: secureField.topAnchor),
-            contentView.bottomAnchor.constraint(equalTo: secureField.bottomAnchor)
-        ])
-
-        return secureField
-    }
-
-    func updateUIView(_ uiView: UIView, context: Context) {}
 }
 
 #Preview {
