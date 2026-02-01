@@ -1,5 +1,6 @@
 import ActivityKit
 import Foundation
+import os.log
 import UIKit
 
 /// Manages background upload/import of shared vaults so the UI is not blocked.
@@ -319,16 +320,36 @@ final class BackgroundShareTransferManager {
 
     // MARK: - Live Activity
 
+    private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "LiveActivity")
+
     private func startLiveActivity(_ type: TransferActivityAttributes.TransferType) {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        // End any stale activities from previous runs
+        for activity in Activity<TransferActivityAttributes>.activities {
+            Self.logger.info("Ending stale activity: \(activity.id, privacy: .public)")
+            Task { await activity.end(nil, dismissalPolicy: .immediate) }
+        }
+
+        let authInfo = ActivityAuthorizationInfo()
+        Self.logger.info("areActivitiesEnabled: \(authInfo.areActivitiesEnabled), frequentPushesEnabled: \(authInfo.frequentPushesEnabled)")
+        guard authInfo.areActivitiesEnabled else {
+            Self.logger.warning("Live Activities not enabled — skipping")
+            return
+        }
         let attributes = TransferActivityAttributes(transferType: type)
         let state = TransferActivityAttributes.ContentState(
             progress: 0, total: 1, message: "Starting...", isComplete: false, isFailed: false
         )
-        currentActivity = try? Activity.request(
-            attributes: attributes,
-            content: .init(state: state, staleDate: nil)
-        )
+        do {
+            currentActivity = try Activity.request(
+                attributes: attributes,
+                content: .init(state: state, staleDate: nil),
+                pushType: nil
+            )
+            Self.logger.info("Activity started id=\(self.currentActivity?.id ?? "nil", privacy: .public), activityState=\(String(describing: self.currentActivity?.activityState), privacy: .public)")
+            Self.logger.info("Total active activities: \(Activity<TransferActivityAttributes>.activities.count)")
+        } catch {
+            Self.logger.error("Activity.request failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     private func updateLiveActivity(progress: Int, total: Int, message: String) {
