@@ -106,3 +106,8 @@ xcodebuild -project Vault.xcodeproj -scheme Vault \
 - `@Environment(AppState.self)` pattern for dependency injection
 - `BackgroundShareTransferManager.shared` is a singleton accessed directly (not via environment)
 - Transfer status uses enum with associated values: `.uploading(progress:total:)`, `.importComplete`, etc.
+
+### Learnings
+
+- `critique` CLI needs a current Bun (≥1.3) — older Bun versions throw tree-sitter highlight parse errors against `@opentui/core` assets. Run `bun upgrade` before using the tool.
+- `critique` shells out to `git diff`; large binary/untracked assets can blow the default stdout buffer. Filter/ignore big files or limit to specific paths when running it.
