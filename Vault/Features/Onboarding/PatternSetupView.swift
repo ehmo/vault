@@ -34,7 +34,7 @@ struct PatternSetupView: View {
             }
             .padding(.top)
 
-            // Header
+            // Header — fixed height prevents grid from shifting between steps
             VStack(spacing: 8) {
                 Text(headerTitle)
                     .font(.title2)
@@ -44,6 +44,7 @@ struct PatternSetupView: View {
                     .font(.subheadline)
                     .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
+                    .frame(height: 44, alignment: .top)
             }
             .padding(.horizontal)
 
