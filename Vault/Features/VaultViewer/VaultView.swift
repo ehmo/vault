@@ -126,7 +126,7 @@ struct VaultView: View {
         NavigationStack {
             Group {
                 if isLoading {
-                    ProgressView("Loading vault...")
+                    skeletonGridView
                 } else if files.isEmpty {
                     emptyStateView
                 } else {
@@ -144,6 +144,7 @@ struct VaultView: View {
                 }
             }
             .navigationTitle(appState.vaultName)
+            .navigationBarTitleDisplayMode(.large)
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search files")
             .toolbar {
                 if !showingSettings {
@@ -151,12 +152,14 @@ struct VaultView: View {
                         Button(action: { showingSettings = true }) {
                             Image(systemName: "gear")
                         }
+                        .accessibilityLabel("Settings")
                     }
 
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(action: lockVault) {
                             Image(systemName: "lock.fill")
                         }
+                        .accessibilityLabel("Lock vault")
                     }
 
                     if !files.isEmpty {
@@ -193,6 +196,7 @@ struct VaultView: View {
                     .buttonStyle(.borderedProminent)
                     .padding(.horizontal)
                     .background(.thinMaterial)
+                    .accessibilityHint("Import photos, videos, or files into the vault")
                 }
             }
         }
@@ -218,9 +222,10 @@ struct VaultView: View {
         }
         .onChange(of: showingSettings) { _, isShowing in
             if !isShowing {
-                files = []
-                isLoading = true
-                loadVault()
+                // Reload file list in case files were deleted or vault changed,
+                // but don't clear existing files to preserve scroll position
+                loadFiles()
+                checkSharedVaultStatus()
             }
         }
         .onChange(of: transferManager.status) { _, newStatus in
@@ -320,6 +325,7 @@ struct VaultView: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.mini)
                     .disabled(isUpdating)
+                    .accessibilityLabel(isUpdating ? "Updating shared vault" : "Update shared vault")
                 }
             }
             .padding(.horizontal)
@@ -341,6 +347,22 @@ struct VaultView: View {
         }
     }
 
+    // MARK: - Skeleton Loading
+
+    private var skeletonGridView: some View {
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 3)
+        return ScrollView {
+            LazyVGrid(columns: columns, spacing: 2) {
+                ForEach(0..<12, id: \.self) { _ in
+                    Color.vaultSurface
+                        .aspectRatio(1, contentMode: .fit)
+                }
+            }
+        }
+        .redacted(reason: .placeholder)
+        .allowsHitTesting(false)
+    }
+
     // MARK: - Empty State
 
     private var emptyStateView: some View {
@@ -348,6 +370,7 @@ struct VaultView: View {
             Image(systemName: "photo.on.rectangle.angled")
                 .font(.system(size: 64))
                 .foregroundStyle(.vaultSecondaryText)
+                .accessibilityHidden(true)
 
             Text("This vault is empty")
                 .font(.title2)

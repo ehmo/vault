@@ -71,7 +71,8 @@ final class PatternState {
             )
 
             let distance = hypot(point.x - nodeCenter.x, point.y - nodeCenter.y)
-            if distance <= nodeRadius * 1.5 { // Slightly larger hit area
+            let hitRadius = max(nodeRadius * 1.5, 22) // At least 44pt diameter (HIG minimum)
+            if distance <= hitRadius {
                 return node.id
             }
         }

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct PatternSetupView: View {
     let onComplete: () -> Void
@@ -14,6 +15,7 @@ struct PatternSetupView: View {
     @State private var customPhrase = ""
     @State private var customPhraseValidation: RecoveryPhraseGenerator.PhraseValidation?
     @State private var showSaveConfirmation = false
+    @State private var errorMessage: String?
 
     enum SetupStep {
         case create
@@ -33,6 +35,8 @@ struct PatternSetupView: View {
                 }
             }
             .padding(.top)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Step \(stepIndex + 1) of 3")
 
             // Header — fixed height prevents grid from shifting between steps
             VStack(spacing: 8) {
@@ -47,6 +51,22 @@ struct PatternSetupView: View {
                     .frame(height: 44, alignment: .top)
             }
             .padding(.horizontal)
+
+            // Error message
+            if let error = errorMessage {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .foregroundStyle(.vaultHighlight)
+                    Text(error)
+                        .font(.subheadline)
+                        .foregroundStyle(.vaultHighlight)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color.vaultHighlight.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .transition(.scale.combined(with: .opacity))
+            }
 
             // Content based on step
             switch step {
@@ -136,44 +156,65 @@ struct PatternSetupView: View {
             }
             .pickerStyle(.segmented)
             .padding(.horizontal)
-            
-            if useCustomPhrase {
-                // Custom phrase input
-                VStack(spacing: 12) {
+
+            // Fixed-height phrase area — prevents layout shift between modes
+            VStack(spacing: 12) {
+                if useCustomPhrase {
                     Text("Enter Your Custom Recovery Phrase")
                         .font(.headline)
-                    
-                    TextEditor(text: $customPhrase)
-                        .frame(height: 100)
-                        .padding(8)
+
+                    ZStack(alignment: .topLeading) {
+                        TextEditor(text: $customPhrase)
+                            .autocorrectionDisabled()
+                            .onChange(of: customPhrase) { _, newValue in
+                                validateCustomPhrase(newValue)
+                            }
+
+                        if customPhrase.isEmpty {
+                            Text("Type a memorable phrase with 6-9 words...")
+                                .foregroundStyle(.vaultSecondaryText.opacity(0.6))
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 8)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    .frame(height: 100)
+                    .padding(8)
+                    .background(Color.vaultSurface)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.vaultSecondaryText.opacity(0.3), lineWidth: 1)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                    // Validation feedback — fixed height so layout doesn't shift
+                    Group {
+                        if let validation = customPhraseValidation {
+                            HStack(spacing: 8) {
+                                Image(systemName: validation.isAcceptable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundStyle(validation.isAcceptable ? .green : .orange)
+                                Text(validation.message)
+                                    .font(.caption)
+                            }
+                            .padding(.horizontal)
+                        } else {
+                            Color.clear
+                        }
+                    }
+                    .frame(height: 20)
+                } else {
+                    Text(generatedPhrase)
+                        .font(.title3)
+                        .fontWeight(.medium)
+                        .multilineTextAlignment(.center)
+                        .padding()
+                        .frame(maxWidth: .infinity)
                         .background(Color.vaultSurface)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .autocorrectionDisabled()
-                        .onChange(of: customPhrase) { _, newValue in
-                            validateCustomPhrase(newValue)
-                        }
-                    
-                    // Validation feedback
-                    if let validation = customPhraseValidation {
-                        HStack(spacing: 8) {
-                            Image(systemName: validation.isAcceptable ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .foregroundStyle(validation.isAcceptable ? .green : .orange)
-                            Text(validation.message)
-                                .font(.caption)
-                        }
-                        .padding(.horizontal)
-                    }
                 }
-            } else {
-                // Generated phrase display
-                Text(generatedPhrase)
-                    .font(.title3)
-                    .fontWeight(.medium)
-                    .multilineTextAlignment(.center)
-                    .padding()
-                    .background(Color.vaultSurface)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
             }
+            .frame(height: 180, alignment: .top)
+            .padding(.horizontal)
 
             VStack(alignment: .leading, spacing: 12) {
                 Label("Write this down", systemImage: "pencil")
@@ -316,10 +357,12 @@ struct PatternSetupView: View {
             #endif
 
             if result.isValid {
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                errorMessage = nil
                 firstPattern = pattern
                 step = .confirm
                 patternState.reset()
-                
+
                 #if DEBUG
                 print("✅ [PatternSetup] Pattern valid, moving to confirm step")
                 print("✅ [PatternSetup] First pattern saved: \(firstPattern)")
@@ -341,6 +384,8 @@ struct PatternSetupView: View {
             
             if pattern == firstPattern {
                 // Patterns match - save and continue
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                errorMessage = nil
                 #if DEBUG
                 print("✅ [PatternSetup] Patterns match! Saving...")
                 #endif
@@ -351,10 +396,16 @@ struct PatternSetupView: View {
                 savePattern(pattern)
             } else {
                 // Patterns don't match - show error and reset
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
                 #if DEBUG
                 print("❌ [PatternSetup] Patterns don't match! Resetting...")
                 #endif
+                errorMessage = "Patterns don't match. Try again."
                 patternState.reset()
+                Task {
+                    try? await Task.sleep(nanoseconds: 2_500_000_000)
+                    await MainActor.run { errorMessage = nil }
+                }
             }
 
         default:

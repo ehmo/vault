@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct PatternGridView: View {
     var state: PatternState
@@ -8,6 +9,7 @@ struct PatternGridView: View {
 
     private let nodeRadius: CGFloat = 16
     private let lineWidth: CGFloat = 4
+    private let selectionFeedback = UISelectionFeedbackGenerator()
 
     var body: some View {
         GeometryReader { geometry in
@@ -34,6 +36,9 @@ struct PatternGridView: View {
             .gesture(dragGesture(in: geometry.size))
         }
         .aspectRatio(1, contentMode: .fit)
+        .accessibilityLabel("Pattern grid, \(state.gridSize) by \(state.gridSize)")
+        .accessibilityHint("Draw a pattern by dragging across the dots")
+        .accessibilityValue(state.selectedNodes.isEmpty ? "No dots selected" : "\(state.selectedNodes.count) dots connected")
     }
 
     // MARK: - Node View
@@ -111,7 +116,11 @@ struct PatternGridView: View {
                     #if DEBUG
                     print("🟡 Found node: \(nodeId)")
                     #endif
+                    let previousCount = state.selectedNodes.count
                     state.addNode(nodeId)
+                    if state.selectedNodes.count > previousCount {
+                        selectionFeedback.selectionChanged()
+                    }
                 }
             }
             .onEnded { _ in

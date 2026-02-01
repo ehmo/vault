@@ -144,6 +144,7 @@ struct VaultSettingsView: View {
         }
         .sheet(isPresented: $showingChangePattern) {
             ChangePatternView()
+                .interactiveDismissDisabled()
         }
         .sheet(isPresented: $showingRegeneratedPhrase) {
             RecoveryPhraseView()
@@ -153,6 +154,7 @@ struct VaultSettingsView: View {
         }
         .sheet(isPresented: $showingCustomPhraseInput) {
             CustomRecoveryPhraseInputView()
+                .interactiveDismissDisabled()
         }
         .alert("Delete Vault?", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
@@ -345,25 +347,7 @@ struct ChangePatternView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                Button("Cancel") { 
-                    dismiss() 
-                }
-                Spacer()
-                Text("Change Pattern")
-                    .font(.headline)
-                Spacer()
-                // Invisible button for spacing
-                Button("Cancel") { }
-                    .opacity(0)
-                    .disabled(true)
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 12)
-            Divider()
-
+        NavigationStack {
             VStack(spacing: 24) {
                 // Progress indicator
                 HStack(spacing: 8) {
@@ -374,20 +358,22 @@ struct ChangePatternView: View {
                     }
                 }
                 .padding(.top)
-                
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Step \(stepIndex + 1) of 3")
+
                 // Title and subtitle
                 VStack(spacing: 8) {
                     Text(stepTitle)
                         .font(.title2)
                         .fontWeight(.bold)
-                    
+
                     Text(stepSubtitle)
                         .font(.subheadline)
                         .foregroundStyle(.vaultSecondaryText)
                         .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal)
-                
+
                 // Error message
                 if let error = errorMessage {
                     HStack {
@@ -422,6 +408,13 @@ struct ChangePatternView: View {
                 bottomButtons
             }
             .padding()
+            .navigationTitle("Change Pattern")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
         }
     }
     
@@ -832,22 +825,20 @@ struct CustomRecoveryPhraseInputView: View {
     @State private var showSuccess = false
     
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Button("Cancel") { dismiss() }
-                Spacer()
-                Text("Custom Recovery Phrase")
-                    .font(.headline)
-                Spacer()
+        NavigationStack {
+            Group {
+                if showSuccess {
+                    successView
+                } else {
+                    inputView
+                }
             }
-            .padding(.horizontal)
-            .padding(.vertical, 12)
-            Divider()
-            
-            if showSuccess {
-                successView
-            } else {
-                inputView
+            .navigationTitle("Custom Recovery Phrase")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
             }
         }
     }
@@ -871,16 +862,30 @@ struct CustomRecoveryPhraseInputView: View {
             .padding(.horizontal)
             
             // Phrase input
-            TextEditor(text: $customPhrase)
-                .frame(height: 120)
-                .padding(8)
-                .background(Color.vaultSurface)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .autocorrectionDisabled()
-                .onChange(of: customPhrase) { _, newValue in
-                    validatePhrase(newValue)
+            ZStack(alignment: .topLeading) {
+                TextEditor(text: $customPhrase)
+                    .autocorrectionDisabled()
+                    .onChange(of: customPhrase) { _, newValue in
+                        validatePhrase(newValue)
+                    }
+
+                if customPhrase.isEmpty {
+                    Text("Type a memorable phrase with 6-9 words...")
+                        .foregroundStyle(.vaultSecondaryText.opacity(0.6))
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 8)
+                        .allowsHitTesting(false)
                 }
-                .padding(.horizontal)
+            }
+            .frame(height: 120)
+            .padding(8)
+            .background(Color.vaultSurface)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.vaultSecondaryText.opacity(0.3), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal)
             
             // Validation feedback
             if let validation = validation {

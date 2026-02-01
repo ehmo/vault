@@ -3,6 +3,7 @@ import RevenueCatUI
 
 struct OnboardingView: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var currentStep = 0
 
     var body: some View {
@@ -22,7 +23,7 @@ struct OnboardingView: View {
                 EmptyView()
             }
         }
-        .animation(.easeInOut, value: currentStep)
+        .animation(reduceMotion ? nil : .easeInOut, value: currentStep)
     }
 
     private func completeOnboarding() {
@@ -124,6 +125,7 @@ struct FeatureRow: View {
                 .font(.title2)
                 .foregroundStyle(.tint)
                 .frame(width: 32)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
@@ -134,6 +136,7 @@ struct FeatureRow: View {
                     .foregroundStyle(.vaultSecondaryText)
             }
         }
+        .accessibilityElement(children: .combine)
     }
 }
 

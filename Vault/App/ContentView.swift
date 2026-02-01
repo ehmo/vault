@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
@@ -16,9 +17,9 @@ struct ContentView: View {
                     PatternLockView()
                 }
             }
-            .animation(.easeInOut(duration: 0.3), value: appState.isUnlocked)
-            .animation(.easeInOut(duration: 0.3), value: appState.showOnboarding)
-            .animation(.easeInOut(duration: 0.3), value: appState.isLoading)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: appState.isUnlocked)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: appState.showOnboarding)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: appState.isLoading)
 
             // Screenshot detected: full-screen black overlay (covers UI before lock)
             if appState.screenshotDetected {

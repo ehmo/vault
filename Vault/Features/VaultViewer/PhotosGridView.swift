@@ -26,6 +26,7 @@ struct PhotosGridView: View {
                         .clipped()
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(file.filename ?? "Photo \(index + 1)")
             }
         }
     }

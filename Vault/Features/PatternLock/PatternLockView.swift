@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct PatternLockView: View {
     @Environment(AppState.self) private var appState
@@ -13,6 +14,7 @@ struct PatternLockView: View {
     @State private var errorMessage: String?
     @State private var showError = false
     @State private var showingPaywall = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 40) {
@@ -23,6 +25,7 @@ struct PatternLockView: View {
                 Image(systemName: "lock.shield.fill")
                     .font(.system(size: 48))
                     .foregroundStyle(.vaultSecondaryText)
+                    .accessibilityHidden(true)
 
                 Text("Draw your pattern")
                     .font(.title2)
@@ -68,21 +71,26 @@ struct PatternLockView: View {
                     Text("Use recovery phrase")
                         .font(.subheadline)
                         .foregroundStyle(.vaultSecondaryText)
+                        .frame(minHeight: 44)
                 }
+                .accessibilityHint("Unlock vault using your recovery phrase instead of drawing a pattern")
 
                 Button(action: { showJoinSharedVault = true }) {
                     Text("Join shared vault")
                         .font(.subheadline)
                         .foregroundStyle(.vaultSecondaryText)
+                        .frame(minHeight: 44)
                 }
+                .accessibilityHint("Enter a share phrase to access a vault shared with you")
             }
 
             Spacer()
         }
         .padding()
-        .animation(.spring(response: 0.3), value: showError)
+        .animation(reduceMotion ? nil : .spring(response: 0.3), value: showError)
         .sheet(isPresented: $showRecoveryOption) {
             RecoveryPhraseInputView()
+                .interactiveDismissDisabled()
         }
         .sheet(isPresented: $showJoinSharedVault) {
             JoinVaultView()
@@ -111,6 +119,7 @@ struct PatternLockView: View {
             
             // Show error message to user
             errorMessage = "Pattern must connect at least 6 dots"
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
             withAnimation {
                 showError = true
             }
@@ -163,9 +172,14 @@ struct PatternLockView: View {
             }
 
             // Attempt to unlock, passing pre-derived key to avoid double PBKDF2
-            _ = await appState.unlockWithPattern(pattern, gridSize: 5, precomputedKey: derivedKey)
+            let unlocked = await appState.unlockWithPattern(pattern, gridSize: 5, precomputedKey: derivedKey)
 
             await MainActor.run {
+                if unlocked {
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                } else {
+                    UINotificationFeedbackGenerator().notificationOccurred(.error)
+                }
                 isProcessing = false
                 patternState.reset()
             }
@@ -184,18 +198,7 @@ struct RecoveryPhraseInputView: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Button("Cancel") { dismiss() }
-                Spacer()
-                Text("Recovery")
-                    .font(.headline)
-                Spacer()
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 12)
-            Divider()
-
+        NavigationStack {
             VStack(spacing: 24) {
                 Text("Enter your recovery phrase")
                     .font(.headline)
@@ -222,7 +225,7 @@ struct RecoveryPhraseInputView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(phrase.isEmpty || isProcessing)
-                
+
                 if let error = errorMessage {
                     HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.circle.fill")
@@ -239,6 +242,13 @@ struct RecoveryPhraseInputView: View {
                 Spacer()
             }
             .padding()
+            .navigationTitle("Recovery")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
         }
     }
 

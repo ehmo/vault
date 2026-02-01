@@ -36,6 +36,7 @@ struct FilesGridView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("\(file.filename ?? "File"), \(formatSize(file.size))")
             }
         }
         .padding(.horizontal, 16)

@@ -16,6 +16,7 @@ struct FullScreenPhotoViewer: View {
     @State private var showingDeleteConfirmation = false
     @State private var isSharing = false
     @State private var shareURL: URL?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(files: [VaultFileItem], vaultKey: Data?, initialIndex: Int,
          onDelete: ((UUID) -> Void)? = nil, allowDownloads: Bool = true) {
@@ -58,6 +59,7 @@ struct FullScreenPhotoViewer: View {
                                 .foregroundStyle(.white)
                                 .imageScale(.large)
                         }
+                        .accessibilityLabel("More actions")
                     }
                 }
                 .padding(.horizontal)
@@ -139,7 +141,7 @@ struct FullScreenPhotoViewer: View {
                 if abs(value.translation.height) > 150 {
                     dismiss()
                 } else {
-                    withAnimation(.spring(response: 0.3)) {
+                    withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                         dragOffset = 0
                     }
                 }

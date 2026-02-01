@@ -4,6 +4,7 @@ struct WelcomeView: View {
     let onContinue: () -> Void
 
     @State private var animateIcon = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 40) {
@@ -20,7 +21,9 @@ struct WelcomeView: View {
                     .font(.system(size: 56))
                     .foregroundStyle(.tint)
             }
+            .accessibilityHidden(true)
             .onAppear {
+                guard !reduceMotion else { return }
                 withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
                     animateIcon = true
                 }

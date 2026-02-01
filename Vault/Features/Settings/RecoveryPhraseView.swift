@@ -11,19 +11,7 @@ struct RecoveryPhraseView: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("Recovery Phrase")
-                    .font(.headline)
-                Spacer()
-                Button("Done") {
-                    dismiss()
-                }
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 12)
-            Divider()
-
+        NavigationStack {
             VStack(spacing: 24) {
                 // Error message if any
                 if let errorMessage = errorMessage {
@@ -81,6 +69,8 @@ struct RecoveryPhraseView: View {
                             .background(Color.vaultSurface)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
+                        .accessibilityLabel("Reveal recovery phrase")
+                        .accessibilityHint("Tap to show your recovery phrase")
                     }
                 }
 
@@ -96,6 +86,13 @@ struct RecoveryPhraseView: View {
                 .foregroundStyle(.vaultSecondaryText)
             }
             .padding()
+            .navigationTitle("Recovery Phrase")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
         }
         .task {
             generateOrLoadPhrase()
