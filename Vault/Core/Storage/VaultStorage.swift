@@ -9,6 +9,7 @@ enum VaultStorageError: Error {
     case fileNotFound
     case corruptedData
     case vaultAlreadyExists
+    case expansionNotAllowed
 }
 
 final class VaultStorage {
@@ -217,12 +218,22 @@ final class VaultStorage {
         var shareId: String { id }
     }
 
+    struct BlobDescriptor: Codable {
+        let blobId: String      // "primary" or random hex
+        let fileName: String    // "vault_data.bin" or "vd_<hex>.bin"
+        let capacity: Int       // usable bytes (blob size minus reserved footer for primary)
+        var cursor: Int         // next write offset in this blob
+    }
+
     struct VaultIndex: Codable {
         var files: [VaultFileEntry]
         var nextOffset: Int
         var totalSize: Int
         var encryptedMasterKey: Data? // Master key encrypted with vault key (32 bytes encrypted)
         var version: Int // Index format version for future migrations
+
+        // Multi-blob pool (nil = v2 single-blob mode)
+        var blobs: [BlobDescriptor]?
 
         // Owner side: active shares for this vault
         var activeShares: [ShareRecord]?
@@ -262,7 +273,8 @@ final class VaultStorage {
             let thumbnailData: Data? // Encrypted thumbnail data (JPEG, 200x200 max)
             let mimeType: String?
             let filename: String?
-            
+            let blobId: String? // nil = primary blob (backward compat)
+
             // Legacy initializer for backward compatibility
             init(fileId: UUID, offset: Int, size: Int, encryptedHeaderPreview: Data, isDeleted: Bool) {
                 self.fileId = fileId
@@ -273,11 +285,12 @@ final class VaultStorage {
                 self.thumbnailData = nil
                 self.mimeType = nil
                 self.filename = nil
+                self.blobId = nil
             }
-            
-            // Full initializer with thumbnail
-            init(fileId: UUID, offset: Int, size: Int, encryptedHeaderPreview: Data, isDeleted: Bool, 
-                 thumbnailData: Data?, mimeType: String?, filename: String?) {
+
+            // Full initializer with thumbnail and blobId
+            init(fileId: UUID, offset: Int, size: Int, encryptedHeaderPreview: Data, isDeleted: Bool,
+                 thumbnailData: Data?, mimeType: String?, filename: String?, blobId: String? = nil) {
                 self.fileId = fileId
                 self.offset = offset
                 self.size = size
@@ -286,6 +299,7 @@ final class VaultStorage {
                 self.thumbnailData = thumbnailData
                 self.mimeType = mimeType
                 self.filename = filename
+                self.blobId = blobId
             }
         }
     }
@@ -304,16 +318,25 @@ final class VaultStorage {
             #if DEBUG
             print("📇 [VaultStorage] No index file exists, creating new vault with master key")
             #endif
-            // Return empty index for new vaults with a fresh master key
+            // Return empty v3 index for new vaults with a fresh master key
             let masterKey = CryptoEngine.shared.generateRandomBytes(count: 32)!
             let encryptedMasterKey = try CryptoEngine.shared.encrypt(masterKey, with: key)
-            return VaultIndex(
+            let globalCursor = readGlobalCursor()
+            let primary = BlobDescriptor(
+                blobId: "primary",
+                fileName: blobFileName,
+                capacity: cursorBlockOffset,
+                cursor: globalCursor
+            )
+            var newIndex = VaultIndex(
                 files: [],
                 nextOffset: 0,
                 totalSize: cursorBlockOffset,
                 encryptedMasterKey: encryptedMasterKey,
-                version: 2
+                version: 3
             )
+            newIndex.blobs = [primary]
+            return newIndex
         }
 
         let encryptedData = try Data(contentsOf: indexURL)
@@ -339,15 +362,27 @@ final class VaultStorage {
                 let masterKey = CryptoEngine.shared.generateRandomBytes(count: 32)!
                 index.encryptedMasterKey = try CryptoEngine.shared.encrypt(masterKey, with: key)
                 index.version = 2
-                
-                // Save the updated index
+
                 try saveIndex(index, with: key)
-                
+
                 #if DEBUG
                 print("✅ [VaultStorage] Vault migrated to v2 with master key")
                 #endif
             }
-            
+
+            // Migration: v2 → v3 (add blob descriptors)
+            if index.version < 3 {
+                #if DEBUG
+                print("🔄 [VaultStorage] Migrating vault v2 -> v3 (multi-blob)")
+                #endif
+                migrateToV3(&index)
+                try saveIndex(index, with: key)
+
+                #if DEBUG
+                print("✅ [VaultStorage] Vault migrated to v3")
+                #endif
+            }
+
             return index
         } catch {
             #if DEBUG
@@ -357,13 +392,22 @@ final class VaultStorage {
             // Decryption failed - return empty index with new master key (appears as empty vault)
             let masterKey = CryptoEngine.shared.generateRandomBytes(count: 32)!
             let encryptedMasterKey = try CryptoEngine.shared.encrypt(masterKey, with: key)
-            return VaultIndex(
+            let globalCursor = readGlobalCursor()
+            let primary = BlobDescriptor(
+                blobId: "primary",
+                fileName: blobFileName,
+                capacity: cursorBlockOffset,
+                cursor: globalCursor
+            )
+            var newIndex = VaultIndex(
                 files: [],
                 nextOffset: 0,
                 totalSize: cursorBlockOffset,
                 encryptedMasterKey: encryptedMasterKey,
-                version: 2
+                version: 3
             )
+            newIndex.blobs = [primary]
+            return newIndex
         }
     }
 
@@ -412,6 +456,101 @@ final class VaultStorage {
         return masterKey
     }
 
+    // MARK: - Multi-Blob Management
+
+    /// Documents directory for all blob files
+    private var documentsDirectory: URL {
+        fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    }
+
+    /// Resolve a blobId to its file URL. nil or "primary" → primary blob.
+    private func blobURL(for blobId: String?) -> URL {
+        guard let blobId = blobId, blobId != "primary" else {
+            return blobURL
+        }
+        // Expansion blobs are stored by their fileName in the blobs array,
+        // but we can also look up by blobId directly using the naming convention.
+        return documentsDirectory.appendingPathComponent("vd_\(blobId).bin")
+    }
+
+    /// Resolve a blobId using the index's blob descriptors for the correct fileName.
+    private func blobURL(for blobId: String?, in index: VaultIndex) -> URL {
+        guard let blobId = blobId, blobId != "primary" else {
+            return blobURL
+        }
+        if let descriptor = index.blobs?.first(where: { $0.blobId == blobId }) {
+            return documentsDirectory.appendingPathComponent(descriptor.fileName)
+        }
+        // Fallback to naming convention
+        return documentsDirectory.appendingPathComponent("vd_\(blobId).bin")
+    }
+
+    /// Create a new expansion blob filled with random data.
+    /// Returns a BlobDescriptor for the new blob.
+    private func createExpansionBlob() -> BlobDescriptor? {
+        let hexId = (0..<16).map { _ in String(format: "%x", Int.random(in: 0...15)) }.joined()
+        let fileName = "vd_\(hexId).bin"
+        let url = documentsDirectory.appendingPathComponent(fileName)
+
+        fileManager.createFile(atPath: url.path, contents: nil, attributes: [
+            .protectionKey: FileProtectionType.complete
+        ])
+
+        guard let handle = try? FileHandle(forWritingTo: url) else { return nil }
+
+        let chunkSize = 1024 * 1024
+        let totalChunks = defaultBlobSize / chunkSize
+
+        for _ in 0..<totalChunks {
+            if let randomData = CryptoEngine.shared.generateRandomBytes(count: chunkSize) {
+                handle.write(randomData)
+            }
+        }
+
+        try? handle.close()
+
+        #if DEBUG
+        print("🗄️ [VaultStorage] Created expansion blob: \(fileName)")
+        #endif
+
+        return BlobDescriptor(
+            blobId: hexId,
+            fileName: fileName,
+            capacity: defaultBlobSize, // Full capacity — no footer reservation
+            cursor: 0
+        )
+    }
+
+    /// Migrate a v2 index to v3 by adding blob descriptors.
+    private func migrateToV3(_ index: inout VaultIndex) {
+        let globalCursor = readGlobalCursor()
+        let cursor = max(globalCursor, index.nextOffset)
+
+        let primary = BlobDescriptor(
+            blobId: "primary",
+            fileName: blobFileName,
+            capacity: cursorBlockOffset,
+            cursor: cursor
+        )
+        index.blobs = [primary]
+        index.version = 3
+
+        #if DEBUG
+        print("🔄 [VaultStorage] Migrated index to v3. Primary blob cursor: \(cursor)")
+        #endif
+    }
+
+    /// Enumerate all blob files on disk (primary + expansion).
+    func allBlobURLs() -> [URL] {
+        var urls = [blobURL]
+        if let files = try? fileManager.contentsOfDirectory(at: documentsDirectory, includingPropertiesForKeys: nil) {
+            for file in files where file.lastPathComponent.hasPrefix("vd_") && file.pathExtension == "bin" {
+                urls.append(file)
+            }
+        }
+        return urls
+    }
+
     // MARK: - File Operations
 
     func storeFile(data: Data, filename: String, mimeType: String, with key: Data, thumbnailData: Data? = nil) throws -> UUID {
@@ -452,24 +591,46 @@ final class VaultStorage {
         print("💾 [VaultStorage] File encrypted with master key. Size: \(fileSize) bytes")
         #endif
 
-        // Resolve write offset from global cursor vs vault's own nextOffset
-        let globalCursor = readGlobalCursor()
-        let writeOffset = max(globalCursor, index.nextOffset)
-
-        #if DEBUG
-        print("💾 [VaultStorage] globalCursor: \(globalCursor), index.nextOffset: \(index.nextOffset), writeOffset: \(writeOffset)")
-        #endif
-
-        // Check if we have space (usable region ends at cursorBlockOffset)
-        guard writeOffset + fileSize <= cursorBlockOffset else {
-            #if DEBUG
-            print("❌ [VaultStorage] Insufficient space! writeOffset: \(writeOffset), fileSize: \(fileSize), limit: \(cursorBlockOffset)")
-            #endif
-            throw VaultStorageError.insufficientSpace
+        // Find a blob with enough space
+        var targetBlobIndex: Int? = nil
+        if let blobs = index.blobs {
+            for (i, blob) in blobs.enumerated() {
+                if blob.cursor + fileSize <= blob.capacity {
+                    targetBlobIndex = i
+                    break
+                }
+            }
         }
 
-        // Write to blob at resolved offset
-        guard let handle = try? FileHandle(forWritingTo: blobURL) else {
+        // No blob has space — try to expand
+        if targetBlobIndex == nil {
+            guard SubscriptionManager.isPremiumSnapshot else {
+                #if DEBUG
+                print("❌ [VaultStorage] No space and expansion not allowed (free tier)")
+                #endif
+                throw VaultStorageError.expansionNotAllowed
+            }
+
+            guard let newBlob = createExpansionBlob() else {
+                throw VaultStorageError.writeError
+            }
+
+            if index.blobs == nil { index.blobs = [] }
+            index.blobs!.append(newBlob)
+            targetBlobIndex = index.blobs!.count - 1
+        }
+
+        let blobIdx = targetBlobIndex!
+        let writeOffset = index.blobs![blobIdx].cursor
+        let targetBlobId = index.blobs![blobIdx].blobId
+        let targetURL = blobURL(for: targetBlobId, in: index)
+
+        #if DEBUG
+        print("💾 [VaultStorage] Writing to blob '\(targetBlobId)' at offset \(writeOffset)")
+        #endif
+
+        // Write to blob
+        guard let handle = try? FileHandle(forWritingTo: targetURL) else {
             #if DEBUG
             print("❌ [VaultStorage] Cannot open blob file for writing")
             #endif
@@ -493,9 +654,15 @@ final class VaultStorage {
             #endif
         }
 
-        // Update global cursor
+        // Update blob cursor
         let newCursor = writeOffset + fileSize
-        writeGlobalCursor(newCursor)
+        index.blobs![blobIdx].cursor = newCursor
+
+        // For primary blob, also update the XOR footer cursor (v2 compat)
+        if targetBlobId == "primary" {
+            writeGlobalCursor(newCursor)
+            index.nextOffset = newCursor
+        }
 
         // Update index
         let entry = VaultIndex.VaultFileEntry(
@@ -506,10 +673,10 @@ final class VaultStorage {
             isDeleted: false,
             thumbnailData: encryptedThumbnail,
             mimeType: mimeType,
-            filename: filename
+            filename: filename,
+            blobId: targetBlobId == "primary" ? nil : targetBlobId
         )
         index.files.append(entry)
-        index.nextOffset = newCursor
 
         try saveIndex(index, with: key)
 
@@ -517,7 +684,7 @@ final class VaultStorage {
 
         #if DEBUG
         print("✅ [VaultStorage] File stored successfully with ID: \(encryptedFile.header.fileId)")
-        print("✅ [VaultStorage] New index: \(index.files.count) files, nextOffset: \(index.nextOffset)")
+        print("✅ [VaultStorage] New index: \(index.files.count) files, blob '\(targetBlobId)' cursor: \(newCursor)")
         #endif
 
         return encryptedFile.header.fileId
@@ -535,8 +702,10 @@ final class VaultStorage {
             throw VaultStorageError.fileNotFound
         }
 
-        // Read from blob
-        guard let handle = try? FileHandle(forReadingFrom: blobURL) else {
+        // Resolve blob file for this entry
+        let targetURL = blobURL(for: entry.blobId, in: index)
+
+        guard let handle = try? FileHandle(forReadingFrom: targetURL) else {
             throw VaultStorageError.readError
         }
         defer { try? handle.close() }
@@ -563,8 +732,9 @@ final class VaultStorage {
 
         let entry = index.files[entryIndex]
 
-        // Securely overwrite the file data with random bytes
-        guard let handle = try? FileHandle(forWritingTo: blobURL) else {
+        // Securely overwrite the file data with random bytes in the correct blob
+        let targetURL = blobURL(for: entry.blobId, in: index)
+        guard let handle = try? FileHandle(forWritingTo: targetURL) else {
             throw VaultStorageError.writeError
         }
         defer { try? handle.close() }
@@ -583,7 +753,8 @@ final class VaultStorage {
             isDeleted: true,
             thumbnailData: entry.thumbnailData,
             mimeType: entry.mimeType,
-            filename: entry.filename
+            filename: entry.filename,
+            blobId: entry.blobId
         )
 
         try saveIndex(index, with: key)
@@ -712,15 +883,23 @@ final class VaultStorage {
         print("🔐 [VaultStorage] Master key re-encrypted with new vault key")
         #endif
         
-        // 4. Create new index with re-encrypted master key
-        let newIndex = VaultIndex(
+        // 4. Create new index with re-encrypted master key (preserve all fields)
+        var newIndex = VaultIndex(
             files: index.files,
             nextOffset: index.nextOffset,
             totalSize: index.totalSize,
             encryptedMasterKey: newEncryptedMasterKey,
             version: index.version
         )
-        
+        newIndex.blobs = index.blobs
+        newIndex.activeShares = index.activeShares
+        newIndex.isSharedVault = index.isSharedVault
+        newIndex.sharedVaultId = index.sharedVaultId
+        newIndex.sharePolicy = index.sharePolicy
+        newIndex.openCount = index.openCount
+        newIndex.shareKeyData = index.shareKeyData
+        newIndex.sharedVaultVersion = index.sharedVaultVersion
+
         // 5. Save index with NEW vault key (creates new index file)
         try saveIndex(newIndex, with: newKey)
         
@@ -750,34 +929,14 @@ final class VaultStorage {
         }
     }
 
+    /// Quick wipe: delete all index files + keychain items. Keys gone = data unrecoverable.
     func destroyAllVaultData() {
         ensureBlobReady()
         #if DEBUG
         print("💣 [VaultStorage] Destroying all vault data!")
         #endif
 
-        // Overwrite entire blob with random data
-        do {
-            let handle = try FileHandle(forWritingTo: blobURL)
-            let chunkSize = 1024 * 1024
-            var offset = 0
-
-            while offset < defaultBlobSize {
-                if let randomData = CryptoEngine.shared.generateRandomBytes(count: chunkSize) {
-                    try? handle.seek(toOffset: UInt64(offset))
-                    handle.write(randomData)
-                }
-                offset += chunkSize
-            }
-            try? handle.close()
-        } catch {
-            return
-        }
-
-        // Re-initialize global cursor to 0
-        writeGlobalCursor(0)
-
-        // Delete ALL index files (all vaults)
+        // Delete ALL index files (all vaults) — without keys, blob data is unrecoverable
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         if let files = try? fileManager.contentsOfDirectory(at: documents, includingPropertiesForKeys: nil) {
             for file in files {
@@ -789,6 +948,39 @@ final class VaultStorage {
                 }
             }
         }
+
+        // Re-initialize global cursor to 0
+        writeGlobalCursor(0)
+    }
+
+    /// Secure wipe: overwrite all blob files with random data, then delete expansion blobs.
+    func secureWipeAllBlobs() {
+        ensureBlobReady()
+        #if DEBUG
+        print("💣 [VaultStorage] Secure wiping all blobs!")
+        #endif
+
+        let chunkSize = 1024 * 1024
+
+        for url in allBlobURLs() {
+            guard let handle = try? FileHandle(forWritingTo: url) else { continue }
+            var offset = 0
+            while offset < defaultBlobSize {
+                if let randomData = CryptoEngine.shared.generateRandomBytes(count: chunkSize) {
+                    try? handle.seek(toOffset: UInt64(offset))
+                    handle.write(randomData)
+                }
+                offset += chunkSize
+            }
+            try? handle.close()
+
+            // Delete expansion blobs; keep primary
+            if url.lastPathComponent != blobFileName {
+                try? fileManager.removeItem(at: url)
+            }
+        }
+
+        writeGlobalCursor(0)
     }
     
     /// Destroys all vault indexes except the one for the specified key
@@ -827,13 +1019,185 @@ final class VaultStorage {
 
     // MARK: - Storage Info
 
-    /// Bytes consumed by vault data (based on global cursor position).
+    /// Total bytes consumed across all blobs (sum of cursors).
     var usedSpace: Int {
+        // Fall back to global cursor for un-migrated state
         readGlobalCursor()
     }
 
-    /// Bytes remaining for new file writes.
+    /// Bytes remaining in the primary blob only (free tier view).
     var availableSpace: Int {
         cursorBlockOffset - usedSpace
+    }
+
+    /// Total capacity across all blobs for a given vault.
+    func totalCapacity(for index: VaultIndex) -> Int {
+        guard let blobs = index.blobs else { return cursorBlockOffset }
+        return blobs.reduce(0) { $0 + $1.capacity }
+    }
+
+    /// Total used across all blobs for a given vault.
+    func totalUsed(for index: VaultIndex) -> Int {
+        guard let blobs = index.blobs else { return readGlobalCursor() }
+        return blobs.reduce(0) { $0 + $1.cursor }
+    }
+
+    /// Bytes of deleted (reclaimable) space in a vault.
+    func deletedSpace(for index: VaultIndex) -> Int {
+        index.files.filter { $0.isDeleted }.reduce(0) { $0 + $1.size }
+    }
+
+    // MARK: - Compaction
+
+    /// Reclaim deleted space by copying live files to fresh blobs.
+    /// Returns the updated index.
+    func compactBlobs(with key: Data) throws -> VaultIndex {
+        var index = try loadIndex(with: key)
+        let masterKey = try getMasterKey(from: index, vaultKey: key)
+        _ = masterKey // Silence unused warning — masterKey needed if we re-encrypt; here we copy raw
+
+        let liveEntries = index.files.filter { !$0.isDeleted }
+
+        // Collect old blob URLs for cleanup
+        let oldBlobURLs = allBlobURLs()
+
+        // Create fresh primary blob
+        let freshPrimaryURL = documentsDirectory.appendingPathComponent("vault_data_compact.bin")
+        fileManager.createFile(atPath: freshPrimaryURL.path, contents: nil, attributes: [
+            .protectionKey: FileProtectionType.complete
+        ])
+
+        // Fill with random data
+        if let handle = try? FileHandle(forWritingTo: freshPrimaryURL) {
+            let chunkSize = 1024 * 1024
+            for _ in 0..<(defaultBlobSize / chunkSize) {
+                if let randomData = CryptoEngine.shared.generateRandomBytes(count: chunkSize) {
+                    handle.write(randomData)
+                }
+            }
+            try? handle.close()
+        }
+
+        var newBlobs: [BlobDescriptor] = []
+        var newFiles: [VaultIndex.VaultFileEntry] = []
+        var currentBlobURL = freshPrimaryURL
+        var currentBlobId = "primary"
+        var currentCapacity = cursorBlockOffset
+        var currentCursor = 0
+        var expansionCount = 0
+
+        for entry in liveEntries {
+            // Read the raw encrypted data from old blob
+            let sourceURL = blobURL(for: entry.blobId, in: index)
+            guard let readHandle = try? FileHandle(forReadingFrom: sourceURL) else {
+                throw VaultStorageError.readError
+            }
+            try readHandle.seek(toOffset: UInt64(entry.offset))
+            guard let fileData = try readHandle.read(upToCount: entry.size) else {
+                try? readHandle.close()
+                throw VaultStorageError.readError
+            }
+            try? readHandle.close()
+
+            // Check if current blob has space
+            if currentCursor + entry.size > currentCapacity {
+                // Finalize current blob descriptor
+                newBlobs.append(BlobDescriptor(
+                    blobId: currentBlobId,
+                    fileName: currentBlobURL.lastPathComponent,
+                    capacity: currentCapacity,
+                    cursor: currentCursor
+                ))
+
+                // Create a new expansion blob
+                guard let newBlob = createExpansionBlob() else {
+                    throw VaultStorageError.writeError
+                }
+                expansionCount += 1
+                currentBlobId = newBlob.blobId
+                currentBlobURL = documentsDirectory.appendingPathComponent(newBlob.fileName)
+                currentCapacity = newBlob.capacity
+                currentCursor = 0
+            }
+
+            // Write to current blob
+            guard let writeHandle = try? FileHandle(forWritingTo: currentBlobURL) else {
+                throw VaultStorageError.writeError
+            }
+            try writeHandle.seek(toOffset: UInt64(currentCursor))
+            writeHandle.write(fileData)
+            try? writeHandle.close()
+
+            // Create updated file entry
+            let newEntry = VaultIndex.VaultFileEntry(
+                fileId: entry.fileId,
+                offset: currentCursor,
+                size: entry.size,
+                encryptedHeaderPreview: entry.encryptedHeaderPreview,
+                isDeleted: false,
+                thumbnailData: entry.thumbnailData,
+                mimeType: entry.mimeType,
+                filename: entry.filename,
+                blobId: currentBlobId == "primary" ? nil : currentBlobId
+            )
+            newFiles.append(newEntry)
+            currentCursor += entry.size
+        }
+
+        // Finalize last blob
+        newBlobs.append(BlobDescriptor(
+            blobId: currentBlobId,
+            fileName: currentBlobURL.lastPathComponent,
+            capacity: currentCapacity,
+            cursor: currentCursor
+        ))
+
+        // Overwrite old blobs with random data, then delete expansion blobs
+        let chunkSize = 1024 * 1024
+        for url in oldBlobURLs {
+            if let handle = try? FileHandle(forWritingTo: url) {
+                var offset = 0
+                while offset < defaultBlobSize {
+                    if let randomData = CryptoEngine.shared.generateRandomBytes(count: chunkSize) {
+                        try? handle.seek(toOffset: UInt64(offset))
+                        handle.write(randomData)
+                    }
+                    offset += chunkSize
+                }
+                try? handle.close()
+            }
+            // Delete old expansion blobs and old primary
+            try? fileManager.removeItem(at: url)
+        }
+
+        // Rename compacted primary to vault_data.bin
+        try fileManager.moveItem(at: freshPrimaryURL, to: blobURL)
+
+        // Fix the primary blob's fileName in descriptors
+        if let primaryIdx = newBlobs.firstIndex(where: { $0.blobId == "primary" }) {
+            newBlobs[primaryIdx] = BlobDescriptor(
+                blobId: "primary",
+                fileName: blobFileName,
+                capacity: cursorBlockOffset,
+                cursor: newBlobs[primaryIdx].cursor
+            )
+        }
+
+        // Update global cursor for primary blob
+        let primaryCursor = newBlobs.first(where: { $0.blobId == "primary" })?.cursor ?? 0
+        writeGlobalCursor(primaryCursor)
+
+        // Update index
+        index.files = newFiles
+        index.blobs = newBlobs
+        index.nextOffset = primaryCursor
+
+        try saveIndex(index, with: key)
+
+        #if DEBUG
+        print("✅ [VaultStorage] Compaction complete. \(newFiles.count) files in \(newBlobs.count) blob(s)")
+        #endif
+
+        return index
     }
 }

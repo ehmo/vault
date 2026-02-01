@@ -7,6 +7,7 @@ enum PremiumFeature: String {
     case sharedVault
     case duressVault
     case icloudSync
+    case expandedStorage
 
     var displayName: String {
         switch self {
@@ -15,6 +16,7 @@ enum PremiumFeature: String {
         case .sharedVault: return "Shared Vaults"
         case .duressVault: return "Duress Vault"
         case .icloudSync: return "iCloud Sync"
+        case .expandedStorage: return "Expanded Storage"
         }
     }
 }

@@ -71,6 +71,15 @@ final class SubscriptionManager: NSObject {
         isPremium
     }
 
+    func canExpandStorage() -> Bool {
+        isPremium
+    }
+
+    /// Thread-safe snapshot of premium status for non-MainActor callers (e.g. VaultStorage).
+    /// Updated whenever `isPremium` changes. Slight race is acceptable — worst case
+    /// user sees paywall for one extra attempt.
+    nonisolated(unsafe) static var isPremiumSnapshot: Bool = false
+
     // MARK: - Update
 
     func updateFromCustomerInfo(_ info: CustomerInfo) {
@@ -79,6 +88,7 @@ final class SubscriptionManager: NSObject {
         // (covers sandbox/test mode where entitlement-product mapping may not be configured)
         isPremium = info.entitlements[Self.entitlementID]?.isActive == true
             || !info.entitlements.active.isEmpty
+        Self.isPremiumSnapshot = isPremium
 
         #if DEBUG
         print("💰 [SubscriptionManager] isPremium: \(isPremium)")

@@ -150,19 +150,26 @@ actor DuressHandler {
 
     /// Complete wipe of all data including the duress vault.
     /// User must confirm this action through UI.
-    func performNuclearWipe() async {
+    /// - Parameter secure: If true, overwrites all blob files with random data (~3s/blob).
+    ///   If false (default), just deletes indexes + keychain — keys gone = data unrecoverable.
+    func performNuclearWipe(secure: Bool = false) async {
         // 1. Destroy all keychain data
         secureEnclave.performNuclearWipe()
 
-        // 2. Destroy all vault data
+        // 2. Destroy all vault data (indexes)
         storage.destroyAllVaultData()
 
-        // 3. Clear all user defaults
+        // 3. Secure overwrite all blobs if requested
+        if secure {
+            storage.secureWipeAllBlobs()
+        }
+
+        // 4. Clear all user defaults
         if let bundleId = Bundle.main.bundleIdentifier {
             UserDefaults.standard.removePersistentDomain(forName: bundleId)
         }
 
-        // 4. Clear this handler's state
+        // 5. Clear this handler's state
         clearDuressVault()
     }
 }

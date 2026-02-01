@@ -70,6 +70,13 @@ final class EncryptedBlob {
         return size
     }
 
+    // MARK: - Blob Enumeration
+
+    /// Returns all blob files (primary + expansion) in the documents directory.
+    static func allBlobFiles() -> [URL] {
+        VaultStorage.shared.allBlobURLs()
+    }
+
     // MARK: - Randomness Test (for verification that blob looks random)
 
     /// Performs basic entropy check on a sample of the blob.
