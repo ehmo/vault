@@ -38,6 +38,7 @@ bd sync               # Sync with git
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
+- **COMMIT AND PUSH AFTER EVERY SUCCESSFUL BUILD** — don't accumulate changes. If `xcodebuild` succeeds, immediately `git add`, `git commit`, `git push`. Small, frequent commits are better than one giant commit at the end. This prevents losing work and makes rollbacks easier.
 
 After every task update AGENTS.md with the learnings you just made so you don't repeat the same mistake.
 
