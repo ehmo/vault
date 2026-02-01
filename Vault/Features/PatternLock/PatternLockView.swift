@@ -41,21 +41,24 @@ struct PatternLockView: View {
             .disabled(isProcessing)
             .opacity(isProcessing ? 0.5 : 1)
             
-            // Error message
-            if showError, let message = errorMessage {
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.circle.fill")
-                        .foregroundStyle(.vaultHighlight)
-                    Text(message)
-                        .font(.subheadline)
-                        .foregroundStyle(.vaultHighlight)
+            // Error message — fixed height to prevent grid from shifting
+            Group {
+                if showError, let message = errorMessage {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .foregroundStyle(.vaultHighlight)
+                        Text(message)
+                            .font(.subheadline)
+                            .foregroundStyle(.vaultHighlight)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .background(Color.vaultHighlight.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .transition(.scale.combined(with: .opacity))
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(Color.vaultHighlight.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .transition(.scale.combined(with: .opacity))
             }
+            .frame(height: 40)
 
             Spacer()
 
