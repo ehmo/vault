@@ -75,6 +75,8 @@ When adding a new extension target manually to `project.pbxproj`, you need ALL o
 
 **Shared files between targets**: Create separate PBXBuildFile entries with different IDs pointing to the same PBXFileReference. Example: `TransferActivityAttributes.swift` has build file `LA0000001` (main target) and `LA0000003` (widget target), both referencing file ref `LA0000000`.
 
+**Widget extension Info.plist is REQUIRED**: Even with `GENERATE_INFOPLIST_FILE = YES`, WidgetKit extensions MUST have a manual Info.plist containing the `NSExtension` → `NSExtensionPointIdentifier` = `com.apple.widgetkit-extension` entry. Without this, the app builds fine but **fails to install on the simulator** with `IXErrorDomain Code: 2` / "extensionDictionary must be set in placeholder attributes". Set `INFOPLIST_FILE = VaultLiveActivity/Info.plist` in the extension's build settings alongside `GENERATE_INFOPLIST_FILE = YES` — Xcode merges both.
+
 ### ActivityKit / Live Activities
 
 - `NSSupportsLiveActivities = YES` must be in the **main app's** Info.plist, not the widget's
