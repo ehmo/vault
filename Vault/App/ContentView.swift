@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) private var appState
 
     var body: some View {
         ZStack {
@@ -39,8 +39,9 @@ struct ContentView: View {
             }
         }
         // Screen recording detection
-        .onReceive(NotificationCenter.default.publisher(for: UIScreen.capturedDidChangeNotification)) { _ in
-            if UIScreen.main.isCaptured {
+        .onReceive(NotificationCenter.default.publisher(for: UIScreen.capturedDidChangeNotification)) { notification in
+            let screen = notification.object as? UIScreen ?? UIScreen.main
+            if screen.isCaptured {
                 #if DEBUG
                 print("🎥 [ContentView] Screen recording detected!")
                 #endif
@@ -89,5 +90,6 @@ extension UIWindow {
 
 #Preview {
     ContentView()
-        .environmentObject(AppState())
+        .environment(AppState())
+        .environment(SubscriptionManager.shared)
 }

@@ -24,6 +24,7 @@ struct ShareVaultView: View {
     @State private var hasMaxOpens = false
     @State private var allowDownloads = true
     @State private var copiedToClipboard = false
+    @State private var isStopping = false
 
     // Active shares data
     @State private var activeShares: [VaultStorage.ShareRecord] = []
@@ -270,9 +271,20 @@ struct ShareVaultView: View {
             }
             .buttonStyle(.bordered)
 
-            Button("Stop All Sharing", role: .destructive) {
+            Button(role: .destructive) {
                 Task { await stopAllSharing() }
+            } label: {
+                if isStopping {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Stopping all shares...")
+                    }
+                } else {
+                    Text("Stop All Sharing")
+                }
             }
+            .disabled(isStopping)
         }
     }
 
@@ -436,19 +448,25 @@ struct ShareVaultView: View {
     private func stopAllSharing() async {
         guard let key = appState.currentVaultKey else { return }
 
-        do {
-            let index = try VaultStorage.shared.loadIndex(with: key)
-            for share in index.activeShares ?? [] {
-                try? await CloudKitSharingManager.shared.deleteSharedVault(shareVaultId: share.id)
-            }
+        isStopping = true
 
-            var updatedIndex = index
-            updatedIndex.activeShares = nil
-            try VaultStorage.shared.saveIndex(updatedIndex, with: key)
+        do {
+            // Immediately clear local shares so UI feels responsive
+            var index = try VaultStorage.shared.loadIndex(with: key)
+            let sharesToDelete = index.activeShares ?? []
+            index.activeShares = nil
+            try VaultStorage.shared.saveIndex(index, with: key)
 
             activeShares = []
             mode = .newShare
+            isStopping = false
+
+            // Delete from CloudKit in background
+            for share in sharesToDelete {
+                try? await CloudKitSharingManager.shared.deleteSharedVault(shareVaultId: share.id)
+            }
         } catch {
+            isStopping = false
             mode = .error("Failed to stop sharing: \(error.localizedDescription)")
         }
     }

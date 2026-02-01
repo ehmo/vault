@@ -1,4 +1,5 @@
 import SwiftUI
+import RevenueCatUI
 
 // MARK: - App Settings Destination
 
@@ -12,46 +13,98 @@ enum AppSettingsDestination: Hashable {
 
 struct AppSettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) private var appState
+    @Environment(SubscriptionManager.self) private var subscriptionManager
 
     @AppStorage("showPatternFeedback") private var showFeedback = true
-    @AppStorage("randomizeGrid") private var randomizeGrid = false
     @AppStorage("analyticsEnabled") private var analyticsEnabled = false
 
-    @State private var wipeThreshold: WipePolicyThreshold = .tenAttempts
     @State private var showingNuclearConfirmation = false
-    
+    @State private var showingPaywall = false
+    @State private var showingCustomerCenter = false
+    @State private var isRestoringPurchases = false
+
     #if DEBUG
     @State private var showingDebugResetConfirmation = false
     #endif
 
     var body: some View {
         List {
+            // Premium
+            Section("Premium") {
+                HStack {
+                    Image(systemName: subscriptionManager.isPremium ? "crown.fill" : "crown")
+                        .foregroundStyle(subscriptionManager.isPremium ? .yellow : .secondary)
+                    Text(subscriptionManager.isPremium ? "Premium" : "Free Plan")
+                    Spacer()
+                    if subscriptionManager.isPremium {
+                        Text("Active")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                    }
+                }
+
+                if subscriptionManager.isPremium {
+                    Button("Manage Subscription") {
+                        showingCustomerCenter = true
+                    }
+                } else {
+                    Button("Upgrade to Premium") {
+                        showingPaywall = true
+                    }
+                }
+
+                Button(action: {
+                    isRestoringPurchases = true
+                    Task {
+                        try? await subscriptionManager.restorePurchases()
+                        isRestoringPurchases = false
+                    }
+                }) {
+                    if isRestoringPurchases {
+                        HStack {
+                            ProgressView()
+                            Text("Restoring...")
+                        }
+                    } else {
+                        Text("Restore Purchases")
+                    }
+                }
+                .disabled(isRestoringPurchases)
+            }
+
             // Pattern Settings
             Section("Pattern Lock") {
                 Toggle("Show visual feedback", isOn: $showFeedback)
-
-                Toggle("Randomize grid (smudge defense)", isOn: $randomizeGrid)
             }
 
             // Security Settings
             Section("Security") {
-                Picker("Auto-wipe after failed attempts", selection: $wipeThreshold) {
-                    ForEach(WipePolicyThreshold.allCases, id: \.self) { threshold in
-                        Text(threshold.displayName).tag(threshold)
-                    }
-                }
-
                 NavigationLink("Duress pattern") {
                     DuressPatternSettingsView()
                 }
             }
 
             // Backup
-            Section("Backup") {
-                NavigationLink("iCloud Backup") {
-                    iCloudBackupSettingsView()
+            Section {
+                if subscriptionManager.canSyncWithICloud() {
+                    NavigationLink("iCloud Backup") {
+                        iCloudBackupSettingsView()
+                    }
+                } else {
+                    Button(action: { showingPaywall = true }) {
+                        HStack {
+                            Text("iCloud Backup")
+                            Spacer()
+                            Image(systemName: "crown.fill")
+                                .foregroundStyle(.vaultHighlight)
+                                .font(.caption)
+                        }
+                    }
+                    .foregroundStyle(.primary)
                 }
+            } header: {
+                Text("Backup")
             }
 
             // Privacy
@@ -72,7 +125,7 @@ struct AppSettingsView: View {
                     Text("Version")
                     Spacer()
                     Text("1.0.0")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.vaultSecondaryText)
                 }
                 
                 #if DEBUG
@@ -80,14 +133,14 @@ struct AppSettingsView: View {
                     Text("Build Configuration")
                     Spacer()
                     Text("Debug")
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(.vaultHighlight)
                 }
                 #else
                 HStack {
                     Text("Build Configuration")
                     Spacer()
                     Text("Release")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.vaultSecondaryText)
                 }
                 #endif
             }
@@ -101,7 +154,7 @@ struct AppSettingsView: View {
                 }) {
                     HStack {
                         Image(systemName: "arrow.counterclockwise")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.vaultHighlight)
                         Text("Reset Onboarding")
                     }
                 }
@@ -109,15 +162,15 @@ struct AppSettingsView: View {
                 Button(action: { showingDebugResetConfirmation = true }) {
                     HStack {
                         Image(systemName: "trash.fill")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(.vaultHighlight)
                         Text("Full Reset / Wipe Everything")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(.vaultHighlight)
                     }
                 }
             } header: {
                 HStack {
                     Image(systemName: "hammer.fill")
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(.vaultHighlight)
                     Text("Debug Tools")
                 }
             } footer: {
@@ -141,12 +194,6 @@ struct AppSettingsView: View {
         }
         .navigationTitle("App Settings")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            wipeThreshold = WipePolicy.shared.threshold
-        }
-        .onChange(of: wipeThreshold) { _, newValue in
-            WipePolicy.shared.threshold = newValue
-        }
         .alert("Destroy All Data?", isPresented: $showingNuclearConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Destroy Everything", role: .destructive) {
@@ -165,6 +212,10 @@ struct AppSettingsView: View {
             Text("This will completely wipe:\n• All vault files and indexes\n• Recovery phrase mappings\n• User preferences\n• Keychain entries\n• Onboarding state\n\nThe app will restart as if freshly installed.")
         }
         #endif
+        .premiumPaywall(isPresented: $showingPaywall)
+        .sheet(isPresented: $showingCustomerCenter) {
+            CustomerCenterView()
+        }
     }
 
     private func performNuclearWipe() {
@@ -328,7 +379,7 @@ struct DuressPatternSettingsView: View {
                     }
                 } else {
                     Text("No duress vault configured")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.vaultSecondaryText)
 
                     Button("Set up duress vault") {
                         showingSetupSheet = true
@@ -349,10 +400,8 @@ struct DuressPatternSettingsView: View {
             .font(.subheadline)
         }
         .navigationTitle("Duress Pattern")
-        .onAppear {
-            Task {
-                hasDuressVault = await DuressHandler.shared.hasDuressVault
-            }
+        .task {
+            hasDuressVault = await DuressHandler.shared.hasDuressVault
         }
         .sheet(isPresented: $showingSetupSheet) {
             DuressSetupSheet()
@@ -379,7 +428,7 @@ struct DuressSetupSheet: View {
             VStack(spacing: 24) {
                 Image(systemName: "exclamationmark.shield.fill")
                     .font(.system(size: 48))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(.vaultHighlight)
 
                 Text("Set Up Duress Vault")
                     .font(.title2)
@@ -387,7 +436,7 @@ struct DuressSetupSheet: View {
 
                 Text("Choose which vault to keep accessible when under duress. All other vaults will be destroyed when this pattern is entered.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
 
@@ -395,17 +444,17 @@ struct DuressSetupSheet: View {
 
                 Text("Enter the pattern for the vault you want to use as your duress vault.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
 
                 // Pattern input would go here
                 // For now, placeholder
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.systemGray6))
+                    .fill(Color.vaultSurface)
                     .frame(height: 200)
                     .overlay {
                         Text("Pattern input")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.vaultSecondaryText)
                     }
 
                 Spacer()
@@ -438,11 +487,11 @@ struct iCloudBackupSettingsView: View {
                             Text("Last backup")
                             Spacer()
                             Text(date, style: .relative)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.vaultSecondaryText)
                         }
                     } else {
                         Text("No backup yet")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.vaultSecondaryText)
                     }
 
                     Button(action: performBackup) {
@@ -492,7 +541,7 @@ struct RestoreFromBackupView: View {
         VStack(spacing: 20) {
             Image(systemName: "arrow.down.circle")
                 .font(.system(size: 48))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.vaultSecondaryText)
 
             Text("Restore from iCloud")
                 .font(.title2)
@@ -500,7 +549,7 @@ struct RestoreFromBackupView: View {
 
             Text("Enter your pattern to restore a vault from your iCloud backup.")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
 
             Spacer()
@@ -511,6 +560,10 @@ struct RestoreFromBackupView: View {
 }
 
 #Preview {
-    SettingsView()
+    NavigationStack {
+        SettingsView()
+    }
+    .environment(AppState())
+    .environment(SubscriptionManager.shared)
 }
 

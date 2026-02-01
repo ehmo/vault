@@ -19,14 +19,14 @@ This guide covers the CloudKit configuration required for vault sharing function
 5. Add "iCloud"
 6. Check "CloudKit"
 7. Click "+" next to Containers
-8. Create: `iCloud.is.thevault.shared`
+8. Create: `iCloud.app.vaultaire.shared`
 
 ```
 Signing & Capabilities
 ├── iCloud
 │   ├── [✓] CloudKit
 │   └── Containers
-│       └── iCloud.is.thevault.shared (selected)
+│       └── iCloud.app.vaultaire.shared (selected)
 ```
 
 ## 2. CloudKit Dashboard Configuration
@@ -35,7 +35,7 @@ Signing & Capabilities
 
 1. Go to [CloudKit Dashboard](https://icloud.developer.apple.com/)
 2. Sign in with your Apple Developer account
-3. Select your container: `iCloud.is.thevault.shared`
+3. Select your container: `iCloud.app.vaultaire.shared`
 
 ### Create Record Types
 
@@ -107,7 +107,7 @@ In `CloudKitSharingManager.swift`:
 
 ```swift
 private init() {
-    container = CKContainer(identifier: "iCloud.is.thevault.shared")
+    container = CKContainer(identifier: "iCloud.app.vaultaire.shared")
     publicDatabase = container.publicCloudDatabase
 }
 ```
@@ -125,7 +125,7 @@ Verify `Vault.entitlements` contains:
 <dict>
     <key>com.apple.developer.icloud-container-identifiers</key>
     <array>
-        <string>iCloud.is.thevault.shared</string>
+        <string>iCloud.app.vaultaire.shared</string>
     </array>
     <key>com.apple.developer.icloud-services</key>
     <array>

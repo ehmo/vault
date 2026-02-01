@@ -172,11 +172,8 @@ struct VaultView: View {
                 }
             }
             .safeAreaInset(edge: .top) {
-                VStack(spacing: 0) {
-                    if isSharedVault {
-                        sharedVaultBanner
-                    }
-                    transferStatusBanner
+                if isSharedVault {
+                    sharedVaultBanner
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -224,6 +221,21 @@ struct VaultView: View {
                 files = []
                 isLoading = true
                 loadVault()
+            }
+        }
+        .onChange(of: transferManager.status) { _, newStatus in
+            if case .importComplete = newStatus {
+                loadVault()
+                // Auto-reset after reload
+                Task {
+                    try? await Task.sleep(for: .seconds(2))
+                    transferManager.reset()
+                }
+            } else if case .uploadComplete = newStatus {
+                Task {
+                    try? await Task.sleep(for: .seconds(2))
+                    transferManager.reset()
+                }
             }
         }
         .confirmationDialog("Add to Vault", isPresented: $showingImportOptions) {
@@ -326,126 +338,6 @@ struct VaultView: View {
                 .padding(.vertical, 4)
                 .background(Color.accentColor.opacity(0.1))
             }
-        }
-    }
-
-    // MARK: - Transfer Status Banner
-
-    @ViewBuilder
-    private var transferStatusBanner: some View {
-        switch transferManager.status {
-        case .idle:
-            EmptyView()
-
-        case .uploading(let progress, let total):
-            VaultSyncIndicator(
-                style: .uploading,
-                message: "Uploading shared vault...",
-                progress: (current: progress, total: total)
-            )
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .background(Color.accentColor.opacity(0.1))
-
-        case .uploadComplete:
-            HStack(spacing: 8) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text("Vault shared successfully")
-                    .font(.caption)
-                Spacer()
-                Button("Dismiss") {
-                    transferManager.reset()
-                }
-                .font(.caption2)
-                .buttonStyle(.bordered)
-                .controlSize(.mini)
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .background(Color.green.opacity(0.1))
-            .task {
-                // Auto-dismiss after 5 seconds
-                try? await Task.sleep(for: .seconds(5))
-                if case .uploadComplete = transferManager.status {
-                    transferManager.reset()
-                }
-            }
-
-        case .uploadFailed(let message):
-            HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.circle.fill")
-                    .foregroundStyle(.vaultHighlight)
-                Text("Upload failed: \(message)")
-                    .font(.caption)
-                    .lineLimit(1)
-                Spacer()
-                Button("Dismiss") {
-                    transferManager.reset()
-                }
-                .font(.caption2)
-                .buttonStyle(.bordered)
-                .controlSize(.mini)
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .background(Color.vaultHighlight.opacity(0.1))
-
-        case .importing:
-            VaultSyncIndicator(
-                style: .downloading,
-                message: "Setting up shared vault..."
-            )
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .background(Color.accentColor.opacity(0.1))
-
-        case .importComplete:
-            HStack(spacing: 8) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text("Shared vault is ready")
-                    .font(.caption)
-                Spacer()
-                Button("Dismiss") {
-                    transferManager.reset()
-                    // Reload files since import completed
-                    loadFiles()
-                }
-                .font(.caption2)
-                .buttonStyle(.bordered)
-                .controlSize(.mini)
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .background(Color.green.opacity(0.1))
-            .task {
-                // Reload files and auto-dismiss
-                loadVault()
-                try? await Task.sleep(for: .seconds(5))
-                if case .importComplete = transferManager.status {
-                    transferManager.reset()
-                }
-            }
-
-        case .importFailed(let message):
-            HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.circle.fill")
-                    .foregroundStyle(.vaultHighlight)
-                Text("Import failed: \(message)")
-                    .font(.caption)
-                    .lineLimit(1)
-                Spacer()
-                Button("Dismiss") {
-                    transferManager.reset()
-                }
-                .font(.caption2)
-                .buttonStyle(.bordered)
-                .controlSize(.mini)
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .background(Color.vaultHighlight.opacity(0.1))
         }
     }
 

@@ -1,7 +1,8 @@
 import SwiftUI
+import RevenueCatUI
 
 struct OnboardingView: View {
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) private var appState
     @State private var currentStep = 0
 
     var body: some View {
@@ -14,6 +15,8 @@ struct OnboardingView: View {
             case 2:
                 AnalyticsConsentView(onContinue: { currentStep = 3 })
             case 3:
+                OnboardingPaywallStep(onContinue: { currentStep = 4 })
+            case 4:
                 PatternSetupView(onComplete: completeOnboarding)
             default:
                 EmptyView()
@@ -27,6 +30,34 @@ struct OnboardingView: View {
     }
 }
 
+// MARK: - Onboarding Paywall Step
+
+struct OnboardingPaywallStep: View {
+    let onContinue: () -> Void
+    @Environment(SubscriptionManager.self) private var subscriptionManager
+
+    var body: some View {
+        VStack(spacing: 0) {
+            PaywallView()
+                .onPurchaseCompleted { info in
+                    subscriptionManager.updateFromCustomerInfo(info)
+                    onContinue()
+                }
+                .onRestoreCompleted { info in
+                    subscriptionManager.updateFromCustomerInfo(info)
+                    onContinue()
+                }
+
+            Button(action: onContinue) {
+                Text("Skip")
+                    .font(.subheadline)
+                    .foregroundStyle(.vaultSecondaryText)
+            }
+            .padding(.bottom, 24)
+        }
+    }
+}
+
 // MARK: - How It Works
 
 struct HowItWorksView: View {
@@ -36,7 +67,7 @@ struct HowItWorksView: View {
         VStack(spacing: 40) {
             Spacer()
 
-            Text("How Vault Works")
+            Text("How Vaultaire Works")
                 .font(.title)
                 .fontWeight(.bold)
 
@@ -100,7 +131,7 @@ struct FeatureRow: View {
 
                 Text(description)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.vaultSecondaryText)
             }
         }
     }
@@ -108,5 +139,6 @@ struct FeatureRow: View {
 
 #Preview {
     OnboardingView()
-        .environmentObject(AppState())
+        .environment(AppState())
+        .environment(SubscriptionManager.shared)
 }

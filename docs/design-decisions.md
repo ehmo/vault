@@ -217,20 +217,9 @@ This document captures key product decisions, trade-offs, and the reasoning behi
 - Unique to mobile
 
 **Trade-off:**
-- Vulnerable to smudge attacks (mitigated by randomization option)
+- Vulnerable to smudge attacks
 - Lower entropy than strong password
 - Requires touch screen
-
-### Grid Randomization Option
-
-**Decision:** Optional randomization of grid node positions.
-
-**Reasoning:**
-- Defeats smudge attacks
-- User can choose security/convenience balance
-- Default off (familiar experience)
-
-**Trade-off:** Harder to develop muscle memory. Must look at screen.
 
 ### No Visible File Count
 
@@ -250,7 +239,7 @@ This document captures key product decisions, trade-offs, and the reasoning behi
 **Reasoning:**
 - Clear separation of scope
 - Per-vault: pattern, recovery, sharing, duress
-- App-wide: grid size, feedback, wipe policy
+- App-wide: feedback, premium, privacy, backup
 
 **Trade-off:** Slightly more complex navigation.
 
@@ -366,3 +355,37 @@ This document captures key product decisions, trade-offs, and the reasoning behi
 - Would defeat security model
 - Recovery phrase is the backup
 - No way to verify identity
+
+## Visual Design
+
+### Color Palette
+
+**Decision:** Custom color palette with five semantic tokens, defined as Xcode asset catalog color sets with light and dark mode variants.
+
+| Token | Light Mode | Dark Mode | Usage |
+|-------|-----------|-----------|-------|
+| `vaultBackground` | `#d1d1e9` (lavender) | `#1a1b2e` (deep navy) | Main app background |
+| `vaultSurface` | `#fffffe` (near-white) | `#2d2e3a` (dark slate) | Cards, inputs, elevated surfaces |
+| `vaultText` | `#2b2c34` (dark charcoal) | `#e8e8f0` (light grey) | Headlines, paragraphs, labels |
+| `vaultSecondaryText` | `#2b2c34` at 60% alpha | `#e8e8f0` at 60% alpha | Secondary labels, hints |
+| `vaultHighlight` | `#e45858` (coral red) | `#e45858` (coral red) | Warnings, destructive actions, duress indicators |
+| AccentColor | `#6246ea` (indigo-purple) | `#6246ea` (indigo-purple) | Links, buttons, interactive elements |
+
+**Reasoning:**
+- Lavender background creates a calm, distinctive aesthetic distinct from stock iOS
+- Indigo-purple accent conveys security and trust without the overused blue
+- Coral red highlight draws attention to warnings and destructive actions
+- High contrast between text and background in both modes for accessibility
+- System green kept for success states (checkmarks, active indicators)
+
+**Trade-off:** Custom palette means the app does not adopt the user's system accent color. Consistency within the app is prioritised over system-wide theming.
+
+### Media Viewer Backgrounds
+
+**Decision:** `Color.black` background retained for image viewer, video player, and camera views.
+
+**Reasoning:** Dark backgrounds are standard for media viewing (Photos, YouTube, etc.) and reduce distraction from content.
+
+### Color Implementation
+
+Colors are defined as Xcode asset catalog `.colorset` files under `Vault/Resources/Assets.xcassets/`. Xcode auto-generates `Color.vaultBackground`, `.vaultSurface`, etc. A `VaultTheme.swift` file documents the palette and provides convenience view modifiers.

@@ -28,13 +28,13 @@ struct WelcomeView: View {
 
             // Welcome Text
             VStack(spacing: 12) {
-                Text("Welcome to Vault")
+                Text("Welcome to Vaultaire")
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
                 Text("Secure storage with plausible deniability")
                     .font(.title3)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.vaultSecondaryText)
             }
 
             Spacer()
@@ -47,7 +47,7 @@ struct WelcomeView: View {
 
                 Text("Each pattern creates a separate vault. Nobody can prove which vaults exist.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 40)

@@ -6,7 +6,7 @@
 	<string>development</string>
 	<key>com.apple.developer.icloud-container-identifiers</key>
 	<array>
-		<string>iCloud.is.thevault.shared</string>
+		<string>iCloud.app.vaultaire.shared</string>
 	</array>
 	<key>com.apple.developer.icloud-services</key>
 	<array>
@@ -14,11 +14,11 @@
 	</array>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.is.thevault.app</string>
+		<string>group.app.vaultaire.ios</string>
 	</array>
 	<key>keychain-access-groups</key>
 	<array>
-		<string>$(AppIdentifierPrefix)is.thevault.app</string>
+		<string>$(AppIdentifierPrefix)app.vaultaire.ios</string>
 	</array>
 </dict>
 </plist>

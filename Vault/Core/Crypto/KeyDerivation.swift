@@ -56,7 +56,7 @@ final class KeyDerivation {
 
     // MARK: - Key Derivation from Recovery Phrase
 
-    static nonisolated func deriveKey(from recoveryPhrase: String) async throws -> Data {
+    static nonisolated func deriveKey(from recoveryPhrase: String) throws -> Data {
         let span = SentryManager.shared.startTransaction(name: "crypto.pbkdf2_recovery", operation: "crypto.pbkdf2_recovery")
         span.setTag(value: "800000", key: "iterations")
 
@@ -194,3 +194,4 @@ final class KeyDerivation {
 
 // CommonCrypto bridge
 import CommonCrypto
+

@@ -29,22 +29,24 @@ struct PatternNode: Identifiable, Equatable {
     }
 }
 
-final class PatternState: ObservableObject {
-    @Published var selectedNodes: [Int] = []
-    @Published var currentPoint: CGPoint?
-    @Published var isDrawing = false
+@MainActor
+@Observable
+final class PatternState {
+    var selectedNodes: [Int] = []
+    var currentPoint: CGPoint?
+    var isDrawing = false
     let gridSize: Int = 5  // Fixed 5x5 grid
 
-    var nodes: [PatternNode] {
+    let nodes: [PatternNode] = {
         var result: [PatternNode] = []
-        for row in 0..<gridSize {
-            for col in 0..<gridSize {
-                let id = row * gridSize + col
-                result.append(PatternNode(id: id, row: row, col: col, gridSize: gridSize))
+        for row in 0..<5 {
+            for col in 0..<5 {
+                let id = row * 5 + col
+                result.append(PatternNode(id: id, row: row, col: col, gridSize: 5))
             }
         }
         return result
-    }
+    }()
 
     func reset() {
         selectedNodes = []

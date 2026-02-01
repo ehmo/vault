@@ -39,16 +39,12 @@ struct VaultMetadata: Codable {
 struct GlobalSettings: Codable {
     var gridSize: Int
     var showPatternFeedback: Bool
-    var randomizeGrid: Bool
-    var wipeThreshold: Int // 0 = disabled
     var iCloudBackupEnabled: Bool
 
     static var `default`: GlobalSettings {
         GlobalSettings(
             gridSize: 4,
             showPatternFeedback: false,
-            randomizeGrid: false,
-            wipeThreshold: 10,
             iCloudBackupEnabled: false
         )
     }

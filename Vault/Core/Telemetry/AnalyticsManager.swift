@@ -12,18 +12,25 @@ final class AnalyticsManager {
 
     func startIfEnabled() {
         guard isEnabled else { return }
-        SentryManager.shared.start()
-        TelemetryManager.shared.start()
+        Task { @MainActor in
+            SentryManager.shared.start()
+            TelemetryManager.shared.start()
+        }
     }
 
     func setEnabled(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: Self.key)
         if enabled {
-            SentryManager.shared.start()
-            TelemetryManager.shared.start()
+            Task { @MainActor in
+                SentryManager.shared.start()
+                TelemetryManager.shared.start()
+            }
         } else {
-            SentryManager.shared.stop()
-            TelemetryManager.shared.stop()
+            Task { @MainActor in
+                SentryManager.shared.stop()
+                TelemetryManager.shared.stop()
+            }
         }
     }
 }
+

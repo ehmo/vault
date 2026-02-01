@@ -1,17 +1,13 @@
 import SwiftUI
 
 struct PatternGridView: View {
-    @ObservedObject var state: PatternState
+    var state: PatternState
     @Binding var showFeedback: Bool
-    @Binding var randomizeGrid: Bool
 
     let onPatternComplete: ([Int]) -> Void
 
     private let nodeRadius: CGFloat = 16
     private let lineWidth: CGFloat = 4
-
-    @State private var viewSize: CGSize = .zero
-    @State private var gridMapping: [Int: Int] = [:] // Visual position -> actual node ID
 
     var body: some View {
         GeometryReader { geometry in
@@ -19,13 +15,13 @@ struct PatternGridView: View {
                 // Connection lines (only if feedback enabled)
                 if showFeedback {
                     connectionLines(in: geometry.size)
-                        .stroke(Color.accentColor.opacity(0.6), lineWidth: lineWidth)
+                        .stroke(Color.accentColor.opacity(0.7), lineWidth: lineWidth)
 
                     // Current drawing line
                     if let currentPoint = state.currentPoint,
                        let lastNode = state.selectedNodes.last {
                         currentLine(from: lastNode, to: currentPoint, in: geometry.size)
-                            .stroke(Color.accentColor.opacity(0.4), lineWidth: lineWidth)
+                            .stroke(Color.accentColor.opacity(0.5), lineWidth: lineWidth)
                     }
                 }
 
@@ -36,16 +32,6 @@ struct PatternGridView: View {
             }
             .contentShape(Rectangle())
             .gesture(dragGesture(in: geometry.size))
-            .onAppear {
-                viewSize = geometry.size
-                setupGridMapping()
-            }
-            .onChange(of: randomizeGrid) { _, _ in
-                setupGridMapping()
-            }
-            .onChange(of: state.gridSize) { _, _ in
-                setupGridMapping()
-            }
         }
         .aspectRatio(1, contentMode: .fit)
     }
@@ -54,11 +40,14 @@ struct PatternGridView: View {
 
     private func nodeView(for node: PatternNode, in size: CGSize) -> some View {
         let position = nodePosition(for: node, in: size)
-        let isSelected = state.selectedNodes.contains(getMappedNodeId(node.id))
+        let isSelected = state.selectedNodes.contains(node.id)
 
         return Circle()
-            .fill(isSelected && showFeedback ? Color.accentColor : Color.secondary.opacity(0.5))
-            .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+            .fill(isSelected && showFeedback ? Color.accentColor : Color.vaultSecondaryText.opacity(0.5))
+            .overlay {
+                Circle()
+                    .strokeBorder(Color.vaultSecondaryText.opacity(0.3), lineWidth: 1)
+            }
             .frame(width: nodeRadius * 2, height: nodeRadius * 2)
             .position(position)
             .animation(.easeInOut(duration: 0.1), value: isSelected)
@@ -74,8 +63,8 @@ struct PatternGridView: View {
                 let fromId = state.selectedNodes[i]
                 let toId = state.selectedNodes[i + 1]
 
-                guard let fromNode = state.nodes.first(where: { getMappedNodeId($0.id) == fromId }),
-                      let toNode = state.nodes.first(where: { getMappedNodeId($0.id) == toId }) else {
+                guard let fromNode = state.nodes.first(where: { $0.id == fromId }),
+                      let toNode = state.nodes.first(where: { $0.id == toId }) else {
                     continue
                 }
 
@@ -90,7 +79,7 @@ struct PatternGridView: View {
 
     private func currentLine(from nodeId: Int, to point: CGPoint, in size: CGSize) -> Path {
         Path { path in
-            guard let node = state.nodes.first(where: { getMappedNodeId($0.id) == nodeId }) else {
+            guard let node = state.nodes.first(where: { $0.id == nodeId }) else {
                 return
             }
             let fromPos = nodePosition(for: node, in: size)
@@ -107,7 +96,7 @@ struct PatternGridView: View {
                 #if DEBUG
                 print("🔵 Drag changed - location: \(value.location)")
                 #endif
-                
+
                 if !state.isDrawing {
                     state.isDrawing = true
                     state.selectedNodes = []
@@ -118,19 +107,18 @@ struct PatternGridView: View {
 
                 state.currentPoint = value.location
 
-                if let visualNodeId = state.nodeAt(point: value.location, in: size, nodeRadius: nodeRadius) {
-                    let actualNodeId = getMappedNodeId(visualNodeId)
+                if let nodeId = state.nodeAt(point: value.location, in: size, nodeRadius: nodeRadius) {
                     #if DEBUG
-                    print("🟡 Found node - visual: \(visualNodeId), actual: \(actualNodeId)")
+                    print("🟡 Found node: \(nodeId)")
                     #endif
-                    state.addNode(actualNodeId)
+                    state.addNode(nodeId)
                 }
             }
             .onEnded { _ in
                 #if DEBUG
                 print("🔴 Drag ended - selected nodes: \(state.selectedNodes)")
                 #endif
-                
+
                 state.isDrawing = false
                 state.currentPoint = nil
 
@@ -153,41 +141,12 @@ struct PatternGridView: View {
             y: startY + CGFloat(node.row) * spacing
         )
     }
-
-    // MARK: - Grid Randomization (for smudge attack defense)
-
-    private func setupGridMapping() {
-        #if DEBUG
-        print("🔧 Setting up grid mapping - gridSize: \(state.gridSize), randomize: \(randomizeGrid)")
-        #endif
-        
-        if randomizeGrid {
-            // Create a random permutation
-            let nodeCount = state.gridSize * state.gridSize
-            var mapping = Array(0..<nodeCount)
-            mapping.shuffle()
-            gridMapping = Dictionary(uniqueKeysWithValues: zip(0..<nodeCount, mapping))
-        } else {
-            // When not randomizing, create identity mapping for consistency
-            let nodeCount = state.gridSize * state.gridSize
-            gridMapping = Dictionary(uniqueKeysWithValues: zip(0..<nodeCount, 0..<nodeCount))
-        }
-        
-        #if DEBUG
-        print("📊 Grid mapping created with \(gridMapping.count) entries")
-        #endif
-    }
-
-    private func getMappedNodeId(_ visualId: Int) -> Int {
-        return gridMapping[visualId] ?? visualId
-    }
 }
 
 #Preview {
     PatternGridView(
         state: PatternState(),
         showFeedback: .constant(true),
-        randomizeGrid: .constant(false),
         onPatternComplete: { _ in }
     )
     .padding(40)

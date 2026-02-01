@@ -1,20 +1,18 @@
 import SwiftUI
 
-import SwiftUI
-import CryptoKit
-
 struct PatternLockView: View {
-    @EnvironmentObject var appState: AppState
-    @StateObject private var patternState = PatternState()
+    @Environment(AppState.self) private var appState
+    @Environment(SubscriptionManager.self) private var subscriptionManager
+    @State private var patternState = PatternState()
 
     @AppStorage("showPatternFeedback") private var showFeedback = true
-    @AppStorage("randomizeGrid") private var randomizeGrid = false
 
     @State private var isProcessing = false
     @State private var showRecoveryOption = false
     @State private var showJoinSharedVault = false
     @State private var errorMessage: String?
     @State private var showError = false
+    @State private var showingPaywall = false
 
     var body: some View {
         VStack(spacing: 40) {
@@ -24,7 +22,7 @@ struct PatternLockView: View {
             VStack(spacing: 8) {
                 Image(systemName: "lock.shield.fill")
                     .font(.system(size: 48))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.vaultSecondaryText)
 
                 Text("Draw your pattern")
                     .font(.title2)
@@ -37,7 +35,6 @@ struct PatternLockView: View {
             PatternGridView(
                 state: patternState,
                 showFeedback: $showFeedback,
-                randomizeGrid: $randomizeGrid,
                 onPatternComplete: handlePatternComplete
             )
             .frame(maxWidth: 280, maxHeight: 280)
@@ -48,14 +45,14 @@ struct PatternLockView: View {
             if showError, let message = errorMessage {
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.circle.fill")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(.vaultHighlight)
                     Text(message)
                         .font(.subheadline)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(.vaultHighlight)
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
-                .background(Color.red.opacity(0.1))
+                .background(Color.vaultHighlight.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .transition(.scale.combined(with: .opacity))
             }
@@ -67,13 +64,13 @@ struct PatternLockView: View {
                 Button(action: { showRecoveryOption = true }) {
                     Text("Use recovery phrase")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.vaultSecondaryText)
                 }
 
                 Button(action: { showJoinSharedVault = true }) {
                     Text("Join shared vault")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.vaultSecondaryText)
                 }
             }
 
@@ -87,6 +84,7 @@ struct PatternLockView: View {
         .sheet(isPresented: $showJoinSharedVault) {
             JoinVaultView()
         }
+        .premiumPaywall(isPresented: $showingPaywall)
     }
 
     private func handlePatternComplete(_ pattern: [Int]) {
@@ -138,8 +136,31 @@ struct PatternLockView: View {
         isProcessing = true
 
         Task {
-            // Attempt to unlock with the pattern, using the fixed 5x5 grid size
-            _ = await appState.unlockWithPattern(pattern, gridSize: 5)
+            // Derive key once — reused for both the free-tier gate check and unlock
+            let derivedKey: Data?
+            do {
+                derivedKey = try await KeyDerivation.deriveKey(from: pattern, gridSize: 5)
+            } catch {
+                derivedKey = nil
+            }
+
+            // Check if this pattern creates a new vault and if the user is at the free limit
+            if !subscriptionManager.isPremium, let key = derivedKey {
+                if !VaultStorage.shared.vaultExists(for: key) {
+                    let vaultCount = VaultStorage.shared.existingVaultCount()
+                    if !subscriptionManager.canCreateVault(currentCount: vaultCount) {
+                        await MainActor.run {
+                            isProcessing = false
+                            patternState.reset()
+                            showingPaywall = true
+                        }
+                        return
+                    }
+                }
+            }
+
+            // Attempt to unlock, passing pre-derived key to avoid double PBKDF2
+            _ = await appState.unlockWithPattern(pattern, gridSize: 5, precomputedKey: derivedKey)
 
             await MainActor.run {
                 isProcessing = false
@@ -152,7 +173,7 @@ struct PatternLockView: View {
 // MARK: - Recovery Phrase Input
 
 struct RecoveryPhraseInputView: View {
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
 
     @State private var phrase = ""
@@ -178,13 +199,13 @@ struct RecoveryPhraseInputView: View {
 
                 Text("This is the memorable sentence you created when setting up your vault.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
 
                 TextEditor(text: $phrase)
                     .frame(height: 120)
                     .padding(8)
-                    .background(Color(.systemGray6))
+                    .background(Color.vaultSurface)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
@@ -202,13 +223,13 @@ struct RecoveryPhraseInputView: View {
                 if let error = errorMessage {
                     HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.circle.fill")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(.vaultHighlight)
                         Text(error)
                             .font(.caption)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(.vaultHighlight)
                     }
                     .padding()
-                    .background(Color.red.opacity(0.1))
+                    .background(Color.vaultHighlight.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
 
@@ -264,15 +285,11 @@ struct RecoveryPhraseInputView: View {
         isProcessing = false
     }
     
-    private struct RecoveryData: Codable {
-        let pattern: [Int]
-        let gridSize: Int
-        let patternKey: Data
-    }
 }
 
 
 #Preview {
     PatternLockView()
-        .environmentObject(AppState())
+        .environment(AppState())
+        .environment(SubscriptionManager.shared)
 }

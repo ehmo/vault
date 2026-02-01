@@ -20,10 +20,13 @@ Vault/
 │   │   ├── SecureDelete.swift   # Secure file wiping
 │   │   └── iCloudBackupManager.swift
 │   │
+│   ├── Billing/                 # Subscription management
+│   │   ├── SubscriptionManager.swift  # RevenueCat integration
+│   │   └── PaywallTrigger.swift       # Feature gating helpers
+│   │
 │   ├── Security/                # Security features
 │   │   ├── SecureEnclaveManager.swift  # Device-bound keys
 │   │   ├── DuressHandler.swift  # Duress vault logic
-│   │   ├── WipePolicy.swift     # Auto-wipe configuration
 │   │   ├── RecoveryPhraseGenerator.swift
 │   │   └── WordLists.swift
 │   │
@@ -67,9 +70,20 @@ Vault/
 │   ├── VaultFile.swift
 │   └── VaultMetadata.swift
 │
-└── UI/Components/               # Reusable UI
-    ├── LoadingView.swift
-    └── SecureTextField.swift
+├── UI/                          # Design system
+│   ├── Theme/
+│   │   └── VaultTheme.swift    # Color palette docs + view modifiers
+│   └── Components/
+│       ├── LoadingView.swift
+│       └── SecureTextField.swift
+│
+└── Resources/Assets.xcassets/   # Color assets (auto-generated symbols)
+    ├── AccentColor.colorset/    # #6246ea (indigo-purple)
+    ├── VaultBackground.colorset/# #d1d1e9 / #1a1b2e
+    ├── VaultSurface.colorset/   # #fffffe / #2d2e3a
+    ├── VaultText.colorset/      # #2b2c34 / #e8e8f0
+    ├── VaultSecondaryText.colorset/ # #2b2c34@60% / #e8e8f0@60%
+    └── VaultHighlight.colorset/ # #e45858
 ```
 
 ## Component Diagram

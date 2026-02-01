@@ -15,10 +15,10 @@ enum SecureEnclaveError: Error {
 final class SecureEnclaveManager {
     static let shared = SecureEnclaveManager()
 
-    private let saltKeyTag = "is.thevault.app.device.salt"
-    private let wipeCounterTag = "is.thevault.app.wipe.counter"
-    private let duressKeyTag = "is.thevault.app.duress.key"
-    private let blobCursorXORKeyTag = "is.thevault.app.blob.cursor.key"
+    private let saltKeyTag = "app.vaultaire.ios.device.salt"
+    private let wipeCounterTag = "app.vaultaire.ios.wipe.counter"
+    private let duressKeyTag = "app.vaultaire.ios.duress.key"
+    private let blobCursorXORKeyTag = "app.vaultaire.ios.blob.cursor.key"
 
     private init() {}
 
@@ -249,7 +249,7 @@ final class SecureEnclaveManager {
         // Also delete all recovery phrase keys
         let recoveryQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "is.thevault.app.recovery"
+            kSecAttrService as String: "app.vaultaire.ios.recovery"
         ]
         SecItemDelete(recoveryQuery as CFDictionary)
         

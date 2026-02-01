@@ -8,7 +8,7 @@ import CryptoKit
 final class GridLetterManager {
     static let shared = GridLetterManager()
     
-    private let letterAssignmentTag = "is.thevault.app.grid.letters"
+    private let letterAssignmentTag = "app.vaultaire.ios.grid.letters"
     private let gridSize = 5 // 5x5 grid
     private let totalNodes = 25 // 5x5 = 25 nodes
     

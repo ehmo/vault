@@ -4,26 +4,28 @@ import UserNotifications
 @main
 struct VaultApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @StateObject private var appState = AppState()
+    @State private var appState = AppState()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(appState)
+                .environment(appState)
+                .environment(SubscriptionManager.shared)
         }
     }
 }
 
 @MainActor
-final class AppState: ObservableObject {
-    @Published var isUnlocked = false
-    @Published var currentVaultKey: Data?
-    @Published var currentPattern: [Int]?
-    @Published var showOnboarding = false
-    @Published var isLoading = false
-    @Published var isSharedVault = false
-    @Published var screenshotDetected = false
-    @Published private(set) var vaultName: String = "Vault"
+@Observable
+final class AppState {
+    var isUnlocked = false
+    var currentVaultKey: Data?
+    var currentPattern: [Int]?
+    var showOnboarding = false
+    var isLoading = false
+    var isSharedVault = false
+    var screenshotDetected = false
+    private(set) var vaultName: String = "Vault"
 
     init() {
         checkFirstLaunch()
@@ -38,7 +40,7 @@ final class AppState: ObservableObject {
         showOnboarding = false
     }
 
-    func unlockWithPattern(_ pattern: [Int], gridSize: Int = 4) async -> Bool {
+    func unlockWithPattern(_ pattern: [Int], gridSize: Int = 5, precomputedKey: Data? = nil) async -> Bool {
         #if DEBUG
         print("🔓 [AppState] unlockWithPattern called with pattern length: \(pattern.count), gridSize: \(gridSize)")
         #endif
@@ -49,16 +51,25 @@ final class AppState: ObservableObject {
         isLoading = true
 
         do {
-            // Run delay and key derivation concurrently: total time = max(delay, derivation)
-            let delay = Double.random(in: 0.5...1.0)
-            async let delayTask: Void = Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            let key: Data
 
-            let keySpan = SentryManager.shared.startSpan(parent: transaction, operation: "crypto.key_derivation", description: "PBKDF2 key derivation")
-            async let keyTask = KeyDerivation.deriveKey(from: pattern, gridSize: gridSize)
+            if let precomputed = precomputedKey {
+                // Reuse key already derived by the caller (avoids double PBKDF2)
+                key = precomputed
+                // Still add a small UX delay so the unlock feels intentional
+                try? await Task.sleep(nanoseconds: UInt64(Double.random(in: 0.5...1.0) * 1_000_000_000))
+            } else {
+                // Run delay and key derivation concurrently: total time = max(delay, derivation)
+                let delay = Double.random(in: 0.5...1.0)
+                async let delayTask: Void = Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
 
-            let key = try await keyTask
-            keySpan.finish()
-            try? await delayTask
+                let keySpan = SentryManager.shared.startSpan(parent: transaction, operation: "crypto.key_derivation", description: "PBKDF2 key derivation")
+                async let keyTask = KeyDerivation.deriveKey(from: pattern, gridSize: gridSize)
+
+                key = try await keyTask
+                keySpan.finish()
+                try? await delayTask
+            }
 
             #if DEBUG
             print("🔑 [AppState] Key derived. Hash: \(key.hashValue)")
@@ -123,10 +134,7 @@ final class AppState: ObservableObject {
 
         SentryManager.shared.addBreadcrumb(category: "vault.locked")
 
-        // Securely clear the key from memory
-        if var key = currentVaultKey {
-            key.resetBytes(in: 0..<key.count)
-        }
+        // Clear the key reference (Data is a value type; resetBytes on a copy is a no-op)
         currentVaultKey = nil
         currentPattern = nil
         vaultName = "Vault"
@@ -165,6 +173,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     ) -> Bool {
         // Initialize analytics (Sentry + TelemetryDeck) if user opted in
         AnalyticsManager.shared.startIfEnabled()
+
+        // Initialize RevenueCat
+        SubscriptionManager.shared.configure(apiKey: "test_GqDBKuyzTuNOClYgpyIUbvSEtTu")
 
         UNUserNotificationCenter.current().delegate = self
 

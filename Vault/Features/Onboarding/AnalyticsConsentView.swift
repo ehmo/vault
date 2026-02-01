@@ -11,18 +11,18 @@ struct AnalyticsConsentView: View {
                 .font(.system(size: 56))
                 .foregroundStyle(.tint)
 
-            Text("Help Improve Vault")
+            Text("Help Improve Vaultaire")
                 .font(.title)
                 .fontWeight(.bold)
 
             VStack(spacing: 12) {
-                Text("Share anonymous crash reports and usage statistics to help us make Vault better.")
+                Text("Share anonymous crash reports and usage statistics to help us make Vaultaire better.")
                     .font(.body)
                     .multilineTextAlignment(.center)
 
                 Text("No personal data is collected. You can change this anytime in Settings.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 24)

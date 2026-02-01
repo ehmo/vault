@@ -1,3 +1,4 @@
+import ActivityKit
 import Foundation
 import UIKit
 
@@ -21,6 +22,7 @@ final class BackgroundShareTransferManager {
     var status: TransferStatus = .idle
 
     private var activeTask: Task<Void, Never>?
+    private var currentActivity: Activity<TransferActivityAttributes>?
 
     private init() {}
 
@@ -38,6 +40,7 @@ final class BackgroundShareTransferManager {
     ) {
         activeTask?.cancel()
         status = .uploading(progress: 0, total: 1)
+        startLiveActivity(.uploading)
 
         // Capture everything by value
         let capturedVaultKey = vaultKey
@@ -112,6 +115,7 @@ final class BackgroundShareTransferManager {
                         Task { @MainActor [weak self] in
                             guard let self else { return }
                             self.status = .uploading(progress: current, total: total)
+                            self.updateLiveActivity(progress: current, total: total, message: "Uploading vault...")
                         }
                     }
                 )
@@ -136,6 +140,7 @@ final class BackgroundShareTransferManager {
 
                 await MainActor.run {
                     self?.status = .uploadComplete
+                    self?.endLiveActivity(success: true, message: "Vault shared successfully")
                 }
 
                 LocalNotificationManager.shared.sendUploadComplete()
@@ -143,6 +148,7 @@ final class BackgroundShareTransferManager {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     self?.status = .uploadFailed(error.localizedDescription)
+                    self?.endLiveActivity(success: false, message: "Upload failed")
                 }
                 LocalNotificationManager.shared.sendUploadFailed()
             }
@@ -159,6 +165,7 @@ final class BackgroundShareTransferManager {
     ) {
         activeTask?.cancel()
         status = .importing
+        startLiveActivity(.downloading)
 
         let capturedPhrase = phrase
         let capturedPatternKey = patternKey
@@ -214,6 +221,7 @@ final class BackgroundShareTransferManager {
 
                 await MainActor.run {
                     self?.status = .importComplete
+                    self?.endLiveActivity(success: true, message: "Shared vault is ready")
                 }
 
                 LocalNotificationManager.shared.sendImportComplete()
@@ -221,6 +229,7 @@ final class BackgroundShareTransferManager {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     self?.status = .importFailed(error.localizedDescription)
+                    self?.endLiveActivity(success: false, message: "Import failed")
                 }
                 LocalNotificationManager.shared.sendImportFailed()
             }
@@ -240,6 +249,7 @@ final class BackgroundShareTransferManager {
     ) {
         activeTask?.cancel()
         status = .importing
+        startLiveActivity(.downloading)
 
         // Capture everything by value
         let capturedData = downloadedData
@@ -292,6 +302,7 @@ final class BackgroundShareTransferManager {
 
                 await MainActor.run {
                     self?.status = .importComplete
+                    self?.endLiveActivity(success: true, message: "Shared vault is ready")
                 }
 
                 LocalNotificationManager.shared.sendImportComplete()
@@ -299,10 +310,42 @@ final class BackgroundShareTransferManager {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     self?.status = .importFailed(error.localizedDescription)
+                    self?.endLiveActivity(success: false, message: "Import failed")
                 }
                 LocalNotificationManager.shared.sendImportFailed()
             }
         }
+    }
+
+    // MARK: - Live Activity
+
+    private func startLiveActivity(_ type: TransferActivityAttributes.TransferType) {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        let attributes = TransferActivityAttributes(transferType: type)
+        let state = TransferActivityAttributes.ContentState(
+            progress: 0, total: 1, message: "Starting...", isComplete: false, isFailed: false
+        )
+        currentActivity = try? Activity.request(
+            attributes: attributes,
+            content: .init(state: state, staleDate: nil)
+        )
+    }
+
+    private func updateLiveActivity(progress: Int, total: Int, message: String) {
+        let state = TransferActivityAttributes.ContentState(
+            progress: progress, total: total, message: message, isComplete: false, isFailed: false
+        )
+        Task { await currentActivity?.update(.init(state: state, staleDate: nil)) }
+    }
+
+    private func endLiveActivity(success: Bool, message: String) {
+        let state = TransferActivityAttributes.ContentState(
+            progress: 0, total: 0, message: message, isComplete: success, isFailed: !success
+        )
+        Task {
+            await currentActivity?.end(.init(state: state, staleDate: nil), dismissalPolicy: .after(.now + 5))
+        }
+        currentActivity = nil
     }
 
     // MARK: - Control
@@ -311,6 +354,7 @@ final class BackgroundShareTransferManager {
         activeTask?.cancel()
         activeTask = nil
         status = .idle
+        endLiveActivity(success: false, message: "Transfer cancelled")
     }
 
     func reset() {

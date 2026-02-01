@@ -33,3 +33,8 @@ Vault is a secure file storage app for iOS with pattern-based encryption and pla
 - CommonCrypto (PBKDF2)
 - Secure Enclave (device-bound keys)
 - CloudKit (shared vault sync)
+- RevenueCat (subscription management)
+
+### Design System
+
+Custom color palette with semantic tokens (`vaultBackground`, `vaultSurface`, `vaultText`, `vaultSecondaryText`, `vaultHighlight`) plus an indigo-purple accent color. Light and dark mode supported. See [Design Decisions](./design-decisions.md#visual-design) for full palette and rationale.

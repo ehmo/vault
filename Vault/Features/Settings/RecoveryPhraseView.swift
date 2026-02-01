@@ -3,7 +3,7 @@ import CryptoKit
 
 struct RecoveryPhraseView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) private var appState
 
     @State private var phrase: String = ""
     @State private var isRevealed = false
@@ -29,25 +29,25 @@ struct RecoveryPhraseView: View {
                 if let errorMessage = errorMessage {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(.vaultHighlight)
                         Text(errorMessage)
                             .font(.subheadline)
                             .fontWeight(.medium)
                     }
                     .padding()
-                    .background(Color.red.opacity(0.1))
+                    .background(Color.vaultHighlight.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 } else {
                     // Warning
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.vaultHighlight)
                         Text("Keep this phrase secret and secure")
                             .font(.subheadline)
                             .fontWeight(.medium)
                     }
                     .padding()
-                    .background(Color.orange.opacity(0.1))
+                    .background(Color.vaultHighlight.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
@@ -60,7 +60,7 @@ struct RecoveryPhraseView: View {
                             .multilineTextAlignment(.center)
                             .padding()
                             .frame(maxWidth: .infinity)
-                            .background(Color(.systemGray6))
+                            .background(Color.vaultSurface)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
 
                         Button(action: copyPhrase) {
@@ -75,10 +75,10 @@ struct RecoveryPhraseView: View {
                                 Text("Tap to reveal")
                                     .font(.subheadline)
                             }
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.vaultSecondaryText)
                             .padding(40)
                             .frame(maxWidth: .infinity)
-                            .background(Color(.systemGray6))
+                            .background(Color.vaultSurface)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                     }
@@ -93,11 +93,11 @@ struct RecoveryPhraseView: View {
                     Label("Use it to recover this vault if you forget the pattern", systemImage: "arrow.triangle.2.circlepath")
                 }
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.vaultSecondaryText)
             }
             .padding()
         }
-        .onAppear {
+        .task {
             generateOrLoadPhrase()
         }
         .alert("Copied!", isPresented: $showingCopiedAlert) {
@@ -169,7 +169,8 @@ struct RecoveryPhraseView: View {
         showingCopiedAlert = true
 
         // Clear clipboard after 60 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 60) {
+        Task {
+            try? await Task.sleep(for: .seconds(60))
             if UIPasteboard.general.string == phrase {
                 UIPasteboard.general.string = ""
             }
@@ -178,8 +179,6 @@ struct RecoveryPhraseView: View {
 }
 
 #Preview {
-    @Previewable @State var appState = AppState()
-    
     RecoveryPhraseView()
-        .environmentObject(appState)
+        .environment(AppState())
 }

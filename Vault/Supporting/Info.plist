@@ -21,9 +21,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Vault needs camera access to capture photos directly into your secure vault.</string>
+	<string>Vaultaire needs camera access to capture photos directly into your secure vault.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Vault needs photo library access to import photos into your secure vault.</string>
+	<string>Vaultaire needs photo library access to import photos into your secure vault.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -44,5 +44,7 @@
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 </dict>
 </plist>

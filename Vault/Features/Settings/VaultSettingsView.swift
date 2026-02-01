@@ -1,8 +1,9 @@
 import SwiftUI
 
 struct VaultSettingsView: View {
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
+    @Environment(SubscriptionManager.self) private var subscriptionManager
 
     @State private var showingChangePattern = false
     @State private var showingRegeneratedPhrase = false
@@ -17,6 +18,7 @@ struct VaultSettingsView: View {
     @State private var pendingDuressValue = false
     @State private var fileCount = 0
     @State private var storageUsed: Int64 = 0
+    @State private var showingPaywall = false
 
     var body: some View {
         List {
@@ -26,14 +28,14 @@ struct VaultSettingsView: View {
                     Text("Files")
                     Spacer()
                     Text("\(fileCount)")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.vaultSecondaryText)
                 }
 
                 HStack {
                     Text("Storage Used")
                     Spacer()
                     Text(formatBytes(storageUsed))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.vaultSecondaryText)
                 }
             }
 
@@ -62,18 +64,22 @@ struct VaultSettingsView: View {
                         Text("This is a shared vault")
                         Spacer()
                         Image(systemName: "person.2.fill")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.vaultSecondaryText)
                     }
                 } else {
                     Button("Share This Vault") {
-                        showingShareVault = true
+                        if subscriptionManager.canCreateSharedVault() {
+                            showingShareVault = true
+                        } else {
+                            showingPaywall = true
+                        }
                     }
                     if activeShareCount > 0 {
                         HStack {
                             Text("Shared with")
                             Spacer()
                             Text("\(activeShareCount) \(activeShareCount == 1 ? "person" : "people")")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.vaultSecondaryText)
                         }
                     }
                 }
@@ -89,9 +95,14 @@ struct VaultSettingsView: View {
 
             // Duress
             Section {
-                if isSharedVault {
+                if isSharedVault || activeShareCount > 0 {
                     Text("Shared vaults cannot be set as duress vaults")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.vaultSecondaryText)
+                } else if !subscriptionManager.canCreateDuressVault() {
+                    Button("Use as duress vault") {
+                        showingPaywall = true
+                    }
+                    .foregroundStyle(.primary)
                 } else {
                     Toggle("Use as duress vault", isOn: $isDuressVault)
                 }
@@ -100,6 +111,8 @@ struct VaultSettingsView: View {
             } footer: {
                 if isSharedVault {
                     Text("Duress mode is not available for vaults shared with you.")
+                } else if activeShareCount > 0 {
+                    Text("Stop sharing this vault before enabling duress mode.")
                 } else {
                     Text("When this pattern is entered, all OTHER vaults are silently destroyed. This is irreversible and extremely destructive.")
                 }
@@ -168,7 +181,7 @@ struct VaultSettingsView: View {
             Text("⚠️ EXTREMELY DESTRUCTIVE ⚠️\n\nWhen this pattern is entered, ALL OTHER VAULTS will be PERMANENTLY DESTROYED with no warning or confirmation.\n\nThis includes:\n• All files in other vaults\n• All recovery phrases for other vaults\n• No way to undo this action\n\nOnly use this if you understand you may lose important data under duress.\n\nAre you absolutely sure?")
         }
         .onChange(of: isDuressVault) { oldValue, newValue in
-            guard !isSharedVault else {
+            guard !isSharedVault, activeShareCount == 0 else {
                 isDuressVault = oldValue
                 return
             }
@@ -183,9 +196,10 @@ struct VaultSettingsView: View {
                 }
             }
         }
-        .onAppear {
+        .task {
             loadVaultStatistics()
         }
+        .premiumPaywall(isPresented: $showingPaywall)
     }
 
     private func setAsDuressVault() {
@@ -312,9 +326,9 @@ struct VaultSettingsView: View {
 
 struct ChangePatternView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) private var appState
     
-    @StateObject private var patternState = PatternState()
+    @State private var patternState = PatternState()
     @State private var step: ChangeStep = .verifyCurrent
     @State private var currentPattern: [Int] = []
     @State private var newPattern: [Int] = []
@@ -355,7 +369,7 @@ struct ChangePatternView: View {
                 HStack(spacing: 8) {
                     ForEach(0..<3) { index in
                         Capsule()
-                            .fill(stepIndex >= index ? Color.accentColor : Color(.systemGray4))
+                            .fill(stepIndex >= index ? Color.accentColor : Color.vaultSecondaryText.opacity(0.3))
                             .frame(width: 40, height: 4)
                     }
                 }
@@ -369,7 +383,7 @@ struct ChangePatternView: View {
                     
                     Text(stepSubtitle)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.vaultSecondaryText)
                         .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal)
@@ -378,12 +392,12 @@ struct ChangePatternView: View {
                 if let error = errorMessage {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(.vaultHighlight)
                         Text(error)
                             .font(.subheadline)
                     }
                     .padding()
-                    .background(Color.red.opacity(0.1))
+                    .background(Color.vaultHighlight.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal)
                 }
@@ -445,13 +459,12 @@ struct ChangePatternView: View {
         PatternGridView(
             state: patternState,
             showFeedback: .constant(true),
-            randomizeGrid: .constant(false),
             onPatternComplete: handlePatternComplete
         )
         .frame(width: 280, height: 280)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemGray6).opacity(0.3))
+                .fill(Color.vaultSurface.opacity(0.3))
         )
         .padding()
     }
@@ -469,7 +482,7 @@ struct ChangePatternView: View {
             
             Text("A new recovery phrase has been generated for your vault.")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 8)
             
@@ -477,7 +490,7 @@ struct ChangePatternView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "key.fill")
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(.tint)
                     Text("Your New Recovery Phrase")
                         .font(.headline)
                 }
@@ -486,19 +499,19 @@ struct ChangePatternView: View {
                     .font(.body)
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.systemGray6))
+                    .background(Color.vaultSurface)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(.vaultHighlight)
                     Text("Write this down immediately. You'll need it to recover your vault if you forget your pattern.")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.vaultSecondaryText)
                 }
             }
             .padding()
-            .background(Color.blue.opacity(0.1))
+            .background(Color.accentColor.opacity(0.1))
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
@@ -510,7 +523,7 @@ struct ChangePatternView: View {
             ForEach(Array(result.errors.enumerated()), id: \.offset) { _, error in
                 HStack {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(.vaultHighlight)
                     Text(error.message)
                         .font(.caption)
                 }
@@ -521,7 +534,7 @@ struct ChangePatternView: View {
                 ForEach(Array(result.warnings.prefix(2).enumerated()), id: \.offset) { _, warning in
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.vaultHighlight)
                         Text(warning.rawValue)
                             .font(.caption)
                     }
@@ -542,7 +555,7 @@ struct ChangePatternView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.systemGray6))
+        .background(Color.vaultSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
     
@@ -809,7 +822,7 @@ struct ChangePatternView: View {
 // MARK: - Custom Recovery Phrase Input
 
 struct CustomRecoveryPhraseInputView: View {
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     
     @State private var customPhrase = ""
@@ -844,7 +857,7 @@ struct CustomRecoveryPhraseInputView: View {
             VStack(spacing: 12) {
                 Image(systemName: "pencil.circle.fill")
                     .font(.system(size: 48))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(.tint)
                 
                 Text("Set Your Custom Phrase")
                     .font(.title2)
@@ -852,7 +865,7 @@ struct CustomRecoveryPhraseInputView: View {
                 
                 Text("Enter a memorable sentence that you'll use to recover this vault. It should be unique and difficult to guess.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal)
@@ -861,7 +874,7 @@ struct CustomRecoveryPhraseInputView: View {
             TextEditor(text: $customPhrase)
                 .frame(height: 120)
                 .padding(8)
-                .background(Color(.systemGray6))
+                .background(Color.vaultSurface)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .autocorrectionDisabled()
                 .onChange(of: customPhrase) { _, newValue in
@@ -879,7 +892,7 @@ struct CustomRecoveryPhraseInputView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(validation.isAcceptable ? Color.green.opacity(0.1) : Color.orange.opacity(0.1))
+                .background(validation.isAcceptable ? Color.green.opacity(0.1) : Color.vaultHighlight.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal)
             }
@@ -888,12 +901,12 @@ struct CustomRecoveryPhraseInputView: View {
             if let error = errorMessage {
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.circle.fill")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(.vaultHighlight)
                     Text(error)
                         .font(.subheadline)
                 }
                 .padding()
-                .background(Color.red.opacity(0.1))
+                .background(Color.vaultHighlight.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal)
             }
@@ -907,10 +920,10 @@ struct CustomRecoveryPhraseInputView: View {
                 Label("Make it memorable but unique", systemImage: "brain.head.profile")
             }
             .font(.subheadline)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(.vaultSecondaryText)
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.systemGray6))
+            .background(Color.vaultSurface)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
             
@@ -943,7 +956,7 @@ struct CustomRecoveryPhraseInputView: View {
             
             Text("Your custom recovery phrase has been saved. Make sure to write it down in a safe place.")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
             
@@ -1020,5 +1033,6 @@ struct CustomRecoveryPhraseInputView: View {
 
 #Preview {
     VaultSettingsView()
-        .environmentObject(AppState())
+        .environment(AppState())
+        .environment(SubscriptionManager.shared)
 }
