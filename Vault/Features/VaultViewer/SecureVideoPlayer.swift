@@ -114,7 +114,8 @@ struct SecureVideoPlayer: View {
     SecureVideoPlayer(
         file: VaultFileItem(
             id: UUID(),
-            size: 1024, thumbnailData: nil,
+            size: 1024,
+            encryptedThumbnail: nil,
             mimeType: "video/mp4",
             filename: "preview-video.mp4"
         ),

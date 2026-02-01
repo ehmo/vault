@@ -9,9 +9,12 @@ enum FileFilter: String, CaseIterable {
 }
 
 struct VaultView: View {
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) private var appState
+    @Environment(SubscriptionManager.self) private var subscriptionManager
     @State private var files: [VaultFileItem] = []
+    @State private var masterKey: Data?
     @State private var selectedFile: VaultFileItem?
+    @State private var selectedPhotoIndex: Int?
     @State private var showingImportOptions = false
     @State private var showingCamera = false
     @State private var showingPhotoPicker = false
@@ -20,9 +23,10 @@ struct VaultView: View {
     @State private var isLoading = true
     @State private var searchText = ""
     @State private var fileFilter: FileFilter = .all
+    @State private var showingPaywall = false
 
     // Transfer status
-    @ObservedObject private var transferManager = BackgroundShareTransferManager.shared
+    private var transferManager = BackgroundShareTransferManager.shared
 
     // Shared vault state
     @State private var isSharedVault = false
@@ -41,13 +45,81 @@ struct VaultView: View {
         case .other: result = result.filter { !($0.mimeType ?? "").hasPrefix("image/") }
         }
         if !searchText.isEmpty {
-            let query = searchText.lowercased()
             result = result.filter {
-                ($0.filename ?? "").lowercased().contains(query) ||
-                ($0.mimeType ?? "").lowercased().contains(query)
+                ($0.filename ?? "").localizedStandardContains(searchText) ||
+                ($0.mimeType ?? "").localizedStandardContains(searchText)
             }
         }
         return result
+    }
+
+    private var filteredImageFiles: [VaultFileItem] {
+        filteredFiles.filter { $0.isImage }
+    }
+
+    private var filteredNonImageFiles: [VaultFileItem] {
+        filteredFiles.filter { !$0.isImage }
+    }
+
+    @ViewBuilder
+    private var fileGridContent: some View {
+        ScrollView {
+            if let masterKey {
+                switch fileFilter {
+                case .all:
+                    if !filteredImageFiles.isEmpty {
+                        PhotosGridView(files: filteredImageFiles, masterKey: masterKey) { file, index in
+                            SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
+                            selectedPhotoIndex = index
+                        }
+                    }
+                    if !filteredNonImageFiles.isEmpty {
+                        FilesGridView(files: filteredNonImageFiles) { file in
+                            SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
+                            selectedFile = file
+                        }
+                        .padding(.top, filteredImageFiles.isEmpty ? 0 : 12)
+                    }
+                case .images:
+                    PhotosGridView(files: filteredImageFiles, masterKey: masterKey) { file, index in
+                        SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
+                        selectedPhotoIndex = index
+                    }
+                case .other:
+                    FilesGridView(files: filteredNonImageFiles) { file in
+                        SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
+                        selectedFile = file
+                    }
+                }
+            } else {
+                ProgressView("Decrypting...")
+            }
+        }
+    }
+
+    private var showingPhotoViewer: Binding<Bool> {
+        Binding(
+            get: { selectedPhotoIndex != nil },
+            set: { if !$0 { selectedPhotoIndex = nil } }
+        )
+    }
+
+    @ViewBuilder
+    private var photoViewerContent: some View {
+        let imageFiles = filteredImageFiles
+        let index = selectedPhotoIndex ?? 0
+        FullScreenPhotoViewer(
+            files: imageFiles,
+            vaultKey: appState.currentVaultKey,
+            initialIndex: index,
+            onDelete: isSharedVault ? nil : { deletedId in
+                if let idx = files.firstIndex(where: { $0.id == deletedId }) {
+                    files.remove(at: idx)
+                }
+                selectedPhotoIndex = nil
+            },
+            allowDownloads: sharePolicy?.allowDownloads ?? true
+        )
     }
 
     var body: some View {
@@ -66,10 +138,7 @@ struct VaultView: View {
                                 description: Text("No files match \"\(searchText.isEmpty ? fileFilter.rawValue : searchText)\"")
                             )
                         } else {
-                            FileGridView(files: filteredFiles, onSelect: { file in
-                                SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
-                                selectedFile = file
-                            })
+                            fileGridContent
                         }
                     }
                 }
@@ -112,7 +181,13 @@ struct VaultView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 if !isSharedVault && !files.isEmpty && !showingSettings {
-                    Button(action: { showingImportOptions = true }) {
+                    Button(action: {
+                        if subscriptionManager.canAddFile(currentFileCount: files.count) {
+                            showingImportOptions = true
+                        } else {
+                            showingPaywall = true
+                        }
+                    }) {
                         Label("Add Files", systemImage: "plus.circle.fill")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
@@ -124,12 +199,14 @@ struct VaultView: View {
                 }
             }
         }
-        .onAppear {
+        .task {
             loadVault()
         }
         .onChange(of: appState.currentVaultKey) { _, newKey in
             if newKey == nil {
                 files = []
+                masterKey = nil
+                ThumbnailCache.shared.clear()
                 isLoading = false
                 isSharedVault = false
             }
@@ -168,6 +245,9 @@ struct VaultView: View {
         ) { result in
             handleImportedFiles(result)
         }
+        .fullScreenCover(isPresented: showingPhotoViewer) {
+            photoViewerContent
+        }
         .sheet(item: $selectedFile) { file in
             SecureImageViewer(
                 file: file,
@@ -193,6 +273,7 @@ struct VaultView: View {
         } message: {
             Text(selfDestructMessage ?? "This shared vault is no longer available.")
         }
+        .premiumPaywall(isPresented: $showingPaywall)
     }
 
     // MARK: - Shared Vault Banner
@@ -209,7 +290,7 @@ struct VaultView: View {
 
                     if let expires = sharePolicy?.expiresAt {
                         Text("Expires: \(expires, style: .date)")
-                            .font(.caption2).foregroundStyle(.secondary)
+                            .font(.caption2).foregroundStyle(.vaultSecondaryText)
                     }
                 }
 
@@ -236,14 +317,14 @@ struct VaultView: View {
             if updateAvailable {
                 HStack {
                     Image(systemName: "arrow.down.circle.fill")
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(.tint)
                     Text("New files available")
                         .font(.caption)
                     Spacer()
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 4)
-                .background(Color.blue.opacity(0.1))
+                .background(Color.accentColor.opacity(0.1))
             }
         }
     }
@@ -263,11 +344,11 @@ struct VaultView: View {
                     .font(.caption)
                 Spacer()
                 Text("\(progress)/\(total)")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(.vaultSecondaryText)
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
-            .background(Color.blue.opacity(0.1))
+            .background(Color.accentColor.opacity(0.1))
 
         case .uploadComplete:
             HStack(spacing: 8) {
@@ -286,19 +367,18 @@ struct VaultView: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
             .background(Color.green.opacity(0.1))
-            .onAppear {
+            .task {
                 // Auto-dismiss after 5 seconds
-                DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                    if case .uploadComplete = transferManager.status {
-                        transferManager.reset()
-                    }
+                try? await Task.sleep(for: .seconds(5))
+                if case .uploadComplete = transferManager.status {
+                    transferManager.reset()
                 }
             }
 
         case .uploadFailed(let message):
             HStack(spacing: 8) {
                 Image(systemName: "exclamationmark.circle.fill")
-                    .foregroundStyle(.red)
+                    .foregroundStyle(.vaultHighlight)
                 Text("Upload failed: \(message)")
                     .font(.caption)
                     .lineLimit(1)
@@ -312,7 +392,7 @@ struct VaultView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
-            .background(Color.red.opacity(0.1))
+            .background(Color.vaultHighlight.opacity(0.1))
 
         case .importing:
             HStack(spacing: 8) {
@@ -323,7 +403,7 @@ struct VaultView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
-            .background(Color.blue.opacity(0.1))
+            .background(Color.accentColor.opacity(0.1))
 
         case .importComplete:
             HStack(spacing: 8) {
@@ -344,20 +424,19 @@ struct VaultView: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
             .background(Color.green.opacity(0.1))
-            .onAppear {
+            .task {
                 // Reload files and auto-dismiss
                 loadVault()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                    if case .importComplete = transferManager.status {
-                        transferManager.reset()
-                    }
+                try? await Task.sleep(for: .seconds(5))
+                if case .importComplete = transferManager.status {
+                    transferManager.reset()
                 }
             }
 
         case .importFailed(let message):
             HStack(spacing: 8) {
                 Image(systemName: "exclamationmark.circle.fill")
-                    .foregroundStyle(.red)
+                    .foregroundStyle(.vaultHighlight)
                 Text("Import failed: \(message)")
                     .font(.caption)
                     .lineLimit(1)
@@ -371,7 +450,7 @@ struct VaultView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
-            .background(Color.red.opacity(0.1))
+            .background(Color.vaultHighlight.opacity(0.1))
         }
     }
 
@@ -381,7 +460,7 @@ struct VaultView: View {
         VStack(spacing: 20) {
             Image(systemName: "photo.on.rectangle.angled")
                 .font(.system(size: 64))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.vaultSecondaryText)
 
             Text("This vault is empty")
                 .font(.title2)
@@ -390,15 +469,21 @@ struct VaultView: View {
             if isSharedVault {
                 Text("Waiting for the vault owner to add files")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
             } else {
                 Text("Add photos, videos, or files to keep them secure")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
 
-                Button(action: { showingImportOptions = true }) {
+                Button(action: {
+                    if subscriptionManager.canAddFile(currentFileCount: files.count) {
+                        showingImportOptions = true
+                    } else {
+                        showingPaywall = true
+                    }
+                }) {
                     Label("Add Files", systemImage: "plus.circle.fill")
                         .font(.headline)
                 }
@@ -587,18 +672,18 @@ struct VaultView: View {
 
         Task.detached(priority: .userInitiated) {
             do {
-                let fileEntries = try VaultStorage.shared.listFiles(with: key)
-                let items = fileEntries.map { entry in
+                let result = try VaultStorage.shared.listFilesLightweight(with: key)
+                let items = result.files.map { entry in
                     VaultFileItem(
                         id: entry.fileId,
                         size: entry.size,
-                        thumbnailData: entry.thumbnailData,
-                        thumbnailImage: entry.thumbnailData.flatMap { UIImage(data: $0) },
+                        encryptedThumbnail: entry.encryptedThumbnail,
                         mimeType: entry.mimeType,
                         filename: entry.filename
                     )
                 }
                 await MainActor.run {
+                    self.masterKey = result.masterKey
                     self.files = items
                     self.isLoading = false
                     SentryManager.shared.addBreadcrumb(category: "vault.opened", data: ["fileCount": items.count])
@@ -629,11 +714,13 @@ struct VaultView: View {
                     with: key,
                     thumbnailData: thumbnail
                 )
+                // Re-encrypt thumbnail for in-memory model (matches what's stored in index)
+                let encThumb = thumbnail.flatMap { try? CryptoEngine.shared.encrypt($0, with: self.masterKey ?? key) }
                 await MainActor.run {
                     files.append(VaultFileItem(
                         id: fileId,
                         size: imageData.count,
-                        thumbnailData: thumbnail,
+                        encryptedThumbnail: encThumb,
                         mimeType: "image/jpeg",
                         filename: filename
                     ))
@@ -662,11 +749,12 @@ struct VaultView: View {
                         with: key,
                         thumbnailData: thumbnail
                     )
+                    let encThumb = thumbnail.flatMap { try? CryptoEngine.shared.encrypt($0, with: self.masterKey ?? key) }
                     await MainActor.run {
                         files.append(VaultFileItem(
                             id: fileId,
                             size: data.count,
-                            thumbnailData: thumbnail,
+                            encryptedThumbnail: encThumb,
                             mimeType: "image/jpeg",
                             filename: filename
                         ))
@@ -704,11 +792,12 @@ struct VaultView: View {
                         with: appState.currentVaultKey!,
                         thumbnailData: thumbnail
                     ) {
+                        let encThumb = thumbnail.flatMap { try? CryptoEngine.shared.encrypt($0, with: self.masterKey ?? appState.currentVaultKey!) }
                         await MainActor.run {
                             files.append(VaultFileItem(
                                 id: fileId,
                                 size: data.count,
-                                thumbnailData: thumbnail,
+                                encryptedThumbnail: encThumb,
                                 mimeType: mimeType,
                                 filename: filename
                             ))
@@ -759,27 +848,12 @@ struct VaultView: View {
 struct VaultFileItem: Identifiable {
     let id: UUID
     let size: Int
-    let thumbnailData: Data?
-    let thumbnailImage: UIImage?
+    let encryptedThumbnail: Data?
     let mimeType: String?
     let filename: String?
 
-    init(id: UUID, size: Int, thumbnailData: Data?, mimeType: String?, filename: String?) {
-        self.id = id
-        self.size = size
-        self.thumbnailData = thumbnailData
-        self.thumbnailImage = nil
-        self.mimeType = mimeType
-        self.filename = filename
-    }
-
-    init(id: UUID, size: Int, thumbnailData: Data?, thumbnailImage: UIImage?, mimeType: String?, filename: String?) {
-        self.id = id
-        self.size = size
-        self.thumbnailData = thumbnailData
-        self.thumbnailImage = thumbnailImage
-        self.mimeType = mimeType
-        self.filename = filename
+    var isImage: Bool {
+        (mimeType ?? "").hasPrefix("image/")
     }
 }
 
@@ -840,6 +914,7 @@ struct PhotoPicker: UIViewControllerRepresentable {
 
 #Preview {
     VaultView()
-        .environmentObject(AppState())
+        .environment(AppState())
+        .environment(SubscriptionManager.shared)
 }
 

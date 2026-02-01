@@ -1,6 +1,4 @@
 import Foundation
-
-import Foundation
 import CryptoKit
 
 enum VaultStorageError: Error {
@@ -623,8 +621,46 @@ final class VaultStorage {
         let filename: String?
     }
 
+    /// Lightweight file entry that keeps thumbnail data encrypted (no decryption at listing time).
+    struct LightweightFileEntry {
+        let fileId: UUID
+        let size: Int
+        let encryptedThumbnail: Data?
+        let mimeType: String?
+        let filename: String?
+    }
+
+    /// Returns the master key and file entries without decrypting thumbnails.
+    /// Use this for lazy thumbnail loading — thumbnails are decrypted on-demand per cell.
+    func listFilesLightweight(with key: Data) throws -> (masterKey: Data, files: [LightweightFileEntry]) {
+        let span = SentryManager.shared.startTransaction(name: "storage.list_files_lightweight", operation: "storage.list_files_lightweight")
+        defer { span.finish(status: .ok) }
+
+        let index = try loadIndex(with: key)
+        let masterKey = try getMasterKey(from: index, vaultKey: key)
+
+        let entries = index.files.filter { !$0.isDeleted }.map { entry in
+            LightweightFileEntry(
+                fileId: entry.fileId,
+                size: entry.size,
+                encryptedThumbnail: entry.thumbnailData,
+                mimeType: entry.mimeType,
+                filename: entry.filename
+            )
+        }
+
+        return (masterKey, entries)
+    }
+
     // MARK: - Pattern/Key Management
     
+    /// Count the number of existing vault index files on disk
+    func existingVaultCount() -> Int {
+        let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let contents = (try? fileManager.contentsOfDirectory(at: documents, includingPropertiesForKeys: nil)) ?? []
+        return contents.filter { $0.lastPathComponent.hasPrefix("vault_index_") && $0.pathExtension == "bin" }.count
+    }
+
     /// Check if a vault already exists for the given key
     func vaultExists(for key: Data) -> Bool {
         let indexURL = indexURL(for: key)
@@ -790,16 +826,13 @@ final class VaultStorage {
 
     // MARK: - Storage Info
 
+    /// Bytes consumed by vault data (based on global cursor position).
     var usedSpace: Int {
-        guard fileManager.fileExists(atPath: blobURL.path),
-              let attributes = try? fileManager.attributesOfItem(atPath: blobURL.path),
-              let size = attributes[.size] as? Int else {
-            return 0
-        }
-        return size
+        readGlobalCursor()
     }
 
+    /// Bytes remaining for new file writes.
     var availableSpace: Int {
-        defaultBlobSize - usedSpace
+        cursorBlockOffset - usedSpace
     }
 }

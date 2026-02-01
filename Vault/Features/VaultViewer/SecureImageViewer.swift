@@ -198,7 +198,7 @@ struct SecureImageViewer: View {
         file: VaultFileItem(
             id: UUID(),
             size: 1024,
-            thumbnailData: nil,
+            encryptedThumbnail: nil,
             mimeType: "image/jpeg",
             filename: "preview.jpg"
         ),
