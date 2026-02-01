@@ -2,7 +2,7 @@ import SwiftUI
 import CloudKit
 
 struct ShareVaultView: View {
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
 
     @State private var mode: ViewMode = .loading
@@ -12,8 +12,6 @@ struct ShareVaultView: View {
         case iCloudUnavailable(CKAccountStatus)
         case newShare
         case phraseReady(String)
-        case uploading(String, Int, Int) // phrase, current, total
-        case uploadComplete(String)
         case backgroundUploadStarted(String) // phrase
         case manageShares
         case error(String)
@@ -56,10 +54,6 @@ struct ShareVaultView: View {
                         newShareSettingsView
                     case .phraseReady(let phrase):
                         phraseReadyView(phrase)
-                    case .uploading(let phrase, let current, let total):
-                        uploadingView(phrase: phrase, current: current, total: total)
-                    case .uploadComplete(let phrase):
-                        uploadCompleteView(phrase)
                     case .backgroundUploadStarted(let phrase):
                         backgroundUploadStartedView(phrase)
                     case .manageShares:
@@ -108,9 +102,9 @@ struct ShareVaultView: View {
 
     private var loadingView: some View {
         VStack(spacing: 16) {
-            ProgressView().scaleEffect(1.5)
+            PixelAnimation.loading(size: 60)
             Text("Checking sharing status...")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.vaultSecondaryText)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 100)
@@ -120,11 +114,11 @@ struct ShareVaultView: View {
         VStack(spacing: 16) {
             Image(systemName: "icloud.slash")
                 .font(.system(size: 48))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.vaultSecondaryText)
             Text("iCloud Required")
                 .font(.title2).fontWeight(.semibold)
             Text(iCloudStatusMessage(status))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
         }
         .padding(.top, 60)
@@ -134,13 +128,13 @@ struct ShareVaultView: View {
         VStack(spacing: 24) {
             Image(systemName: "square.and.arrow.up.circle.fill")
                 .font(.system(size: 48))
-                .foregroundStyle(.blue)
+                .foregroundStyle(.tint)
 
             Text("Share This Vault")
                 .font(.title2).fontWeight(.semibold)
 
             Text("Generate a one-time share phrase. After your recipient uses it, it cannot be reused.")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
 
             // Policy settings
@@ -171,7 +165,7 @@ struct ShareVaultView: View {
                 Toggle("Allow file exports", isOn: $allowDownloads)
             }
             .padding()
-            .background(Color(.systemGray6))
+            .background(Color.vaultSurface)
             .clipShape(RoundedRectangle(cornerRadius: 12))
 
             // Estimated size
@@ -180,10 +174,10 @@ struct ShareVaultView: View {
                 let totalSize = files.reduce(0) { $0 + $1.size }
                 HStack {
                     Text("Estimated upload")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.vaultSecondaryText)
                     Spacer()
                     Text(formatBytes(totalSize))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.vaultSecondaryText)
                 }
                 .font(.subheadline)
             }
@@ -199,7 +193,7 @@ struct ShareVaultView: View {
         VStack(spacing: 24) {
             Image(systemName: "key.fill")
                 .font(.system(size: 48))
-                .foregroundStyle(.blue)
+                .foregroundStyle(.tint)
 
             Text("Share Phrase (one-time use)")
                 .font(.title2).fontWeight(.semibold)
@@ -209,27 +203,19 @@ struct ShareVaultView: View {
             // Warning
             VStack(alignment: .leading, spacing: 12) {
                 Label("One-time use", systemImage: "exclamationmark.triangle.fill")
-                    .font(.headline).foregroundStyle(.orange)
+                    .font(.headline).foregroundStyle(.vaultHighlight)
                 Text("This phrase works once. After your recipient uses it, it will no longer work.")
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .font(.subheadline).foregroundStyle(.vaultSecondaryText)
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.orange.opacity(0.1))
+            .background(Color.vaultHighlight.opacity(0.1))
             .clipShape(RoundedRectangle(cornerRadius: 12))
 
-            // Upload actions
-            VStack(spacing: 12) {
-                Button("Upload & Wait") {
-                    startInlineUpload(phrase: phrase)
-                }
-                .buttonStyle(.borderedProminent)
-
-                Button("Upload in Background") {
-                    startBackgroundUpload(phrase: phrase)
-                }
-                .buttonStyle(.bordered)
+            Button("Upload Vault") {
+                startBackgroundUpload(phrase: phrase)
             }
+            .buttonStyle(.borderedProminent)
         }
     }
 
@@ -237,48 +223,13 @@ struct ShareVaultView: View {
         VStack(spacing: 24) {
             Image(systemName: "icloud.and.arrow.up.fill")
                 .font(.system(size: 64))
-                .foregroundStyle(.blue)
+                .foregroundStyle(.tint)
 
             Text("Uploading in Background")
                 .font(.title2).fontWeight(.semibold)
 
             Text("You can dismiss this screen. You'll be notified when the upload completes.")
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-
-            phraseDisplay(phrase)
-
-            Button("Done") { dismiss() }
-                .buttonStyle(.borderedProminent)
-                .padding(.top)
-        }
-        .padding(.top, 40)
-    }
-
-    private func uploadingView(phrase: String, current: Int, total: Int) -> some View {
-        VStack(spacing: 24) {
-            phraseDisplay(phrase)
-
-            VStack(spacing: 8) {
-                ProgressView(value: Double(current), total: Double(total))
-                Text("Uploading: \(current) of \(total) chunks...")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private func uploadCompleteView(_ phrase: String) -> some View {
-        VStack(spacing: 24) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.green)
-
-            Text("Vault Shared!")
-                .font(.title2).fontWeight(.semibold)
-
-            Text("Share this phrase with your recipient. It can only be used once.")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
 
             phraseDisplay(phrase)
@@ -300,7 +251,7 @@ struct ShareVaultView: View {
 
                     if let lastSync = ShareSyncManager.shared.lastSyncedAt {
                         Text("Last synced: \(lastSync, style: .relative) ago")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.caption).foregroundStyle(.vaultSecondaryText)
                     }
                 }
                 Spacer()
@@ -332,14 +283,14 @@ struct ShareVaultView: View {
                     Text("Share #\(share.id.prefix(8))")
                         .font(.headline)
                     Text("Created \(share.createdAt, style: .date)")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(.vaultSecondaryText)
                 }
                 Spacer()
                 Text("Active")
                     .font(.caption)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(Color.green.opacity(0.2))
+                    .background(Color.green.opacity(0.15))
                     .clipShape(Capsule())
             }
 
@@ -349,7 +300,7 @@ struct ShareVaultView: View {
                     Spacer()
                     Text(expires, style: .date)
                 }
-                .font(.subheadline).foregroundStyle(.secondary)
+                .font(.subheadline).foregroundStyle(.vaultSecondaryText)
             }
 
             if let lastAccessed = share.lastSyncedAt {
@@ -358,7 +309,7 @@ struct ShareVaultView: View {
                     Spacer()
                     Text(lastAccessed, style: .relative)
                 }
-                .font(.subheadline).foregroundStyle(.secondary)
+                .font(.subheadline).foregroundStyle(.vaultSecondaryText)
             }
 
             Button("Revoke Access", role: .destructive) {
@@ -367,18 +318,18 @@ struct ShareVaultView: View {
             .font(.subheadline)
         }
         .padding()
-        .background(Color(.systemGray6))
+        .background(Color.vaultSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private func errorView(_ message: String) -> some View {
         VStack(spacing: 16) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 48)).foregroundStyle(.orange)
+                .font(.system(size: 48)).foregroundStyle(.vaultHighlight)
             Text("Sharing Failed")
                 .font(.title2).fontWeight(.semibold)
             Text(message)
-                .foregroundStyle(.secondary).multilineTextAlignment(.center)
+                .foregroundStyle(.vaultSecondaryText).multilineTextAlignment(.center)
             Button("Try Again") { mode = .newShare }
                 .buttonStyle(.borderedProminent).padding(.top)
         }
@@ -395,7 +346,7 @@ struct ShareVaultView: View {
                 .multilineTextAlignment(.center)
                 .padding()
                 .frame(maxWidth: .infinity)
-                .background(Color(.systemGray6))
+                .background(Color.vaultSurface)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
             Button(action: { copyToClipboard(phrase) }) {
@@ -415,7 +366,7 @@ struct ShareVaultView: View {
             EmptyView()
         case .syncing:
             HStack(spacing: 4) {
-                ProgressView().scaleEffect(0.6)
+                PixelAnimation.syncing(size: 24)
                 Text("Syncing").font(.caption)
             }
         case .upToDate:
@@ -424,7 +375,7 @@ struct ShareVaultView: View {
         case .error(let msg):
             VStack(alignment: .trailing, spacing: 4) {
                 Label(msg, systemImage: "exclamationmark.circle.fill")
-                    .font(.caption).foregroundStyle(.red)
+                    .font(.caption).foregroundStyle(.vaultHighlight)
                 Button("Retry") {
                     guard let key = appState.currentVaultKey else { return }
                     ShareSyncManager.shared.syncNow(vaultKey: key)
@@ -441,111 +392,6 @@ struct ShareVaultView: View {
     private func generatePhrase() {
         let phrase = RecoveryPhraseGenerator.shared.generatePhrase()
         mode = .phraseReady(phrase)
-    }
-
-    private func startInlineUpload(phrase: String) {
-        guard let vaultKey = appState.currentVaultKey else {
-            mode = .error("No vault key available")
-            return
-        }
-
-        Task {
-            do {
-                let shareVaultId = CloudKitSharingManager.generateShareVaultId()
-                let shareKey = try CloudKitSharingManager.deriveShareKey(from: phrase)
-
-                let policy = VaultStorage.SharePolicy(
-                    expiresAt: hasExpiration ? expiresAt : nil,
-                    maxOpens: hasMaxOpens ? maxOpens : nil,
-                    allowScreenshots: false,
-                    allowDownloads: allowDownloads
-                )
-
-                // Build vault data
-                let index = try VaultStorage.shared.loadIndex(with: vaultKey)
-                var sharedFiles: [SharedVaultData.SharedFile] = []
-
-                // Get master key for decrypting thumbnails
-                let masterKey = try CryptoEngine.shared.decrypt(index.encryptedMasterKey!, with: vaultKey)
-
-                for entry in index.files where !entry.isDeleted {
-                    let (header, content) = try VaultStorage.shared.retrieveFile(id: entry.fileId, with: vaultKey)
-                    let reencrypted = try CryptoEngine.shared.encrypt(content, with: shareKey)
-
-                    // Re-encrypt thumbnail with share key
-                    var encryptedThumb: Data? = nil
-                    if let thumbData = entry.thumbnailData {
-                        let decryptedThumb = try CryptoEngine.shared.decrypt(thumbData, with: masterKey)
-                        encryptedThumb = try CryptoEngine.shared.encrypt(decryptedThumb, with: shareKey)
-                    }
-
-                    sharedFiles.append(SharedVaultData.SharedFile(
-                        id: header.fileId,
-                        filename: header.originalFilename,
-                        mimeType: header.mimeType,
-                        size: Int(header.originalSize),
-                        encryptedContent: reencrypted,
-                        createdAt: header.createdAt,
-                        encryptedThumbnail: encryptedThumb
-                    ))
-                }
-
-                let sharedData = SharedVaultData(
-                    files: sharedFiles,
-                    metadata: SharedVaultData.SharedVaultMetadata(
-                        ownerFingerprint: KeyDerivation.keyFingerprint(from: vaultKey),
-                        sharedAt: Date()
-                    ),
-                    createdAt: Date(),
-                    updatedAt: Date()
-                )
-
-                let encodedData = try JSONEncoder().encode(sharedData)
-
-                await MainActor.run {
-                    mode = .uploading(phrase, 0, 1)
-                }
-
-                try await CloudKitSharingManager.shared.uploadSharedVault(
-                    shareVaultId: shareVaultId,
-                    phrase: phrase,
-                    vaultData: encodedData,
-                    shareKey: shareKey,
-                    policy: policy,
-                    ownerFingerprint: KeyDerivation.keyFingerprint(from: vaultKey),
-                    onProgress: { current, total in
-                        Task { @MainActor in
-                            mode = .uploading(phrase, current, total)
-                        }
-                    }
-                )
-
-                // Save share record to vault index
-                let shareRecord = VaultStorage.ShareRecord(
-                    id: shareVaultId,
-                    createdAt: Date(),
-                    policy: policy,
-                    lastSyncedAt: Date(),
-                    shareKeyData: shareKey
-                )
-
-                var updatedIndex = try VaultStorage.shared.loadIndex(with: vaultKey)
-                if updatedIndex.activeShares == nil {
-                    updatedIndex.activeShares = []
-                }
-                updatedIndex.activeShares?.append(shareRecord)
-                try VaultStorage.shared.saveIndex(updatedIndex, with: vaultKey)
-
-                await MainActor.run {
-                    activeShares = updatedIndex.activeShares ?? []
-                    mode = .uploadComplete(phrase)
-                }
-            } catch {
-                await MainActor.run {
-                    mode = .error(error.localizedDescription)
-                }
-            }
-        }
     }
 
     private func startBackgroundUpload(phrase: String) {
@@ -612,7 +458,8 @@ struct ShareVaultView: View {
     private func copyToClipboard(_ text: String) {
         UIPasteboard.general.string = text
         copiedToClipboard = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+        Task {
+            try? await Task.sleep(for: .seconds(2))
             copiedToClipboard = false
         }
     }
@@ -637,5 +484,5 @@ struct ShareVaultView: View {
 
 #Preview {
     ShareVaultView()
-        .environmentObject(AppState())
+        .environment(AppState())
 }

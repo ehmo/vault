@@ -1,13 +1,10 @@
 import SwiftUI
 
-import SwiftUI
-import CryptoKit
-
 struct PatternSetupView: View {
     let onComplete: () -> Void
 
-    @EnvironmentObject var appState: AppState
-    @StateObject private var patternState = PatternState()
+    @Environment(AppState.self) private var appState
+    @State private var patternState = PatternState()
     @State private var step: SetupStep = .create
     @State private var firstPattern: [Int] = []
     @State private var validationResult: PatternValidationResult?
@@ -16,6 +13,7 @@ struct PatternSetupView: View {
     @State private var useCustomPhrase = false
     @State private var customPhrase = ""
     @State private var customPhraseValidation: RecoveryPhraseGenerator.PhraseValidation?
+    @State private var showSaveConfirmation = false
 
     enum SetupStep {
         case create
@@ -30,7 +28,7 @@ struct PatternSetupView: View {
             HStack(spacing: 8) {
                 ForEach(0..<3) { index in
                     Capsule()
-                        .fill(stepIndex >= index ? Color.accentColor : Color(.systemGray4))
+                        .fill(stepIndex >= index ? Color.accentColor : Color.vaultSecondaryText.opacity(0.3))
                         .frame(width: 40, height: 4)
                 }
             }
@@ -44,28 +42,37 @@ struct PatternSetupView: View {
 
                 Text(headerSubtitle)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal)
 
-            Spacer()
-
             // Content based on step
             switch step {
             case .create, .confirm:
+                Spacer()
                 patternInputSection
+                Spacer()
+
+                // Validation feedback — fixed height to prevent layout shift
+                Group {
+                    if let result = validationResult, step == .create {
+                        validationFeedback(result)
+                    } else {
+                        Color.clear
+                    }
+                }
+                .frame(height: 80)
+
             case .recovery:
+                Spacer()
                 recoverySection
+                Spacer()
+
             case .complete:
+                Spacer()
                 completeSection
-            }
-
-            Spacer()
-
-            // Validation feedback
-            if let result = validationResult, step == .create {
-                validationFeedback(result)
+                Spacer()
             }
 
             // Bottom buttons
@@ -108,13 +115,13 @@ struct PatternSetupView: View {
         PatternGridView(
             state: patternState,
             showFeedback: .constant(true),
-            randomizeGrid: .constant(false),
+
             onPatternComplete: handlePatternComplete
         )
         .frame(width: 280, height: 280)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemGray6).opacity(0.3))
+                .fill(Color.vaultSurface.opacity(0.3))
         )
         .padding()
     }
@@ -138,7 +145,7 @@ struct PatternSetupView: View {
                     TextEditor(text: $customPhrase)
                         .frame(height: 100)
                         .padding(8)
-                        .background(Color(.systemGray6))
+                        .background(Color.vaultSurface)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .autocorrectionDisabled()
                         .onChange(of: customPhrase) { _, newValue in
@@ -163,7 +170,7 @@ struct PatternSetupView: View {
                     .fontWeight(.medium)
                     .multilineTextAlignment(.center)
                     .padding()
-                    .background(Color(.systemGray6))
+                    .background(Color.vaultSurface)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
 
@@ -173,7 +180,7 @@ struct PatternSetupView: View {
                 Label("Never share it with anyone", systemImage: "person.slash")
             }
             .font(.subheadline)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(.vaultSecondaryText)
         }
         .padding(.horizontal)
     }
@@ -197,7 +204,7 @@ struct PatternSetupView: View {
             ForEach(Array(result.errors.enumerated()), id: \.offset) { _, error in
                 HStack {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(.vaultHighlight)
                     Text(error.message)
                         .font(.caption)
                 }
@@ -208,7 +215,7 @@ struct PatternSetupView: View {
                 ForEach(Array(result.warnings.prefix(2).enumerated()), id: \.offset) { _, warning in
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.vaultHighlight)
                         Text(warning.rawValue)
                             .font(.caption)
                     }
@@ -229,7 +236,7 @@ struct PatternSetupView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.systemGray6))
+        .background(Color.vaultSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -253,14 +260,7 @@ struct PatternSetupView: View {
 
             case .recovery:
                 Button(action: {
-                    if useCustomPhrase {
-                        // Validate custom phrase before proceeding
-                        if let validation = customPhraseValidation, validation.isAcceptable {
-                            saveCustomRecoveryPhrase()
-                        }
-                    } else {
-                        step = .complete
-                    }
+                    showSaveConfirmation = true
                 }) {
                     Text("I've Saved It")
                         .font(.headline)
@@ -269,15 +269,24 @@ struct PatternSetupView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(useCustomPhrase && !(customPhraseValidation?.isAcceptable ?? false))
-
-                Button("Skip for Now") {
-                    step = .complete
+                .alert("Are you sure?", isPresented: $showSaveConfirmation) {
+                    Button("Cancel", role: .cancel) { }
+                    Button("Yes, I've Saved It") {
+                        if useCustomPhrase {
+                            if let validation = customPhraseValidation, validation.isAcceptable {
+                                saveCustomRecoveryPhrase()
+                            }
+                        } else {
+                            step = .complete
+                        }
+                    }
+                } message: {
+                    Text("This recovery phrase will never be shown again. Make sure you've written it down and stored it safely.")
                 }
-                .font(.subheadline)
 
             case .complete:
                 Button(action: onComplete) {
-                    Text("Open Vault")
+                    Text("Open Vaultaire")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -488,5 +497,5 @@ struct PatternSetupView: View {
 
 #Preview {
     PatternSetupView(onComplete: {})
-        .environmentObject(AppState())
+        .environment(AppState())
 }

@@ -2,29 +2,24 @@ import SwiftUI
 import CloudKit
 
 struct JoinVaultView: View {
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
+    @Environment(SubscriptionManager.self) private var subscriptionManager
 
     @State private var phrase = ""
     @State private var mode: ViewMode = .input
+    @State private var showingPaywall = false
     @State private var iCloudStatus: CKAccountStatus?
-    @State private var downloadedData: Data?
-    @State private var downloadedPolicy: VaultStorage.SharePolicy?
-    @State private var downloadedShareVaultId: String?
 
     // Pattern setup for shared vault
-    @StateObject private var patternState = PatternState()
+    @State private var patternState = PatternState()
     @State private var newPattern: [Int] = []
     @State private var confirmPattern: [Int] = []
     @State private var patternStep: PatternStep = .create
 
     enum ViewMode {
         case input
-        case downloading(Int, Int)
         case patternSetup
-        case importing
-        case success(Int)
-        case backgroundImportStarted
         case error(String)
     }
 
@@ -56,16 +51,8 @@ struct JoinVaultView: View {
                         switch mode {
                         case .input:
                             inputView
-                        case .downloading(let current, let total):
-                            downloadingView(current: current, total: total)
                         case .patternSetup:
                             patternSetupView
-                        case .importing:
-                            importingView
-                        case .success(let fileCount):
-                            successView(fileCount)
-                        case .backgroundImportStarted:
-                            backgroundImportStartedView
                         case .error(let message):
                             errorView(message)
                         }
@@ -78,6 +65,7 @@ struct JoinVaultView: View {
             let status = await CloudKitSharingManager.shared.checkiCloudStatus()
             iCloudStatus = status
         }
+        .premiumPaywall(isPresented: $showingPaywall)
     }
 
     // MARK: - Views
@@ -86,24 +74,30 @@ struct JoinVaultView: View {
         VStack(spacing: 24) {
             Image(systemName: "person.2.fill")
                 .font(.system(size: 48))
-                .foregroundStyle(.blue)
+                .foregroundStyle(.tint)
 
             Text("Enter Share Phrase")
                 .font(.title2).fontWeight(.semibold)
 
             Text("Enter the one-time share phrase you received.")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
 
             TextEditor(text: $phrase)
                 .frame(height: 100)
                 .padding(8)
-                .background(Color(.systemGray6))
+                .background(Color.vaultSurface)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
 
-            Button(action: { Task { await joinVault() } }) {
+            Button(action: {
+                if subscriptionManager.isPremium {
+                    joinVault()
+                } else {
+                    showingPaywall = true
+                }
+            }) {
                 Text("Join Vault")
             }
             .buttonStyle(.borderedProminent)
@@ -114,22 +108,13 @@ struct JoinVaultView: View {
                 Label("How it works", systemImage: "info.circle")
                     .font(.headline)
                 Text("The share phrase downloads and decrypts the shared vault. Each phrase can only be used once.")
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .font(.subheadline).foregroundStyle(.vaultSecondaryText)
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.systemGray6))
+            .background(Color.vaultSurface)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-    }
-
-    private func downloadingView(current: Int, total: Int) -> some View {
-        VStack(spacing: 24) {
-            ProgressView(value: Double(current), total: Double(total))
-            Text("Downloading vault... (\(current) of \(total) chunks)")
-                .foregroundStyle(.secondary)
-        }
-        .padding(.top, 100)
     }
 
     private var patternSetupView: some View {
@@ -137,7 +122,7 @@ struct JoinVaultView: View {
             VStack(spacing: 8) {
                 Image(systemName: "lock.shield.fill")
                     .font(.system(size: 40))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(.tint)
 
                 Text(patternStep == .create ? "Set a Pattern" : "Confirm Pattern")
                     .font(.title2).fontWeight(.semibold)
@@ -146,20 +131,19 @@ struct JoinVaultView: View {
                     ? "Draw a pattern to unlock this shared vault"
                     : "Draw the same pattern to confirm")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
             }
 
             PatternGridView(
                 state: patternState,
                 showFeedback: .constant(true),
-                randomizeGrid: .constant(false),
                 onPatternComplete: handlePatternComplete
             )
             .frame(width: 280, height: 280)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.systemGray6).opacity(0.3))
+                    .fill(Color.vaultSurface.opacity(0.3))
             )
 
             if patternStep == .confirm {
@@ -174,101 +158,14 @@ struct JoinVaultView: View {
         }
     }
 
-    private var importingView: some View {
-        VStack(spacing: 16) {
-            ProgressView().scaleEffect(1.5)
-            Text("Setting up shared vault...")
-                .foregroundStyle(.secondary)
-        }
-        .padding(.top, 100)
-    }
-
-    private var backgroundImportStartedView: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "arrow.down.circle.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.blue)
-
-            Text("Setting Up Vault")
-                .font(.title2).fontWeight(.semibold)
-
-            Text("Your shared vault is being set up in the background. You'll be notified when it's ready.")
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-
-            Button("Done") { dismiss() }
-                .buttonStyle(.borderedProminent)
-                .padding(.top)
-        }
-        .padding(.top, 40)
-    }
-
-    private func successView(_ fileCount: Int) -> some View {
-        VStack(spacing: 24) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.green)
-
-            Text("Vault Joined!")
-                .font(.title2).fontWeight(.semibold)
-
-            Text("You now have access to the shared vault with \(fileCount) files.")
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-
-            if let policy = downloadedPolicy {
-                policyInfoView(policy)
-            }
-
-            Button("Open Vault") {
-                appState.isUnlocked = true
-                dismiss()
-            }
-            .buttonStyle(.borderedProminent)
-            .padding(.top)
-        }
-        .padding(.top, 40)
-    }
-
-    private func policyInfoView(_ policy: VaultStorage.SharePolicy) -> some View {
-        VStack(spacing: 8) {
-            if let expires = policy.expiresAt {
-                HStack {
-                    Image(systemName: "clock")
-                    Text("Expires: \(expires, style: .date)")
-                    Spacer()
-                }
-            }
-            if let maxOpens = policy.maxOpens {
-                HStack {
-                    Image(systemName: "eye")
-                    Text("Max opens: \(maxOpens)")
-                    Spacer()
-                }
-            }
-            if !policy.allowScreenshots {
-                HStack {
-                    Image(systemName: "camera.metering.none")
-                    Text("Screenshots blocked")
-                    Spacer()
-                }
-            }
-        }
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-        .padding()
-        .background(Color(.systemGray6))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
     private func errorView(_ message: String) -> some View {
         VStack(spacing: 16) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 48)).foregroundStyle(.orange)
+                .font(.system(size: 48)).foregroundStyle(.vaultHighlight)
             Text("Could Not Join")
                 .font(.title2).fontWeight(.semibold)
             Text(message)
-                .foregroundStyle(.secondary).multilineTextAlignment(.center)
+                .foregroundStyle(.vaultSecondaryText).multilineTextAlignment(.center)
 
             HStack(spacing: 16) {
                 Button("Try Again") { mode = .input }
@@ -284,43 +181,20 @@ struct JoinVaultView: View {
     private func iCloudUnavailableView(_ status: CKAccountStatus) -> some View {
         VStack(spacing: 16) {
             Image(systemName: "icloud.slash")
-                .font(.system(size: 48)).foregroundStyle(.secondary)
+                .font(.system(size: 48)).foregroundStyle(.vaultSecondaryText)
             Text("iCloud Required")
                 .font(.title2).fontWeight(.semibold)
             Text(iCloudStatusMessage(status))
-                .foregroundStyle(.secondary).multilineTextAlignment(.center)
+                .foregroundStyle(.vaultSecondaryText).multilineTextAlignment(.center)
         }
         .padding(.top, 60)
     }
 
     // MARK: - Actions
 
-    private func joinVault() async {
-        let trimmedPhrase = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedPhrase.isEmpty else { return }
-
-        mode = .downloading(0, 1)
-
-        do {
-            let result = try await CloudKitSharingManager.shared.downloadSharedVault(
-                phrase: trimmedPhrase,
-                onProgress: { current, total in
-                    Task { @MainActor in
-                        mode = .downloading(current, total)
-                    }
-                }
-            )
-
-            downloadedData = result.data
-            downloadedPolicy = result.policy
-            downloadedShareVaultId = result.shareVaultId
-
-            mode = .patternSetup
-        } catch let error as CloudKitSharingError {
-            mode = .error(error.errorDescription ?? error.localizedDescription)
-        } catch {
-            mode = .error(error.localizedDescription)
-        }
+    private func joinVault() {
+        // Go straight to pattern setup; download happens after pattern is confirmed
+        mode = .patternSetup
     }
 
     private func handlePatternComplete(_ pattern: [Int]) {
@@ -350,32 +224,34 @@ struct JoinVaultView: View {
     }
 
     private func setupSharedVault() async {
-        guard let vaultData = downloadedData,
-              let policy = downloadedPolicy,
-              let shareVaultId = downloadedShareVaultId else {
-            mode = .error("Missing vault data")
-            return
-        }
+        let trimmedPhrase = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
             // Derive key from the pattern
             let patternKey = try await KeyDerivation.deriveKey(from: newPattern, gridSize: 5)
 
-            // Set app state so user can navigate the app while import runs
+            // Set app state so user can navigate the app
             appState.currentVaultKey = patternKey
             appState.currentPattern = newPattern
 
-            // Start background import
-            BackgroundShareTransferManager.shared.startBackgroundImport(
-                downloadedData: vaultData,
-                downloadedPolicy: policy,
-                shareVaultId: shareVaultId,
-                phrase: phrase.trimmingCharacters(in: .whitespacesAndNewlines),
+            // Create an empty vault index so the vault can open immediately
+            let emptyIndex = VaultStorage.VaultIndex(
+                files: [],
+                nextOffset: 0,
+                totalSize: 500 * 1024 * 1024
+            )
+            try VaultStorage.shared.saveIndex(emptyIndex, with: patternKey)
+
+            // Navigate to the vault immediately
+            appState.isUnlocked = true
+            dismiss()
+
+            // Download and import in background
+            BackgroundShareTransferManager.shared.startBackgroundDownloadAndImport(
+                phrase: trimmedPhrase,
                 patternKey: patternKey,
                 pattern: newPattern
             )
-
-            mode = .backgroundImportStarted
         } catch {
             mode = .error("Failed to set up vault: \(error.localizedDescription)")
         }
@@ -397,5 +273,6 @@ struct JoinVaultView: View {
 
 #Preview {
     JoinVaultView()
-        .environmentObject(AppState())
+        .environment(AppState())
+        .environment(SubscriptionManager.shared)
 }

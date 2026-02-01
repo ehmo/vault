@@ -43,7 +43,7 @@ final class CloudKitSharingManager {
     private let chunkSize = 50 * 1024 * 1024
 
     private init() {
-        container = CKContainer(identifier: "iCloud.is.thevault.shared")
+        container = CKContainer(identifier: "iCloud.app.vaultaire.shared")
         publicDatabase = container.publicCloudDatabase
     }
 
@@ -271,7 +271,7 @@ final class CloudKitSharingManager {
     func downloadSharedVault(
         phrase: String,
         onProgress: ((Int, Int) -> Void)? = nil
-    ) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy) {
+    ) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
         let transaction = SentryManager.shared.startTransaction(name: "share.download", operation: "share.download")
         let phraseVaultId = Self.vaultId(from: phrase)
         let shareKey = try Self.deriveShareKey(from: phrase)
@@ -348,8 +348,10 @@ final class CloudKitSharingManager {
         manifest["claimed"] = true
         try await publicDatabase.save(manifest)
 
+        let remoteVersion = manifest["version"] as? Int ?? 1
+
         transaction.finish(status: .ok)
-        return (decryptedData, shareVaultId, policy)
+        return (decryptedData, shareVaultId, policy, remoteVersion)
     }
 
     // MARK: - Check for Updates (Recipient)

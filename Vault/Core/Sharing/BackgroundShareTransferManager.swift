@@ -1,11 +1,11 @@
 import Foundation
 import UIKit
-import Combine
 
 /// Manages background upload/import of shared vaults so the UI is not blocked.
 /// Keys are captured by value in Task closures, so transfers survive lockVault().
 @MainActor
-final class BackgroundShareTransferManager: ObservableObject {
+@Observable
+final class BackgroundShareTransferManager {
     static let shared = BackgroundShareTransferManager()
 
     enum TransferStatus: Equatable {
@@ -18,7 +18,7 @@ final class BackgroundShareTransferManager: ObservableObject {
         case importFailed(String)
     }
 
-    @Published var status: TransferStatus = .idle
+    var status: TransferStatus = .idle
 
     private var activeTask: Task<Void, Never>?
 
@@ -145,6 +145,84 @@ final class BackgroundShareTransferManager: ObservableObject {
                     self?.status = .uploadFailed(error.localizedDescription)
                 }
                 LocalNotificationManager.shared.sendUploadFailed()
+            }
+        }
+    }
+
+    // MARK: - Background Download + Import
+
+    /// Downloads and imports a shared vault entirely in the background.
+    func startBackgroundDownloadAndImport(
+        phrase: String,
+        patternKey: Data,
+        pattern: [Int]
+    ) {
+        activeTask?.cancel()
+        status = .importing
+
+        let capturedPhrase = phrase
+        let capturedPatternKey = patternKey
+
+        activeTask = Task { [weak self] in
+            do {
+                let result = try await CloudKitSharingManager.shared.downloadSharedVault(
+                    phrase: capturedPhrase,
+                    onProgress: { _, _ in }
+                )
+
+                guard !Task.isCancelled else { return }
+
+                let sharedVault = try JSONDecoder().decode(SharedVaultData.self, from: result.data)
+                let shareKey = try CloudKitSharingManager.deriveShareKey(from: capturedPhrase)
+
+                for file in sharedVault.files {
+                    guard !Task.isCancelled else { return }
+                    let decrypted = try CryptoEngine.shared.decrypt(file.encryptedContent, with: shareKey)
+
+                    var thumbnailData: Data? = nil
+                    if let encThumb = file.encryptedThumbnail {
+                        thumbnailData = try? CryptoEngine.shared.decrypt(encThumb, with: shareKey)
+                    } else if file.mimeType.hasPrefix("image/"), let img = UIImage(data: decrypted) {
+                        let maxSize: CGFloat = 200
+                        let scale = min(maxSize / img.size.width, maxSize / img.size.height)
+                        let newSize = CGSize(width: img.size.width * scale, height: img.size.height * scale)
+                        let renderer = UIGraphicsImageRenderer(size: newSize)
+                        let thumb = renderer.image { _ in img.draw(in: CGRect(origin: .zero, size: newSize)) }
+                        thumbnailData = thumb.jpegData(compressionQuality: 0.7)
+                    }
+
+                    _ = try VaultStorage.shared.storeFile(
+                        data: decrypted,
+                        filename: file.filename,
+                        mimeType: file.mimeType,
+                        with: capturedPatternKey,
+                        thumbnailData: thumbnailData
+                    )
+                }
+
+                guard !Task.isCancelled else { return }
+
+                // Mark vault index as shared vault
+                var index = try VaultStorage.shared.loadIndex(with: capturedPatternKey)
+                index.isSharedVault = true
+                index.sharedVaultId = result.shareVaultId
+                index.sharePolicy = result.policy
+                index.openCount = 0
+                index.shareKeyData = shareKey
+                index.sharedVaultVersion = result.version
+                try VaultStorage.shared.saveIndex(index, with: capturedPatternKey)
+
+                await MainActor.run {
+                    self?.status = .importComplete
+                }
+
+                LocalNotificationManager.shared.sendImportComplete()
+            } catch {
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    self?.status = .importFailed(error.localizedDescription)
+                }
+                LocalNotificationManager.shared.sendImportFailed()
             }
         }
     }

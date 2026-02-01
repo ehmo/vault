@@ -338,14 +338,11 @@ struct VaultView: View {
             EmptyView()
 
         case .uploading(let progress, let total):
-            HStack(spacing: 8) {
-                ProgressView().scaleEffect(0.7)
-                Text("Uploading shared vault...")
-                    .font(.caption)
-                Spacer()
-                Text("\(progress)/\(total)")
-                    .font(.caption).foregroundStyle(.vaultSecondaryText)
-            }
+            VaultSyncIndicator(
+                style: .uploading,
+                message: "Uploading shared vault...",
+                progress: (current: progress, total: total)
+            )
             .padding(.horizontal)
             .padding(.vertical, 8)
             .background(Color.accentColor.opacity(0.1))
@@ -395,12 +392,10 @@ struct VaultView: View {
             .background(Color.vaultHighlight.opacity(0.1))
 
         case .importing:
-            HStack(spacing: 8) {
-                ProgressView().scaleEffect(0.7)
-                Text("Setting up shared vault...")
-                    .font(.caption)
-                Spacer()
-            }
+            VaultSyncIndicator(
+                style: .downloading,
+                message: "Setting up shared vault..."
+            )
             .padding(.horizontal)
             .padding(.vertical, 8)
             .background(Color.accentColor.opacity(0.1))
@@ -538,8 +533,9 @@ struct VaultView: View {
                 // Check for revocation / updates
                 if let vaultId = index.sharedVaultId {
                     do {
+                        let currentVersion = index.sharedVaultVersion ?? 1
                         if let _ = try await CloudKitSharingManager.shared.checkForUpdates(
-                            shareVaultId: vaultId, currentVersion: 0
+                            shareVaultId: vaultId, currentVersion: currentVersion
                         ) {
                             await MainActor.run {
                                 updateAvailable = true
@@ -596,10 +592,8 @@ struct VaultView: View {
             }
 
             for file in sharedVault.files {
-                // Decrypt from share key (files are re-encrypted per-file in SharedVaultData)
                 let decrypted = try CryptoEngine.shared.decrypt(file.encryptedContent, with: shareKey)
 
-                // Generate thumbnail for images if available; shared file may not carry a separate encrypted thumbnail
                 var thumbnailData: Data? = nil
                 if file.mimeType.hasPrefix("image/") {
                     thumbnailData = generateThumbnail(from: decrypted)
@@ -612,6 +606,15 @@ struct VaultView: View {
                     with: key,
                     thumbnailData: thumbnailData
                 )
+            }
+
+            // Store the new version to avoid false "new files available"
+            if let newVersion = try? await CloudKitSharingManager.shared.checkForUpdates(
+                shareVaultId: vaultId, currentVersion: 0
+            ) {
+                var updatedIndex = try VaultStorage.shared.loadIndex(with: key)
+                updatedIndex.sharedVaultVersion = newVersion
+                try VaultStorage.shared.saveIndex(updatedIndex, with: key)
             }
 
             updateAvailable = false

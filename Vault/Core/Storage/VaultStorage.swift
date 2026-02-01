@@ -233,6 +233,7 @@ final class VaultStorage {
         var sharePolicy: SharePolicy?    // restrictions set by owner
         var openCount: Int?              // track opens for maxOpens
         var shareKeyData: Data?          // phrase-derived share key for update downloads
+        var sharedVaultVersion: Int?     // last known remote version for update checks
 
         // Legacy initializer for backward compatibility
         init(files: [VaultFileEntry], nextOffset: Int, totalSize: Int) {
