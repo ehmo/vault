@@ -694,15 +694,24 @@ final class VaultStorage {
         let span = SentryManager.shared.startTransaction(name: "storage.retrieve_file", operation: "storage.retrieve_file")
         ensureBlobReady()
         let index = try loadIndex(with: key)
-        
+
         // Get the master key for decrypting file data
         let masterKey = try getMasterKey(from: index, vaultKey: key)
 
-        guard let entry = index.files.first(where: { $0.fileId == id && !$0.isDeleted }) else {
-            throw VaultStorageError.fileNotFound
-        }
+        let result = try retrieveFileContent(entry: index.files.first(where: { $0.fileId == id && !$0.isDeleted })!, index: index, masterKey: masterKey)
+        span.setTag(value: "\(result.header.originalSize / 1024)", key: "fileSizeKB")
+        span.finish(status: .ok)
+        return result
+    }
 
-        // Resolve blob file for this entry
+    /// Retrieves file content using a pre-loaded index and master key, avoiding redundant index/key derivation.
+    func retrieveFileContent(
+        entry: VaultIndex.VaultFileEntry,
+        index: VaultIndex,
+        masterKey: Data
+    ) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
+        ensureBlobReady()
+
         let targetURL = blobURL(for: entry.blobId, in: index)
 
         guard let handle = try? FileHandle(forReadingFrom: targetURL) else {
@@ -715,11 +724,7 @@ final class VaultStorage {
             throw VaultStorageError.readError
         }
 
-        // Decrypt with MASTER KEY (not vault key)
-        let result = try CryptoEngine.shared.decryptFile(data: encryptedData, with: masterKey)
-        span.setTag(value: "\(entry.size / 1024)", key: "fileSizeKB")
-        span.finish(status: .ok)
-        return result
+        return try CryptoEngine.shared.decryptFile(data: encryptedData, with: masterKey)
     }
 
     func deleteFile(id: UUID, with key: Data) throws {

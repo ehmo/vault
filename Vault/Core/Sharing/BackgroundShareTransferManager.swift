@@ -25,6 +25,14 @@ final class BackgroundShareTransferManager {
     private var activeTask: Task<Void, Never>?
     private var currentActivity: Activity<TransferActivityAttributes>?
 
+    // Smooth progress: a timer interpolates displayProgress toward targetProgress,
+    // sending activity updates each tick so the pixel grid animates continuously.
+    private var targetProgress: Int = 0
+    private var displayProgress: Int = 0
+    private var animationStep: Int = 0
+    private var currentMessage: String = ""
+    private var progressTimer: Timer?
+
     private init() {}
 
     // MARK: - Background Upload
@@ -40,8 +48,9 @@ final class BackgroundShareTransferManager {
         allowDownloads: Bool = true
     ) {
         activeTask?.cancel()
-        status = .uploading(progress: 0, total: 1)
+        status = .uploading(progress: 0, total: 100)
         startLiveActivity(.uploading)
+        startProgressTimer()
 
         // Capture everything by value
         let capturedVaultKey = vaultKey
@@ -64,32 +73,61 @@ final class BackgroundShareTransferManager {
                     allowDownloads: capturedAllowDownloads
                 )
 
+                // Unified progress: encryption = 0-10%, upload = 10-100%
+                let encryptionWeight = 10
+                let uploadWeight = 90
+
                 // Build vault data
                 let index = try VaultStorage.shared.loadIndex(with: capturedVaultKey)
                 let masterKey = try CryptoEngine.shared.decrypt(index.encryptedMasterKey!, with: capturedVaultKey)
                 var sharedFiles: [SharedVaultData.SharedFile] = []
+                let activeFiles = index.files.filter { !$0.isDeleted }
+                let fileCount = activeFiles.count
 
-                for entry in index.files where !entry.isDeleted {
-                    let (header, content) = try VaultStorage.shared.retrieveFile(id: entry.fileId, with: capturedVaultKey)
-                    let reencrypted = try CryptoEngine.shared.encrypt(content, with: shareKey)
+                // Process files concurrently: read + re-encrypt in parallel
+                let capturedIndex = index
+                let capturedMasterKey = masterKey
+                let capturedShareKey = shareKey
 
-                    // Re-encrypt thumbnail with share key
-                    var encryptedThumb: Data? = nil
-                    if let thumbData = entry.thumbnailData {
-                        let decryptedThumb = try CryptoEngine.shared.decrypt(thumbData, with: masterKey)
-                        encryptedThumb = try CryptoEngine.shared.encrypt(decryptedThumb, with: shareKey)
+                sharedFiles = try await withThrowingTaskGroup(
+                    of: (Int, SharedVaultData.SharedFile).self
+                ) { group in
+                    for (i, entry) in activeFiles.enumerated() {
+                        group.addTask {
+                            let (header, content) = try VaultStorage.shared.retrieveFileContent(
+                                entry: entry, index: capturedIndex, masterKey: capturedMasterKey
+                            )
+                            let reencrypted = try CryptoEngine.shared.encrypt(content, with: capturedShareKey)
+
+                            var encryptedThumb: Data? = nil
+                            if let thumbData = entry.thumbnailData {
+                                let decryptedThumb = try CryptoEngine.shared.decrypt(thumbData, with: capturedMasterKey)
+                                encryptedThumb = try CryptoEngine.shared.encrypt(decryptedThumb, with: capturedShareKey)
+                            }
+
+                            return (i, SharedVaultData.SharedFile(
+                                id: header.fileId,
+                                filename: header.originalFilename,
+                                mimeType: header.mimeType,
+                                size: Int(header.originalSize),
+                                encryptedContent: reencrypted,
+                                createdAt: header.createdAt,
+                                encryptedThumbnail: encryptedThumb
+                            ))
+                        }
                     }
 
-                    sharedFiles.append(SharedVaultData.SharedFile(
-                        id: header.fileId,
-                        filename: header.originalFilename,
-                        mimeType: header.mimeType,
-                        size: Int(header.originalSize),
-                        encryptedContent: reencrypted,
-                        createdAt: header.createdAt,
-                        encryptedThumbnail: encryptedThumb
-                    ))
+                    var results: [(Int, SharedVaultData.SharedFile)] = []
+                    results.reserveCapacity(fileCount)
+                    for try await (i, file) in group {
+                        results.append((i, file))
+                        let pct = fileCount > 0 ? encryptionWeight * results.count / fileCount : encryptionWeight
+                        self?.setTargetProgress(pct, message: "Encrypting files...")
+                    }
+                    return results.sorted { $0.0 < $1.0 }.map(\.1)
                 }
+
+                guard !Task.isCancelled else { return }
 
                 let sharedData = SharedVaultData(
                     files: sharedFiles,
@@ -115,8 +153,10 @@ final class BackgroundShareTransferManager {
                     onProgress: { current, total in
                         Task { @MainActor [weak self] in
                             guard let self else { return }
-                            self.status = .uploading(progress: current, total: total)
-                            self.updateLiveActivity(progress: current, total: total, message: "Uploading vault...")
+                            let pct = total > 0
+                                ? encryptionWeight + uploadWeight * current / total
+                                : encryptionWeight
+                            self.setTargetProgress(pct, message: "Uploading vault...")
                         }
                     }
                 )
@@ -140,6 +180,7 @@ final class BackgroundShareTransferManager {
                 try VaultStorage.shared.saveIndex(updatedIndex, with: capturedVaultKey)
 
                 await MainActor.run {
+                    self?.stopProgressTimer()
                     self?.status = .uploadComplete
                     self?.endLiveActivity(success: true, message: "Vault shared successfully")
                 }
@@ -148,6 +189,7 @@ final class BackgroundShareTransferManager {
             } catch {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
+                    self?.stopProgressTimer()
                     self?.status = .uploadFailed(error.localizedDescription)
                     self?.endLiveActivity(success: false, message: "Upload failed")
                 }
@@ -167,6 +209,11 @@ final class BackgroundShareTransferManager {
         activeTask?.cancel()
         status = .importing
         startLiveActivity(.downloading)
+        startProgressTimer()
+
+        // Unified progress: download = 0-50%, import = 50-100%
+        let downloadWeight = 50
+        let importWeight = 50
 
         let capturedPhrase = phrase
         let capturedPatternKey = patternKey
@@ -175,15 +222,21 @@ final class BackgroundShareTransferManager {
             do {
                 let result = try await CloudKitSharingManager.shared.downloadSharedVault(
                     phrase: capturedPhrase,
-                    onProgress: { _, _ in }
+                    onProgress: { current, total in
+                        Task { @MainActor [weak self] in
+                            let pct = total > 0 ? downloadWeight * current / total : 0
+                            self?.setTargetProgress(pct, message: "Downloading vault...")
+                        }
+                    }
                 )
 
                 guard !Task.isCancelled else { return }
 
                 let sharedVault = try JSONDecoder().decode(SharedVaultData.self, from: result.data)
                 let shareKey = try CloudKitSharingManager.deriveShareKey(from: capturedPhrase)
+                let fileCount = sharedVault.files.count
 
-                for file in sharedVault.files {
+                for (i, file) in sharedVault.files.enumerated() {
                     guard !Task.isCancelled else { return }
                     let decrypted = try CryptoEngine.shared.decrypt(file.encryptedContent, with: shareKey)
 
@@ -206,6 +259,10 @@ final class BackgroundShareTransferManager {
                         with: capturedPatternKey,
                         thumbnailData: thumbnailData
                     )
+
+                    let pct = downloadWeight + (fileCount > 0 ? importWeight * (i + 1) / fileCount : importWeight)
+                    self?.setTargetProgress(pct, message: "Importing files...")
+                    await Task.yield()
                 }
 
                 guard !Task.isCancelled else { return }
@@ -221,6 +278,7 @@ final class BackgroundShareTransferManager {
                 try VaultStorage.shared.saveIndex(index, with: capturedPatternKey)
 
                 await MainActor.run {
+                    self?.stopProgressTimer()
                     self?.status = .importComplete
                     self?.endLiveActivity(success: true, message: "Shared vault is ready")
                 }
@@ -229,6 +287,7 @@ final class BackgroundShareTransferManager {
             } catch {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
+                    self?.stopProgressTimer()
                     self?.status = .importFailed(error.localizedDescription)
                     self?.endLiveActivity(success: false, message: "Import failed")
                 }
@@ -251,6 +310,7 @@ final class BackgroundShareTransferManager {
         activeTask?.cancel()
         status = .importing
         startLiveActivity(.downloading)
+        startProgressTimer()
 
         // Capture everything by value
         let capturedData = downloadedData
@@ -263,8 +323,9 @@ final class BackgroundShareTransferManager {
             do {
                 let sharedVault = try JSONDecoder().decode(SharedVaultData.self, from: capturedData)
                 let shareKey = try CloudKitSharingManager.deriveShareKey(from: capturedPhrase)
+                let fileCount = sharedVault.files.count
 
-                for file in sharedVault.files {
+                for (i, file) in sharedVault.files.enumerated() {
                     guard !Task.isCancelled else { return }
                     let decrypted = try CryptoEngine.shared.decrypt(file.encryptedContent, with: shareKey)
 
@@ -288,6 +349,10 @@ final class BackgroundShareTransferManager {
                         with: capturedPatternKey,
                         thumbnailData: thumbnailData
                     )
+
+                    let pct = fileCount > 0 ? 100 * (i + 1) / fileCount : 100
+                    self?.setTargetProgress(pct, message: "Importing files...")
+                    await Task.yield()
                 }
 
                 guard !Task.isCancelled else { return }
@@ -302,6 +367,7 @@ final class BackgroundShareTransferManager {
                 try VaultStorage.shared.saveIndex(index, with: capturedPatternKey)
 
                 await MainActor.run {
+                    self?.stopProgressTimer()
                     self?.status = .importComplete
                     self?.endLiveActivity(success: true, message: "Shared vault is ready")
                 }
@@ -310,12 +376,60 @@ final class BackgroundShareTransferManager {
             } catch {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
+                    self?.stopProgressTimer()
                     self?.status = .importFailed(error.localizedDescription)
                     self?.endLiveActivity(success: false, message: "Import failed")
                 }
                 LocalNotificationManager.shared.sendImportFailed()
             }
         }
+    }
+
+    // MARK: - Smooth Progress Timer
+
+    /// Sets the target progress. The timer will smoothly interpolate toward it.
+    private func setTargetProgress(_ progress: Int, message: String) {
+        targetProgress = min(progress, 100)
+        currentMessage = message
+    }
+
+    /// Starts a repeating timer that syncs displayProgress to targetProgress
+    /// and sends activity updates at a reasonable rate (~2/sec).
+    private func startProgressTimer() {
+        targetProgress = 0
+        displayProgress = 0
+        animationStep = 0
+        currentMessage = "Starting..."
+        stopProgressTimer()
+
+        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.progressTimerTick()
+            }
+        }
+    }
+
+    private func stopProgressTimer() {
+        progressTimer?.invalidate()
+        progressTimer = nil
+    }
+
+    private func progressTimerTick() {
+        animationStep += 1
+
+        // Show actual progress directly — no interpolation delay
+        displayProgress = targetProgress
+        status = .uploading(progress: displayProgress, total: 100)
+
+        let state = TransferActivityAttributes.ContentState(
+            progress: displayProgress,
+            total: 100,
+            message: currentMessage,
+            isComplete: false,
+            isFailed: false,
+            animationStep: animationStep
+        )
+        Task { await currentActivity?.update(.init(state: state, staleDate: nil)) }
     }
 
     // MARK: - Live Activity
@@ -337,12 +451,17 @@ final class BackgroundShareTransferManager {
         }
         let attributes = TransferActivityAttributes(transferType: type)
         let state = TransferActivityAttributes.ContentState(
-            progress: 0, total: 1, message: "Starting...", isComplete: false, isFailed: false
+            progress: 0, total: 100, message: "Starting...", isComplete: false, isFailed: false
+        )
+        let content = ActivityContent(
+            state: state,
+            staleDate: nil,
+            relevanceScore: 100
         )
         do {
             currentActivity = try Activity.request(
                 attributes: attributes,
-                content: .init(state: state, staleDate: nil),
+                content: content,
                 pushType: nil
             )
             Self.logger.info("Activity started id=\(self.currentActivity?.id ?? "nil", privacy: .public), activityState=\(String(describing: self.currentActivity?.activityState), privacy: .public)")
@@ -353,20 +472,20 @@ final class BackgroundShareTransferManager {
     }
 
     private func updateLiveActivity(progress: Int, total: Int, message: String) {
-        let state = TransferActivityAttributes.ContentState(
-            progress: progress, total: total, message: message, isComplete: false, isFailed: false
-        )
-        Task { await currentActivity?.update(.init(state: state, staleDate: nil)) }
+        // No longer used directly — the progress timer handles all activity updates.
+        // Kept for compatibility; just updates the target.
+        setTargetProgress(progress, message: message)
     }
 
     private func endLiveActivity(success: Bool, message: String) {
+        let activity = currentActivity
+        currentActivity = nil
         let state = TransferActivityAttributes.ContentState(
             progress: 0, total: 0, message: message, isComplete: success, isFailed: !success
         )
         Task {
-            await currentActivity?.end(.init(state: state, staleDate: nil), dismissalPolicy: .after(.now + 5))
+            await activity?.end(.init(state: state, staleDate: nil), dismissalPolicy: .after(.now + 5))
         }
-        currentActivity = nil
     }
 
     // MARK: - Control
@@ -374,6 +493,7 @@ final class BackgroundShareTransferManager {
     func cancel() {
         activeTask?.cancel()
         activeTask = nil
+        stopProgressTimer()
         status = .idle
         endLiveActivity(success: false, message: "Transfer cancelled")
     }

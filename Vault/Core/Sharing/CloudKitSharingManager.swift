@@ -125,20 +125,13 @@ final class CloudKitSharingManager {
 
         let phraseVaultId = Self.vaultId(from: phrase)
 
-        // Encrypt the vault data
-        let encryptedData: Data
-        do {
-            encryptedData = try CryptoEngine.shared.encrypt(vaultData, with: shareKey)
-        } catch {
-            SentryManager.shared.captureError(error)
-            transaction.finish(status: .internalError)
-            throw error
-        }
+        // v2: skip outer encryption — individual files are already encrypted with shareKey
+        let uploadData = vaultData
 
         // Split into chunks
-        let chunks = stride(from: 0, to: encryptedData.count, by: chunkSize).map { start in
-            let end = min(start + chunkSize, encryptedData.count)
-            return encryptedData[start..<end]
+        let chunks = stride(from: 0, to: uploadData.count, by: chunkSize).map { start in
+            let end = min(start + chunkSize, uploadData.count)
+            return uploadData[start..<end]
         }
 
         let totalChunks = chunks.count
@@ -177,7 +170,7 @@ final class CloudKitSharingManager {
 
         manifest["shareVaultId"] = shareVaultId
         manifest["updatedAt"] = Date()
-        manifest["version"] = 1
+        manifest["version"] = 2  // v2: no outer encryption layer
         manifest["ownerFingerprint"] = ownerFingerprint
         manifest["chunkCount"] = totalChunks
         manifest["claimed"] = false
@@ -216,11 +209,10 @@ final class CloudKitSharingManager {
         // Delete old chunks
         try await deleteChunks(for: shareVaultId)
 
-        // Encrypt and re-chunk
-        let encryptedData = try CryptoEngine.shared.encrypt(vaultData, with: shareKey)
-        let chunks = stride(from: 0, to: encryptedData.count, by: chunkSize).map { start in
-            let end = min(start + chunkSize, encryptedData.count)
-            return encryptedData[start..<end]
+        // v2: skip outer encryption — individual files already encrypted with shareKey
+        let chunks = stride(from: 0, to: vaultData.count, by: chunkSize).map { start in
+            let end = min(start + chunkSize, vaultData.count)
+            return vaultData[start..<end]
         }
 
         let totalChunks = chunks.count
@@ -336,19 +328,23 @@ final class CloudKitSharingManager {
             onProgress?(i + 1, chunkCount)
         }
 
-        // Decrypt
+        let remoteVersion = manifest["version"] as? Int ?? 1
+
+        // v1: outer encryption layer present; v2+: no outer encryption
         let decryptedData: Data
-        do {
-            decryptedData = try CryptoEngine.shared.decrypt(encryptedData, with: shareKey)
-        } catch {
-            throw CloudKitSharingError.decryptionFailed
+        if remoteVersion < 2 {
+            do {
+                decryptedData = try CryptoEngine.shared.decrypt(encryptedData, with: shareKey)
+            } catch {
+                throw CloudKitSharingError.decryptionFailed
+            }
+        } else {
+            decryptedData = encryptedData
         }
 
         // Mark as claimed
         manifest["claimed"] = true
         try await publicDatabase.save(manifest)
-
-        let remoteVersion = manifest["version"] as? Int ?? 1
 
         transaction.finish(status: .ok)
         return (decryptedData, shareVaultId, policy, remoteVersion)
@@ -390,12 +386,14 @@ final class CloudKitSharingManager {
         let results = try await publicDatabase.records(matching: query)
 
         var chunkCount = 0
+        var remoteVersion = 1
         for (_, result) in results.matchResults {
             if let record = try? result.get() {
                 if let revoked = record["revoked"] as? Bool, revoked {
                     throw CloudKitSharingError.revoked
                 }
                 chunkCount = (record["chunkCount"] as? Int) ?? 0
+                remoteVersion = (record["version"] as? Int) ?? 1
             }
         }
 
@@ -404,7 +402,7 @@ final class CloudKitSharingManager {
         }
 
         // Download chunks
-        var encryptedData = Data()
+        var rawData = Data()
         for i in 0..<chunkCount {
             let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(i)")
             let chunkRecord = try await publicDatabase.record(for: chunkRecordId)
@@ -414,14 +412,19 @@ final class CloudKitSharingManager {
                 throw CloudKitSharingError.invalidData
             }
 
-            encryptedData.append(try Data(contentsOf: chunkURL))
+            rawData.append(try Data(contentsOf: chunkURL))
             onProgress?(i + 1, chunkCount)
         }
 
-        do {
-            return try CryptoEngine.shared.decrypt(encryptedData, with: shareKey)
-        } catch {
-            throw CloudKitSharingError.decryptionFailed
+        // v1: outer encryption layer; v2+: no outer encryption
+        if remoteVersion < 2 {
+            do {
+                return try CryptoEngine.shared.decrypt(rawData, with: shareKey)
+            } catch {
+                throw CloudKitSharingError.decryptionFailed
+            }
+        } else {
+            return rawData
         }
     }
 
