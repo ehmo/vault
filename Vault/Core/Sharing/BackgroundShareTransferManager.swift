@@ -403,7 +403,7 @@ final class BackgroundShareTransferManager {
         currentMessage = "Starting..."
         stopProgressTimer()
 
-        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.33, repeats: true) { [weak self] _ in
+        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.17, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.progressTimerTick()
             }
