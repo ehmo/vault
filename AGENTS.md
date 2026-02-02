@@ -106,6 +106,7 @@ xcodebuild -project Vault.xcodeproj -scheme Vault \
 - `@Environment(AppState.self)` pattern for dependency injection
 - `BackgroundShareTransferManager.shared` is a singleton accessed directly (not via environment)
 - Transfer status uses enum with associated values: `.uploading(progress:total:)`, `.importComplete`, etc.
+- **PixelAnimation trail effect requires Timer.publish, NOT TimelineView**: The in-app pixel grid creates its trail by overlapping `withAnimation` transitions (`animationDuration > timerInterval`). `TimelineView` re-evaluates its body closure on each tick, resetting the view tree and disrupting in-flight implicit animations. `Timer.publish` + `.onReceive` only mutates `@State` without re-evaluating the body, preserving the overlap. This matches the Dynamic Island's `LivePixelGrid` which computes the trail explicitly.
 
 ### Learnings
 
