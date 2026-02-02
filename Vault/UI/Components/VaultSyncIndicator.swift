@@ -30,8 +30,9 @@ struct VaultSyncIndicator: View {
                 Text(message)
                     .font(.caption)
                 Spacer()
-                if let progress {
-                    Text("\(progress.current)/\(progress.total)")
+                if let progress, progress.total > 0 {
+                    let pct = Int(round(Double(progress.current) / Double(progress.total) * 100))
+                    Text("\(pct)%")
                         .font(.caption)
                         .foregroundStyle(.vaultSecondaryText)
                 }
@@ -43,9 +44,9 @@ struct VaultSyncIndicator: View {
     private var pixelAnimation: some View {
         switch style {
         case .uploading:
-            PixelAnimation.uploading(size: 32)
+            PixelAnimation.loading(size: 32)
         case .downloading:
-            PixelAnimation.downloading(size: 32)
+            PixelAnimation.loading(size: 32)
         case .syncing:
             PixelAnimation.syncing(size: 24)
         case .loading:
@@ -55,7 +56,7 @@ struct VaultSyncIndicator: View {
 }
 
 #Preview("Upload Banner") {
-    VaultSyncIndicator(style: .uploading, message: "Uploading shared vault...", progress: (current: 2, total: 5))
+    VaultSyncIndicator(style: .uploading, message: "Uploading shared vault...", progress: (current: 5, total: 100))
         .padding()
         .background(Color.accentColor.opacity(0.1))
 }
