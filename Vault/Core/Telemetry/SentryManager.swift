@@ -50,9 +50,7 @@ final class SentryManager: @unchecked Sendable {
                 }
             }
 
-            #if DEBUG
-            options.debug = true
-            #endif
+            options.debug = false
         }
     }
 
