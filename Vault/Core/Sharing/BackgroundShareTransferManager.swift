@@ -71,10 +71,9 @@ final class BackgroundShareTransferManager {
                     allowDownloads: capturedAllowDownloads
                 )
 
-                // Progress: key derivation + index = 2%, file re-encryption = 2-48%,
-                // JSON encoding = ~50%, upload chunks = 50-100%
-                let keyPhaseEnd = 2
-                let encryptPhaseEnd = 48
+                // Progress: local processing 0→5%, upload chunks 5→99%
+                let keyPhaseEnd = 1
+                let encryptPhaseEnd = 5
 
                 // Build vault data
                 let index = try VaultStorage.shared.loadIndex(with: capturedVaultKey)
@@ -143,7 +142,7 @@ final class BackgroundShareTransferManager {
                 )
 
                 let encodedData = try JSONEncoder().encode(sharedData)
-                self?.setTargetProgress(50, message: "Uploading vault...")
+                self?.setTargetProgress(5, message: "Uploading vault...")
 
                 guard !Task.isCancelled else { return }
 
@@ -158,8 +157,8 @@ final class BackgroundShareTransferManager {
                         Task { @MainActor [weak self] in
                             guard let self else { return }
                             let pct = total > 0
-                                ? 50 + 50 * current / total
-                                : 50
+                                ? 5 + 94 * current / total
+                                : 5
                             self.setTargetProgress(pct, message: "Uploading vault...")
                         }
                     }
@@ -215,9 +214,9 @@ final class BackgroundShareTransferManager {
         startLiveActivity(.downloading)
         startProgressTimer()
 
-        // Unified progress: download = 0-50%, import = 50-100%
-        let downloadWeight = 50
-        let importWeight = 50
+        // Unified progress: download = 0→95%, import = 95→99%
+        let downloadWeight = 95
+        let importWeight = 4
 
         let capturedPhrase = phrase
         let capturedPatternKey = patternKey
@@ -354,7 +353,7 @@ final class BackgroundShareTransferManager {
                         thumbnailData: thumbnailData
                     )
 
-                    let pct = fileCount > 0 ? 100 * (i + 1) / fileCount : 100
+                    let pct = fileCount > 0 ? 99 * (i + 1) / fileCount : 99
                     self?.setTargetProgress(pct, message: "Importing files...")
                     await Task.yield()
                 }
@@ -417,8 +416,17 @@ final class BackgroundShareTransferManager {
 
     private func progressTimerTick() {
         animationStep += 1
-        displayProgress = targetProgress
+
+        let previousDisplay = displayProgress
+        if displayProgress < targetProgress {
+            let step = max(1, (targetProgress - displayProgress + 4) / 5)
+            displayProgress = min(displayProgress + step, targetProgress)
+        }
+
         status = .uploading(progress: displayProgress, total: 100)
+
+        // Only push Live Activity update when the displayed percentage actually changed
+        guard displayProgress != previousDisplay else { return }
 
         let state = TransferActivityAttributes.ContentState(
             progress: displayProgress,
