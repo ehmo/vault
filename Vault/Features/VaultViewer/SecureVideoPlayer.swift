@@ -39,7 +39,7 @@ struct SecureVideoPlayer: View {
                 }
             }
         }
-        .onAppear(perform: loadVideo)
+        .task { loadVideo() }
         .onDisappear(perform: cleanup)
     }
 

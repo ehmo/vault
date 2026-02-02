@@ -41,7 +41,7 @@ struct ContentView: View {
         }
         // Screen recording detection
         .onReceive(NotificationCenter.default.publisher(for: UIScreen.capturedDidChangeNotification)) { notification in
-            let screen = notification.object as? UIScreen ?? UIScreen.main
+            guard let screen = notification.object as? UIScreen else { return }
             if screen.isCaptured {
                 #if DEBUG
                 print("🎥 [ContentView] Screen recording detected!")

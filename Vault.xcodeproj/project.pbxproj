@@ -16,6 +16,7 @@
 		003000001 /* VaultStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003000000 /* VaultStorage.swift */; };
 		003000003 /* EncryptedBlob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003000002 /* EncryptedBlob.swift */; };
 		003000005 /* SecureDelete.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003000004 /* SecureDelete.swift */; };
+		003000007 /* FileUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003000006 /* FileUtilities.swift */; };
 		004000001 /* SecureEnclaveManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004000000 /* SecureEnclaveManager.swift */; };
 		004000005 /* DuressHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004000004 /* DuressHandler.swift */; };
 		005000001 /* PatternLockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005000000 /* PatternLockView.swift */; };
@@ -116,6 +117,7 @@
 		003000000 /* VaultStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultStorage.swift; sourceTree = "<group>"; };
 		003000002 /* EncryptedBlob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedBlob.swift; sourceTree = "<group>"; };
 		003000004 /* SecureDelete.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureDelete.swift; sourceTree = "<group>"; };
+		003000006 /* FileUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUtilities.swift; sourceTree = "<group>"; };
 		004000000 /* SecureEnclaveManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureEnclaveManager.swift; sourceTree = "<group>"; };
 		004000004 /* DuressHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuressHandler.swift; sourceTree = "<group>"; };
 		005000000 /* PatternLockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternLockView.swift; sourceTree = "<group>"; };
@@ -262,6 +264,7 @@
 				003000000 /* VaultStorage.swift */,
 				003000002 /* EncryptedBlob.swift */,
 				003000004 /* SecureDelete.swift */,
+				003000006 /* FileUtilities.swift */,
 				013000000 /* iCloudBackupManager.swift */,
 			);
 			path = Storage;
@@ -621,6 +624,7 @@
 				003000001 /* VaultStorage.swift in Sources */,
 				003000003 /* EncryptedBlob.swift in Sources */,
 				003000005 /* SecureDelete.swift in Sources */,
+				003000007 /* FileUtilities.swift in Sources */,
 				004000001 /* SecureEnclaveManager.swift in Sources */,
 				39EACFAD2F2AC5C500FA7EC2 /* GridLetterManager.swift in Sources */,
 				004000005 /* DuressHandler.swift in Sources */,

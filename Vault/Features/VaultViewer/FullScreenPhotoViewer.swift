@@ -111,20 +111,18 @@ struct FullScreenPhotoViewer: View {
 
     @ViewBuilder
     private func photoPage(file: VaultFileItem) -> some View {
-        GeometryReader { geometry in
-            if let image = images[file.id] {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-            } else {
-                ProgressView()
-                    .tint(.white)
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .task(id: file.id) {
-                        await loadFullImage(for: file)
-                    }
-            }
+        if let image = images[file.id] {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .containerRelativeFrame([.horizontal, .vertical])
+        } else {
+            ProgressView()
+                .tint(.white)
+                .containerRelativeFrame([.horizontal, .vertical])
+                .task(id: file.id) {
+                    await loadFullImage(for: file)
+                }
         }
     }
 

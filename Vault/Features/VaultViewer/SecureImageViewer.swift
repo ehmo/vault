@@ -47,7 +47,7 @@ struct SecureImageViewer: View {
                 }
             }
         }
-        .onAppear(perform: loadImage)
+        .task { loadImage() }
         .onDisappear(perform: clearImage)
         .alert("Export File?", isPresented: $showingExportConfirmation) {
             Button("Export", role: .destructive) { exportFile() }
@@ -84,7 +84,7 @@ struct SecureImageViewer: View {
 
     private func imageView(_ image: UIImage) -> some View {
         GeometryReader { geometry in
-            ScrollView([.horizontal, .vertical], showsIndicators: false) {
+            ScrollView([.horizontal, .vertical]) {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
@@ -93,6 +93,7 @@ struct SecureImageViewer: View {
                         height: geometry.size.height
                     )
             }
+            .scrollIndicators(.hidden)
         }
     }
 

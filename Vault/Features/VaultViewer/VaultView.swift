@@ -97,28 +97,15 @@ struct VaultView: View {
         }
     }
 
-    private var showingPhotoViewer: Binding<Bool> {
-        Binding(
-            get: { selectedPhotoIndex != nil },
-            set: { if !$0 { selectedPhotoIndex = nil } }
-        )
+    /// Identifiable wrapper so `fullScreenCover(item:)` can drive presentation from an Int index.
+    private struct PhotoViewerItem: Identifiable {
+        let id: Int // index into filteredImageFiles
     }
 
-    @ViewBuilder
-    private var photoViewerContent: some View {
-        let imageFiles = filteredImageFiles
-        let index = selectedPhotoIndex ?? 0
-        FullScreenPhotoViewer(
-            files: imageFiles,
-            vaultKey: appState.currentVaultKey,
-            initialIndex: index,
-            onDelete: isSharedVault ? nil : { deletedId in
-                if let idx = files.firstIndex(where: { $0.id == deletedId }) {
-                    files.remove(at: idx)
-                }
-                selectedPhotoIndex = nil
-            },
-            allowDownloads: sharePolicy?.allowDownloads ?? true
+    private var photoViewerItem: Binding<PhotoViewerItem?> {
+        Binding(
+            get: { selectedPhotoIndex.map { PhotoViewerItem(id: $0) } },
+            set: { selectedPhotoIndex = $0?.id }
         )
     }
 
@@ -262,8 +249,19 @@ struct VaultView: View {
         ) { result in
             handleImportedFiles(result)
         }
-        .fullScreenCover(isPresented: showingPhotoViewer) {
-            photoViewerContent
+        .fullScreenCover(item: photoViewerItem) { item in
+            FullScreenPhotoViewer(
+                files: filteredImageFiles,
+                vaultKey: appState.currentVaultKey,
+                initialIndex: item.id,
+                onDelete: isSharedVault ? nil : { deletedId in
+                    if let idx = files.firstIndex(where: { $0.id == deletedId }) {
+                        files.remove(at: idx)
+                    }
+                    selectedPhotoIndex = nil
+                },
+                allowDownloads: sharePolicy?.allowDownloads ?? true
+            )
         }
         .sheet(item: $selectedFile) { file in
             SecureImageViewer(
@@ -516,7 +514,7 @@ struct VaultView: View {
 
                 var thumbnailData: Data? = nil
                 if file.mimeType.hasPrefix("image/") {
-                    thumbnailData = generateThumbnail(from: decrypted)
+                    thumbnailData = FileUtilities.generateThumbnail(from: decrypted)
                 }
 
                 _ = try VaultStorage.shared.storeFile(
@@ -629,7 +627,7 @@ struct VaultView: View {
         Task {
             do {
                 let filename = "IMG_\(Date().timeIntervalSince1970).jpg"
-                let thumbnail = generateThumbnail(from: imageData)
+                let thumbnail = FileUtilities.generateThumbnail(from: imageData)
                 let fileId = try VaultStorage.shared.storeFile(
                     data: imageData,
                     filename: filename,
@@ -664,7 +662,7 @@ struct VaultView: View {
             Task {
                 do {
                     let filename = "IMG_\(Date().timeIntervalSince1970).jpg"
-                    let thumbnail = generateThumbnail(from: data)
+                    let thumbnail = FileUtilities.generateThumbnail(from: data)
                     let fileId = try VaultStorage.shared.storeFile(
                         data: data,
                         filename: filename,
@@ -705,8 +703,8 @@ struct VaultView: View {
             Task {
                 if let data = try? Data(contentsOf: url) {
                     let filename = url.lastPathComponent
-                    let mimeType = mimeTypeForExtension(url.pathExtension)
-                    let thumbnail = mimeType.hasPrefix("image/") ? generateThumbnail(from: data) : nil
+                    let mimeType = FileUtilities.mimeType(forExtension: url.pathExtension)
+                    let thumbnail = mimeType.hasPrefix("image/") ? FileUtilities.generateThumbnail(from: data) : nil
 
                     if let fileId = try? VaultStorage.shared.storeFile(
                         data: data,
@@ -734,36 +732,6 @@ struct VaultView: View {
         ShareSyncManager.shared.scheduleSync(vaultKey: appState.currentVaultKey!)
     }
 
-    // MARK: - Thumbnail Generation
-
-    private func generateThumbnail(from data: Data) -> Data? {
-        guard let image = UIImage(data: data) else { return nil }
-
-        let maxSize: CGFloat = 200
-        let size = image.size
-        let scale = min(maxSize / size.width, maxSize / size.height)
-        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
-
-        let renderer = UIGraphicsImageRenderer(size: newSize)
-        let thumbnail = renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: newSize))
-        }
-
-        return thumbnail.jpegData(compressionQuality: 0.7)
-    }
-
-    private func mimeTypeForExtension(_ ext: String) -> String {
-        switch ext.lowercased() {
-        case "jpg", "jpeg": return "image/jpeg"
-        case "png": return "image/png"
-        case "gif": return "image/gif"
-        case "heic": return "image/heic"
-        case "mp4": return "video/mp4"
-        case "mov": return "video/quicktime"
-        case "pdf": return "application/pdf"
-        default: return "application/octet-stream"
-        }
-    }
 }
 
 // MARK: - Vault File Item

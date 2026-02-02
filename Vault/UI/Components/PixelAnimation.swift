@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 
 // MARK: - PixelAnimation
 
@@ -19,10 +18,6 @@ struct PixelAnimation: View {
 
     @State private var step: Int = 0
 
-    private var timer: Publishers.Autoconnect<Timer.TimerPublisher> {
-        Timer.publish(every: timerInterval, on: .main, in: .common).autoconnect()
-    }
-
     private var frames: [[Int]] {
         guard let first = pattern.first else { return [] }
         if pattern.count == 1 { return first.map { [$0] } }
@@ -35,29 +30,31 @@ struct PixelAnimation: View {
     }
 
     var body: some View {
-        let onSet = Set(frames.isEmpty ? [] : frames[step])
-        VStack(spacing: spacing) {
-            ForEach(0..<3, id: \.self) { row in
-                HStack(spacing: spacing) {
-                    ForEach(0..<3, id: \.self) { col in
-                        let index = row * 3 + col + 1
-                        PixelAnimationCell(
-                            isOn: onSet.contains(index),
-                            size: pixelSize,
-                            color: color,
-                            brightness: brightness,
-                            shadowBrightness: shadowBrightness
-                        )
-                        .rotationEffect(.degrees(rotation))
+        TimelineView(.periodic(from: .now, by: timerInterval)) { context in
+            let onSet = Set(frames.isEmpty ? [] : frames[step])
+            VStack(spacing: spacing) {
+                ForEach(0..<3, id: \.self) { row in
+                    HStack(spacing: spacing) {
+                        ForEach(0..<3, id: \.self) { col in
+                            let index = row * 3 + col + 1
+                            PixelAnimationCell(
+                                isOn: onSet.contains(index),
+                                size: pixelSize,
+                                color: color,
+                                brightness: brightness,
+                                shadowBrightness: shadowBrightness
+                            )
+                            .rotationEffect(.degrees(rotation))
+                        }
                     }
                 }
             }
-        }
-        .frame(width: tileSize, height: tileSize)
-        .onReceive(timer) { _ in
-            guard !frames.isEmpty else { return }
-            withAnimation(.smooth(duration: animationDuration)) {
-                step = (step + 1) % frames.count
+            .frame(width: tileSize, height: tileSize)
+            .onChange(of: context.date) { _, _ in
+                guard !frames.isEmpty else { return }
+                withAnimation(.smooth(duration: animationDuration)) {
+                    step = (step + 1) % frames.count
+                }
             }
         }
         .onChange(of: frames.count) { _, _ in
