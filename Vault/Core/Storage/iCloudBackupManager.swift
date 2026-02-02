@@ -53,13 +53,13 @@ final class iCloudBackupManager {
 
         // Read and encrypt the blob with additional layer
         let blobData = try Data(contentsOf: blobURL)
-        let encryptedBackup = try CryptoEngine.shared.encrypt(blobData, with: key)
+        let encryptedBackup = try CryptoEngine.encrypt(blobData, with: key)
 
         // Create backup metadata
         let metadata = BackupMetadata(
             timestamp: Date(),
             size: encryptedBackup.count,
-            checksum: CryptoEngine.shared.computeHMAC(for: encryptedBackup, with: key)
+            checksum: CryptoEngine.computeHMAC(for: encryptedBackup, with: key)
         )
 
         // Write metadata + encrypted blob
@@ -130,13 +130,13 @@ final class iCloudBackupManager {
         let encryptedBlob = data.subdata(in: (4 + metadataSize)..<data.count)
 
         // Verify checksum
-        let computedChecksum = CryptoEngine.shared.computeHMAC(for: encryptedBlob, with: key)
+        let computedChecksum = CryptoEngine.computeHMAC(for: encryptedBlob, with: key)
         guard computedChecksum == metadata.checksum else {
             throw iCloudError.downloadFailed
         }
 
         // Decrypt
-        let decryptedBlob = try CryptoEngine.shared.decrypt(encryptedBlob, with: key)
+        let decryptedBlob = try CryptoEngine.decrypt(encryptedBlob, with: key)
 
         // Write to local storage
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]

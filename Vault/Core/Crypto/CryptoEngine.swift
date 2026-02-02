@@ -2,21 +2,29 @@ import Foundation
 import CryptoKit
 import Security
 
-enum CryptoError: Error {
+enum CryptoError: Error, LocalizedError {
     case encryptionFailed
     case decryptionFailed
     case invalidData
     case keyGenerationFailed
     case integrityCheckFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .encryptionFailed: return "Encryption failed"
+        case .decryptionFailed: return "Decryption failed"
+        case .invalidData: return "Invalid or corrupted data"
+        case .keyGenerationFailed: return "Failed to generate encryption key"
+        case .integrityCheckFailed: return "Data integrity check failed"
+        }
+    }
 }
 
-final class CryptoEngine {
-    static let shared = CryptoEngine()
-    private init() {}
+enum CryptoEngine {
 
     // MARK: - AES-256-GCM Encryption
 
-    func encrypt(_ data: Data, with key: Data) throws -> Data {
+    static func encrypt(_ data: Data, with key: Data) throws -> Data {
         guard key.count == 32 else {
             Task { @MainActor in
                 SentryManager.shared.captureError(CryptoError.keyGenerationFailed)
@@ -47,7 +55,7 @@ final class CryptoEngine {
         return combined
     }
 
-    func decrypt(_ encryptedData: Data, with key: Data) throws -> Data {
+    static func decrypt(_ encryptedData: Data, with key: Data) throws -> Data {
         guard key.count == 32 else {
             Task { @MainActor in
                 SentryManager.shared.captureError(CryptoError.keyGenerationFailed)
@@ -169,7 +177,7 @@ final class CryptoEngine {
 
     // MARK: - File Encryption
 
-    func encryptFile(data: Data, filename: String, mimeType: String, with key: Data) throws -> EncryptedFile {
+    static func encryptFile(data: Data, filename: String, mimeType: String, with key: Data) throws -> EncryptedFile {
         let header = EncryptedFileHeader(
             fileId: UUID(),
             originalFilename: filename,
@@ -197,7 +205,7 @@ final class CryptoEngine {
         )
     }
 
-    func decryptFile(data: Data, with key: Data) throws -> (header: EncryptedFileHeader, content: Data) {
+    static func decryptFile(data: Data, with key: Data) throws -> (header: EncryptedFileHeader, content: Data) {
         guard data.count > 4 else {
             Task { @MainActor in
                 SentryManager.shared.captureError(CryptoError.invalidData)
@@ -227,7 +235,7 @@ final class CryptoEngine {
 
     // MARK: - Secure Random
 
-    func generateRandomBytes(count: Int) -> Data? {
+    static func generateRandomBytes(count: Int) -> Data? {
         var data = Data(count: count)
         let result = data.withUnsafeMutableBytes { ptr in
             SecRandomCopyBytes(kSecRandomDefault, count, ptr.baseAddress!)
@@ -237,13 +245,13 @@ final class CryptoEngine {
 
     // MARK: - HMAC for Integrity
 
-    func computeHMAC(for data: Data, with key: Data) -> Data {
+    static func computeHMAC(for data: Data, with key: Data) -> Data {
         let symmetricKey = SymmetricKey(data: key)
         let authCode = HMAC<SHA256>.authenticationCode(for: data, using: symmetricKey)
         return Data(authCode)
     }
 
-    func verifyHMAC(_ hmac: Data, for data: Data, with key: Data) -> Bool {
+    static func verifyHMAC(_ hmac: Data, for data: Data, with key: Data) -> Bool {
         let computed = computeHMAC(for: data, with: key)
         return hmac == computed
     }

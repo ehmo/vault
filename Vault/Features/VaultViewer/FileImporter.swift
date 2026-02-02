@@ -7,7 +7,6 @@ final class FileImporter {
     static let shared = FileImporter()
 
     private let storage = VaultStorage.shared
-    private let crypto = CryptoEngine.shared
 
     private init() {}
 

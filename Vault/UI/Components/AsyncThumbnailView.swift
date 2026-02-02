@@ -22,7 +22,7 @@ struct AsyncThumbnailView: View {
             guard let encryptedThumbnail else { return }
 
             // Check cache first
-            if let cached = ThumbnailCache.shared.image(for: fileId) {
+            if let cached = await ThumbnailCache.shared.image(for: fileId) {
                 image = cached
                 return
             }

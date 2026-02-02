@@ -1,5 +1,4 @@
 import Foundation
-import Combine
 
 /// Manages background sync of vault data to all active share recipients.
 /// Debounces file changes (30s) and uploads to all share vault IDs.
@@ -147,7 +146,10 @@ final class ShareSyncManager {
     /// Builds serialized SharedVaultData from the current vault index.
     /// Re-encrypts each file with the share key (matching initial upload format).
     private func buildSharedVaultData(index: VaultStorage.VaultIndex, vaultKey: Data, shareKey: Data) throws -> Data {
-        let masterKey = try CryptoEngine.shared.decrypt(index.encryptedMasterKey!, with: vaultKey)
+        guard let encryptedMasterKey = index.encryptedMasterKey else {
+            throw VaultStorageError.corruptedData
+        }
+        let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey)
         var sharedFiles: [SharedVaultData.SharedFile] = []
         var skippedFiles = 0
 
@@ -155,13 +157,13 @@ final class ShareSyncManager {
             do {
                 let (header, content) = try VaultStorage.shared.retrieveFile(id: entry.fileId, with: vaultKey)
                 // Re-encrypt file content with share key (same as initial upload)
-                let reencrypted = try CryptoEngine.shared.encrypt(content, with: shareKey)
+                let reencrypted = try CryptoEngine.encrypt(content, with: shareKey)
 
                 // Re-encrypt thumbnail with share key
                 var encryptedThumb: Data? = nil
                 if let thumbData = entry.thumbnailData {
-                    let decryptedThumb = try CryptoEngine.shared.decrypt(thumbData, with: masterKey)
-                    encryptedThumb = try CryptoEngine.shared.encrypt(decryptedThumb, with: shareKey)
+                    let decryptedThumb = try CryptoEngine.decrypt(thumbData, with: masterKey)
+                    encryptedThumb = try CryptoEngine.encrypt(decryptedThumb, with: shareKey)
                 }
 
                 sharedFiles.append(SharedVaultData.SharedFile(

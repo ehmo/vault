@@ -189,7 +189,7 @@ struct VaultView: View {
             if newKey == nil {
                 files = []
                 masterKey = nil
-                ThumbnailCache.shared.clear()
+                Task { await ThumbnailCache.shared.clear() }
                 isLoading = false
                 isSharedVault = false
             }
@@ -496,12 +496,7 @@ struct VaultView: View {
                 shareKey: shareKey
             )
 
-            let sharedVault: SharedVaultData
-            if data.prefix(6) == Data("bplist".utf8) {
-                sharedVault = try PropertyListDecoder().decode(SharedVaultData.self, from: data)
-            } else {
-                sharedVault = try JSONDecoder().decode(SharedVaultData.self, from: data)
-            }
+            let sharedVault = try SharedVaultData.decode(from: data)
 
             // Re-import files (delete old, add new)
             for existingFile in index.files where !existingFile.isDeleted {
@@ -509,7 +504,7 @@ struct VaultView: View {
             }
 
             for file in sharedVault.files {
-                let decrypted = try CryptoEngine.shared.decrypt(file.encryptedContent, with: shareKey)
+                let decrypted = try CryptoEngine.decrypt(file.encryptedContent, with: shareKey)
 
                 var thumbnailData: Data? = nil
                 if file.mimeType.hasPrefix("image/") {
@@ -647,7 +642,7 @@ struct VaultView: View {
                     thumbnailData: thumbnail
                 )
                 // Re-encrypt thumbnail for in-memory model (matches what's stored in index)
-                let encThumb = thumbnail.flatMap { try? CryptoEngine.shared.encrypt($0, with: self.masterKey ?? key) }
+                let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: self.masterKey ?? key) }
                 await MainActor.run {
                     files.append(VaultFileItem(
                         id: fileId,
@@ -681,7 +676,7 @@ struct VaultView: View {
                         with: key,
                         thumbnailData: thumbnail
                     )
-                    let encThumb = thumbnail.flatMap { try? CryptoEngine.shared.encrypt($0, with: self.masterKey ?? key) }
+                    let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: self.masterKey ?? key) }
                     await MainActor.run {
                         files.append(VaultFileItem(
                             id: fileId,
@@ -704,50 +699,48 @@ struct VaultView: View {
     }
 
     private func handleImportedFiles(_ result: Result<[URL], Error>) {
-        guard !isSharedVault, appState.currentVaultKey != nil else { return }
+        guard !isSharedVault, let key = appState.currentVaultKey else { return }
         guard case .success(let urls) = result else { return }
+        let encryptionKey = self.masterKey ?? key
 
-        for url in urls {
-            guard url.startAccessingSecurityScopedResource() else { continue }
-            defer { url.stopAccessingSecurityScopedResource() }
+        Task {
+            for url in urls {
+                guard url.startAccessingSecurityScopedResource() else { continue }
+                defer { url.stopAccessingSecurityScopedResource() }
 
-            Task {
-                if let data = try? Data(contentsOf: url) {
-                    let filename = url.lastPathComponent
-                    let mimeType = FileUtilities.mimeType(forExtension: url.pathExtension)
-                    let thumbnail = mimeType.hasPrefix("image/") ? FileUtilities.generateThumbnail(from: data) : nil
+                guard let data = try? Data(contentsOf: url) else { continue }
+                let filename = url.lastPathComponent
+                let mimeType = FileUtilities.mimeType(forExtension: url.pathExtension)
+                let thumbnail = mimeType.hasPrefix("image/") ? FileUtilities.generateThumbnail(from: data) : nil
 
-                    if let fileId = try? VaultStorage.shared.storeFile(
-                        data: data,
-                        filename: filename,
-                        mimeType: mimeType,
-                        with: appState.currentVaultKey!,
-                        thumbnailData: thumbnail
-                    ) {
-                        let encThumb = thumbnail.flatMap { try? CryptoEngine.shared.encrypt($0, with: self.masterKey ?? appState.currentVaultKey!) }
-                        await MainActor.run {
-                            files.append(VaultFileItem(
-                                id: fileId,
-                                size: data.count,
-                                encryptedThumbnail: encThumb,
-                                mimeType: mimeType,
-                                filename: filename
-                            ))
-                        }
-                    }
-                }
+                guard let fileId = try? VaultStorage.shared.storeFile(
+                    data: data,
+                    filename: filename,
+                    mimeType: mimeType,
+                    with: key,
+                    thumbnailData: thumbnail
+                ) else { continue }
+
+                let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
+                files.append(VaultFileItem(
+                    id: fileId,
+                    size: data.count,
+                    encryptedThumbnail: encThumb,
+                    mimeType: mimeType,
+                    filename: filename
+                ))
             }
         }
 
         // Trigger sync if sharing
-        ShareSyncManager.shared.scheduleSync(vaultKey: appState.currentVaultKey!)
+        ShareSyncManager.shared.scheduleSync(vaultKey: key)
     }
 
 }
 
 // MARK: - Vault File Item
 
-struct VaultFileItem: Identifiable {
+struct VaultFileItem: Identifiable, Sendable {
     let id: UUID
     let size: Int
     let encryptedThumbnail: Data?
@@ -791,24 +784,24 @@ struct PhotoPicker: UIViewControllerRepresentable {
             picker.dismiss(animated: true)
             guard !results.isEmpty else { return }
 
-            var imagesData: [Data] = []
-            let group = DispatchGroup()
-
-            for result in results {
-                let itemProvider = result.itemProvider
-                if itemProvider.canLoadObject(ofClass: UIImage.self) {
-                    group.enter()
-                    itemProvider.loadObject(ofClass: UIImage.self) { image, _ in
-                        defer { group.leave() }
-                        guard let image = image as? UIImage,
-                              let data = image.jpegData(compressionQuality: 0.8) else { return }
+            let callback = onImagesSelected
+            Task {
+                var imagesData: [Data] = []
+                for result in results {
+                    let provider = result.itemProvider
+                    guard provider.canLoadObject(ofClass: UIImage.self) else { continue }
+                    let image: UIImage? = await withCheckedContinuation { continuation in
+                        provider.loadObject(ofClass: UIImage.self) { object, _ in
+                            continuation.resume(returning: object as? UIImage)
+                        }
+                    }
+                    if let image, let data = image.jpegData(compressionQuality: 0.8) {
                         imagesData.append(data)
                     }
                 }
-            }
-
-            group.notify(queue: .main) {
-                self.onImagesSelected(imagesData)
+                await MainActor.run {
+                    callback(imagesData)
+                }
             }
         }
     }

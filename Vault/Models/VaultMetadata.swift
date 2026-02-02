@@ -1,7 +1,7 @@
 import Foundation
 
 /// Metadata about a vault (stored per-key)
-struct VaultMetadata: Codable {
+struct VaultMetadata: Codable, Sendable {
     var createdAt: Date
     var lastAccessedAt: Date
     var fileCount: Int
@@ -36,7 +36,7 @@ struct VaultMetadata: Codable {
 }
 
 /// Settings that apply globally (not per-vault)
-struct GlobalSettings: Codable {
+struct GlobalSettings: Codable, Sendable {
     var gridSize: Int
     var showPatternFeedback: Bool
     var iCloudBackupEnabled: Bool

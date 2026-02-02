@@ -1,7 +1,7 @@
 import Foundation
 import CryptoKit
 
-enum VaultStorageError: Error {
+enum VaultStorageError: Error, LocalizedError {
     case blobNotInitialized
     case writeError
     case readError
@@ -10,6 +10,19 @@ enum VaultStorageError: Error {
     case corruptedData
     case vaultAlreadyExists
     case expansionNotAllowed
+
+    var errorDescription: String? {
+        switch self {
+        case .blobNotInitialized: return "Vault storage is not initialized"
+        case .writeError: return "Failed to write to vault storage"
+        case .readError: return "Failed to read from vault storage"
+        case .insufficientSpace: return "Not enough space in vault"
+        case .fileNotFound: return "File not found in vault"
+        case .corruptedData: return "Vault data is corrupted"
+        case .vaultAlreadyExists: return "A vault with this pattern already exists"
+        case .expansionNotAllowed: return "Storage expansion requires premium"
+        }
+    }
 }
 
 final class VaultStorage {
@@ -102,7 +115,7 @@ final class VaultStorage {
         let totalChunks = defaultBlobSize / chunkSize
 
         for _ in 0..<totalChunks {
-            if let randomData = CryptoEngine.shared.generateRandomBytes(count: chunkSize) {
+            if let randomData = CryptoEngine.generateRandomBytes(count: chunkSize) {
                 handle.write(randomData)
             }
         }
@@ -194,7 +207,7 @@ final class VaultStorage {
 
     // MARK: - Share Policy & Records
 
-    struct SharePolicy: Codable, Equatable {
+    struct SharePolicy: Codable, Equatable, Sendable {
         var expiresAt: Date?        // nil = never
         var maxOpens: Int?          // nil = unlimited
         var allowScreenshots: Bool  // default false
@@ -208,7 +221,7 @@ final class VaultStorage {
         }
     }
 
-    struct ShareRecord: Codable, Identifiable {
+    struct ShareRecord: Codable, Identifiable, Sendable {
         let id: String              // share vault ID in CloudKit
         let createdAt: Date
         let policy: SharePolicy
@@ -218,14 +231,14 @@ final class VaultStorage {
         var shareId: String { id }
     }
 
-    struct BlobDescriptor: Codable {
+    struct BlobDescriptor: Codable, Sendable {
         let blobId: String      // "primary" or random hex
         let fileName: String    // "vault_data.bin" or "vd_<hex>.bin"
         let capacity: Int       // usable bytes (blob size minus reserved footer for primary)
         var cursor: Int         // next write offset in this blob
     }
 
-    struct VaultIndex: Codable {
+    struct VaultIndex: Codable, Sendable {
         var files: [VaultFileEntry]
         var nextOffset: Int
         var totalSize: Int
@@ -264,7 +277,7 @@ final class VaultStorage {
             self.version = version
         }
 
-        struct VaultFileEntry: Codable {
+        struct VaultFileEntry: Codable, Sendable {
             let fileId: UUID
             let offset: Int
             let size: Int
@@ -319,8 +332,10 @@ final class VaultStorage {
             print("📇 [VaultStorage] No index file exists, creating new vault with master key")
             #endif
             // Return empty v3 index for new vaults with a fresh master key
-            let masterKey = CryptoEngine.shared.generateRandomBytes(count: 32)!
-            let encryptedMasterKey = try CryptoEngine.shared.encrypt(masterKey, with: key)
+            guard let masterKey = CryptoEngine.generateRandomBytes(count: 32) else {
+                throw VaultStorageError.corruptedData
+            }
+            let encryptedMasterKey = try CryptoEngine.encrypt(masterKey, with: key)
             let globalCursor = readGlobalCursor()
             let primary = BlobDescriptor(
                 blobId: "primary",
@@ -347,7 +362,7 @@ final class VaultStorage {
 
         // Try to decrypt - if it fails, this key doesn't match any vault
         do {
-            let decryptedData = try CryptoEngine.shared.decrypt(encryptedData, with: key)
+            let decryptedData = try CryptoEngine.decrypt(encryptedData, with: key)
             var index = try JSONDecoder().decode(VaultIndex.self, from: decryptedData)
             
             #if DEBUG
@@ -359,8 +374,10 @@ final class VaultStorage {
                 #if DEBUG
                 print("🔄 [VaultStorage] Migrating vault to use master key (v1 -> v2)")
                 #endif
-                let masterKey = CryptoEngine.shared.generateRandomBytes(count: 32)!
-                index.encryptedMasterKey = try CryptoEngine.shared.encrypt(masterKey, with: key)
+                guard let masterKey = CryptoEngine.generateRandomBytes(count: 32) else {
+                    throw VaultStorageError.corruptedData
+                }
+                index.encryptedMasterKey = try CryptoEngine.encrypt(masterKey, with: key)
                 index.version = 2
 
                 try saveIndex(index, with: key)
@@ -390,8 +407,10 @@ final class VaultStorage {
             print("⚠️ [VaultStorage] Returning empty index")
             #endif
             // Decryption failed - return empty index with new master key (appears as empty vault)
-            let masterKey = CryptoEngine.shared.generateRandomBytes(count: 32)!
-            let encryptedMasterKey = try CryptoEngine.shared.encrypt(masterKey, with: key)
+            guard let masterKey = CryptoEngine.generateRandomBytes(count: 32) else {
+                throw VaultStorageError.corruptedData
+            }
+            let encryptedMasterKey = try CryptoEngine.encrypt(masterKey, with: key)
             let globalCursor = readGlobalCursor()
             let primary = BlobDescriptor(
                 blobId: "primary",
@@ -427,7 +446,7 @@ final class VaultStorage {
         print("💾 [VaultStorage] Index encoded, size: \(encoded.count) bytes")
         #endif
         
-        let encrypted = try CryptoEngine.shared.encrypt(encoded, with: key)
+        let encrypted = try CryptoEngine.encrypt(encoded, with: key)
         
         #if DEBUG
         print("💾 [VaultStorage] Index encrypted, size: \(encrypted.count) bytes")
@@ -447,7 +466,7 @@ final class VaultStorage {
             throw VaultStorageError.corruptedData
         }
         
-        let masterKey = try CryptoEngine.shared.decrypt(encryptedMasterKey, with: vaultKey)
+        let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey)
         
         #if DEBUG
         print("🔑 [VaultStorage] Master key decrypted")
@@ -502,7 +521,7 @@ final class VaultStorage {
         let totalChunks = defaultBlobSize / chunkSize
 
         for _ in 0..<totalChunks {
-            if let randomData = CryptoEngine.shared.generateRandomBytes(count: chunkSize) {
+            if let randomData = CryptoEngine.generateRandomBytes(count: chunkSize) {
                 handle.write(randomData)
             }
         }
@@ -577,7 +596,7 @@ final class VaultStorage {
         let masterKey = try getMasterKey(from: index, vaultKey: key)
 
         // Encrypt the file with MASTER KEY (not vault key)
-        let encryptedFile = try CryptoEngine.shared.encryptFile(
+        let encryptedFile = try CryptoEngine.encryptFile(
             data: data,
             filename: filename,
             mimeType: mimeType,
@@ -620,9 +639,11 @@ final class VaultStorage {
             targetBlobIndex = index.blobs!.count - 1
         }
 
-        let blobIdx = targetBlobIndex!
-        let writeOffset = index.blobs![blobIdx].cursor
-        let targetBlobId = index.blobs![blobIdx].blobId
+        guard let blobIdx = targetBlobIndex, let blobs = index.blobs else {
+            throw VaultStorageError.writeError
+        }
+        let writeOffset = blobs[blobIdx].cursor
+        let targetBlobId = blobs[blobIdx].blobId
         let targetURL = blobURL(for: targetBlobId, in: index)
 
         #if DEBUG
@@ -648,7 +669,7 @@ final class VaultStorage {
         // Encrypt thumbnail with MASTER KEY if provided
         var encryptedThumbnail: Data? = nil
         if let thumbnail = thumbnailData {
-            encryptedThumbnail = try? CryptoEngine.shared.encrypt(thumbnail, with: masterKey)
+            encryptedThumbnail = try? CryptoEngine.encrypt(thumbnail, with: masterKey)
             #if DEBUG
             print("💾 [VaultStorage] Thumbnail encrypted with master key")
             #endif
@@ -698,7 +719,10 @@ final class VaultStorage {
         // Get the master key for decrypting file data
         let masterKey = try getMasterKey(from: index, vaultKey: key)
 
-        let result = try retrieveFileContent(entry: index.files.first(where: { $0.fileId == id && !$0.isDeleted })!, index: index, masterKey: masterKey)
+        guard let entry = index.files.first(where: { $0.fileId == id && !$0.isDeleted }) else {
+            throw VaultStorageError.fileNotFound
+        }
+        let result = try retrieveFileContent(entry: entry, index: index, masterKey: masterKey)
         span.setTag(value: "\(result.header.originalSize / 1024)", key: "fileSizeKB")
         span.finish(status: .ok)
         return result
@@ -724,7 +748,7 @@ final class VaultStorage {
             throw VaultStorageError.readError
         }
 
-        return try CryptoEngine.shared.decryptFile(data: encryptedData, with: masterKey)
+        return try CryptoEngine.decryptFile(data: encryptedData, with: masterKey)
     }
 
     func deleteFile(id: UUID, with key: Data) throws {
@@ -745,7 +769,7 @@ final class VaultStorage {
         defer { try? handle.close() }
 
         try handle.seek(toOffset: UInt64(entry.offset))
-        if let randomData = CryptoEngine.shared.generateRandomBytes(count: entry.size) {
+        if let randomData = CryptoEngine.generateRandomBytes(count: entry.size) {
             handle.write(randomData)
         }
 
@@ -777,7 +801,7 @@ final class VaultStorage {
             // Decrypt thumbnail with MASTER KEY if available
             var decryptedThumbnail: Data? = nil
             if let encryptedThumb = entry.thumbnailData {
-                decryptedThumbnail = try? CryptoEngine.shared.decrypt(encryptedThumb, with: masterKey)
+                decryptedThumbnail = try? CryptoEngine.decrypt(encryptedThumb, with: masterKey)
             }
             
             return VaultFileEntry(
@@ -790,7 +814,7 @@ final class VaultStorage {
         }
     }
 
-    struct VaultFileEntry {
+    struct VaultFileEntry: Sendable {
         let fileId: UUID
         let size: Int
         let thumbnailData: Data?
@@ -799,7 +823,7 @@ final class VaultStorage {
     }
 
     /// Lightweight file entry that keeps thumbnail data encrypted (no decryption at listing time).
-    struct LightweightFileEntry {
+    struct LightweightFileEntry: Sendable {
         let fileId: UUID
         let size: Int
         let encryptedThumbnail: Data?
@@ -882,7 +906,7 @@ final class VaultStorage {
         #endif
         
         // 3. Re-encrypt master key with NEW vault key
-        let newEncryptedMasterKey = try CryptoEngine.shared.encrypt(masterKey, with: newKey)
+        let newEncryptedMasterKey = try CryptoEngine.encrypt(masterKey, with: newKey)
         
         #if DEBUG
         print("🔐 [VaultStorage] Master key re-encrypted with new vault key")
@@ -971,7 +995,7 @@ final class VaultStorage {
             guard let handle = try? FileHandle(forWritingTo: url) else { continue }
             var offset = 0
             while offset < defaultBlobSize {
-                if let randomData = CryptoEngine.shared.generateRandomBytes(count: chunkSize) {
+                if let randomData = CryptoEngine.generateRandomBytes(count: chunkSize) {
                     try? handle.seek(toOffset: UInt64(offset))
                     handle.write(randomData)
                 }
@@ -1076,7 +1100,7 @@ final class VaultStorage {
         if let handle = try? FileHandle(forWritingTo: freshPrimaryURL) {
             let chunkSize = 1024 * 1024
             for _ in 0..<(defaultBlobSize / chunkSize) {
-                if let randomData = CryptoEngine.shared.generateRandomBytes(count: chunkSize) {
+                if let randomData = CryptoEngine.generateRandomBytes(count: chunkSize) {
                     handle.write(randomData)
                 }
             }
@@ -1163,7 +1187,7 @@ final class VaultStorage {
             if let handle = try? FileHandle(forWritingTo: url) {
                 var offset = 0
                 while offset < defaultBlobSize {
-                    if let randomData = CryptoEngine.shared.generateRandomBytes(count: chunkSize) {
+                    if let randomData = CryptoEngine.generateRandomBytes(count: chunkSize) {
                         try? handle.seek(toOffset: UInt64(offset))
                         handle.write(randomData)
                     }

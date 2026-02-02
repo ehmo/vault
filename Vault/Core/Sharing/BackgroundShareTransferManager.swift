@@ -77,7 +77,10 @@ final class BackgroundShareTransferManager {
 
                 // Build vault data
                 let index = try VaultStorage.shared.loadIndex(with: capturedVaultKey)
-                let masterKey = try CryptoEngine.shared.decrypt(index.encryptedMasterKey!, with: capturedVaultKey)
+                guard let encryptedMasterKey = index.encryptedMasterKey else {
+                    throw VaultStorageError.corruptedData
+                }
+                let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: capturedVaultKey)
                 await self?.setTargetProgress(keyPhaseEnd, message: "Preparing vault...")
                 var sharedFiles: [SharedVaultData.SharedFile] = []
                 let activeFiles = index.files.filter { !$0.isDeleted }
@@ -96,12 +99,12 @@ final class BackgroundShareTransferManager {
                             let (header, content) = try VaultStorage.shared.retrieveFileContent(
                                 entry: entry, index: capturedIndex, masterKey: capturedMasterKey
                             )
-                            let reencrypted = try CryptoEngine.shared.encrypt(content, with: capturedShareKey)
+                            let reencrypted = try CryptoEngine.encrypt(content, with: capturedShareKey)
 
                             var encryptedThumb: Data? = nil
                             if let thumbData = entry.thumbnailData {
-                                let decryptedThumb = try CryptoEngine.shared.decrypt(thumbData, with: capturedMasterKey)
-                                encryptedThumb = try CryptoEngine.shared.encrypt(decryptedThumb, with: capturedShareKey)
+                                let decryptedThumb = try CryptoEngine.decrypt(thumbData, with: capturedMasterKey)
+                                encryptedThumb = try CryptoEngine.encrypt(decryptedThumb, with: capturedShareKey)
                             }
 
                             return (i, SharedVaultData.SharedFile(
@@ -236,30 +239,19 @@ final class BackgroundShareTransferManager {
 
                 guard !Task.isCancelled else { return }
 
-                let sharedVault: SharedVaultData
-                if result.version >= 3 {
-                    sharedVault = try PropertyListDecoder().decode(SharedVaultData.self, from: result.data)
-                } else {
-                    sharedVault = try JSONDecoder().decode(SharedVaultData.self, from: result.data)
-                }
+                let sharedVault = try SharedVaultData.decode(from: result.data)
                 let shareKey = try CloudKitSharingManager.deriveShareKey(from: capturedPhrase)
                 let fileCount = sharedVault.files.count
 
                 for (i, file) in sharedVault.files.enumerated() {
                     guard !Task.isCancelled else { return }
-                    let decrypted = try CryptoEngine.shared.decrypt(file.encryptedContent, with: shareKey)
-
-                    var thumbnailData: Data? = nil
-                    if let encThumb = file.encryptedThumbnail {
-                        thumbnailData = try? CryptoEngine.shared.decrypt(encThumb, with: shareKey)
-                    } else if file.mimeType.hasPrefix("image/"), let img = UIImage(data: decrypted) {
-                        let maxSize: CGFloat = 200
-                        let scale = min(maxSize / img.size.width, maxSize / img.size.height)
-                        let newSize = CGSize(width: img.size.width * scale, height: img.size.height * scale)
-                        let renderer = UIGraphicsImageRenderer(size: newSize)
-                        let thumb = renderer.image { _ in img.draw(in: CGRect(origin: .zero, size: newSize)) }
-                        thumbnailData = thumb.jpegData(compressionQuality: 0.7)
-                    }
+                    let decrypted = try CryptoEngine.decrypt(file.encryptedContent, with: shareKey)
+                    let thumbnailData = Self.resolveThumbnail(
+                        encryptedThumbnail: file.encryptedThumbnail,
+                        mimeType: file.mimeType,
+                        decryptedData: decrypted,
+                        shareKey: shareKey
+                    )
 
                     _ = try VaultStorage.shared.storeFile(
                         data: decrypted,
@@ -329,31 +321,19 @@ final class BackgroundShareTransferManager {
 
         activeTask = Task.detached(priority: .userInitiated) { [weak self] in
             do {
-                let sharedVault: SharedVaultData
-                if capturedData.prefix(6) == Data("bplist".utf8) {
-                    sharedVault = try PropertyListDecoder().decode(SharedVaultData.self, from: capturedData)
-                } else {
-                    sharedVault = try JSONDecoder().decode(SharedVaultData.self, from: capturedData)
-                }
+                let sharedVault = try SharedVaultData.decode(from: capturedData)
                 let shareKey = try CloudKitSharingManager.deriveShareKey(from: capturedPhrase)
                 let fileCount = sharedVault.files.count
 
                 for (i, file) in sharedVault.files.enumerated() {
                     guard !Task.isCancelled else { return }
-                    let decrypted = try CryptoEngine.shared.decrypt(file.encryptedContent, with: shareKey)
-
-                    // Decrypt thumbnail from share key, or generate from image data
-                    var thumbnailData: Data? = nil
-                    if let encThumb = file.encryptedThumbnail {
-                        thumbnailData = try? CryptoEngine.shared.decrypt(encThumb, with: shareKey)
-                    } else if file.mimeType.hasPrefix("image/"), let img = UIImage(data: decrypted) {
-                        let maxSize: CGFloat = 200
-                        let scale = min(maxSize / img.size.width, maxSize / img.size.height)
-                        let newSize = CGSize(width: img.size.width * scale, height: img.size.height * scale)
-                        let renderer = UIGraphicsImageRenderer(size: newSize)
-                        let thumb = renderer.image { _ in img.draw(in: CGRect(origin: .zero, size: newSize)) }
-                        thumbnailData = thumb.jpegData(compressionQuality: 0.7)
-                    }
+                    let decrypted = try CryptoEngine.decrypt(file.encryptedContent, with: shareKey)
+                    let thumbnailData = Self.resolveThumbnail(
+                        encryptedThumbnail: file.encryptedThumbnail,
+                        mimeType: file.mimeType,
+                        decryptedData: decrypted,
+                        shareKey: shareKey
+                    )
 
                     _ = try VaultStorage.shared.storeFile(
                         data: decrypted,
@@ -395,6 +375,28 @@ final class BackgroundShareTransferManager {
                 }
             }
         }
+    }
+
+    // MARK: - Helpers
+
+    /// Decrypts an encrypted thumbnail with the share key, or generates one from image data.
+    nonisolated private static func resolveThumbnail(
+        encryptedThumbnail: Data?,
+        mimeType: String,
+        decryptedData: Data,
+        shareKey: Data
+    ) -> Data? {
+        if let encThumb = encryptedThumbnail {
+            return try? CryptoEngine.decrypt(encThumb, with: shareKey)
+        } else if mimeType.hasPrefix("image/"), let img = UIImage(data: decryptedData) {
+            let maxSize: CGFloat = 200
+            let scale = min(maxSize / img.size.width, maxSize / img.size.height)
+            let newSize = CGSize(width: img.size.width * scale, height: img.size.height * scale)
+            let renderer = UIGraphicsImageRenderer(size: newSize)
+            let thumb = renderer.image { _ in img.draw(in: CGRect(origin: .zero, size: newSize)) }
+            return thumb.jpegData(compressionQuality: 0.7)
+        }
+        return nil
     }
 
     // MARK: - Smooth Progress Timer

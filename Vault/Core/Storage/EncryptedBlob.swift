@@ -53,7 +53,7 @@ final class EncryptedBlob {
     }
 
     func overwriteWithRandom(region: BlobRegion) throws {
-        guard let randomData = CryptoEngine.shared.generateRandomBytes(count: region.length) else {
+        guard let randomData = CryptoEngine.generateRandomBytes(count: region.length) else {
             throw VaultStorageError.writeError
         }
 

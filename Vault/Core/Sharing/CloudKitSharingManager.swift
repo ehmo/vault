@@ -162,7 +162,7 @@ final class CloudKitSharingManager {
 
         // Encrypt policy
         let policyData = try JSONEncoder().encode(policy)
-        let encryptedPolicy = try CryptoEngine.shared.encrypt(policyData, with: shareKey)
+        let encryptedPolicy = try CryptoEngine.encrypt(policyData, with: shareKey)
 
         // Create manifest record (keyed by phrase-derived ID for recipient lookup)
         let manifestRecordId = CKRecord.ID(recordName: phraseVaultId)
@@ -302,7 +302,7 @@ final class CloudKitSharingManager {
         if let policyAsset = manifest["policy"] as? CKAsset,
            let policyURL = policyAsset.fileURL {
             let encryptedPolicy = try Data(contentsOf: policyURL)
-            let decryptedPolicy = try CryptoEngine.shared.decrypt(encryptedPolicy, with: shareKey)
+            let decryptedPolicy = try CryptoEngine.decrypt(encryptedPolicy, with: shareKey)
             policy = try JSONDecoder().decode(VaultStorage.SharePolicy.self, from: decryptedPolicy)
         }
 
@@ -334,7 +334,7 @@ final class CloudKitSharingManager {
         let decryptedData: Data
         if remoteVersion < 2 {
             do {
-                decryptedData = try CryptoEngine.shared.decrypt(encryptedData, with: shareKey)
+                decryptedData = try CryptoEngine.decrypt(encryptedData, with: shareKey)
             } catch {
                 throw CloudKitSharingError.decryptionFailed
             }
@@ -419,7 +419,7 @@ final class CloudKitSharingManager {
         // v1: outer encryption layer; v2+: no outer encryption
         if remoteVersion < 2 {
             do {
-                return try CryptoEngine.shared.decrypt(rawData, with: shareKey)
+                return try CryptoEngine.decrypt(rawData, with: shareKey)
             } catch {
                 throw CloudKitSharingError.decryptionFailed
             }
@@ -510,13 +510,22 @@ final class CloudKitSharingManager {
 // MARK: - Shared Vault Data Structure (for serialization)
 
 /// The data structure serialized and stored encrypted in CloudKit chunks.
-struct SharedVaultData: Codable {
+struct SharedVaultData: Codable, Sendable {
     let files: [SharedFile]
     let metadata: SharedVaultMetadata
     let createdAt: Date
     let updatedAt: Date
 
-    struct SharedFile: Codable, Identifiable {
+    /// Decodes from either binary plist or JSON, auto-detecting the format.
+    static func decode(from data: Data) throws -> SharedVaultData {
+        if data.prefix(6) == Data("bplist".utf8) {
+            return try PropertyListDecoder().decode(SharedVaultData.self, from: data)
+        } else {
+            return try JSONDecoder().decode(SharedVaultData.self, from: data)
+        }
+    }
+
+    struct SharedFile: Codable, Identifiable, Sendable {
         let id: UUID
         let filename: String
         let mimeType: String
@@ -536,7 +545,7 @@ struct SharedVaultData: Codable {
         }
     }
 
-    struct SharedVaultMetadata: Codable {
+    struct SharedVaultMetadata: Codable, Sendable {
         let ownerFingerprint: String
         let sharedAt: Date
     }

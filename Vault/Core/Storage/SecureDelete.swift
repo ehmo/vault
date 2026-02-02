@@ -37,7 +37,7 @@ final class SecureDelete {
             case 1:
                 pattern = Data(repeating: 0xFF, count: fileSize) // Ones
             default:
-                pattern = CryptoEngine.shared.generateRandomBytes(count: fileSize) ?? Data(repeating: 0x55, count: fileSize)
+                pattern = CryptoEngine.generateRandomBytes(count: fileSize) ?? Data(repeating: 0x55, count: fileSize)
             }
 
             handle.write(pattern)
@@ -73,7 +73,7 @@ final class SecureDelete {
 
         for _ in 0..<overwritePasses {
             try handle.seek(toOffset: UInt64(offset))
-            if let randomData = CryptoEngine.shared.generateRandomBytes(count: length) {
+            if let randomData = CryptoEngine.generateRandomBytes(count: length) {
                 handle.write(randomData)
                 try handle.synchronize()
             }

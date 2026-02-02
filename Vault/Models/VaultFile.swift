@@ -1,7 +1,7 @@
 import Foundation
 
 /// Represents a file stored in the vault
-struct VaultFile: Identifiable, Codable {
+struct VaultFile: Identifiable, Codable, Sendable {
     let id: UUID
     let filename: String
     let mimeType: String
@@ -56,7 +56,7 @@ struct VaultFile: Identifiable, Codable {
 }
 
 /// Lightweight reference to a file (for lists/grids)
-struct VaultFileReference: Identifiable {
+struct VaultFileReference: Identifiable, Sendable {
     let id: UUID
     let offset: Int
     let size: Int
