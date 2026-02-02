@@ -15,7 +15,6 @@ struct TransferLiveActivityWidget: Widget {
                 // Expanded regions
                 DynamicIslandExpandedRegion(.leading) {
                     LivePixelGrid(
-                        transferType: context.attributes.transferType,
                         animationStep: context.state.animationStep,
                         size: 36,
                         pixelSize: 8,
@@ -57,7 +56,6 @@ struct TransferLiveActivityWidget: Widget {
                 }
             } compactLeading: {
                 LivePixelGrid(
-                    transferType: context.attributes.transferType,
                     animationStep: context.state.animationStep,
                     size: 20,
                     pixelSize: 4.5,
@@ -82,7 +80,6 @@ struct TransferLiveActivityWidget: Widget {
                 }
             } minimal: {
                 LivePixelGrid(
-                    transferType: context.attributes.transferType,
                     animationStep: context.state.animationStep,
                     size: 16,
                     pixelSize: 3.5,
@@ -98,7 +95,6 @@ struct TransferLiveActivityWidget: Widget {
     private func lockScreenView(context: ActivityViewContext<TransferActivityAttributes>) -> some View {
         HStack(spacing: 12) {
             LivePixelGrid(
-                transferType: context.attributes.transferType,
                 animationStep: context.state.animationStep,
                 size: 36,
                 pixelSize: 8,

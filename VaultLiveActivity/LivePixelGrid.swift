@@ -4,31 +4,24 @@ import WidgetKit
 /// App accent color hardcoded for widget extension (no access to main app's asset catalog).
 private let vaultAccent = Color(red: 0.384, green: 0.275, blue: 0.918)
 
-/// A 3x3 pixel grid for the Dynamic Island that animates column-sweep patterns
-/// with smooth crossfade transitions, matching the in-app PixelAnimation style.
+/// A 3x3 pixel grid for the Dynamic Island matching the in-app PixelAnimation.loading() preset:
+/// single cell perimeter walk, brightness 3, shadowBrightness 2, radius 10.
 ///
 /// Animation is driven by `animationStep` from ContentState updates (~0.5s ticks)
 /// because `TimelineView(.animation)` does not re-render in widget extensions.
 struct LivePixelGrid: View {
-    let transferType: TransferActivityAttributes.TransferType
     let animationStep: Int
     var size: CGFloat = 20
     var pixelSize: CGFloat = 4.5
     var spacing: CGFloat = 1
 
-    /// Upload: L→R columns; Download: R→L columns
-    private var columnOrder: [[Int]] {
-        switch transferType {
-        case .uploading:
-            return [[1, 4, 7], [2, 5, 8], [3, 6, 9]]
-        case .downloading:
-            return [[3, 6, 9], [2, 5, 8], [1, 4, 7]]
-        }
-    }
+    /// Perimeter walk: single cell moves clockwise around the border.
+    /// Matches PixelAnimation.loading() pattern: [[1, 2, 3, 6, 9, 8, 7, 4]]
+    private let frames: [[Int]] = [[1], [2], [3], [6], [9], [8], [7], [4]]
 
     var body: some View {
-        let frame = animationStep % columnOrder.count
-        let onSet = Set(columnOrder[frame])
+        let frame = animationStep % frames.count
+        let onSet = Set(frames[frame])
 
         VStack(spacing: spacing) {
             ForEach(0..<3, id: \.self) { row in
