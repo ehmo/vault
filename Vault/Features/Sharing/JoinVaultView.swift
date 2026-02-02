@@ -100,7 +100,7 @@ struct JoinVaultView: View {
             }) {
                 Text("Join Vault")
             }
-            .buttonStyle(.borderedProminent)
+            .vaultProminentButtonStyle()
             .disabled(phrase.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
             // Info
@@ -112,8 +112,7 @@ struct JoinVaultView: View {
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.vaultSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .vaultGlassBackground(cornerRadius: 12)
         }
     }
 
@@ -141,10 +140,7 @@ struct JoinVaultView: View {
                 onPatternComplete: handlePatternComplete
             )
             .frame(width: 280, height: 280)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.vaultSurface.opacity(0.3))
-            )
+            .vaultPatternGridBackground()
 
             if patternStep == .confirm {
                 Button("Start Over") {
@@ -171,7 +167,7 @@ struct JoinVaultView: View {
                 Button("Try Again") { mode = .input }
                     .buttonStyle(.bordered)
                 Button("Edit Phrase") { mode = .input }
-                    .buttonStyle(.borderedProminent)
+                    .vaultProminentButtonStyle()
             }
             .padding(.top)
         }

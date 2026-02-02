@@ -383,8 +383,7 @@ struct ChangePatternView: View {
                             .font(.subheadline)
                     }
                     .padding()
-                    .background(Color.vaultHighlight.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .vaultGlassTintedBackground(tint: Color.vaultHighlight, cornerRadius: 12)
                     .padding(.horizontal)
                 }
 
@@ -455,13 +454,10 @@ struct ChangePatternView: View {
             onPatternComplete: handlePatternComplete
         )
         .frame(width: 280, height: 280)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.vaultSurface.opacity(0.3))
-        )
+        .vaultPatternGridBackground()
         .padding()
     }
-    
+
     private var completeSection: some View {
         VStack(spacing: 20) {
             Image(systemName: "checkmark.circle.fill")
@@ -492,8 +488,7 @@ struct ChangePatternView: View {
                     .font(.body)
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.vaultSurface)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .vaultGlassBackground(cornerRadius: 8)
                 
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -548,10 +543,9 @@ struct ChangePatternView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.vaultSurface)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .vaultGlassBackground(cornerRadius: 12)
     }
-    
+
     private var bottomButtons: some View {
         VStack(spacing: 12) {
             switch step {
@@ -592,13 +586,13 @@ struct ChangePatternView: View {
                         .frame(maxWidth: .infinity)
                         .padding()
                 }
-                .buttonStyle(.borderedProminent)
+                .vaultProminentButtonStyle()
             }
         }
     }
-    
+
     // MARK: - Actions
-    
+
     private func handlePatternComplete(_ pattern: [Int]) {
         #if DEBUG
         print("🔄 [ChangePattern] Pattern completed in \(step) step")
@@ -928,10 +922,9 @@ struct CustomRecoveryPhraseInputView: View {
             .foregroundStyle(.vaultSecondaryText)
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.vaultSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .vaultGlassBackground(cornerRadius: 12)
             .padding(.horizontal)
-            
+
             // Save button
             Button(action: saveCustomPhrase) {
                 if isProcessing {
@@ -940,7 +933,7 @@ struct CustomRecoveryPhraseInputView: View {
                     Text("Set Custom Phrase")
                 }
             }
-            .buttonStyle(.borderedProminent)
+            .vaultProminentButtonStyle()
             .disabled(!(validation?.isAcceptable ?? false) || isProcessing)
             .padding()
         }
@@ -970,11 +963,11 @@ struct CustomRecoveryPhraseInputView: View {
             Button("Done") {
                 dismiss()
             }
-            .buttonStyle(.borderedProminent)
+            .vaultProminentButtonStyle()
             .padding()
         }
     }
-    
+
     private func validatePhrase(_ phrase: String) {
         guard !phrase.isEmpty else {
             validation = nil

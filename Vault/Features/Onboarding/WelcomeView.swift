@@ -21,6 +21,7 @@ struct WelcomeView: View {
                     .font(.system(size: 56))
                     .foregroundStyle(.tint)
             }
+            .vaultGlassOrb()
             .accessibilityHidden(true)
             .onAppear {
                 guard !reduceMotion else { return }
@@ -64,7 +65,7 @@ struct WelcomeView: View {
                     .frame(maxWidth: .infinity)
                     .padding()
             }
-            .buttonStyle(.borderedProminent)
+            .vaultProminentButtonStyle()
             .padding(.horizontal, 40)
             .padding(.bottom, 40)
         }

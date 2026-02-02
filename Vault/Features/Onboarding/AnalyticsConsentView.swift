@@ -39,7 +39,7 @@ struct AnalyticsConsentView: View {
                         .frame(maxWidth: .infinity)
                         .padding()
                 }
-                .buttonStyle(.borderedProminent)
+                .vaultProminentButtonStyle()
 
                 Button(action: onContinue) {
                     Text("No Thanks")
@@ -47,7 +47,7 @@ struct AnalyticsConsentView: View {
                         .frame(maxWidth: .infinity)
                         .padding()
                 }
-                .buttonStyle(.bordered)
+                .vaultSecondaryButtonStyle()
             }
             .padding(.horizontal, 40)
             .padding(.bottom, 40)

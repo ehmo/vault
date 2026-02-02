@@ -107,7 +107,7 @@ struct HowItWorksView: View {
                     .frame(maxWidth: .infinity)
                     .padding()
             }
-            .buttonStyle(.borderedProminent)
+            .vaultProminentButtonStyle()
             .padding(.horizontal, 40)
             .padding(.bottom, 40)
         }

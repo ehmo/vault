@@ -166,8 +166,7 @@ struct ShareVaultView: View {
                 Toggle("Allow file exports", isOn: $allowDownloads)
             }
             .padding()
-            .background(Color.vaultSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .vaultGlassBackground(cornerRadius: 12)
 
             // Estimated size
             if let key = appState.currentVaultKey,
@@ -186,7 +185,7 @@ struct ShareVaultView: View {
             Button("Generate Share Phrase") {
                 generatePhrase()
             }
-            .buttonStyle(.borderedProminent)
+            .vaultProminentButtonStyle()
         }
     }
 
@@ -210,13 +209,12 @@ struct ShareVaultView: View {
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.vaultHighlight.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .vaultGlassTintedBackground(tint: Color.vaultHighlight, cornerRadius: 12)
 
             Button("Upload Vault") {
                 startBackgroundUpload(phrase: phrase)
             }
-            .buttonStyle(.borderedProminent)
+            .vaultProminentButtonStyle()
         }
     }
 
@@ -236,7 +234,7 @@ struct ShareVaultView: View {
             phraseDisplay(phrase)
 
             Button("Done") { dismiss() }
-                .buttonStyle(.borderedProminent)
+                .vaultProminentButtonStyle()
                 .padding(.top)
         }
         .padding(.top, 40)
@@ -330,8 +328,7 @@ struct ShareVaultView: View {
             .font(.subheadline)
         }
         .padding()
-        .background(Color.vaultSurface)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .vaultGlassBackground(cornerRadius: 12)
     }
 
     private func errorView(_ message: String) -> some View {
@@ -343,7 +340,7 @@ struct ShareVaultView: View {
             Text(message)
                 .foregroundStyle(.vaultSecondaryText).multilineTextAlignment(.center)
             Button("Try Again") { mode = .newShare }
-                .buttonStyle(.borderedProminent).padding(.top)
+                .vaultProminentButtonStyle().padding(.top)
         }
         .padding(.top, 60)
     }
@@ -358,8 +355,7 @@ struct ShareVaultView: View {
                 .multilineTextAlignment(.center)
                 .padding()
                 .frame(maxWidth: .infinity)
-                .background(Color.vaultSurface)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .vaultGlassBackground(cornerRadius: 12)
 
             Button(action: { copyToClipboard(phrase) }) {
                 HStack {

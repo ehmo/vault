@@ -63,8 +63,7 @@ struct PatternSetupView: View {
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
-                .background(Color.vaultHighlight.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .vaultGlassTintedBackground(tint: Color.vaultHighlight, cornerRadius: 8)
                 .transition(.scale.combined(with: .opacity))
             }
 
@@ -140,10 +139,7 @@ struct PatternSetupView: View {
             onPatternComplete: handlePatternComplete
         )
         .frame(width: 280, height: 280)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.vaultSurface.opacity(0.3))
-        )
+        .vaultPatternGridBackground()
         .padding()
     }
 
@@ -209,8 +205,7 @@ struct PatternSetupView: View {
                         .multilineTextAlignment(.center)
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(Color.vaultSurface)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .vaultGlassBackground(cornerRadius: 12)
                 }
             }
             .frame(height: 180, alignment: .top)
@@ -278,8 +273,7 @@ struct PatternSetupView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.vaultSurface)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .vaultGlassBackground(cornerRadius: 12)
     }
 
     private var bottomButtons: some View {
@@ -309,7 +303,7 @@ struct PatternSetupView: View {
                         .frame(maxWidth: .infinity)
                         .padding()
                 }
-                .buttonStyle(.borderedProminent)
+                .vaultProminentButtonStyle()
                 .disabled(useCustomPhrase && !(customPhraseValidation?.isAcceptable ?? false))
                 .alert("Are you sure?", isPresented: $showSaveConfirmation) {
                     Button("Cancel", role: .cancel) { }
@@ -333,7 +327,7 @@ struct PatternSetupView: View {
                         .frame(maxWidth: .infinity)
                         .padding()
                 }
-                .buttonStyle(.borderedProminent)
+                .vaultProminentButtonStyle()
             }
         }
     }

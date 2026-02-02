@@ -180,9 +180,9 @@ struct VaultView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .vaultProminentButtonStyle()
                     .padding(.horizontal)
-                    .background(.thinMaterial)
+                    .vaultBarMaterial()
                     .accessibilityHint("Import photos, videos, or files into the vault")
                 }
             }
@@ -320,7 +320,7 @@ struct VaultView: View {
                                 .font(.caption).fontWeight(.medium)
                         }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .vaultProminentButtonStyle()
                     .controlSize(.mini)
                     .disabled(isUpdating)
                     .accessibilityLabel(isUpdating ? "Updating shared vault" : "Update shared vault")
@@ -328,7 +328,6 @@ struct VaultView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
-            .background(.ultraThinMaterial)
 
             if updateAvailable {
                 HStack {
@@ -343,6 +342,7 @@ struct VaultView: View {
                 .background(Color.accentColor.opacity(0.1))
             }
         }
+        .vaultBannerBackground()
     }
 
     // MARK: - Skeleton Loading
@@ -395,7 +395,7 @@ struct VaultView: View {
                     Label("Add Files", systemImage: "plus.circle.fill")
                         .font(.headline)
                 }
-                .buttonStyle(.borderedProminent)
+                .vaultProminentButtonStyle()
                 .padding(.top)
             }
         }

@@ -56,8 +56,7 @@ struct PatternLockView: View {
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 8)
-                    .background(Color.vaultHighlight.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .vaultGlassTintedBackground(tint: Color.vaultHighlight, cornerRadius: 8)
                     .transition(.scale.combined(with: .opacity))
                 }
             }
@@ -223,7 +222,7 @@ struct RecoveryPhraseInputView: View {
                         Text("Recover Vault")
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .vaultProminentButtonStyle()
                 .disabled(phrase.isEmpty || isProcessing)
 
                 if let error = errorMessage {
@@ -235,8 +234,7 @@ struct RecoveryPhraseInputView: View {
                             .foregroundStyle(.vaultHighlight)
                     }
                     .padding()
-                    .background(Color.vaultHighlight.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .vaultGlassTintedBackground(tint: Color.vaultHighlight, cornerRadius: 8)
                 }
 
                 Spacer()
