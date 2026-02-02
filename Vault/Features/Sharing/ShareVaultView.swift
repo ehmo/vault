@@ -25,6 +25,7 @@ struct ShareVaultView: View {
     @State private var allowDownloads = true
     @State private var copiedToClipboard = false
     @State private var isStopping = false
+    @State private var estimatedUploadSize: Int?
 
     // Active shares data
     @State private var activeShares: [VaultStorage.ShareRecord] = []
@@ -88,6 +89,8 @@ struct ShareVaultView: View {
 
         do {
             let index = try VaultStorage.shared.loadIndex(with: key)
+            // Pre-compute estimated upload size from index metadata (no decryption needed)
+            estimatedUploadSize = index.files.filter { !$0.isDeleted }.reduce(0) { $0 + $1.size }
             if let shares = index.activeShares, !shares.isEmpty {
                 activeShares = shares
                 mode = .manageShares
@@ -168,15 +171,13 @@ struct ShareVaultView: View {
             .padding()
             .vaultGlassBackground(cornerRadius: 12)
 
-            // Estimated size
-            if let key = appState.currentVaultKey,
-               let files = try? VaultStorage.shared.listFiles(with: key) {
-                let totalSize = files.reduce(0) { $0 + $1.size }
+            // Estimated size (pre-computed in initialize, no decryption during render)
+            if let totalSize = estimatedUploadSize {
                 HStack {
                     Text("Estimated upload")
                         .foregroundStyle(.vaultSecondaryText)
                     Spacer()
-                    Text(formatBytes(totalSize))
+                    Text(Self.byteCountFormatter.string(fromByteCount: Int64(totalSize)))
                         .foregroundStyle(.vaultSecondaryText)
                 }
                 .font(.subheadline)
@@ -478,11 +479,11 @@ struct ShareVaultView: View {
         }
     }
 
-    private func formatBytes(_ bytes: Int) -> String {
+    private static let byteCountFormatter: ByteCountFormatter = {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .file
-        return formatter.string(fromByteCount: Int64(bytes))
-    }
+        return formatter
+    }()
 
     private func iCloudStatusMessage(_ status: CKAccountStatus) -> String {
         switch status {

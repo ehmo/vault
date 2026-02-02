@@ -50,9 +50,13 @@ struct FilesGridView: View {
         return "doc.fill"
     }
 
-    private func formatSize(_ bytes: Int) -> String {
+    private static let byteCountFormatter: ByteCountFormatter = {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .file
-        return formatter.string(fromByteCount: Int64(bytes))
+        return formatter
+    }()
+
+    private func formatSize(_ bytes: Int) -> String {
+        Self.byteCountFormatter.string(fromByteCount: Int64(bytes))
     }
 }

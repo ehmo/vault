@@ -5,7 +5,7 @@ struct SecureCameraView: View {
     let onCapture: (Data) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var cameraManager = CameraManager()
+    @State private var cameraManager = CameraManager()
 
     @State private var flashMode: AVCaptureDevice.FlashMode = .auto
     @State private var showingCaptureConfirmation = false

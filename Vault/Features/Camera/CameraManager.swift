@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import UIKit
+import Observation
 
 protocol CameraManagerDelegate: AnyObject {
     func cameraManager(_ manager: CameraManager, didChangeAuthorization status: AVAuthorizationStatus)
@@ -9,10 +10,11 @@ protocol CameraManagerDelegate: AnyObject {
 /// Manages camera authorization, capture session lifecycle, and photo capture.
 /// Provides helpers for switching cameras, torch control, focus/exposure, and importing
 /// a captured image directly into the vault.
-final class CameraManager: NSObject, ObservableObject, @unchecked Sendable {
-    // MARK: - Published State
-    @Published private(set) var isSessionRunning: Bool = false
-    @Published private(set) var authorizationStatus: AVAuthorizationStatus = .notDetermined
+@Observable
+final class CameraManager: NSObject, @unchecked Sendable {
+    // MARK: - Observable State
+    private(set) var isSessionRunning: Bool = false
+    private(set) var authorizationStatus: AVAuthorizationStatus = .notDetermined
 
     // MARK: - Session Components
     let session = AVCaptureSession()

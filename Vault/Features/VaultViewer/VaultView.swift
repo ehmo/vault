@@ -37,7 +37,7 @@ struct VaultView: View {
     @State private var selfDestructMessage: String?
     @State private var showSelfDestructAlert = false
 
-    private var filteredFiles: [VaultFileItem] {
+    private var splitFiles: (all: [VaultFileItem], images: [VaultFileItem], nonImages: [VaultFileItem]) {
         var result = files
         switch fileFilter {
         case .all: break
@@ -50,43 +50,38 @@ struct VaultView: View {
                 ($0.mimeType ?? "").localizedStandardContains(searchText)
             }
         }
-        return result
-    }
-
-    private var filteredImageFiles: [VaultFileItem] {
-        filteredFiles.filter { $0.isImage }
-    }
-
-    private var filteredNonImageFiles: [VaultFileItem] {
-        filteredFiles.filter { !$0.isImage }
+        let images = result.filter { $0.isImage }
+        let nonImages = result.filter { !$0.isImage }
+        return (result, images, nonImages)
     }
 
     @ViewBuilder
     private var fileGridContent: some View {
+        let split = splitFiles
         ScrollView {
             if let masterKey {
                 switch fileFilter {
                 case .all:
-                    if !filteredImageFiles.isEmpty {
-                        PhotosGridView(files: filteredImageFiles, masterKey: masterKey) { file, index in
+                    if !split.images.isEmpty {
+                        PhotosGridView(files: split.images, masterKey: masterKey) { file, index in
                             SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                             selectedPhotoIndex = index
                         }
                     }
-                    if !filteredNonImageFiles.isEmpty {
-                        FilesGridView(files: filteredNonImageFiles) { file in
+                    if !split.nonImages.isEmpty {
+                        FilesGridView(files: split.nonImages) { file in
                             SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                             selectedFile = file
                         }
-                        .padding(.top, filteredImageFiles.isEmpty ? 0 : 12)
+                        .padding(.top, split.images.isEmpty ? 0 : 12)
                     }
                 case .images:
-                    PhotosGridView(files: filteredImageFiles, masterKey: masterKey) { file, index in
+                    PhotosGridView(files: split.images, masterKey: masterKey) { file, index in
                         SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                         selectedPhotoIndex = index
                     }
                 case .other:
-                    FilesGridView(files: filteredNonImageFiles) { file in
+                    FilesGridView(files: split.nonImages) { file in
                         SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                         selectedFile = file
                     }
@@ -99,7 +94,7 @@ struct VaultView: View {
 
     /// Identifiable wrapper so `fullScreenCover(item:)` can drive presentation from an Int index.
     private struct PhotoViewerItem: Identifiable {
-        let id: Int // index into filteredImageFiles
+        let id: Int // index into splitFiles.images
     }
 
     private var photoViewerItem: Binding<PhotoViewerItem?> {
@@ -118,7 +113,7 @@ struct VaultView: View {
                     emptyStateView
                 } else {
                     ZStack {
-                        if filteredFiles.isEmpty {
+                        if splitFiles.all.isEmpty {
                             ContentUnavailableView(
                                 "No matching files",
                                 systemImage: "magnifyingglass",
@@ -251,7 +246,7 @@ struct VaultView: View {
         }
         .fullScreenCover(item: photoViewerItem) { item in
             FullScreenPhotoViewer(
-                files: filteredImageFiles,
+                files: splitFiles.images,
                 vaultKey: appState.currentVaultKey,
                 initialIndex: item.id,
                 onDelete: isSharedVault ? nil : { deletedId in

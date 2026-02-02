@@ -4,7 +4,8 @@ import Combine
 /// Manages background sync of vault data to all active share recipients.
 /// Debounces file changes (30s) and uploads to all share vault IDs.
 @MainActor
-final class ShareSyncManager: ObservableObject {
+@Observable
+final class ShareSyncManager {
     static let shared = ShareSyncManager()
 
     enum SyncStatus: Equatable {
@@ -14,9 +15,9 @@ final class ShareSyncManager: ObservableObject {
         case error(String)
     }
 
-    @Published var syncStatus: SyncStatus = .idle
-    @Published var syncProgress: (current: Int, total: Int)?
-    @Published var lastSyncedAt: Date?
+    var syncStatus: SyncStatus = .idle
+    var syncProgress: (current: Int, total: Int)?
+    var lastSyncedAt: Date?
 
     private var debounceTask: Task<Void, Never>?
     private let debounceInterval: TimeInterval = 30

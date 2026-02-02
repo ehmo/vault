@@ -24,8 +24,32 @@ struct PixelAnimation: View {
 
     @State private var step: Int = 0
 
-    private var timer: Publishers.Autoconnect<Timer.TimerPublisher> {
-        Timer.publish(every: timerInterval, on: .main, in: .common).autoconnect()
+    // Stored once per instance — avoids recreating the publisher on every body evaluation.
+    private let timer: Publishers.Autoconnect<Timer.TimerPublisher>
+
+    init(
+        brightness: Int = 2,
+        shadowBrightness: Int = 2,
+        color: Color = .accentColor,
+        rotation: CGFloat = 0,
+        tileSize: CGFloat = 64,
+        pixelSize: CGFloat = 10,
+        spacing: CGFloat = 0,
+        timerInterval: Double = 0.1,
+        animationDuration: Double = 0.25,
+        pattern: [[Int]] = [[1, 2, 3, 6, 9, 8, 7, 4]]
+    ) {
+        self.brightness = brightness
+        self.shadowBrightness = shadowBrightness
+        self.color = color
+        self.rotation = rotation
+        self.tileSize = tileSize
+        self.pixelSize = pixelSize
+        self.spacing = spacing
+        self.timerInterval = timerInterval
+        self.animationDuration = animationDuration
+        self.pattern = pattern
+        self.timer = Timer.publish(every: timerInterval, on: .main, in: .common).autoconnect()
     }
 
     private var frames: [[Int]] {
@@ -51,7 +75,7 @@ struct PixelAnimation: View {
                             size: pixelSize,
                             color: color,
                             brightness: brightness,
-                            shadowBrightness: shadowBrightness
+                            shadowRadius: CGFloat(shadowBrightness) * 10
                         )
                         .rotationEffect(.degrees(rotation))
                     }
@@ -78,41 +102,14 @@ private struct PixelAnimationCell: View {
     let size: CGFloat
     let color: Color
     var brightness: Int = 2
-    var shadowBrightness: Int = 2
+    var shadowRadius: CGFloat = 20
 
     var body: some View {
-        ZStack {
-            ForEach(0..<brightness, id: \.self) { _ in
-                Rectangle()
-            }
-        }
-        .foregroundStyle(isOn ? color : .clear)
-        .frame(width: size, height: size)
-        .modifier(PixelShadowStack(
-            enabled: isOn,
-            color: color,
-            count: shadowBrightness
-        ))
-    }
-}
-
-// MARK: - PixelShadowStack
-
-private struct PixelShadowStack: ViewModifier {
-    let enabled: Bool
-    let color: Color
-    let count: Int
-
-    func body(content: Content) -> some View {
-        content
-            .overlay {
-                ForEach(0..<count, id: \.self) { _ in
-                    content.shadow(
-                        color: enabled ? color : .clear,
-                        radius: 10, x: 0, y: 0
-                    )
-                }
-            }
+        Rectangle()
+            .foregroundStyle(isOn ? color : .clear)
+            .frame(width: size, height: size)
+            .opacity(isOn ? Double(brightness) / 3.0 + 0.34 : 0)
+            .shadow(color: isOn ? color : .clear, radius: shadowRadius)
     }
 }
 
@@ -165,7 +162,7 @@ extension PixelAnimation {
     }
 
     /// Generic loading: frame rotation pattern (unlock screen).
-    /// Trail effect: animationDuration (0.3s) > timerInterval (0.1s) → ~3 cells visible at once,
+    /// Trail effect: animationDuration (0.3s) > timerInterval (0.1s) -> ~3 cells visible at once,
     /// matching the Dynamic Island's LivePixelGrid explicit trail computation.
     static func loading(size: CGFloat = 60) -> PixelAnimation {
         let scale = size / 80
