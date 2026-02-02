@@ -27,6 +27,7 @@ final class BackgroundShareTransferManager {
 
     private var targetProgress: Int = 0
     private var displayProgress: Int = 0
+    private var animationStep: Int = 0
     private var currentMessage: String = ""
     private var progressTimer: Timer?
 
@@ -398,6 +399,7 @@ final class BackgroundShareTransferManager {
     private func startProgressTimer() {
         targetProgress = 0
         displayProgress = 0
+        animationStep = 0
         currentMessage = "Starting..."
         stopProgressTimer()
 
@@ -414,6 +416,7 @@ final class BackgroundShareTransferManager {
     }
 
     private func progressTimerTick() {
+        animationStep += 1
         displayProgress = targetProgress
         status = .uploading(progress: displayProgress, total: 100)
 
@@ -422,7 +425,8 @@ final class BackgroundShareTransferManager {
             total: 100,
             message: currentMessage,
             isComplete: false,
-            isFailed: false
+            isFailed: false,
+            animationStep: animationStep
         )
         Task { await currentActivity?.update(.init(state: state, staleDate: nil)) }
     }

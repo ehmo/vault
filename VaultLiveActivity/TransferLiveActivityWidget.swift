@@ -16,6 +16,7 @@ struct TransferLiveActivityWidget: Widget {
                 DynamicIslandExpandedRegion(.leading) {
                     LivePixelGrid(
                         transferType: context.attributes.transferType,
+                        animationStep: context.state.animationStep,
                         size: 36,
                         pixelSize: 8,
                         spacing: 2
@@ -57,6 +58,7 @@ struct TransferLiveActivityWidget: Widget {
             } compactLeading: {
                 LivePixelGrid(
                     transferType: context.attributes.transferType,
+                    animationStep: context.state.animationStep,
                     size: 20,
                     pixelSize: 4.5,
                     spacing: 1
@@ -81,6 +83,7 @@ struct TransferLiveActivityWidget: Widget {
             } minimal: {
                 LivePixelGrid(
                     transferType: context.attributes.transferType,
+                    animationStep: context.state.animationStep,
                     size: 16,
                     pixelSize: 3.5,
                     spacing: 0.5
@@ -96,6 +99,7 @@ struct TransferLiveActivityWidget: Widget {
         HStack(spacing: 12) {
             LivePixelGrid(
                 transferType: context.attributes.transferType,
+                animationStep: context.state.animationStep,
                 size: 36,
                 pixelSize: 8,
                 spacing: 2
