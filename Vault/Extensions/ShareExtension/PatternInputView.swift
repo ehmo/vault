@@ -266,11 +266,16 @@ final class PatternInputView: UIView {
     private func playConfirmationAnimation(completion: @escaping () -> Void) {
         isAnimating = true
 
-        // Turn lines and all selected nodes green immediately
+        // Turn lines and all selected nodes green immediately.
+        // Use performWithoutAnimation to cancel any in-flight color
+        // animations from handleTouch that would override the green.
         let confirmColor = UIColor.systemGreen
         lineLayer.strokeColor = confirmColor.cgColor
-        for nodeIndex in selectedNodes {
-            nodeViews[nodeIndex].backgroundColor = confirmColor
+        UIView.performWithoutAnimation {
+            for nodeIndex in selectedNodes {
+                nodeViews[nodeIndex].layer.removeAllAnimations()
+                nodeViews[nodeIndex].backgroundColor = confirmColor
+            }
         }
 
         let impactGenerator = UIImpactFeedbackGenerator(style: .light)
