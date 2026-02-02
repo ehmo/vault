@@ -201,6 +201,9 @@ struct VaultSettingsView: View {
         .task {
             loadVaultStatistics()
         }
+        .onChange(of: showingShareVault) { _, isShowing in
+            if !isShowing { loadVaultStatistics() }
+        }
         .premiumPaywall(isPresented: $showingPaywall)
     }
 
@@ -619,9 +622,17 @@ struct ChangePatternView: View {
             patternState.reset()
             return
         }
-        
+
+        // Validate pattern structure first
+        let validation = PatternValidator.shared.validate(pattern, gridSize: patternState.gridSize)
+        if !validation.isValid {
+            errorMessage = validation.errors.first?.message ?? "Invalid pattern"
+            patternState.reset()
+            return
+        }
+
         isProcessing = true
-        
+
         Task {
             do {
                 // Derive key from entered pattern and check if it matches current key
@@ -714,6 +725,13 @@ struct ChangePatternView: View {
     }
     
     private func confirmNewPattern(_ pattern: [Int]) {
+        let validation = PatternValidator.shared.validate(pattern, gridSize: patternState.gridSize)
+        if !validation.isValid {
+            errorMessage = validation.errors.first?.message ?? "Invalid pattern"
+            patternState.reset()
+            return
+        }
+
         if pattern == newPattern {
             #if DEBUG
             print("✅ [ChangePattern] Patterns match - updating vault")
@@ -817,7 +835,8 @@ struct CustomRecoveryPhraseInputView: View {
     @State private var isProcessing = false
     @State private var errorMessage: String?
     @State private var showSuccess = false
-    
+    @State private var showSaveConfirmation = false
+
     var body: some View {
         NavigationStack {
             Group {
@@ -943,28 +962,43 @@ struct CustomRecoveryPhraseInputView: View {
     private var successView: some View {
         VStack(spacing: 24) {
             Spacer()
-            
+
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 64))
                 .foregroundStyle(.green)
-            
+
             Text("Custom Phrase Set!")
                 .font(.title2)
                 .fontWeight(.semibold)
-            
+
             Text("Your custom recovery phrase has been saved. Make sure to write it down in a safe place.")
                 .font(.subheadline)
                 .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
-            
+
+            PhraseDisplayCard(phrase: customPhrase.trimmingCharacters(in: .whitespacesAndNewlines))
+                .padding(.horizontal)
+
+            PhraseActionButtons(phrase: customPhrase.trimmingCharacters(in: .whitespacesAndNewlines))
+                .padding(.horizontal)
+
             Spacer()
-            
-            Button("Done") {
-                dismiss()
+
+            Button(action: { showSaveConfirmation = true }) {
+                Text("I've saved it")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding()
             }
             .vaultProminentButtonStyle()
             .padding()
+            .alert("Are you sure?", isPresented: $showSaveConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Yes, I've saved it") { dismiss() }
+            } message: {
+                Text("This recovery phrase will NEVER be shown again. Make sure you've written it down and stored it safely.")
+            }
         }
     }
 

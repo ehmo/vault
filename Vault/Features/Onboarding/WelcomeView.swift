@@ -2,14 +2,12 @@ import SwiftUI
 
 struct WelcomeView: View {
     let onContinue: () -> Void
-    var onSkip: (() -> Void)?
 
     @State private var animateIcon = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            ScrollView {
+        ScrollView {
                 VStack(spacing: 32) {
                     Spacer().frame(height: 20)
 
@@ -82,22 +80,9 @@ struct WelcomeView: View {
                     .padding(.bottom, 40)
                 }
             }
-
-            // Skip button
-            if let onSkip {
-                Button(action: onSkip) {
-                    Text("Skip")
-                        .font(.subheadline)
-                        .foregroundStyle(.vaultSecondaryText)
-                        .frame(minWidth: 44, minHeight: 44)
-                }
-                .padding(.trailing, 20)
-                .padding(.top, 8)
-            }
-        }
     }
 }
 
 #Preview {
-    WelcomeView(onContinue: {}, onSkip: {})
+    WelcomeView(onContinue: {})
 }

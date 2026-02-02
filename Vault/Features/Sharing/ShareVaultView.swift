@@ -23,9 +23,12 @@ struct ShareVaultView: View {
     @State private var maxOpens: Int?
     @State private var hasMaxOpens = false
     @State private var allowDownloads = true
-    @State private var copiedToClipboard = false
     @State private var isStopping = false
     @State private var estimatedUploadSize: Int?
+    @State private var useCustomPhrase = false
+    @State private var customPhrase = ""
+    @State private var customPhraseValidation: RecoveryPhraseGenerator.PhraseValidation?
+    @State private var uploadStatus: BackgroundShareTransferManager.TransferStatus = .idle
 
     // Active shares data
     @State private var activeShares: [VaultStorage.ShareRecord] = []
@@ -47,6 +50,17 @@ struct ShareVaultView: View {
 
             ScrollView {
                 VStack(spacing: 24) {
+                    // Upload progress indicator
+                    if case .uploading(let progress, let total) = uploadStatus {
+                        VaultSyncIndicator(
+                            style: .uploading,
+                            message: "Uploading shared vault...",
+                            progress: (current: progress, total: total)
+                        )
+                        .padding()
+                        .vaultGlassBackground(cornerRadius: 12)
+                    }
+
                     switch mode {
                     case .loading:
                         loadingView
@@ -70,6 +84,20 @@ struct ShareVaultView: View {
         .task {
             await initialize()
         }
+        .task {
+            // Poll upload status while view is visible
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                let newStatus = BackgroundShareTransferManager.shared.status
+                if newStatus != uploadStatus {
+                    uploadStatus = newStatus
+                    // Refresh share list when upload completes
+                    if case .uploadComplete = newStatus {
+                        await initialize()
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Initialization
@@ -86,6 +114,10 @@ struct ShareVaultView: View {
             mode = .error("No vault key available")
             return
         }
+
+        // Check for in-progress uploads
+        let transferStatus = BackgroundShareTransferManager.shared.status
+        uploadStatus = transferStatus
 
         do {
             let index = try VaultStorage.shared.loadIndex(with: key)
@@ -146,10 +178,16 @@ struct ShareVaultView: View {
                 // Expiration
                 Toggle("Set expiration date", isOn: $hasExpiration)
                 if hasExpiration {
-                    DatePicker("Expires", selection: Binding(
-                        get: { expiresAt ?? Calendar.current.date(byAdding: .month, value: 1, to: Date())! },
-                        set: { expiresAt = $0 }
-                    ), in: Date()..., displayedComponents: .date)
+                    HStack {
+                        DatePicker("Expires", selection: Binding(
+                            get: { expiresAt ?? Calendar.current.date(byAdding: .month, value: 1, to: Date())! },
+                            set: { expiresAt = $0 }
+                        ), in: Date()..., displayedComponents: .date)
+
+                        Button("Today") { expiresAt = Date() }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                    }
                 }
 
                 Divider()
@@ -199,23 +237,70 @@ struct ShareVaultView: View {
             Text("Share Phrase (one-time use)")
                 .font(.title2).fontWeight(.semibold)
 
-            phraseDisplay(phrase)
+            // Auto / Custom phrase picker
+            Picker("Phrase Type", selection: $useCustomPhrase) {
+                Text("Auto-Generated").tag(false)
+                Text("Custom Phrase").tag(true)
+            }
+            .pickerStyle(.segmented)
+
+            if useCustomPhrase {
+                ZStack(alignment: .topLeading) {
+                    TextEditor(text: $customPhrase)
+                        .autocorrectionDisabled()
+                        .onChange(of: customPhrase) { _, newValue in
+                            guard !newValue.isEmpty else { customPhraseValidation = nil; return }
+                            customPhraseValidation = RecoveryPhraseGenerator.shared.validatePhrase(newValue)
+                        }
+
+                    if customPhrase.isEmpty {
+                        Text("Type a memorable phrase with 6-9 words...")
+                            .foregroundStyle(.vaultSecondaryText.opacity(0.6))
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 8)
+                            .allowsHitTesting(false)
+                    }
+                }
+                .frame(height: 100)
+                .padding(8)
+                .background(Color.vaultSurface)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.vaultSecondaryText.opacity(0.3), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                if let validation = customPhraseValidation {
+                    HStack(spacing: 8) {
+                        Image(systemName: validation.isAcceptable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .foregroundStyle(validation.isAcceptable ? .green : .orange)
+                        Text(validation.message)
+                            .font(.caption)
+                    }
+                }
+
+                PhraseActionButtons(phrase: customPhrase.trimmingCharacters(in: .whitespacesAndNewlines))
+            } else {
+                PhraseDisplayCard(phrase: phrase)
+
+                PhraseActionButtons(phrase: phrase)
+            }
 
             // Warning
             VStack(alignment: .leading, spacing: 12) {
-                Label("One-time use", systemImage: "exclamationmark.triangle.fill")
-                    .font(.headline).foregroundStyle(.vaultHighlight)
-                Text("This phrase works once. After your recipient uses it, it will no longer work.")
-                    .font(.subheadline).foregroundStyle(.vaultSecondaryText)
+                Label("Write this down", systemImage: "pencil")
+                Label("Store it somewhere safe", systemImage: "lock")
+                Label("One-time use only", systemImage: "exclamationmark.triangle")
             }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .vaultGlassTintedBackground(tint: Color.vaultHighlight, cornerRadius: 12)
+            .font(.subheadline)
+            .foregroundStyle(.vaultSecondaryText)
 
             Button("Upload Vault") {
-                startBackgroundUpload(phrase: phrase)
+                let uploadPhrase = useCustomPhrase ? customPhrase.trimmingCharacters(in: .whitespacesAndNewlines) : phrase
+                startBackgroundUpload(phrase: uploadPhrase)
             }
             .vaultProminentButtonStyle()
+            .disabled(useCustomPhrase && !(customPhraseValidation?.isAcceptable ?? false))
         }
     }
 
@@ -232,7 +317,9 @@ struct ShareVaultView: View {
                 .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
 
-            phraseDisplay(phrase)
+            PhraseDisplayCard(phrase: phrase)
+
+            PhraseActionButtons(phrase: phrase)
 
             Button("Done") { dismiss() }
                 .vaultProminentButtonStyle()
@@ -348,26 +435,6 @@ struct ShareVaultView: View {
 
     // MARK: - Components
 
-    private func phraseDisplay(_ phrase: String) -> some View {
-        VStack(spacing: 12) {
-            Text(phrase)
-                .font(.system(.body, design: .serif))
-                .italic()
-                .multilineTextAlignment(.center)
-                .padding()
-                .frame(maxWidth: .infinity)
-                .vaultGlassBackground(cornerRadius: 12)
-
-            Button(action: { copyToClipboard(phrase) }) {
-                HStack {
-                    Image(systemName: copiedToClipboard ? "checkmark" : "doc.on.doc")
-                    Text(copiedToClipboard ? "Copied!" : "Copy to Clipboard")
-                }
-            }
-            .buttonStyle(.bordered)
-        }
-    }
-
     @ViewBuilder
     private var syncStatusBadge: some View {
         switch ShareSyncManager.shared.syncStatus {
@@ -425,20 +492,26 @@ struct ShareVaultView: View {
     private func revokeShare(_ share: VaultStorage.ShareRecord) async {
         guard let key = appState.currentVaultKey else { return }
 
-        do {
-            try await CloudKitSharingManager.shared.revokeShare(shareVaultId: share.id)
+        // Update local state first for instant UI response
+        activeShares.removeAll { $0.id == share.id }
+        if activeShares.isEmpty {
+            mode = .newShare
+        }
 
-            // Remove from index
+        do {
+            // Persist to index
             var index = try VaultStorage.shared.loadIndex(with: key)
             index.activeShares?.removeAll { $0.id == share.id }
             try VaultStorage.shared.saveIndex(index, with: key)
-
-            activeShares = index.activeShares ?? []
-            if activeShares.isEmpty {
-                mode = .newShare
-            }
         } catch {
-            mode = .error("Failed to revoke: \(error.localizedDescription)")
+            #if DEBUG
+            print("[ShareVault] Failed to update index after revoke: \(error)")
+            #endif
+        }
+
+        // Delete from CloudKit in background (fire-and-forget)
+        Task {
+            try? await CloudKitSharingManager.shared.revokeShare(shareVaultId: share.id)
         }
     }
 
@@ -469,15 +542,6 @@ struct ShareVaultView: View {
     }
 
     // MARK: - Helpers
-
-    private func copyToClipboard(_ text: String) {
-        UIPasteboard.general.string = text
-        copiedToClipboard = true
-        Task {
-            try? await Task.sleep(for: .seconds(2))
-            copiedToClipboard = false
-        }
-    }
 
     private static let byteCountFormatter: ByteCountFormatter = {
         let formatter = ByteCountFormatter()

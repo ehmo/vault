@@ -28,6 +28,7 @@
 		021000003 /* AsyncThumbnailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000002 /* AsyncThumbnailView.swift */; };
 		022000001 /* PixelAnimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000000 /* PixelAnimation.swift */; };
 		022000003 /* VaultSyncIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000002 /* VaultSyncIndicator.swift */; };
+		022000005 /* PhraseActionButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000004 /* PhraseActionButtons.swift */; };
 		021000005 /* PhotosGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000004 /* PhotosGridView.swift */; };
 		021000007 /* FilesGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000006 /* FilesGridView.swift */; };
 		021000009 /* FullScreenPhotoViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000008 /* FullScreenPhotoViewer.swift */; };
@@ -129,6 +130,7 @@
 		021000002 /* AsyncThumbnailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncThumbnailView.swift; sourceTree = "<group>"; };
 		022000000 /* PixelAnimation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelAnimation.swift; sourceTree = "<group>"; };
 		022000002 /* VaultSyncIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultSyncIndicator.swift; sourceTree = "<group>"; };
+		022000004 /* PhraseActionButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseActionButtons.swift; sourceTree = "<group>"; };
 		021000004 /* PhotosGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosGridView.swift; sourceTree = "<group>"; };
 		021000006 /* FilesGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesGridView.swift; sourceTree = "<group>"; };
 		021000008 /* FullScreenPhotoViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullScreenPhotoViewer.swift; sourceTree = "<group>"; };
@@ -437,6 +439,7 @@
 				022000000 /* PixelAnimation.swift */,
 				010000002 /* SecureTextField.swift */,
 				022000002 /* VaultSyncIndicator.swift */,
+				022000004 /* PhraseActionButtons.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -637,6 +640,7 @@
 				021000003 /* AsyncThumbnailView.swift in Sources */,
 				022000001 /* PixelAnimation.swift in Sources */,
 				022000003 /* VaultSyncIndicator.swift in Sources */,
+				022000005 /* PhraseActionButtons.swift in Sources */,
 				021000005 /* PhotosGridView.swift in Sources */,
 				021000007 /* FilesGridView.swift in Sources */,
 				021000009 /* FullScreenPhotoViewer.swift in Sources */,

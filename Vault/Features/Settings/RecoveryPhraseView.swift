@@ -6,14 +6,13 @@ struct RecoveryPhraseView: View {
     @Environment(AppState.self) private var appState
 
     @State private var phrase: String = ""
-    @State private var isRevealed = false
-    @State private var showingCopiedAlert = false
     @State private var errorMessage: String?
+    @State private var showSaveConfirmation = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                // Error message if any
+                // Error or warning banner
                 if let errorMessage = errorMessage {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
@@ -26,7 +25,6 @@ struct RecoveryPhraseView: View {
                     .background(Color.vaultHighlight.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 } else {
-                    // Warning
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.vaultHighlight)
@@ -40,38 +38,10 @@ struct RecoveryPhraseView: View {
                 }
 
                 // Phrase display
-                VStack(spacing: 12) {
-                    if isRevealed {
-                        Text(phrase)
-                            .font(.title3)
-                            .fontWeight(.medium)
-                            .multilineTextAlignment(.center)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color.vaultSurface)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                if !phrase.isEmpty {
+                    PhraseDisplayCard(phrase: phrase)
 
-                        Button(action: copyPhrase) {
-                            Label("Copy to Clipboard", systemImage: "doc.on.doc")
-                        }
-                        .buttonStyle(.bordered)
-                    } else {
-                        Button(action: revealPhrase) {
-                            VStack(spacing: 8) {
-                                Image(systemName: "eye.fill")
-                                    .font(.title)
-                                Text("Tap to reveal")
-                                    .font(.subheadline)
-                            }
-                            .foregroundStyle(.vaultSecondaryText)
-                            .padding(40)
-                            .frame(maxWidth: .infinity)
-                            .background(Color.vaultSurface)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-                        .accessibilityLabel("Reveal recovery phrase")
-                        .accessibilityHint("Tap to show your recovery phrase")
-                    }
+                    PhraseActionButtons(phrase: phrase)
                 }
 
                 Spacer()
@@ -84,92 +54,68 @@ struct RecoveryPhraseView: View {
                 }
                 .font(.subheadline)
                 .foregroundStyle(.vaultSecondaryText)
+
+                // "I've saved it" button with confirmation
+                Button(action: { showSaveConfirmation = true }) {
+                    Text("I've saved it")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                }
+                .vaultProminentButtonStyle()
+                .alert("Are you sure?", isPresented: $showSaveConfirmation) {
+                    Button("Cancel", role: .cancel) { }
+                    Button("Yes, I've saved it") { dismiss() }
+                } message: {
+                    Text("This recovery phrase will NEVER be shown again. Make sure you've written it down and stored it safely.")
+                }
             }
             .padding()
             .navigationTitle("Recovery Phrase")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
         }
         .task {
             generateOrLoadPhrase()
         }
-        .alert("Copied!", isPresented: $showingCopiedAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("Recovery phrase copied to clipboard. Clear your clipboard after use.")
-        }
     }
 
     private func generateOrLoadPhrase() {
-        // Load the saved recovery phrase for the current vault
         guard let currentKey = appState.currentVaultKey else {
             errorMessage = "No vault key available"
             return
         }
-        
+
         Task {
             do {
-                // Load the recovery phrase from the manager
                 if let loadedPhrase = try await RecoveryPhraseManager.shared.loadRecoveryPhrase(for: currentKey) {
                     await MainActor.run {
                         phrase = loadedPhrase
                     }
                 } else {
                     #if DEBUG
-                    print("⚠️ [RecoveryPhraseView] No recovery phrase found - generating one now")
+                    print("[RecoveryPhraseView] No recovery phrase found - generating one now")
                     #endif
-                    
-                    // Generate and save a recovery phrase if one doesn't exist
-                    // This handles the edge case where a vault was created without a recovery phrase
+
                     let newPhrase = RecoveryPhraseGenerator.shared.generatePhrase()
-                    
-                    // We need the pattern to save it, but we don't have it
-                    // So we save with an empty pattern array (the phrase alone is enough for recovery)
+
                     try await RecoveryPhraseManager.shared.saveRecoveryPhrase(
                         phrase: newPhrase,
-                        pattern: [], // Empty pattern since we don't know what it is
-                        gridSize: 5, // Default grid size
+                        pattern: [],
+                        gridSize: 5,
                         patternKey: currentKey
                     )
-                    
+
                     await MainActor.run {
                         phrase = newPhrase
                     }
-                    
-                    #if DEBUG
-                    print("✅ [RecoveryPhraseView] New recovery phrase generated and saved: \(newPhrase)")
-                    #endif
                 }
             } catch {
                 #if DEBUG
-                print("❌ [RecoveryPhraseView] Error loading phrase: \(error)")
+                print("[RecoveryPhraseView] Error loading phrase: \(error)")
                 #endif
                 await MainActor.run {
                     errorMessage = "Failed to load recovery phrase: \(error.localizedDescription)"
                 }
-            }
-        }
-    }
-
-    private func revealPhrase() {
-        withAnimation {
-            isRevealed = true
-        }
-    }
-
-    private func copyPhrase() {
-        UIPasteboard.general.string = phrase
-        showingCopiedAlert = true
-
-        // Clear clipboard after 60 seconds
-        Task {
-            try? await Task.sleep(for: .seconds(60))
-            if UIPasteboard.general.string == phrase {
-                UIPasteboard.general.string = ""
             }
         }
     }

@@ -117,13 +117,14 @@ final class SentryManager: @unchecked Sendable {
     }
 
     // MARK: - Convenience: Transactions & Spans
-    // Sentry SDK APIs below are all thread-safe — no main-thread dispatch needed.
+    // Sentry SDK APIs are thread-safe. Removed @MainActor to allow calling from any isolation context.
+    // The UIWindow.screen runtime warning from Sentry internals is cosmetic and does not cause issues.
 
-    func startTransaction(name: String, operation: String) -> Span {
+    nonisolated func startTransaction(name: String, operation: String) -> Span {
         SentrySDK.startTransaction(name: name, operation: operation)
     }
 
-    func startSpan(parent: Span, operation: String, description: String) -> Span {
+    nonisolated func startSpan(parent: Span, operation: String, description: String) -> Span {
         parent.startChild(operation: operation, description: description)
     }
 

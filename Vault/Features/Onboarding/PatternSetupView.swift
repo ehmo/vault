@@ -198,17 +198,14 @@ struct PatternSetupView: View {
                         }
                     }
                     .frame(height: 20)
+                    PhraseActionButtons(phrase: customPhrase.trimmingCharacters(in: .whitespacesAndNewlines))
                 } else {
-                    Text(generatedPhrase)
-                        .font(.title3)
-                        .fontWeight(.medium)
-                        .multilineTextAlignment(.center)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .vaultGlassBackground(cornerRadius: 12)
+                    PhraseDisplayCard(phrase: generatedPhrase)
+
+                    PhraseActionButtons(phrase: generatedPhrase)
                 }
             }
-            .frame(height: 180, alignment: .top)
+            .frame(height: 220, alignment: .top)
             .padding(.horizontal)
 
             VStack(alignment: .leading, spacing: 12) {
@@ -298,7 +295,7 @@ struct PatternSetupView: View {
                 Button(action: {
                     showSaveConfirmation = true
                 }) {
-                    Text("I've Saved It")
+                    Text("I've saved it")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -307,7 +304,7 @@ struct PatternSetupView: View {
                 .disabled(useCustomPhrase && !(customPhraseValidation?.isAcceptable ?? false))
                 .alert("Are you sure?", isPresented: $showSaveConfirmation) {
                     Button("Cancel", role: .cancel) { }
-                    Button("Yes, I've Saved It") {
+                    Button("Yes, I've saved it") {
                         if useCustomPhrase {
                             if let validation = customPhraseValidation, validation.isAcceptable {
                                 saveCustomRecoveryPhrase()
@@ -317,7 +314,7 @@ struct PatternSetupView: View {
                         }
                     }
                 } message: {
-                    Text("This recovery phrase will never be shown again. Make sure you've written it down and stored it safely.")
+                    Text("This recovery phrase will NEVER be shown again. Make sure you've written it down and stored it safely.")
                 }
 
             case .complete:

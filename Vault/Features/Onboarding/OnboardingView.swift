@@ -11,8 +11,7 @@ struct OnboardingView: View {
             switch currentStep {
             case 0:
                 WelcomeView(
-                    onContinue: { currentStep = 1 },
-                    onSkip: { currentStep = 2 }
+                    onContinue: { currentStep = 1 }
                 )
             case 1:
                 AnalyticsConsentView(
