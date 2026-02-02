@@ -14,11 +14,15 @@ final class KeyDerivation {
     // MARK: - Key Derivation from Pattern
 
     static nonisolated func deriveKey(from pattern: [Int], gridSize: Int = 5) async throws -> Data {
+        #if !EXTENSION
         let span = SentryManager.shared.startTransaction(name: "crypto.pbkdf2", operation: "crypto.pbkdf2")
         span.setTag(value: "600000", key: "iterations")
+        #endif
 
         guard pattern.count >= 6 else {
+            #if !EXTENSION
             span.finish(status: .invalidArgument)
+            #endif
             throw KeyDerivationError.invalidPattern
         }
 
@@ -30,8 +34,10 @@ final class KeyDerivation {
         do {
             salt = try await SecureEnclaveManager.shared.getDeviceSalt()
         } catch {
+            #if !EXTENSION
             SentryManager.shared.captureError(error)
             span.finish(status: .internalError)
+            #endif
             throw error
         }
 
@@ -45,17 +51,22 @@ final class KeyDerivation {
                 iterations: 600_000, // High iteration count for security
                 keyLength: 32
             )
+            #if !EXTENSION
             span.finish(status: .ok)
+            #endif
             return derivedKey
         } catch {
+            #if !EXTENSION
             SentryManager.shared.captureError(error)
             span.finish(status: .internalError)
+            #endif
             throw error
         }
     }
 
     // MARK: - Key Derivation from Recovery Phrase
 
+    #if !EXTENSION
     static nonisolated func deriveKey(from recoveryPhrase: String) throws -> Data {
         let span = SentryManager.shared.startTransaction(name: "crypto.pbkdf2_recovery", operation: "crypto.pbkdf2_recovery")
         span.setTag(value: "800000", key: "iterations")
@@ -98,6 +109,7 @@ final class KeyDerivation {
             throw error
         }
     }
+    #endif
 
     // MARK: - PBKDF2 Implementation
 
@@ -143,6 +155,7 @@ final class KeyDerivation {
 
     // MARK: - Share Key Derivation (Device-Independent)
 
+    #if !EXTENSION
     /// Derives a share key from a share phrase.
     /// Unlike pattern-based keys, share keys use a fixed salt so they can be
     /// derived identically on any device with the same phrase.
@@ -190,8 +203,8 @@ final class KeyDerivation {
             .filter { !$0.isEmpty }
             .joined(separator: " ")
     }
+    #endif
 }
 
 // CommonCrypto bridge
 import CommonCrypto
-

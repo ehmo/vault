@@ -1,12 +1,23 @@
 import UIKit
 import UniformTypeIdentifiers
+import CommonCrypto
+import CryptoKit
+import UserNotifications
 
-/// Share Extension that allows importing files from other apps into Vault.
-/// IMPORTANT: This extension requires pattern authentication before accepting files.
-class ShareViewController: UIViewController {
+/// Share Extension that encrypts files from other apps and stages them for
+/// import into Vaultaire. The user draws their vault pattern to select the
+/// target vault; the extension derives the same key as the main app and
+/// encrypts all attachments into the app-group pending_imports/ directory.
+final class ShareViewController: UIViewController {
 
-    private var patternState = PatternInputState()
+    // MARK: - State
+
     private var receivedItems: [NSExtensionItem] = []
+    private var patternView: PatternInputView!
+    private var titleLabel: UILabel!
+    private var statusLabel: UILabel!
+    private var progressView: UIProgressView!
+    private var cancelButton: UIButton!
 
     // MARK: - Lifecycle
 
@@ -21,45 +32,64 @@ class ShareViewController: UIViewController {
     private func setupUI() {
         view.backgroundColor = .systemBackground
 
-        let patternView = PatternInputView(frame: .zero)
-        patternView.translatesAutoresizingMaskIntoConstraints = false
-        patternView.delegate = self
-        view.addSubview(patternView)
-
-        let titleLabel = UILabel()
+        titleLabel = UILabel()
         titleLabel.text = "Draw pattern to add to Vaultaire"
         titleLabel.textAlignment = .center
         titleLabel.font = .preferredFont(forTextStyle: .headline)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleLabel)
 
-        let cancelButton = UIButton(type: .system)
+        patternView = PatternInputView(frame: .zero)
+        patternView.delegate = self
+        patternView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(patternView)
+
+        statusLabel = UILabel()
+        statusLabel.textAlignment = .center
+        statusLabel.font = .preferredFont(forTextStyle: .subheadline)
+        statusLabel.textColor = .secondaryLabel
+        statusLabel.isHidden = true
+        statusLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(statusLabel)
+
+        progressView = UIProgressView(progressViewStyle: .default)
+        progressView.isHidden = true
+        progressView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(progressView)
+
+        cancelButton = UIButton(type: .system)
         cancelButton.setTitle("Cancel", for: .normal)
         cancelButton.addTarget(self, action: #selector(cancelTapped), for: .touchUpInside)
         cancelButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(cancelButton)
 
         NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 32),
             titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             titleLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
 
             patternView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            patternView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            patternView.widthAnchor.constraint(equalToConstant: 280),
-            patternView.heightAnchor.constraint(equalToConstant: 280),
+            patternView.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -20),
+            patternView.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.8),
+            patternView.heightAnchor.constraint(equalTo: patternView.widthAnchor),
+
+            statusLabel.topAnchor.constraint(equalTo: patternView.bottomAnchor, constant: 24),
+            statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            statusLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+
+            progressView.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 12),
+            progressView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 40),
+            progressView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -40),
 
             cancelButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
-            cancelButton.centerXAnchor.constraint(equalTo: view.centerXAnchor)
+            cancelButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
         ])
     }
 
     // MARK: - Load Shared Items
 
     private func loadSharedItems() {
-        guard let extensionItems = extensionContext?.inputItems as? [NSExtensionItem] else {
-            return
-        }
+        guard let extensionItems = extensionContext?.inputItems as? [NSExtensionItem] else { return }
         receivedItems = extensionItems
     }
 
@@ -69,314 +99,277 @@ class ShareViewController: UIViewController {
         extensionContext?.cancelRequest(withError: NSError(domain: "app.vaultaire.ios", code: 0))
     }
 
-    private func completeWithSuccess() {
-        extensionContext?.completeRequest(returningItems: nil)
-    }
-
     // MARK: - Process Shared Content
 
     private func processSharedContent(with key: Data) {
-        for item in receivedItems {
-            guard let attachments = item.attachments else { continue }
+        patternView.isUserInteractionEnabled = false
+        cancelButton.isHidden = true
+        titleLabel.text = "Encrypting..."
+        statusLabel.isHidden = false
+        progressView.isHidden = false
+        progressView.progress = 0
 
-            for attachment in attachments {
-                processAttachment(attachment, with: key)
-            }
-        }
-    }
-
-    private func processAttachment(_ attachment: NSItemProvider, with key: Data) {
-        // Try to load as image
-        if attachment.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
-            attachment.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { [weak self] data, error in
-                guard let data = data, error == nil else { return }
-                self?.saveToVault(data: data, filename: "IMG_\(Date().timeIntervalSince1970).jpg", mimeType: "image/jpeg", key: key)
-            }
-            return
-        }
-
-        // Try to load as video
-        if attachment.hasItemConformingToTypeIdentifier(UTType.movie.identifier) {
-            attachment.loadFileRepresentation(forTypeIdentifier: UTType.movie.identifier) { [weak self] url, error in
-                guard let url = url, error == nil,
-                      let data = try? Data(contentsOf: url) else { return }
-                self?.saveToVault(data: data, filename: url.lastPathComponent, mimeType: "video/quicktime", key: key)
-            }
-            return
-        }
-
-        // Try to load as generic data
-        if attachment.hasItemConformingToTypeIdentifier(UTType.data.identifier) {
-            attachment.loadDataRepresentation(forTypeIdentifier: UTType.data.identifier) { [weak self] data, error in
-                guard let data = data, error == nil else { return }
-                self?.saveToVault(data: data, filename: "file_\(Date().timeIntervalSince1970)", mimeType: "application/octet-stream", key: key)
-            }
-        }
-    }
-
-    private func saveToVault(data: Data, filename: String, mimeType: String, key: Data) {
-        // Save to App Group shared container for main app to process
-        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.app.vaultaire.ios") else {
-            return
-        }
-
-        let pendingDir = containerURL.appendingPathComponent("pending_imports")
-        try? FileManager.default.createDirectory(at: pendingDir, withIntermediateDirectories: true)
-
-        // Encrypt the data before saving
-        guard let encrypted = try? CryptoEngineShared.encrypt(data, with: key) else {
-            return
-        }
-
-        // Create metadata
-        let metadata = ImportMetadata(
-            filename: filename,
-            mimeType: mimeType,
-            originalSize: data.count,
-            timestamp: Date()
-        )
-
-        // Save encrypted file
-        let fileId = UUID().uuidString
-        let encryptedURL = pendingDir.appendingPathComponent("\(fileId).encrypted")
-        let metadataURL = pendingDir.appendingPathComponent("\(fileId).meta")
-
-        try? encrypted.write(to: encryptedURL)
-        try? JSONEncoder().encode(metadata).write(to: metadataURL)
-
-        DispatchQueue.main.async {
-            self.completeWithSuccess()
-        }
-    }
-}
-
-// MARK: - Pattern Input State
-
-class PatternInputState {
-    var selectedNodes: [Int] = []
-    var gridSize: Int = 4
-}
-
-// MARK: - Pattern Input View (UIKit version for extension)
-
-class PatternInputView: UIView {
-    weak var delegate: PatternInputDelegate?
-
-    private var gridSize = 4
-    private var selectedNodes: [Int] = []
-    private var nodeViews: [UIView] = []
-    private var currentPoint: CGPoint?
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        setupNodes()
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        setupNodes()
-    }
-
-    private func setupNodes() {
-        backgroundColor = .clear
-
-        let spacing: CGFloat = 70
-        let nodeRadius: CGFloat = 12
-
-        for row in 0..<gridSize {
-            for col in 0..<gridSize {
-                let x = CGFloat(col) * spacing + nodeRadius
-                let y = CGFloat(row) * spacing + nodeRadius
-
-                let nodeView = UIView()
-                nodeView.backgroundColor = .secondaryLabel
-                nodeView.layer.cornerRadius = nodeRadius
-                nodeView.frame = CGRect(x: x - nodeRadius, y: y - nodeRadius, width: nodeRadius * 2, height: nodeRadius * 2)
-                addSubview(nodeView)
-                nodeViews.append(nodeView)
-            }
-        }
-    }
-
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first else { return }
-        let point = touch.location(in: self)
-        handleTouch(at: point)
-    }
-
-    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first else { return }
-        let point = touch.location(in: self)
-        handleTouch(at: point)
-    }
-
-    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        if !selectedNodes.isEmpty {
-            delegate?.patternInputView(self, didCompleteWithPattern: selectedNodes)
-        }
-        resetPattern()
-    }
-
-    private func handleTouch(at point: CGPoint) {
-        currentPoint = point
-
-        for (index, nodeView) in nodeViews.enumerated() {
-            let center = nodeView.center
-            let distance = hypot(point.x - center.x, point.y - center.y)
-
-            if distance < 30 && !selectedNodes.contains(index) {
-                selectedNodes.append(index)
-                nodeView.backgroundColor = .systemBlue
-            }
-        }
-
-        setNeedsDisplay()
-    }
-
-    private func resetPattern() {
-        selectedNodes = []
-        for nodeView in nodeViews {
-            nodeView.backgroundColor = .secondaryLabel
-        }
-        setNeedsDisplay()
-    }
-}
-
-// MARK: - Pattern Input Delegate
-
-protocol PatternInputDelegate: AnyObject {
-    func patternInputView(_ view: PatternInputView, didCompleteWithPattern pattern: [Int])
-}
-
-extension ShareViewController: PatternInputDelegate {
-    func patternInputView(_ view: PatternInputView, didCompleteWithPattern pattern: [Int]) {
         Task {
             do {
-                let key = try await KeyDerivationShared.deriveKey(from: pattern)
-                processSharedContent(with: key)
+                try await encryptAndStage(with: key)
+                await MainActor.run { showSuccess() }
             } catch {
-                // Pattern invalid - show as accepted anyway (no error indication)
-                completeWithSuccess()
+                await MainActor.run { showError() }
             }
         }
     }
-}
 
-// MARK: - Import Metadata
-
-struct ImportMetadata: Codable {
-    let filename: String
-    let mimeType: String
-    let originalSize: Int
-    let timestamp: Date
-}
-
-// MARK: - Shared Crypto (simplified for extension)
-
-enum CryptoEngineShared {
-    static func encrypt(_ data: Data, with key: Data) throws -> Data {
-        // Simplified encryption for extension
-        // In production, would share code with main app via framework
-        guard key.count == 32 else { throw NSError(domain: "crypto", code: 1) }
-
-        // Use CommonCrypto for AES encryption
-        var outData = Data(count: data.count + 16)
-        var numBytesEncrypted: size_t = 0
-
-        // Generate IV
-        var iv = Data(count: 16)
-        _ = iv.withUnsafeMutableBytes { SecRandomCopyBytes(kSecRandomDefault, 16, $0.baseAddress!) }
-
-        let status = outData.withUnsafeMutableBytes { outPtr in
-            data.withUnsafeBytes { dataPtr in
-                key.withUnsafeBytes { keyPtr in
-                    iv.withUnsafeBytes { ivPtr in
-                        CCCrypt(
-                            CCOperation(kCCEncrypt),
-                            CCAlgorithm(kCCAlgorithmAES),
-                            CCOptions(kCCOptionPKCS7Padding),
-                            keyPtr.baseAddress, key.count,
-                            ivPtr.baseAddress,
-                            dataPtr.baseAddress, data.count,
-                            outPtr.baseAddress, outData.count,
-                            &numBytesEncrypted
-                        )
-                    }
+    private func encryptAndStage(with key: Data) async throws {
+        // Collect all attachments
+        var attachments: [(provider: NSItemProvider, utType: UTType)] = []
+        for item in receivedItems {
+            guard let providers = item.attachments else { continue }
+            for provider in providers {
+                if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+                    attachments.append((provider, .image))
+                } else if provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier) {
+                    attachments.append((provider, .movie))
+                } else if provider.hasItemConformingToTypeIdentifier(UTType.data.identifier) {
+                    attachments.append((provider, .data))
                 }
             }
         }
 
-        guard status == kCCSuccess else {
-            throw NSError(domain: "crypto", code: Int(status))
+        guard !attachments.isEmpty else {
+            throw StagedImportError.encryptionFailed
         }
 
-        outData.count = numBytesEncrypted
+        // Check free-tier limits
+        let isPremium = UserDefaults(suiteName: VaultCoreConstants.appGroupIdentifier)?
+            .bool(forKey: VaultCoreConstants.isPremiumKey) ?? false
 
-        // Prepend IV
-        var result = iv
-        result.append(outData)
-        return result
-    }
-}
+        if !isPremium {
+            let imageCount = attachments.filter { $0.utType == .image }.count
+            let videoCount = attachments.filter { $0.utType == .movie }.count
+            let fileCount = attachments.filter { $0.utType == .data }.count
 
-enum KeyDerivationShared {
-    static func deriveKey(from pattern: [Int]) async throws -> Data {
-        // Simplified key derivation for extension
-        guard pattern.count >= 6 else {
-            throw NSError(domain: "pattern", code: 1)
-        }
-
-        let patternData = Data(pattern.map { UInt8($0) })
-        var derivedKey = Data(count: 32)
-
-        // Get salt from shared keychain
-        let salt = try await getSalt()
-
-        let result = derivedKey.withUnsafeMutableBytes { derivedKeyPtr in
-            patternData.withUnsafeBytes { patternPtr in
-                salt.withUnsafeBytes { saltPtr in
-                    CCKeyDerivationPBKDF(
-                        CCPBKDFAlgorithm(kCCPBKDF2),
-                        patternPtr.baseAddress?.assumingMemoryBound(to: Int8.self),
-                        patternData.count,
-                        saltPtr.baseAddress?.assumingMemoryBound(to: UInt8.self),
-                        salt.count,
-                        CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA512),
-                        600_000,
-                        derivedKeyPtr.baseAddress?.assumingMemoryBound(to: UInt8.self),
-                        32
-                    )
-                }
+            if imageCount > VaultCoreConstants.freeMaxImages ||
+               videoCount > VaultCoreConstants.freeMaxVideos ||
+               fileCount > VaultCoreConstants.freeMaxFiles {
+                throw StagedImportError.freeTierLimitExceeded
             }
         }
 
-        guard result == kCCSuccess else {
-            throw NSError(domain: "kdf", code: Int(result))
+        // Create batch
+        let (batchURL, batchId) = try StagedImportManager.createBatch()
+        let fingerprint = KeyDerivation.keyFingerprint(from: key)
+        let total = attachments.count
+        var fileMetadata: [StagedFileMetadata] = []
+
+        for (index, attachment) in attachments.enumerated() {
+            await MainActor.run {
+                statusLabel.text = "Encrypting \(index + 1) of \(total) files..."
+                progressView.progress = Float(index) / Float(total)
+            }
+
+            let meta = try await processAttachment(
+                attachment.provider,
+                utType: attachment.utType,
+                key: key,
+                batchURL: batchURL
+            )
+            fileMetadata.append(meta)
         }
 
-        return derivedKey
+        // Write manifest LAST (atomic visibility marker)
+        let sourceApp = receivedItems.first?.attributedContentText.map { _ in
+            Bundle.main.bundleIdentifier
+        } ?? nil
+        let manifest = StagedImportManifest(
+            batchId: batchId,
+            keyFingerprint: fingerprint,
+            timestamp: Date(),
+            sourceAppBundleId: sourceApp,
+            files: fileMetadata
+        )
+        try StagedImportManager.writeManifest(manifest, to: batchURL)
+
+        // Schedule delayed local notification (5 minutes)
+        scheduleImportNotification(fileCount: total)
+
+        await MainActor.run {
+            progressView.progress = 1.0
+            statusLabel.text = "Done!"
+        }
     }
 
-    private static func getSalt() async throws -> Data {
-        // Access shared keychain
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "app.vaultaire.ios.device.salt",
-            kSecAttrAccessGroup as String: "group.app.vaultaire.ios",
-            kSecReturnData as String: true
-        ]
+    private func processAttachment(
+        _ provider: NSItemProvider,
+        utType: UTType,
+        key: Data,
+        batchURL: URL
+    ) async throws -> StagedFileMetadata {
+        let fileId = UUID()
 
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        // Load file representation (file URL, not Data — memory safe for large files)
+        let (tempURL, filename, mimeType) = try await loadFile(from: provider, utType: utType)
 
-        guard status == errSecSuccess, let data = result as? Data else {
-            // Return dummy salt if not found (will fail decryption)
-            return Data(count: 32)
+        let fileSize = (try? FileManager.default.attributesOfItem(atPath: tempURL.path)[.size] as? Int) ?? 0
+
+        // Encrypt
+        let encryptedData: Data
+        if fileSize > VaultCoreConstants.streamingThreshold {
+            encryptedData = try CryptoEngine.encryptStreaming(
+                fileURL: tempURL,
+                originalSize: fileSize,
+                with: key
+            )
+        } else {
+            let data = try Data(contentsOf: tempURL)
+            encryptedData = try CryptoEngine.encrypt(data, with: key)
         }
 
-        return data
+        try StagedImportManager.writeEncryptedFile(encryptedData, fileId: fileId, to: batchURL)
+
+        // Generate and encrypt thumbnail for images
+        var hasThumbnail = false
+        if utType.conforms(to: .image), let thumbData = generateThumbnail(from: tempURL) {
+            let encThumb = try CryptoEngine.encrypt(thumbData, with: key)
+            try StagedImportManager.writeEncryptedThumbnail(encThumb, fileId: fileId, to: batchURL)
+            hasThumbnail = true
+        }
+
+        return StagedFileMetadata(
+            fileId: fileId,
+            filename: filename,
+            mimeType: mimeType,
+            utType: utType.identifier,
+            originalSize: fileSize,
+            encryptedSize: encryptedData.count,
+            hasThumbnail: hasThumbnail,
+            timestamp: Date()
+        )
+    }
+
+    private func loadFile(
+        from provider: NSItemProvider,
+        utType: UTType
+    ) async throws -> (url: URL, filename: String, mimeType: String) {
+        return try await withCheckedThrowingContinuation { continuation in
+            provider.loadFileRepresentation(forTypeIdentifier: utType.identifier) { url, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                guard let url = url else {
+                    continuation.resume(throwing: StagedImportError.encryptionFailed)
+                    return
+                }
+
+                // Copy to a temp location since the provided URL may be deleted
+                let tempDir = FileManager.default.temporaryDirectory
+                let tempURL = tempDir.appendingPathComponent(url.lastPathComponent)
+                try? FileManager.default.removeItem(at: tempURL)
+                do {
+                    try FileManager.default.copyItem(at: url, to: tempURL)
+                } catch {
+                    continuation.resume(throwing: error)
+                    return
+                }
+
+                let filename = url.lastPathComponent
+                let mimeType = utType.preferredMIMEType ?? "application/octet-stream"
+                continuation.resume(returning: (tempURL, filename, mimeType))
+            }
+        }
+    }
+
+    private func generateThumbnail(from url: URL) -> Data? {
+        guard let image = UIImage(contentsOfFile: url.path) else { return nil }
+        let maxDimension: CGFloat = 200
+        let scale = min(maxDimension / image.size.width, maxDimension / image.size.height, 1.0)
+        let newSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        let thumbImage = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+        return thumbImage.jpegData(compressionQuality: 0.6)
+    }
+
+    // MARK: - Notification
+
+    private func scheduleImportNotification(fileCount: Int) {
+        let content = UNMutableNotificationContent()
+        content.title = "Files Ready"
+        content.body = "\(fileCount) file\(fileCount == 1 ? "" : "s") waiting to import in Vaultaire"
+        content.sound = .default
+        content.categoryIdentifier = "PENDING_IMPORT"
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 300, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "pending-import-\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    // MARK: - Completion UI
+
+    private func showSuccess() {
+        titleLabel.text = "Added to Vaultaire"
+        statusLabel.isHidden = true
+        progressView.isHidden = true
+
+        let checkmark = UIImageView(image: UIImage(systemName: "checkmark.circle.fill"))
+        checkmark.tintColor = .systemGreen
+        checkmark.contentMode = .scaleAspectFit
+        checkmark.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(checkmark)
+        NSLayoutConstraint.activate([
+            checkmark.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            checkmark.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            checkmark.widthAnchor.constraint(equalToConstant: 64),
+            checkmark.heightAnchor.constraint(equalToConstant: 64),
+        ])
+
+        patternView.isHidden = true
+
+        // Tap anywhere to dismiss early
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(dismissExtension))
+        view.addGestureRecognizer(tapGesture)
+
+        // Auto-dismiss after 2 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            self?.dismissExtension()
+        }
+    }
+
+    private func showError() {
+        titleLabel.text = "Could not add files"
+        statusLabel.text = "Please try again"
+        statusLabel.isHidden = false
+        progressView.isHidden = true
+
+        cancelButton.setTitle("Done", for: .normal)
+        cancelButton.isHidden = false
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+            self?.dismissExtension()
+        }
+    }
+
+    @objc private func dismissExtension() {
+        extensionContext?.completeRequest(returningItems: nil)
     }
 }
 
-import CommonCrypto
-import Security
+// MARK: - PatternInputDelegate
+
+extension ShareViewController: PatternInputDelegate {
+    func patternComplete(_ pattern: [Int]) {
+        Task {
+            let key = try await KeyDerivation.deriveKey(from: pattern, gridSize: VaultCoreConstants.gridSize)
+            await MainActor.run {
+                self.processSharedContent(with: key)
+            }
+        }
+    }
+}

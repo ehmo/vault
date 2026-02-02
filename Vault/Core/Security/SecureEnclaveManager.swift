@@ -19,6 +19,8 @@ final class SecureEnclaveManager {
     private let wipeCounterTag = "app.vaultaire.ios.wipe.counter"
     private let duressKeyTag = "app.vaultaire.ios.duress.key"
     private let blobCursorXORKeyTag = "app.vaultaire.ios.blob.cursor.key"
+    /// Keychain access group shared with extensions via app group entitlement
+    private let keychainAccessGroup = "group.app.vaultaire.ios"
 
     private init() {}
 
@@ -40,6 +42,7 @@ final class SecureEnclaveManager {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: saltKeyTag,
+            kSecAttrAccessGroup as String: keychainAccessGroup,
             kSecReturnData as String: true,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
@@ -65,16 +68,22 @@ final class SecureEnclaveManager {
 
         let salt = Data(saltBytes)
 
-        // Store in keychain with device-only access
+        // Store in keychain with device-only access, shared with extensions
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: saltKeyTag,
+            kSecAttrAccessGroup as String: keychainAccessGroup,
             kSecValueData as String: salt,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
 
         // Delete existing if any
-        SecItemDelete(query as CFDictionary)
+        let deleteQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: saltKeyTag,
+            kSecAttrAccessGroup as String: keychainAccessGroup
+        ]
+        SecItemDelete(deleteQuery as CFDictionary)
 
         let addStatus = SecItemAdd(query as CFDictionary, nil)
         guard addStatus == errSecSuccess else {
@@ -254,7 +263,9 @@ final class SecureEnclaveManager {
         SecItemDelete(recoveryQuery as CFDictionary)
         
         // Clear grid letter assignments (will be regenerated on next app launch)
+        #if !EXTENSION
         GridLetterManager.shared.clearLetterAssignments()
+        #endif
     }
 
     // MARK: - Secure Enclave Availability

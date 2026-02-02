@@ -82,6 +82,20 @@
 		LA0000007 /* TransferLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = LA0000006 /* TransferLiveActivityWidget.swift */; };
 		LA0000009 /* LivePixelGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = LA0000008 /* LivePixelGrid.swift */; };
 		LA000000B /* VaultLiveActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = LA000000A /* VaultLiveActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		SE0000001 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE0000000 /* ShareViewController.swift */; };
+		SE0000003 /* PatternInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE0000002 /* PatternInputView.swift */; };
+		SE0000005 /* CryptoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000000 /* CryptoEngine.swift */; };
+		SE0000007 /* KeyDerivation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000002 /* KeyDerivation.swift */; };
+		SE0000009 /* PatternSerializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000004 /* PatternSerializer.swift */; };
+		SE000000B /* SecureEnclaveManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004000000 /* SecureEnclaveManager.swift */; };
+		SE000000D /* VaultCoreConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE000000C /* VaultCoreConstants.swift */; };
+		SE000000F /* StagedImportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE000000E /* StagedImportManager.swift */; };
+		SE0000011 /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = SE0000010 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		SE0000013 /* VaultCoreConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE000000C /* VaultCoreConstants.swift */; };
+		SE0000015 /* StagedImportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE000000E /* StagedImportManager.swift */; };
+		SE0000017 /* ImportIngestor.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE0000016 /* ImportIngestor.swift */; };
+		SE0000019 /* PendingImportBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE0000018 /* PendingImportBanner.swift */; };
+		SE000001B /* ShareExtension.entitlements in Resources */ = {isa = PBXBuildFile; fileRef = SE000001A /* ShareExtension.entitlements */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -91,6 +105,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = LA0000010;
 			remoteInfo = VaultLiveActivityExtension;
+		};
+		SE0000020 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0100000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = SE0000030;
+			remoteInfo = ShareExtension;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -102,6 +123,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				LA000000B /* VaultLiveActivityExtension.appex in Embed Foundation Extensions */,
+				SE0000011 /* ShareExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -180,6 +202,15 @@
 		LA0000006 /* TransferLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferLiveActivityWidget.swift; sourceTree = "<group>"; };
 		LA0000008 /* LivePixelGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivePixelGrid.swift; sourceTree = "<group>"; };
 		LA000000A /* VaultLiveActivityExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = VaultLiveActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		SE0000000 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		SE0000002 /* PatternInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternInputView.swift; sourceTree = "<group>"; };
+		SE000000C /* VaultCoreConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultCoreConstants.swift; sourceTree = "<group>"; };
+		SE000000E /* StagedImportManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StagedImportManager.swift; sourceTree = "<group>"; };
+		SE0000010 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		SE0000016 /* ImportIngestor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportIngestor.swift; sourceTree = "<group>"; };
+		SE0000018 /* PendingImportBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingImportBanner.swift; sourceTree = "<group>"; };
+		SE000001A /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
+		SE000001C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -195,6 +226,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		LA000000F0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		SE00000F0 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -222,6 +260,7 @@
 			children = (
 				088000000000 /* Vault.app */,
 				LA000000A /* VaultLiveActivityExtension.appex */,
+				SE0000010 /* ShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -246,6 +285,7 @@
 				0100000024 /* Sharing */,
 				0100000025 /* Notifications */,
 				0100000026 /* Telemetry */,
+				SE000000C /* VaultCoreConstants.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -268,6 +308,8 @@
 				003000004 /* SecureDelete.swift */,
 				003000006 /* FileUtilities.swift */,
 				013000000 /* iCloudBackupManager.swift */,
+				SE000000E /* StagedImportManager.swift */,
+				SE0000016 /* ImportIngestor.swift */,
 			);
 			path = Storage;
 			sourceTree = "<group>";
@@ -440,6 +482,7 @@
 				010000002 /* SecureTextField.swift */,
 				022000002 /* VaultSyncIndicator.swift */,
 				022000004 /* PhraseActionButtons.swift */,
+				SE0000018 /* PendingImportBanner.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -467,6 +510,7 @@
 			children = (
 				0100000001 /* Vault */,
 				LA00000070 /* VaultLiveActivity */,
+				SE0000070 /* ShareExtension */,
 				0100000002 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -479,6 +523,17 @@
 				LA0000008 /* LivePixelGrid.swift */,
 			);
 			path = VaultLiveActivity;
+			sourceTree = "<group>";
+		};
+		SE0000070 /* ShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				SE0000000 /* ShareViewController.swift */,
+				SE0000002 /* PatternInputView.swift */,
+				SE000001A /* ShareExtension.entitlements */,
+				SE000001C /* Info.plist */,
+			);
+			path = "Vault/Extensions/ShareExtension";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -498,6 +553,7 @@
 			);
 			dependencies = (
 				LA000000D /* PBXTargetDependency */,
+				SE0000021 /* PBXTargetDependency */,
 			);
 			name = Vault;
 			packageProductDependencies = (
@@ -527,6 +583,23 @@
 			productReference = LA000000A /* VaultLiveActivityExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		SE0000030 /* ShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = SE000F000 /* Build configuration list for PBXNativeTarget "ShareExtension" */;
+			buildPhases = (
+				SE00000E0 /* Sources */,
+				SE00000F0 /* Frameworks */,
+				SE0000100 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ShareExtension;
+			productName = ShareExtension;
+			productReference = SE0000010 /* ShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -541,6 +614,9 @@
 						CreatedOnToolsVersion = 15.0;
 					};
 					LA0000010 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+					SE0000030 = {
 						CreatedOnToolsVersion = 15.0;
 					};
 				};
@@ -565,6 +641,7 @@
 			targets = (
 				0110000000 /* Vault */,
 				LA0000010 /* VaultLiveActivityExtension */,
+				SE0000030 /* ShareExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -586,6 +663,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		LA0000100 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		SE0000100 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -676,6 +760,10 @@
 				020000001 /* SubscriptionManager.swift in Sources */,
 				020000003 /* PaywallTrigger.swift in Sources */,
 				LA0000001 /* TransferActivityAttributes.swift in Sources */,
+				SE0000013 /* VaultCoreConstants.swift in Sources */,
+				SE0000015 /* StagedImportManager.swift in Sources */,
+				SE0000017 /* ImportIngestor.swift in Sources */,
+				SE0000019 /* PendingImportBanner.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -690,6 +778,21 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		SE00000E0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				SE0000001 /* ShareViewController.swift in Sources */,
+				SE0000003 /* PatternInputView.swift in Sources */,
+				SE0000005 /* CryptoEngine.swift in Sources */,
+				SE0000007 /* KeyDerivation.swift in Sources */,
+				SE0000009 /* PatternSerializer.swift in Sources */,
+				SE000000B /* SecureEnclaveManager.swift in Sources */,
+				SE000000D /* VaultCoreConstants.swift in Sources */,
+				SE000000F /* StagedImportManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -697,6 +800,11 @@
 			isa = PBXTargetDependency;
 			target = LA0000010 /* VaultLiveActivityExtension */;
 			targetProxy = LA000000C /* PBXContainerItemProxy */;
+		};
+		SE0000021 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = SE0000030 /* ShareExtension */;
+			targetProxy = SE0000020 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -960,6 +1068,66 @@
 			};
 			name = Release;
 		};
+		SE000F001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "Vault/Extensions/ShareExtension/ShareExtension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = UFV835UGV6;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Vault/Extensions/ShareExtension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Add to Vaultaire";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "EXTENSION $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		SE000F002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "Vault/Extensions/ShareExtension/ShareExtension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = UFV835UGV6;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Vault/Extensions/ShareExtension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Add to Vaultaire";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = EXTENSION;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -986,6 +1154,15 @@
 			buildConfigurations = (
 				LA000F001 /* Debug */,
 				LA000F002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		SE000F000 /* Build configuration list for PBXNativeTarget "ShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				SE000F001 /* Debug */,
+				SE000F002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

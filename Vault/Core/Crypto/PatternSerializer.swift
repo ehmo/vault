@@ -8,7 +8,7 @@ struct PatternSerializer {
     /// Serializes a pattern into bytes for key derivation.
     /// Pattern is a sequence of node indices (0-15 for 4x4 grid).
     /// Also encodes direction changes for additional entropy.
-    static func serialize(_ pattern: [Int], gridSize: Int = 4) -> Data {
+    static func serialize(_ pattern: [Int], gridSize: Int = 5) -> Data {
         guard !pattern.isEmpty else { return Data() }
 
         var data = Data()
@@ -49,8 +49,8 @@ struct PatternSerializer {
         case same = 8 // Should not happen in valid patterns
     }
 
-    /// Compute direction from one node to another on a 4x4 grid
-    static func computeDirection(from: Int, to: Int, gridSize: Int = 4) -> Direction {
+    /// Compute direction from one node to another on the grid
+    static func computeDirection(from: Int, to: Int, gridSize: Int = 5) -> Direction {
         let fromRow = from / gridSize
         let fromCol = from % gridSize
         let toRow = to / gridSize
@@ -92,7 +92,7 @@ struct PatternSerializer {
         }
     }
 
-    static func analyzePattern(_ pattern: [Int], gridSize: Int = 4) -> PatternMetrics {
+    static func analyzePattern(_ pattern: [Int], gridSize: Int = 5) -> PatternMetrics {
         let corners = [0, gridSize - 1, gridSize * (gridSize - 1), gridSize * gridSize - 1]
         let centerNodes = computeCenterNodes(gridSize: gridSize)
 

@@ -26,6 +26,8 @@ final class AppState {
     var isSharedVault = false
     var screenshotDetected = false
     private(set) var vaultName: String = "Vault"
+    var pendingImportCount = 0
+    var hasPendingImports = false
 
     init() {
         checkFirstLaunch()
@@ -101,6 +103,14 @@ final class AppState {
             }
             indexSpan.finish()
 
+            // Check for pending imports from share extension
+            let fingerprint = KeyDerivation.keyFingerprint(from: key)
+            let pending = StagedImportManager.pendingBatches(for: fingerprint)
+            if !pending.isEmpty {
+                pendingImportCount = pending.reduce(0) { $0 + $1.files.count }
+                hasPendingImports = true
+            }
+
             transaction.finish(status: .ok)
 
             #if DEBUG
@@ -145,6 +155,8 @@ final class AppState {
         isUnlocked = false
         isSharedVault = false
         screenshotDetected = false
+        pendingImportCount = 0
+        hasPendingImports = false
 
         #if DEBUG
         print("🔒 [AppState] After lock - currentVaultKey: nil, isUnlocked: false")

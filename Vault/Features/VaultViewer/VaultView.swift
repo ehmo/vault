@@ -157,8 +157,15 @@ struct VaultView: View {
                 }
             }
             .safeAreaInset(edge: .top) {
-                if isSharedVault {
-                    sharedVaultBanner
+                VStack(spacing: 8) {
+                    if isSharedVault {
+                        sharedVaultBanner
+                    }
+                    if appState.hasPendingImports {
+                        PendingImportBanner(fileCount: appState.pendingImportCount) {
+                            importPendingFiles()
+                        }
+                    }
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -585,6 +592,22 @@ struct VaultView: View {
         // File listing runs off main thread; shared vault check can run concurrently
         loadFiles()
         checkSharedVaultStatus()
+    }
+
+    private func importPendingFiles() {
+        guard let vaultKey = appState.currentVaultKey else { return }
+        Task {
+            let result = await ImportIngestor.processPendingImports(for: vaultKey)
+            await MainActor.run {
+                appState.hasPendingImports = false
+                appState.pendingImportCount = 0
+                if result.imported > 0 {
+                    loadFiles()
+                    let generator = UINotificationFeedbackGenerator()
+                    generator.notificationOccurred(.success)
+                }
+            }
+        }
     }
 
     private func loadFiles() {

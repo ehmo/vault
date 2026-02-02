@@ -93,6 +93,10 @@ final class SubscriptionManager: NSObject {
             || !info.entitlements.active.isEmpty
         Self.isPremiumSnapshot = isPremium
 
+        // Cache premium status in app group for share extension access
+        UserDefaults(suiteName: VaultCoreConstants.appGroupIdentifier)?
+            .set(isPremium, forKey: VaultCoreConstants.isPremiumKey)
+
         #if DEBUG
         print("💰 [SubscriptionManager] isPremium: \(isPremium)")
         print("💰 [SubscriptionManager] Active entitlements: \(info.entitlements.active.keys.joined(separator: ", "))")

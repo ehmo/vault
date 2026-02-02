@@ -43,7 +43,7 @@ final class PatternValidator {
 
     // MARK: - Validation
 
-    func validate(_ pattern: [Int], gridSize: Int = 4) -> PatternValidationResult {
+    func validate(_ pattern: [Int], gridSize: Int = 5) -> PatternValidationResult {
         var errors: [PatternValidationError] = []
         var warnings: [PatternValidationWarning] = []
 
@@ -194,7 +194,7 @@ final class PatternValidator {
 
     // MARK: - Complexity Score
 
-    func complexityScore(for pattern: [Int], gridSize: Int = 4) -> Int {
+    func complexityScore(for pattern: [Int], gridSize: Int = 5) -> Int {
         let metrics = PatternSerializer.analyzePattern(pattern, gridSize: gridSize)
         return metrics.complexityScore
     }
