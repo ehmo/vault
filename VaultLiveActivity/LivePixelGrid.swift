@@ -33,32 +33,35 @@ struct LivePixelGrid: View {
                         ForEach(0..<3, id: \.self) { col in
                             let index = row * 3 + col + 1
                             let isOn = onSet.contains(index)
-                            ZStack {
-                                ForEach(0..<2, id: \.self) { _ in
-                                    Rectangle()
-                                }
-                            }
-                            .foregroundStyle(isOn ? vaultAccent : .clear)
-                            .frame(width: pixelSize, height: pixelSize)
-                            .overlay {
-                                ZStack {
-                                    ForEach(0..<2, id: \.self) { _ in
-                                        Rectangle()
-                                    }
-                                }
-                                .foregroundStyle(isOn ? vaultAccent : .clear)
-                                .frame(width: pixelSize, height: pixelSize)
-                                .shadow(
-                                    color: isOn ? vaultAccent : .clear,
-                                    radius: 10, x: 0, y: 0
-                                )
-                            }
-                            .animation(.smooth(duration: 0.2), value: isOn)
+                            pixelCell(isOn: isOn)
+                                .animation(.smooth(duration: 0.2), value: isOn)
                         }
                     }
                 }
             }
             .frame(width: size, height: size)
+        }
+    }
+
+    /// Matches in-app PixelAnimationCell + PixelShadowStack:
+    /// brightness 3 (3 stacked rectangles), shadowBrightness 2 (2 overlay shadow layers at radius 10).
+    @ViewBuilder
+    private func pixelCell(isOn: Bool) -> some View {
+        let base = ZStack {
+            ForEach(0..<3, id: \.self) { _ in
+                Rectangle()
+            }
+        }
+        .foregroundStyle(isOn ? vaultAccent : .clear)
+        .frame(width: pixelSize, height: pixelSize)
+
+        base.overlay {
+            ForEach(0..<2, id: \.self) { _ in
+                base.shadow(
+                    color: isOn ? vaultAccent : .clear,
+                    radius: 10, x: 0, y: 0
+                )
+            }
         }
     }
 
