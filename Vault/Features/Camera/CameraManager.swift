@@ -10,6 +10,12 @@ protocol CameraManagerDelegate: AnyObject {
 /// Manages camera authorization, capture session lifecycle, and photo capture.
 /// Provides helpers for switching cameras, torch control, focus/exposure, and importing
 /// a captured image directly into the vault.
+///
+/// SAFETY: `@unchecked Sendable` because:
+/// - `sessionQueue` serializes all AVFoundation state access (required by AVFoundation)
+/// - `@Observable` properties updated via `DispatchQueue.main.async` from `sessionQueue`
+/// - GCD serialization required by AVFoundation (cannot migrate to actors)
+/// - `inProgressPhotoCaptureDelegates` accessed from main thread only
 @Observable
 final class CameraManager: NSObject, @unchecked Sendable {
     // MARK: - Observable State

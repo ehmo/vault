@@ -87,13 +87,21 @@ final class ShareSyncManager {
                     continue
                 }
 
-                // Build shared vault data with per-file re-encryption using this share's key
+                // Build shared vault data off main thread (crypto-heavy)
                 let sharedData: Data
+                let capturedIndex = index
+                let capturedVaultKey = vaultKey
+                let capturedShareKey = shareKey
+                let capturedShareId = share.id
                 do {
-                    sharedData = try buildSharedVaultData(index: index, vaultKey: vaultKey, shareKey: shareKey)
+                    sharedData = try await Task.detached(priority: .userInitiated) {
+                        try ShareSyncManager.buildSharedVaultData(
+                            index: capturedIndex, vaultKey: capturedVaultKey, shareKey: capturedShareKey
+                        )
+                    }.value
                 } catch {
                     #if DEBUG
-                    print("⚠️ [ShareSync] Failed to build vault data for share \(share.id): \(error)")
+                    print("⚠️ [ShareSync] Failed to build vault data for share \(capturedShareId): \(error)")
                     #endif
                     continue
                 }
@@ -145,7 +153,8 @@ final class ShareSyncManager {
 
     /// Builds serialized SharedVaultData from the current vault index.
     /// Re-encrypts each file with the share key (matching initial upload format).
-    private func buildSharedVaultData(index: VaultStorage.VaultIndex, vaultKey: Data, shareKey: Data) throws -> Data {
+    /// Static + nonisolated so it can run in a Task.detached off the main actor.
+    nonisolated private static func buildSharedVaultData(index: VaultStorage.VaultIndex, vaultKey: Data, shareKey: Data) throws -> Data {
         guard let encryptedMasterKey = index.encryptedMasterKey else {
             throw VaultStorageError.corruptedData
         }

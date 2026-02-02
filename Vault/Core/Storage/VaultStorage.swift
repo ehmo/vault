@@ -25,6 +25,10 @@ enum VaultStorageError: Error, LocalizedError {
     }
 }
 
+/// CONCURRENCY: Not an actor because blocking file I/O would starve the cooperative
+/// thread pool. `blobReady` race is benign: `ensureBlobReady()` uses `initQueue.sync`
+/// as a barrier. Callers serialize at a higher level (`@MainActor` views, single
+/// `Task.detached`). Full actor refactor deferred to future work.
 final class VaultStorage {
     static let shared = VaultStorage()
 

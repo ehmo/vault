@@ -413,8 +413,10 @@ final class BackgroundShareTransferManager {
         currentMessage = "Starting..."
         stopProgressTimer()
 
+        // Timer fires on main RunLoop → guaranteed main thread.
+        // MainActor.assumeIsolated avoids Task allocation overhead.
         progressTimer = Timer.scheduledTimer(withTimeInterval: 0.17, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
+            MainActor.assumeIsolated {
                 self?.progressTimerTick()
             }
         }

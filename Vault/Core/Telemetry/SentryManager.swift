@@ -8,9 +8,12 @@ private let SentrySensitiveKeywords: [String] = [
 
 /// Telemetry wrapper around the Sentry SDK.
 ///
-/// All public methods dispatch to the main thread internally, so callers
-/// can use `SentryManager.shared` from any isolation context.
+/// Convenience methods call thread-safe Sentry SDK APIs directly.
 /// `start()` and `stop()` must be called from the main actor.
+///
+/// SAFETY: `@unchecked Sendable` because `isStarted` is only mutated from
+/// `@MainActor` `start()`/`stop()`. All other methods use thread-safe
+/// Sentry SDK APIs (startTransaction, capture, addBreadcrumb, Span.startChild).
 final class SentryManager: @unchecked Sendable {
     static let shared = SentryManager()
     private var isStarted = false
@@ -37,17 +40,9 @@ final class SentryManager: @unchecked Sendable {
             options.enableUIViewControllerTracing = false // SwiftUI app
             options.tracesSampleRate = 1.0
 
-            // Scrub before sending events
+            // Scrub before sending events (scrubEvent is a pure static function)
             options.beforeSend = { event in
-                if Thread.isMainThread {
-                    return Self.scrubEvent(event)
-                } else {
-                    var result: Event?
-                    DispatchQueue.main.sync {
-                        result = Self.scrubEvent(event)
-                    }
-                    return result
-                }
+                Self.scrubEvent(event)
             }
 
             options.debug = false
@@ -122,56 +117,28 @@ final class SentryManager: @unchecked Sendable {
     }
 
     // MARK: - Convenience: Transactions & Spans
+    // Sentry SDK APIs below are all thread-safe — no main-thread dispatch needed.
 
     func startTransaction(name: String, operation: String) -> Span {
-        if Thread.isMainThread {
-            return SentrySDK.startTransaction(name: name, operation: operation)
-        } else {
-            var span: Span!
-            DispatchQueue.main.sync {
-                span = SentrySDK.startTransaction(name: name, operation: operation)
-            }
-            return span
-        }
+        SentrySDK.startTransaction(name: name, operation: operation)
     }
 
     func startSpan(parent: Span, operation: String, description: String) -> Span {
-        if Thread.isMainThread {
-            return parent.startChild(operation: operation, description: description)
-        } else {
-            var span: Span!
-            DispatchQueue.main.sync {
-                span = parent.startChild(operation: operation, description: description)
-            }
-            return span
-        }
+        parent.startChild(operation: operation, description: description)
     }
 
     // MARK: - Convenience: Errors
 
     func captureError(_ error: Error) {
-        if Thread.isMainThread {
-            _ = SentrySDK.capture(error: error)
-        } else {
-            DispatchQueue.main.sync {
-                _ = SentrySDK.capture(error: error)
-            }
-        }
+        _ = SentrySDK.capture(error: error)
     }
 
     // MARK: - Convenience: Breadcrumbs
 
     func addBreadcrumb(category: String, message: String? = nil, data: [String: Any]? = nil, level: SentryLevel = .info) {
-        let work = {
-            let crumb = Breadcrumb(level: level, category: category)
-            crumb.message = message
-            crumb.data = data
-            SentrySDK.addBreadcrumb(crumb)
-        }
-        if Thread.isMainThread {
-            work()
-        } else {
-            DispatchQueue.main.sync(execute: work)
-        }
+        let crumb = Breadcrumb(level: level, category: category)
+        crumb.message = message
+        crumb.data = data
+        SentrySDK.addBreadcrumb(crumb)
     }
 }

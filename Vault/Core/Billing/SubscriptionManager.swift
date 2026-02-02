@@ -76,8 +76,11 @@ final class SubscriptionManager: NSObject {
     }
 
     /// Thread-safe snapshot of premium status for non-MainActor callers (e.g. VaultStorage).
-    /// Updated whenever `isPremium` changes. Slight race is acceptable — worst case
-    /// user sees paywall for one extra attempt.
+    ///
+    /// SAFETY: `nonisolated(unsafe)` is sound here because:
+    /// - Bool load/store is atomic on ARM64 (aligned, single-word)
+    /// - Single writer (`@MainActor` `updateFromCustomerInfo`), multiple readers
+    /// - Stale read has no correctness impact (worst case: extra paywall shown once)
     nonisolated(unsafe) static var isPremiumSnapshot: Bool = false
 
     // MARK: - Update
