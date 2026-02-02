@@ -417,16 +417,12 @@ final class BackgroundShareTransferManager {
     private func progressTimerTick() {
         animationStep += 1
 
-        let previousDisplay = displayProgress
         if displayProgress < targetProgress {
             let step = max(1, (targetProgress - displayProgress + 4) / 5)
             displayProgress = min(displayProgress + step, targetProgress)
         }
 
         status = .uploading(progress: displayProgress, total: 100)
-
-        // Only push Live Activity update when the displayed percentage actually changed
-        guard displayProgress != previousDisplay else { return }
 
         let state = TransferActivityAttributes.ContentState(
             progress: displayProgress,
