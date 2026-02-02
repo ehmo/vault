@@ -3,6 +3,7 @@ import SwiftUI
 struct FilesGridView: View {
     let files: [VaultFileItem]
     let onSelect: (VaultFileItem) -> Void
+    var onDelete: ((UUID) -> Void)?
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
 
@@ -37,6 +38,14 @@ struct FilesGridView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(file.filename ?? "File"), \(formatSize(file.size))")
+                .accessibilityHint("Double tap to open")
+                .contextMenu {
+                    if let onDelete {
+                        Button(role: .destructive, action: { onDelete(file.id) }) {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                }
             }
         }
         .padding(.horizontal, 16)

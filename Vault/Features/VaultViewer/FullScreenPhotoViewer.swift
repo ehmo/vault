@@ -52,6 +52,7 @@ struct FullScreenPhotoViewer: View {
                 HStack {
                     Button("Done") { dismiss() }
                         .foregroundStyle(.white)
+                        .frame(minWidth: 44, minHeight: 44)
                     Spacer()
                     if onDelete != nil || allowDownloads {
                         Button(action: { showingActions = true }) {
@@ -59,6 +60,7 @@ struct FullScreenPhotoViewer: View {
                                 .foregroundStyle(.white)
                                 .imageScale(.large)
                         }
+                        .frame(minWidth: 44, minHeight: 44)
                         .accessibilityLabel("More actions")
                     }
                 }
@@ -84,7 +86,7 @@ struct FullScreenPhotoViewer: View {
             Button("Cancel", role: .cancel) { }
         }
         .alert("Export File?", isPresented: $showingExportConfirmation) {
-            Button("Export", role: .destructive) { exportFile() }
+            Button("Export") { exportFile() }
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("This will save the file outside the vault. It will no longer be protected.")

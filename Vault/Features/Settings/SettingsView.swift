@@ -413,18 +413,7 @@ struct DuressSetupSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Button("Cancel") { dismiss() }
-                Spacer()
-                Text("Duress Vault")
-                    .font(.headline)
-                Spacer()
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 12)
-            Divider()
-
+        NavigationStack {
             VStack(spacing: 24) {
                 Image(systemName: "exclamationmark.shield.fill")
                     .font(.system(size: 48))
@@ -460,6 +449,13 @@ struct DuressSetupSheet: View {
                 Spacer()
             }
             .padding()
+            .navigationTitle("Duress Vault")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ struct PhotosGridView: View {
     let files: [VaultFileItem]
     let masterKey: Data
     let onSelect: (VaultFileItem, Int) -> Void
+    var onDelete: ((UUID) -> Void)?
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 3)
 
@@ -27,6 +28,14 @@ struct PhotosGridView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(file.filename ?? "Photo \(index + 1)")
+                .accessibilityHint("Double tap to view full screen")
+                .contextMenu {
+                    if let onDelete {
+                        Button(role: .destructive, action: { onDelete(file.id) }) {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                }
             }
         }
     }

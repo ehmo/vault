@@ -63,28 +63,28 @@ struct VaultView: View {
                 switch fileFilter {
                 case .all:
                     if !split.images.isEmpty {
-                        PhotosGridView(files: split.images, masterKey: masterKey) { file, index in
+                        PhotosGridView(files: split.images, masterKey: masterKey, onSelect: { file, index in
                             SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                             selectedPhotoIndex = index
-                        }
+                        }, onDelete: isSharedVault ? nil : deleteFileById)
                     }
                     if !split.nonImages.isEmpty {
-                        FilesGridView(files: split.nonImages) { file in
+                        FilesGridView(files: split.nonImages, onSelect: { file in
                             SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                             selectedFile = file
-                        }
+                        }, onDelete: isSharedVault ? nil : deleteFileById)
                         .padding(.top, split.images.isEmpty ? 0 : 12)
                     }
                 case .images:
-                    PhotosGridView(files: split.images, masterKey: masterKey) { file, index in
+                    PhotosGridView(files: split.images, masterKey: masterKey, onSelect: { file, index in
                         SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                         selectedPhotoIndex = index
-                    }
+                    }, onDelete: isSharedVault ? nil : deleteFileById)
                 case .other:
-                    FilesGridView(files: split.nonImages) { file in
+                    FilesGridView(files: split.nonImages, onSelect: { file in
                         SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                         selectedFile = file
-                    }
+                    }, onDelete: isSharedVault ? nil : deleteFileById)
                 }
             } else {
                 ProgressView("Decrypting...")
@@ -270,11 +270,13 @@ struct VaultView: View {
                 },
                 allowDownloads: sharePolicy?.allowDownloads ?? true
             )
+            .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showingSettings) {
             NavigationStack {
                 VaultSettingsView()
             }
+            .presentationDetents([.large])
         }
         .alert("Vault Unavailable", isPresented: $showSelfDestructAlert) {
             Button("OK") {
@@ -293,6 +295,7 @@ struct VaultView: View {
             HStack(spacing: 8) {
                 Image(systemName: "person.2.fill")
                     .font(.caption)
+                    .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Shared Vault")
@@ -323,6 +326,7 @@ struct VaultView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
+            .accessibilityElement(children: .combine)
 
             if updateAvailable {
                 HStack {
@@ -562,6 +566,18 @@ struct VaultView: View {
 
     private func lockVault() {
         appState.lockVault()
+    }
+
+    private func deleteFileById(_ id: UUID) {
+        guard let key = appState.currentVaultKey else { return }
+        Task {
+            try? VaultStorage.shared.deleteFile(id: id, with: key)
+            await MainActor.run {
+                if let idx = files.firstIndex(where: { $0.id == id }) {
+                    files.remove(at: idx)
+                }
+            }
+        }
     }
 
     /// Loads the vault index once and uses it for both file listing and shared-vault checks.

@@ -37,7 +37,7 @@ struct PatternGridView: View {
         }
         .aspectRatio(1, contentMode: .fit)
         .accessibilityLabel("Pattern grid, \(state.gridSize) by \(state.gridSize)")
-        .accessibilityHint("Draw a pattern by dragging across the dots")
+        .accessibilityHint("Draw a pattern by dragging across the dots. If using VoiceOver, use the recovery phrase option instead.")
         .accessibilityValue(state.selectedNodes.isEmpty ? "No dots selected" : "\(state.selectedNodes.count) dots connected")
     }
 

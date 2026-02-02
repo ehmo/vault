@@ -16,6 +16,10 @@ struct PatternLockView: View {
     @State private var showingPaywall = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    private var isVoiceOverActive: Bool {
+        UIAccessibility.isVoiceOverRunning
+    }
+
     var body: some View {
         VStack(spacing: 40) {
             Spacer()
@@ -27,9 +31,30 @@ struct PatternLockView: View {
                     .foregroundStyle(.vaultSecondaryText)
                     .accessibilityHidden(true)
 
-                Text("Draw your pattern")
+                Text(isVoiceOverActive ? "Unlock Your Vault" : "Draw your pattern")
                     .font(.title2)
                     .fontWeight(.medium)
+            }
+
+            // VoiceOver: promote recovery phrase above grid
+            if isVoiceOverActive {
+                VStack(spacing: 12) {
+                    Text("VoiceOver is active. Use your recovery phrase to unlock.")
+                        .font(.subheadline)
+                        .foregroundStyle(.vaultSecondaryText)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+
+                    Button(action: { showRecoveryOption = true }) {
+                        Text("Use Recovery Phrase")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                    }
+                    .vaultProminentButtonStyle()
+                    .padding(.horizontal, 40)
+                    .accessibilityHint("Unlock vault using your recovery phrase instead of drawing a pattern")
+                }
             }
 
             Spacer()
@@ -42,8 +67,8 @@ struct PatternLockView: View {
             )
             .frame(maxWidth: 280, maxHeight: 280)
             .disabled(isProcessing)
-            .opacity(isProcessing ? 0.5 : 1)
-            
+            .opacity(isVoiceOverActive ? 0.3 : (isProcessing ? 0.5 : 1))
+
             // Error message — fixed height to prevent grid from shifting
             Group {
                 if showError, let message = errorMessage {
@@ -64,16 +89,26 @@ struct PatternLockView: View {
 
             Spacer()
 
-            // Options
-            VStack(spacing: 12) {
-                Button(action: { showRecoveryOption = true }) {
-                    Text("Use recovery phrase")
-                        .font(.subheadline)
-                        .foregroundStyle(.vaultSecondaryText)
-                        .frame(minHeight: 44)
-                }
-                .accessibilityHint("Unlock vault using your recovery phrase instead of drawing a pattern")
+            // Options (hidden when VoiceOver promotes recovery above)
+            if !isVoiceOverActive {
+                VStack(spacing: 12) {
+                    Button(action: { showRecoveryOption = true }) {
+                        Text("Use recovery phrase")
+                            .font(.subheadline)
+                            .foregroundStyle(.vaultSecondaryText)
+                            .frame(minHeight: 44)
+                    }
+                    .accessibilityHint("Unlock vault using your recovery phrase instead of drawing a pattern")
 
+                    Button(action: { showJoinSharedVault = true }) {
+                        Text("Join shared vault")
+                            .font(.subheadline)
+                            .foregroundStyle(.vaultSecondaryText)
+                            .frame(minHeight: 44)
+                    }
+                    .accessibilityHint("Enter a share phrase to access a vault shared with you")
+                }
+            } else {
                 Button(action: { showJoinSharedVault = true }) {
                     Text("Join shared vault")
                         .font(.subheadline)
