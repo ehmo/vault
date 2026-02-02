@@ -104,7 +104,7 @@ final class ShareSyncManager: ObservableObject {
                     shareVaultId: share.id,
                     vaultData: sharedData,
                     shareKey: shareKey,
-                    currentVersion: 1
+                    currentVersion: 2
                 )
 
                 successCount += 1
@@ -203,6 +203,8 @@ final class ShareSyncManager: ObservableObject {
             updatedAt: Date()
         )
 
-        return try JSONEncoder().encode(data)
+        let encoder = PropertyListEncoder()
+        encoder.outputFormat = .binary
+        return try encoder.encode(data)
     }
 }

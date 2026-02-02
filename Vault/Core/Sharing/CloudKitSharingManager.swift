@@ -170,7 +170,7 @@ final class CloudKitSharingManager {
 
         manifest["shareVaultId"] = shareVaultId
         manifest["updatedAt"] = Date()
-        manifest["version"] = 2  // v2: no outer encryption layer
+        manifest["version"] = 3  // v3: binary plist encoding, no outer encryption
         manifest["ownerFingerprint"] = ownerFingerprint
         manifest["chunkCount"] = totalChunks
         manifest["claimed"] = false

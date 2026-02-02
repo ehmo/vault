@@ -59,7 +59,7 @@ final class BackgroundShareTransferManager {
         let capturedMaxOpens = maxOpens
         let capturedAllowDownloads = allowDownloads
 
-        activeTask = Task { [weak self] in
+        activeTask = Task.detached(priority: .userInitiated) { [weak self] in
             do {
                 let shareVaultId = CloudKitSharingManager.generateShareVaultId()
                 let shareKey = try CloudKitSharingManager.deriveShareKey(from: capturedPhrase)
@@ -78,7 +78,7 @@ final class BackgroundShareTransferManager {
                 // Build vault data
                 let index = try VaultStorage.shared.loadIndex(with: capturedVaultKey)
                 let masterKey = try CryptoEngine.shared.decrypt(index.encryptedMasterKey!, with: capturedVaultKey)
-                self?.setTargetProgress(keyPhaseEnd, message: "Preparing vault...")
+                await self?.setTargetProgress(keyPhaseEnd, message: "Preparing vault...")
                 var sharedFiles: [SharedVaultData.SharedFile] = []
                 let activeFiles = index.files.filter { !$0.isDeleted }
                 let fileCount = activeFiles.count
@@ -124,7 +124,7 @@ final class BackgroundShareTransferManager {
                         let pct = fileCount > 0
                             ? keyPhaseEnd + encryptRange * results.count / fileCount
                             : encryptPhaseEnd
-                        self?.setTargetProgress(pct, message: "Encrypting files...")
+                        await self?.setTargetProgress(pct, message: "Encrypting files...")
                     }
                     return results.sorted { $0.0 < $1.0 }.map(\.1)
                 }
@@ -141,8 +141,10 @@ final class BackgroundShareTransferManager {
                     updatedAt: Date()
                 )
 
-                let encodedData = try JSONEncoder().encode(sharedData)
-                self?.setTargetProgress(5, message: "Uploading vault...")
+                let encoder = PropertyListEncoder()
+                encoder.outputFormat = .binary
+                let encodedData = try encoder.encode(sharedData)
+                await self?.setTargetProgress(5, message: "Uploading vault...")
 
                 guard !Task.isCancelled else { return }
 
@@ -186,17 +188,16 @@ final class BackgroundShareTransferManager {
                     self?.stopProgressTimer()
                     self?.status = .uploadComplete
                     self?.endLiveActivity(success: true, message: "Vault shared successfully")
+                    LocalNotificationManager.shared.sendUploadComplete()
                 }
-
-                LocalNotificationManager.shared.sendUploadComplete()
             } catch {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     self?.stopProgressTimer()
                     self?.status = .uploadFailed(error.localizedDescription)
                     self?.endLiveActivity(success: false, message: "Upload failed")
+                    LocalNotificationManager.shared.sendUploadFailed()
                 }
-                LocalNotificationManager.shared.sendUploadFailed()
             }
         }
     }
@@ -221,7 +222,7 @@ final class BackgroundShareTransferManager {
         let capturedPhrase = phrase
         let capturedPatternKey = patternKey
 
-        activeTask = Task { [weak self] in
+        activeTask = Task.detached(priority: .userInitiated) { [weak self] in
             do {
                 let result = try await CloudKitSharingManager.shared.downloadSharedVault(
                     phrase: capturedPhrase,
@@ -235,7 +236,12 @@ final class BackgroundShareTransferManager {
 
                 guard !Task.isCancelled else { return }
 
-                let sharedVault = try JSONDecoder().decode(SharedVaultData.self, from: result.data)
+                let sharedVault: SharedVaultData
+                if result.version >= 3 {
+                    sharedVault = try PropertyListDecoder().decode(SharedVaultData.self, from: result.data)
+                } else {
+                    sharedVault = try JSONDecoder().decode(SharedVaultData.self, from: result.data)
+                }
                 let shareKey = try CloudKitSharingManager.deriveShareKey(from: capturedPhrase)
                 let fileCount = sharedVault.files.count
 
@@ -264,7 +270,7 @@ final class BackgroundShareTransferManager {
                     )
 
                     let pct = downloadWeight + (fileCount > 0 ? importWeight * (i + 1) / fileCount : importWeight)
-                    self?.setTargetProgress(pct, message: "Importing files...")
+                    await self?.setTargetProgress(pct, message: "Importing files...")
                     await Task.yield()
                 }
 
@@ -284,17 +290,16 @@ final class BackgroundShareTransferManager {
                     self?.stopProgressTimer()
                     self?.status = .importComplete
                     self?.endLiveActivity(success: true, message: "Shared vault is ready")
+                    LocalNotificationManager.shared.sendImportComplete()
                 }
-
-                LocalNotificationManager.shared.sendImportComplete()
             } catch {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     self?.stopProgressTimer()
                     self?.status = .importFailed(error.localizedDescription)
                     self?.endLiveActivity(success: false, message: "Import failed")
+                    LocalNotificationManager.shared.sendImportFailed()
                 }
-                LocalNotificationManager.shared.sendImportFailed()
             }
         }
     }
@@ -322,9 +327,14 @@ final class BackgroundShareTransferManager {
         let capturedPhrase = phrase
         let capturedPatternKey = patternKey
 
-        activeTask = Task { [weak self] in
+        activeTask = Task.detached(priority: .userInitiated) { [weak self] in
             do {
-                let sharedVault = try JSONDecoder().decode(SharedVaultData.self, from: capturedData)
+                let sharedVault: SharedVaultData
+                if capturedData.prefix(6) == Data("bplist".utf8) {
+                    sharedVault = try PropertyListDecoder().decode(SharedVaultData.self, from: capturedData)
+                } else {
+                    sharedVault = try JSONDecoder().decode(SharedVaultData.self, from: capturedData)
+                }
                 let shareKey = try CloudKitSharingManager.deriveShareKey(from: capturedPhrase)
                 let fileCount = sharedVault.files.count
 
@@ -354,7 +364,7 @@ final class BackgroundShareTransferManager {
                     )
 
                     let pct = fileCount > 0 ? 99 * (i + 1) / fileCount : 99
-                    self?.setTargetProgress(pct, message: "Importing files...")
+                    await self?.setTargetProgress(pct, message: "Importing files...")
                     await Task.yield()
                 }
 
@@ -373,17 +383,16 @@ final class BackgroundShareTransferManager {
                     self?.stopProgressTimer()
                     self?.status = .importComplete
                     self?.endLiveActivity(success: true, message: "Shared vault is ready")
+                    LocalNotificationManager.shared.sendImportComplete()
                 }
-
-                LocalNotificationManager.shared.sendImportComplete()
             } catch {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     self?.stopProgressTimer()
                     self?.status = .importFailed(error.localizedDescription)
                     self?.endLiveActivity(success: false, message: "Import failed")
+                    LocalNotificationManager.shared.sendImportFailed()
                 }
-                LocalNotificationManager.shared.sendImportFailed()
             }
         }
     }

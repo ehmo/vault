@@ -499,7 +499,12 @@ struct VaultView: View {
                 shareKey: shareKey
             )
 
-            let sharedVault = try JSONDecoder().decode(SharedVaultData.self, from: data)
+            let sharedVault: SharedVaultData
+            if data.prefix(6) == Data("bplist".utf8) {
+                sharedVault = try PropertyListDecoder().decode(SharedVaultData.self, from: data)
+            } else {
+                sharedVault = try JSONDecoder().decode(SharedVaultData.self, from: data)
+            }
 
             // Re-import files (delete old, add new)
             for existingFile in index.files where !existingFile.isDeleted {
