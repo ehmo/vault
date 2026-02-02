@@ -13,25 +13,21 @@ struct WelcomeView: View {
                 VStack(spacing: 32) {
                     Spacer().frame(height: 20)
 
-                    // App Icon
-                    ZStack {
-                        Circle()
-                            .fill(Color.accentColor.opacity(0.1))
-                            .frame(width: 120, height: 120)
-                            .scaleEffect(animateIcon ? 1.1 : 1.0)
-
-                        Image(systemName: "lock.shield.fill")
-                            .font(.system(size: 56))
-                            .foregroundStyle(.tint)
-                    }
-                    .vaultGlassOrb()
-                    .accessibilityHidden(true)
-                    .onAppear {
-                        guard !reduceMotion else { return }
-                        withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
-                            animateIcon = true
+                    // App Logo
+                    Image("VaultLogo")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 140, height: 140)
+                        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                        .shadow(color: .black.opacity(0.15), radius: 12, y: 6)
+                        .scaleEffect(animateIcon ? 1.05 : 1.0)
+                        .accessibilityHidden(true)
+                        .onAppear {
+                            guard !reduceMotion else { return }
+                            withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
+                                animateIcon = true
+                            }
                         }
-                    }
 
                     // Welcome Text
                     VStack(spacing: 12) {
