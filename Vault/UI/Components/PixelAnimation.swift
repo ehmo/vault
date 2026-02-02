@@ -1,9 +1,15 @@
 import SwiftUI
+import Combine
 
 // MARK: - PixelAnimation
 
 /// A 3x3 pixel grid that animates cells on/off in configurable patterns with glow effects.
 /// Ported from Pixel view, restyled for Vault's theme.
+///
+/// The trail effect (matching the Dynamic Island's LivePixelGrid) is produced by animation overlap:
+/// `animationDuration > timerInterval` means ~3 cells are visible at once as they fade out.
+/// This requires Timer.publish + onReceive — TimelineView re-evaluates its body on each tick,
+/// which disrupts in-flight implicit animations and breaks the trail.
 struct PixelAnimation: View {
     var brightness: Int = 2
     var shadowBrightness: Int = 2
@@ -18,6 +24,10 @@ struct PixelAnimation: View {
 
     @State private var step: Int = 0
 
+    private var timer: Publishers.Autoconnect<Timer.TimerPublisher> {
+        Timer.publish(every: timerInterval, on: .main, in: .common).autoconnect()
+    }
+
     private var frames: [[Int]] {
         guard let first = pattern.first else { return [] }
         if pattern.count == 1 { return first.map { [$0] } }
@@ -30,31 +40,29 @@ struct PixelAnimation: View {
     }
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: timerInterval)) { context in
-            let onSet = Set(frames.isEmpty ? [] : frames[step])
-            VStack(spacing: spacing) {
-                ForEach(0..<3, id: \.self) { row in
-                    HStack(spacing: spacing) {
-                        ForEach(0..<3, id: \.self) { col in
-                            let index = row * 3 + col + 1
-                            PixelAnimationCell(
-                                isOn: onSet.contains(index),
-                                size: pixelSize,
-                                color: color,
-                                brightness: brightness,
-                                shadowBrightness: shadowBrightness
-                            )
-                            .rotationEffect(.degrees(rotation))
-                        }
+        let onSet = Set(frames.isEmpty ? [] : frames[step])
+        VStack(spacing: spacing) {
+            ForEach(0..<3, id: \.self) { row in
+                HStack(spacing: spacing) {
+                    ForEach(0..<3, id: \.self) { col in
+                        let index = row * 3 + col + 1
+                        PixelAnimationCell(
+                            isOn: onSet.contains(index),
+                            size: pixelSize,
+                            color: color,
+                            brightness: brightness,
+                            shadowBrightness: shadowBrightness
+                        )
+                        .rotationEffect(.degrees(rotation))
                     }
                 }
             }
-            .frame(width: tileSize, height: tileSize)
-            .onChange(of: context.date) { _, _ in
-                guard !frames.isEmpty else { return }
-                withAnimation(.smooth(duration: animationDuration)) {
-                    step = (step + 1) % frames.count
-                }
+        }
+        .frame(width: tileSize, height: tileSize)
+        .onReceive(timer) { _ in
+            guard !frames.isEmpty else { return }
+            withAnimation(.smooth(duration: animationDuration)) {
+                step = (step + 1) % frames.count
             }
         }
         .onChange(of: frames.count) { _, _ in
@@ -156,7 +164,9 @@ extension PixelAnimation {
         )
     }
 
-    /// Generic loading: frame rotation pattern (unlock screen)
+    /// Generic loading: frame rotation pattern (unlock screen).
+    /// Trail effect: animationDuration (0.3s) > timerInterval (0.1s) → ~3 cells visible at once,
+    /// matching the Dynamic Island's LivePixelGrid explicit trail computation.
     static func loading(size: CGFloat = 60) -> PixelAnimation {
         let scale = size / 80
         return PixelAnimation(
