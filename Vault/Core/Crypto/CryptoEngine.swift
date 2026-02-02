@@ -337,7 +337,7 @@ enum CryptoEngine {
             offset += Int(encSize)
 
             let nonce = try xorNonce(baseNonceData, with: UInt64(chunkIndex))
-            let gcmNonce = try AES.GCM.Nonce(data: nonce)
+            _ = try AES.GCM.Nonce(data: nonce)
             let sealedBox = try AES.GCM.SealedBox(combined: encChunk)
             let decrypted = try AES.GCM.open(sealedBox, using: symmetricKey)
             output.append(decrypted)

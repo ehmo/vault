@@ -61,8 +61,13 @@ final class BackgroundShareTransferManager {
 
         activeTask = Task.detached(priority: .userInitiated) { [weak self] in
             do {
+                let uploadStart = CFAbsoluteTimeGetCurrent()
+                var phaseStart = uploadStart
+
                 let shareVaultId = CloudKitSharingManager.generateShareVaultId()
                 let shareKey = try CloudKitSharingManager.deriveShareKey(from: capturedPhrase)
+                Self.logger.info("[upload-telemetry] PBKDF2 key derivation: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - phaseStart))s")
+                phaseStart = CFAbsoluteTimeGetCurrent()
 
                 let policy = VaultStorage.SharePolicy(
                     expiresAt: capturedHasExpiration ? capturedExpiresAt : nil,
@@ -81,6 +86,8 @@ final class BackgroundShareTransferManager {
                     throw VaultStorageError.corruptedData
                 }
                 let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: capturedVaultKey)
+                Self.logger.info("[upload-telemetry] loadIndex + decryptMasterKey: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - phaseStart))s")
+                phaseStart = CFAbsoluteTimeGetCurrent()
                 await self?.setTargetProgress(keyPhaseEnd, message: "Preparing vault...")
                 var sharedFiles: [SharedVaultData.SharedFile] = []
                 let activeFiles = index.files.filter { !$0.isDeleted }
@@ -91,21 +98,27 @@ final class BackgroundShareTransferManager {
                 let capturedMasterKey = masterKey
                 let capturedShareKey = shareKey
 
+                Self.logger.info("[upload-telemetry] re-encrypting \(fileCount) files...")
                 sharedFiles = try await withThrowingTaskGroup(
                     of: (Int, SharedVaultData.SharedFile).self
                 ) { group in
                     for (i, entry) in activeFiles.enumerated() {
                         group.addTask {
+                            let fileStart = CFAbsoluteTimeGetCurrent()
                             let (header, content) = try VaultStorage.shared.retrieveFileContent(
                                 entry: entry, index: capturedIndex, masterKey: capturedMasterKey
                             )
+                            let readElapsed = CFAbsoluteTimeGetCurrent() - fileStart
                             let reencrypted = try CryptoEngine.encrypt(content, with: capturedShareKey)
+                            let encryptElapsed = CFAbsoluteTimeGetCurrent() - fileStart - readElapsed
 
                             var encryptedThumb: Data? = nil
                             if let thumbData = entry.thumbnailData {
                                 let decryptedThumb = try CryptoEngine.decrypt(thumbData, with: capturedMasterKey)
                                 encryptedThumb = try CryptoEngine.encrypt(decryptedThumb, with: capturedShareKey)
                             }
+
+                            Self.logger.info("[upload-telemetry] file[\(i)] \(header.originalFilename, privacy: .public) (\(content.count / 1024)KB): read=\(String(format: "%.2f", readElapsed))s encrypt=\(String(format: "%.2f", encryptElapsed))s")
 
                             return (i, SharedVaultData.SharedFile(
                                 id: header.fileId,
@@ -131,6 +144,8 @@ final class BackgroundShareTransferManager {
                     }
                     return results.sorted { $0.0 < $1.0 }.map(\.1)
                 }
+                Self.logger.info("[upload-telemetry] all files re-encrypted: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - phaseStart))s")
+                phaseStart = CFAbsoluteTimeGetCurrent()
 
                 guard !Task.isCancelled else { return }
 
@@ -147,10 +162,13 @@ final class BackgroundShareTransferManager {
                 let encoder = PropertyListEncoder()
                 encoder.outputFormat = .binary
                 let encodedData = try encoder.encode(sharedData)
+                Self.logger.info("[upload-telemetry] plist encoding (\(encodedData.count / 1024)KB): \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - phaseStart))s")
+                phaseStart = CFAbsoluteTimeGetCurrent()
                 await self?.setTargetProgress(5, message: "Uploading vault...")
 
                 guard !Task.isCancelled else { return }
 
+                Self.logger.info("[upload-telemetry] starting CloudKit upload (\(encodedData.count / (1024 * 1024))MB)...")
                 try await CloudKitSharingManager.shared.uploadSharedVault(
                     shareVaultId: shareVaultId,
                     phrase: capturedPhrase,
@@ -171,6 +189,10 @@ final class BackgroundShareTransferManager {
 
                 guard !Task.isCancelled else { return }
 
+                Self.logger.info("[upload-telemetry] CloudKit upload complete: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - phaseStart))s")
+                Self.logger.info("[upload-telemetry] total elapsed so far: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - uploadStart))s")
+                phaseStart = CFAbsoluteTimeGetCurrent()
+
                 // Save share record
                 let shareRecord = VaultStorage.ShareRecord(
                     id: shareVaultId,
@@ -187,18 +209,20 @@ final class BackgroundShareTransferManager {
                 updatedIndex.activeShares?.append(shareRecord)
                 try VaultStorage.shared.saveIndex(updatedIndex, with: capturedVaultKey)
 
+                let s1 = self
                 await MainActor.run {
-                    self?.stopProgressTimer()
-                    self?.status = .uploadComplete
-                    self?.endLiveActivity(success: true, message: "Vault shared successfully")
+                    s1?.stopProgressTimer()
+                    s1?.status = .uploadComplete
+                    s1?.endLiveActivity(success: true, message: "Vault shared successfully")
                     LocalNotificationManager.shared.sendUploadComplete()
                 }
             } catch {
                 guard !Task.isCancelled else { return }
+                let s2 = self
                 await MainActor.run {
-                    self?.stopProgressTimer()
-                    self?.status = .uploadFailed(error.localizedDescription)
-                    self?.endLiveActivity(success: false, message: "Upload failed")
+                    s2?.stopProgressTimer()
+                    s2?.status = .uploadFailed(error.localizedDescription)
+                    s2?.endLiveActivity(success: false, message: "Upload failed")
                     LocalNotificationManager.shared.sendUploadFailed()
                 }
             }
@@ -278,18 +302,20 @@ final class BackgroundShareTransferManager {
                 index.sharedVaultVersion = result.version
                 try VaultStorage.shared.saveIndex(index, with: capturedPatternKey)
 
+                let s1 = self
                 await MainActor.run {
-                    self?.stopProgressTimer()
-                    self?.status = .importComplete
-                    self?.endLiveActivity(success: true, message: "Shared vault is ready")
+                    s1?.stopProgressTimer()
+                    s1?.status = .importComplete
+                    s1?.endLiveActivity(success: true, message: "Shared vault is ready")
                     LocalNotificationManager.shared.sendImportComplete()
                 }
             } catch {
                 guard !Task.isCancelled else { return }
+                let s2 = self
                 await MainActor.run {
-                    self?.stopProgressTimer()
-                    self?.status = .importFailed(error.localizedDescription)
-                    self?.endLiveActivity(success: false, message: "Import failed")
+                    s2?.stopProgressTimer()
+                    s2?.status = .importFailed(error.localizedDescription)
+                    s2?.endLiveActivity(success: false, message: "Import failed")
                     LocalNotificationManager.shared.sendImportFailed()
                 }
             }
@@ -359,18 +385,20 @@ final class BackgroundShareTransferManager {
                 index.shareKeyData = shareKey
                 try VaultStorage.shared.saveIndex(index, with: capturedPatternKey)
 
+                let s1 = self
                 await MainActor.run {
-                    self?.stopProgressTimer()
-                    self?.status = .importComplete
-                    self?.endLiveActivity(success: true, message: "Shared vault is ready")
+                    s1?.stopProgressTimer()
+                    s1?.status = .importComplete
+                    s1?.endLiveActivity(success: true, message: "Shared vault is ready")
                     LocalNotificationManager.shared.sendImportComplete()
                 }
             } catch {
                 guard !Task.isCancelled else { return }
+                let s2 = self
                 await MainActor.run {
-                    self?.stopProgressTimer()
-                    self?.status = .importFailed(error.localizedDescription)
-                    self?.endLiveActivity(success: false, message: "Import failed")
+                    s2?.stopProgressTimer()
+                    s2?.status = .importFailed(error.localizedDescription)
+                    s2?.endLiveActivity(success: false, message: "Import failed")
                     LocalNotificationManager.shared.sendImportFailed()
                 }
             }
@@ -450,7 +478,7 @@ final class BackgroundShareTransferManager {
 
     // MARK: - Live Activity
 
-    private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "LiveActivity")
+    private nonisolated(unsafe) static let logger = Logger(subsystem: "app.vaultaire.ios", category: "LiveActivity")
 
     private func startLiveActivity(_ type: TransferActivityAttributes.TransferType) {
         // End any stale activities from previous runs

@@ -35,7 +35,7 @@
 			</dict>
 		</dict>
 		<key>NSExtensionPrincipalClass</key>
-		<string>ShareViewController</string>
+		<string>ShareExtension.ShareViewController</string>
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.share-services</string>
 	</dict>

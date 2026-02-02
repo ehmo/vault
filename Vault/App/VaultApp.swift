@@ -199,6 +199,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // blob creation on first launch) overlaps with the user drawing their pattern.
         _ = VaultStorage.shared
 
+        // Write notification icon to app group so the share extension can use it
+        LocalNotificationManager.shared.warmNotificationIcon()
+
         return true
     }
 

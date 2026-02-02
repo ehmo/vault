@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import UserNotifications
 
 /// Manages local notifications for background share transfers.
@@ -73,6 +74,10 @@ final class LocalNotificationManager {
             content.body = body
             content.sound = .default
 
+            if let attachment = Self.createIconAttachment() {
+                content.attachments = [attachment]
+            }
+
             let request = UNNotificationRequest(
                 identifier: id,
                 content: content,
@@ -86,6 +91,61 @@ final class LocalNotificationManager {
                 print("⚠️ [Notifications] Failed to send \(id): \(error)")
                 #endif
             }
+        }
+    }
+
+    /// Creates a notification attachment from the VaultLogo asset.
+    /// Returns nil if the image can't be loaded or written to disk.
+    nonisolated static func createIconAttachment() -> UNNotificationAttachment? {
+        // Try app group first (works in both app and extension)
+        let sharedURL = FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: VaultCoreConstants.appGroupIdentifier)?
+            .appendingPathComponent("notification-icon.jpg")
+
+        if let sharedURL, FileManager.default.fileExists(atPath: sharedURL.path) {
+            return try? UNNotificationAttachment(
+                identifier: "vault-icon",
+                url: sharedURL,
+                options: [UNNotificationAttachmentOptionsTypeHintKey: "public.jpeg"]
+            )
+        }
+
+        // Fall back to asset catalog (main app only)
+        guard let image = UIImage(named: "VaultLogo"),
+              let data = image.jpegData(compressionQuality: 0.8) else { return nil }
+
+        // Write to app group so the extension can use it next time
+        if let sharedURL {
+            try? data.write(to: sharedURL)
+            return try? UNNotificationAttachment(
+                identifier: "vault-icon",
+                url: sharedURL,
+                options: [UNNotificationAttachmentOptionsTypeHintKey: "public.jpeg"]
+            )
+        }
+
+        // Last resort: temp directory
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("vault-icon.jpg")
+        try? data.write(to: tempURL)
+        return try? UNNotificationAttachment(
+            identifier: "vault-icon",
+            url: tempURL,
+            options: [UNNotificationAttachmentOptionsTypeHintKey: "public.jpeg"]
+        )
+    }
+
+    /// Writes the notification icon to the app group container so extensions can use it.
+    /// Call once on app launch.
+    func warmNotificationIcon() {
+        let sharedURL = FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: VaultCoreConstants.appGroupIdentifier)?
+            .appendingPathComponent("notification-icon.jpg")
+
+        guard let sharedURL, !FileManager.default.fileExists(atPath: sharedURL.path) else { return }
+
+        if let image = UIImage(named: "VaultLogo"),
+           let data = image.jpegData(compressionQuality: 0.8) {
+            try? data.write(to: sharedURL)
         }
     }
 }

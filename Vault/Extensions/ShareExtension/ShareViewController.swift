@@ -23,6 +23,7 @@ final class ShareViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        isModalInPresentation = true
         setupUI()
         loadSharedItems()
     }
@@ -250,6 +251,9 @@ final class ShareViewController: UIViewController {
         from provider: NSItemProvider,
         utType: UTType
     ) async throws -> (url: URL, filename: String, mimeType: String) {
+        // Capture registered types before the @Sendable closure to avoid
+        // capturing the non-Sendable NSItemProvider across concurrency boundaries.
+        let registeredTypes = provider.registeredTypeIdentifiers
         return try await withCheckedThrowingContinuation { continuation in
             provider.loadFileRepresentation(forTypeIdentifier: utType.identifier) { url, error in
                 if let error = error {
@@ -273,7 +277,17 @@ final class ShareViewController: UIViewController {
                 }
 
                 let filename = url.lastPathComponent
-                let mimeType = utType.preferredMIMEType ?? "application/octet-stream"
+
+                // Derive concrete MIME type from the file extension (UTType.image is
+                // abstract and has no preferredMIMEType). Fall back to the provider's
+                // registered types if the extension doesn't resolve.
+                let fileUTType = UTType(filenameExtension: url.pathExtension)
+                let mimeType = fileUTType?.preferredMIMEType
+                    ?? registeredTypes.lazy
+                        .compactMap { UTType($0)?.preferredMIMEType }
+                        .first
+                    ?? "application/octet-stream"
+
                 continuation.resume(returning: (tempURL, filename, mimeType))
             }
         }
@@ -300,6 +314,19 @@ final class ShareViewController: UIViewController {
         content.body = "\(fileCount) file\(fileCount == 1 ? "" : "s") waiting to import in Vaultaire"
         content.sound = .default
         content.categoryIdentifier = "PENDING_IMPORT"
+
+        // Attach the vault icon from the app group container
+        if let iconURL = FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: VaultCoreConstants.appGroupIdentifier)?
+            .appendingPathComponent("notification-icon.jpg"),
+           FileManager.default.fileExists(atPath: iconURL.path),
+           let attachment = try? UNNotificationAttachment(
+               identifier: "vault-icon",
+               url: iconURL,
+               options: [UNNotificationAttachmentOptionsTypeHintKey: "public.jpeg"]
+           ) {
+            content.attachments = [attachment]
+        }
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 300, repeats: false)
         let request = UNNotificationRequest(

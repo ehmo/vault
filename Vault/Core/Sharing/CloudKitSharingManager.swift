@@ -2,6 +2,7 @@ import Foundation
 import CloudKit
 import CryptoKit
 import CommonCrypto
+import os.log
 
 enum CloudKitSharingError: Error, LocalizedError {
     case notAvailable
@@ -39,8 +40,12 @@ final class CloudKitSharingManager {
     private let manifestRecordType = "SharedVault"
     private let chunkRecordType = "SharedVaultChunk"
 
-    /// Target chunk size for uploads (~50 MB)
-    private let chunkSize = 50 * 1024 * 1024
+    /// Target chunk size for uploads (~2 MB for granular progress feedback).
+    /// CloudKit supports up to 50 MB per asset, but smaller chunks give smoother
+    /// progress updates since CKDatabase.save() has no byte-level callback.
+    private let chunkSize = 2 * 1024 * 1024
+
+    private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "CloudKitSharing")
 
     private init() {
         container = CKContainer(identifier: "iCloud.app.vaultaire.shared")
@@ -122,6 +127,7 @@ final class CloudKitSharingManager {
         onProgress: ((Int, Int) -> Void)? = nil
     ) async throws {
         let transaction = SentryManager.shared.startTransaction(name: "share.upload", operation: "share.upload")
+        let ckStart = CFAbsoluteTimeGetCurrent()
 
         let phraseVaultId = Self.vaultId(from: phrase)
 
@@ -135,9 +141,11 @@ final class CloudKitSharingManager {
         }
 
         let totalChunks = chunks.count
+        Self.logger.info("[upload-telemetry] \(totalChunks) chunks (\(uploadData.count / 1024)KB total)")
 
         // Upload chunks
         for (index, chunkData) in chunks.enumerated() {
+            let chunkStart = CFAbsoluteTimeGetCurrent()
             let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(index)")
             let chunkRecord = CKRecord(recordType: chunkRecordType, recordID: chunkRecordId)
 
@@ -157,8 +165,12 @@ final class CloudKitSharingManager {
                 throw CloudKitSharingError.uploadFailed(error)
             }
 
+            Self.logger.info("[upload-telemetry] chunk[\(index)]/\(totalChunks) (\(chunkData.count / 1024)KB): \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - chunkStart))s")
             onProgress?(index + 1, totalChunks)
         }
+
+        Self.logger.info("[upload-telemetry] all chunks uploaded: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - ckStart))s")
+        let manifestStart = CFAbsoluteTimeGetCurrent()
 
         // Encrypt policy
         let policyData = try JSONEncoder().encode(policy)
@@ -191,6 +203,9 @@ final class CloudKitSharingManager {
             transaction.finish(status: .internalError)
             throw CloudKitSharingError.uploadFailed(error)
         }
+
+        Self.logger.info("[upload-telemetry] manifest saved: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - manifestStart))s")
+        Self.logger.info("[upload-telemetry] total CloudKit time: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - ckStart))s")
 
         transaction.setTag(value: "\(totalChunks)", key: "chunkCount")
         transaction.setTag(value: "\(vaultData.count / 1024)", key: "totalSizeKB")
