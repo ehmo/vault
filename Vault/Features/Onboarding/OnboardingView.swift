@@ -15,8 +15,7 @@ struct OnboardingView: View {
                 )
             case 1:
                 AnalyticsConsentView(
-                    onContinue: { currentStep = 2 },
-                    onSkip: { currentStep = 2 }
+                    onContinue: { currentStep = 2 }
                 )
             case 2:
                 PatternSetupView(onComplete: completeOnboarding)

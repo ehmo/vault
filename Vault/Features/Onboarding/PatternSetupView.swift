@@ -198,15 +198,16 @@ struct PatternSetupView: View {
                         }
                     }
                     .frame(height: 20)
-                    PhraseActionButtons(phrase: customPhrase.trimmingCharacters(in: .whitespacesAndNewlines))
                 } else {
                     PhraseDisplayCard(phrase: generatedPhrase)
-
-                    PhraseActionButtons(phrase: generatedPhrase)
+                        .frame(height: 148)
                 }
             }
-            .frame(height: 220, alignment: .top)
+            .frame(height: 190, alignment: .top)
             .padding(.horizontal)
+
+            PhraseActionButtons(phrase: useCustomPhrase ? customPhrase.trimmingCharacters(in: .whitespacesAndNewlines) : generatedPhrase)
+                .padding(.horizontal)
 
             VStack(alignment: .leading, spacing: 12) {
                 Label("Write this down", systemImage: "pencil")
