@@ -1,8 +1,11 @@
 import SwiftUI
 import WidgetKit
 
-/// A 3x3 pixel grid for the Dynamic Island that animates using TimelineView.
-/// Mirrors the main app's PixelAnimation wave patterns.
+/// App accent color hardcoded for widget extension (no access to main app's asset catalog).
+private let vaultAccent = Color(red: 0.384, green: 0.275, blue: 0.918)
+
+/// A 3x3 pixel grid for the Dynamic Island that animates column-sweep patterns
+/// with smooth crossfade transitions, matching the in-app PixelAnimation style.
 struct LivePixelGrid: View {
     let transferType: TransferActivityAttributes.TransferType
     var size: CGFloat = 20
@@ -29,9 +32,28 @@ struct LivePixelGrid: View {
                     HStack(spacing: spacing) {
                         ForEach(0..<3, id: \.self) { col in
                             let index = row * 3 + col + 1
-                            Rectangle()
-                                .fill(onSet.contains(index) ? Color.accentColor : Color.accentColor.opacity(0.15))
+                            let isOn = onSet.contains(index)
+                            ZStack {
+                                ForEach(0..<2, id: \.self) { _ in
+                                    Rectangle()
+                                }
+                            }
+                            .foregroundStyle(isOn ? vaultAccent : .clear)
+                            .frame(width: pixelSize, height: pixelSize)
+                            .overlay {
+                                ZStack {
+                                    ForEach(0..<2, id: \.self) { _ in
+                                        Rectangle()
+                                    }
+                                }
+                                .foregroundStyle(isOn ? vaultAccent : .clear)
                                 .frame(width: pixelSize, height: pixelSize)
+                                .shadow(
+                                    color: isOn ? vaultAccent : .clear,
+                                    radius: 10, x: 0, y: 0
+                                )
+                            }
+                            .animation(.smooth(duration: 0.2), value: isOn)
                         }
                     }
                 }

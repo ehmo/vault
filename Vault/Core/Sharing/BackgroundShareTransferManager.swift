@@ -25,11 +25,8 @@ final class BackgroundShareTransferManager {
     private var activeTask: Task<Void, Never>?
     private var currentActivity: Activity<TransferActivityAttributes>?
 
-    // Smooth progress: a timer interpolates displayProgress toward targetProgress,
-    // sending activity updates each tick so the pixel grid animates continuously.
     private var targetProgress: Int = 0
     private var displayProgress: Int = 0
-    private var animationStep: Int = 0
     private var currentMessage: String = ""
     private var progressTimer: Timer?
 
@@ -73,13 +70,15 @@ final class BackgroundShareTransferManager {
                     allowDownloads: capturedAllowDownloads
                 )
 
-                // Unified progress: encryption = 0-10%, upload = 10-100%
-                let encryptionWeight = 10
-                let uploadWeight = 90
+                // Progress: key derivation + index = 2%, file re-encryption = 2-48%,
+                // JSON encoding = ~50%, upload chunks = 50-100%
+                let keyPhaseEnd = 2
+                let encryptPhaseEnd = 48
 
                 // Build vault data
                 let index = try VaultStorage.shared.loadIndex(with: capturedVaultKey)
                 let masterKey = try CryptoEngine.shared.decrypt(index.encryptedMasterKey!, with: capturedVaultKey)
+                self?.setTargetProgress(keyPhaseEnd, message: "Preparing vault...")
                 var sharedFiles: [SharedVaultData.SharedFile] = []
                 let activeFiles = index.files.filter { !$0.isDeleted }
                 let fileCount = activeFiles.count
@@ -121,7 +120,10 @@ final class BackgroundShareTransferManager {
                     results.reserveCapacity(fileCount)
                     for try await (i, file) in group {
                         results.append((i, file))
-                        let pct = fileCount > 0 ? encryptionWeight * results.count / fileCount : encryptionWeight
+                        let encryptRange = encryptPhaseEnd - keyPhaseEnd
+                        let pct = fileCount > 0
+                            ? keyPhaseEnd + encryptRange * results.count / fileCount
+                            : encryptPhaseEnd
                         self?.setTargetProgress(pct, message: "Encrypting files...")
                     }
                     return results.sorted { $0.0 < $1.0 }.map(\.1)
@@ -140,6 +142,7 @@ final class BackgroundShareTransferManager {
                 )
 
                 let encodedData = try JSONEncoder().encode(sharedData)
+                self?.setTargetProgress(50, message: "Uploading vault...")
 
                 guard !Task.isCancelled else { return }
 
@@ -154,8 +157,8 @@ final class BackgroundShareTransferManager {
                         Task { @MainActor [weak self] in
                             guard let self else { return }
                             let pct = total > 0
-                                ? encryptionWeight + uploadWeight * current / total
-                                : encryptionWeight
+                                ? 50 + 50 * current / total
+                                : 50
                             self.setTargetProgress(pct, message: "Uploading vault...")
                         }
                     }
@@ -387,18 +390,14 @@ final class BackgroundShareTransferManager {
 
     // MARK: - Smooth Progress Timer
 
-    /// Sets the target progress. The timer will smoothly interpolate toward it.
     private func setTargetProgress(_ progress: Int, message: String) {
         targetProgress = min(progress, 100)
         currentMessage = message
     }
 
-    /// Starts a repeating timer that syncs displayProgress to targetProgress
-    /// and sends activity updates at a reasonable rate (~2/sec).
     private func startProgressTimer() {
         targetProgress = 0
         displayProgress = 0
-        animationStep = 0
         currentMessage = "Starting..."
         stopProgressTimer()
 
@@ -415,9 +414,6 @@ final class BackgroundShareTransferManager {
     }
 
     private func progressTimerTick() {
-        animationStep += 1
-
-        // Show actual progress directly — no interpolation delay
         displayProgress = targetProgress
         status = .uploading(progress: displayProgress, total: 100)
 
@@ -426,8 +422,7 @@ final class BackgroundShareTransferManager {
             total: 100,
             message: currentMessage,
             isComplete: false,
-            isFailed: false,
-            animationStep: animationStep
+            isFailed: false
         )
         Task { await currentActivity?.update(.init(state: state, staleDate: nil)) }
     }
@@ -469,12 +464,6 @@ final class BackgroundShareTransferManager {
         } catch {
             Self.logger.error("Activity.request failed: \(error.localizedDescription, privacy: .public)")
         }
-    }
-
-    private func updateLiveActivity(progress: Int, total: Int, message: String) {
-        // No longer used directly — the progress timer handles all activity updates.
-        // Kept for compatibility; just updates the target.
-        setTargetProgress(progress, message: message)
     }
 
     private func endLiveActivity(success: Bool, message: String) {

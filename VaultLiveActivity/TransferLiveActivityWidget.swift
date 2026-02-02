@@ -2,6 +2,9 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
+/// App accent color hardcoded for widget extension (no access to main app's asset catalog).
+private let vaultAccent = Color(red: 0.384, green: 0.275, blue: 0.918)
+
 struct TransferLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: TransferActivityAttributes.self) { context in
@@ -46,7 +49,7 @@ struct TransferLiveActivityWidget: Widget {
                                 value: Double(context.state.progress),
                                 total: Double(context.state.total)
                             )
-                            .tint(.accentColor)
+                            .tint(vaultAccent)
                         }
                     }
                     .padding(.horizontal, 4)
@@ -65,9 +68,15 @@ struct TransferLiveActivityWidget: Widget {
                 } else if context.state.isFailed {
                     Image(systemName: "exclamationmark.circle.fill")
                         .foregroundStyle(.red)
+                } else if context.state.total > 0 {
+                    Text("\(context.state.progress)%")
+                        .foregroundStyle(.white)
+                        .font(.caption2.monospacedDigit())
+                        .contentTransition(.numericText())
+                        .animation(.default, value: context.state.progress)
                 } else {
-                    progressText(context: context)
-                        .font(.caption.monospacedDigit())
+                    Text("...")
+                        .foregroundStyle(.secondary)
                 }
             } minimal: {
                 LivePixelGrid(
@@ -110,7 +119,7 @@ struct TransferLiveActivityWidget: Widget {
                         value: Double(context.state.progress),
                         total: Double(context.state.total)
                     )
-                    .tint(.accentColor)
+                    .tint(vaultAccent)
                 }
             }
 
@@ -131,7 +140,9 @@ struct TransferLiveActivityWidget: Widget {
     @ViewBuilder
     private func progressText(context: ActivityViewContext<TransferActivityAttributes>) -> some View {
         if context.state.total > 0 {
-            Text("\(context.state.progress)/\(context.state.total)")
+            Text("\(context.state.progress)%")
+                .contentTransition(.numericText())
+                .animation(.default, value: context.state.progress)
         } else {
             ProgressView()
         }
