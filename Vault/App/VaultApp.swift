@@ -126,6 +126,10 @@ final class AppState {
         }
     }
 
+    func updateVaultName(_ name: String) {
+        vaultName = name
+    }
+
     func lockVault() {
         #if DEBUG
         print("🔒 [AppState] lockVault() called")

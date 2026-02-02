@@ -229,6 +229,8 @@ struct JoinVaultView: View {
             // Set app state so user can navigate the app
             appState.currentVaultKey = patternKey
             appState.currentPattern = newPattern
+            let letters = GridLetterManager.shared.vaultName(for: newPattern)
+            appState.updateVaultName(letters.isEmpty ? "Vault" : "Vault \(letters)")
 
             // Create an empty vault index so the vault can open immediately
             let emptyIndex = VaultStorage.VaultIndex(

@@ -131,7 +131,7 @@ struct VaultView: View {
                 }
             }
             .navigationTitle(appState.vaultName)
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search files")
             .toolbar {
                 if !showingSettings {

@@ -484,6 +484,8 @@ struct PatternSetupView: View {
                 await MainActor.run {
                     appState.currentVaultKey = key
                     appState.isUnlocked = true
+                    let letters = GridLetterManager.shared.vaultName(for: pattern)
+                    appState.updateVaultName(letters.isEmpty ? "Vault" : "Vault \(letters)")
 
                     #if DEBUG
                     print("🔓 [PatternSetup] Vault unlocked. currentVaultKey set: \(appState.currentVaultKey != nil)")
