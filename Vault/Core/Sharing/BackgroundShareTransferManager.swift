@@ -209,22 +209,10 @@ final class BackgroundShareTransferManager {
                 updatedIndex.activeShares?.append(shareRecord)
                 try VaultStorage.shared.saveIndex(updatedIndex, with: capturedVaultKey)
 
-                let s1 = self
-                await MainActor.run {
-                    s1?.stopProgressTimer()
-                    s1?.status = .uploadComplete
-                    s1?.endLiveActivity(success: true, message: "Vault shared successfully")
-                    LocalNotificationManager.shared.sendUploadComplete()
-                }
+                await self?.finishTransfer(.uploadComplete, activityMessage: "Vault shared successfully")
             } catch {
                 guard !Task.isCancelled else { return }
-                let s2 = self
-                await MainActor.run {
-                    s2?.stopProgressTimer()
-                    s2?.status = .uploadFailed(error.localizedDescription)
-                    s2?.endLiveActivity(success: false, message: "Upload failed")
-                    LocalNotificationManager.shared.sendUploadFailed()
-                }
+                await self?.finishTransfer(.uploadFailed(error.localizedDescription), activityMessage: "Upload failed")
             }
         }
     }
@@ -302,22 +290,10 @@ final class BackgroundShareTransferManager {
                 index.sharedVaultVersion = result.version
                 try VaultStorage.shared.saveIndex(index, with: capturedPatternKey)
 
-                let s1 = self
-                await MainActor.run {
-                    s1?.stopProgressTimer()
-                    s1?.status = .importComplete
-                    s1?.endLiveActivity(success: true, message: "Shared vault is ready")
-                    LocalNotificationManager.shared.sendImportComplete()
-                }
+                await self?.finishTransfer(.importComplete, activityMessage: "Shared vault is ready")
             } catch {
                 guard !Task.isCancelled else { return }
-                let s2 = self
-                await MainActor.run {
-                    s2?.stopProgressTimer()
-                    s2?.status = .importFailed(error.localizedDescription)
-                    s2?.endLiveActivity(success: false, message: "Import failed")
-                    LocalNotificationManager.shared.sendImportFailed()
-                }
+                await self?.finishTransfer(.importFailed(error.localizedDescription), activityMessage: "Import failed")
             }
         }
     }
@@ -385,22 +361,10 @@ final class BackgroundShareTransferManager {
                 index.shareKeyData = shareKey
                 try VaultStorage.shared.saveIndex(index, with: capturedPatternKey)
 
-                let s1 = self
-                await MainActor.run {
-                    s1?.stopProgressTimer()
-                    s1?.status = .importComplete
-                    s1?.endLiveActivity(success: true, message: "Shared vault is ready")
-                    LocalNotificationManager.shared.sendImportComplete()
-                }
+                await self?.finishTransfer(.importComplete, activityMessage: "Shared vault is ready")
             } catch {
                 guard !Task.isCancelled else { return }
-                let s2 = self
-                await MainActor.run {
-                    s2?.stopProgressTimer()
-                    s2?.status = .importFailed(error.localizedDescription)
-                    s2?.endLiveActivity(success: false, message: "Import failed")
-                    LocalNotificationManager.shared.sendImportFailed()
-                }
+                await self?.finishTransfer(.importFailed(error.localizedDescription), activityMessage: "Import failed")
             }
         }
     }
@@ -478,7 +442,7 @@ final class BackgroundShareTransferManager {
 
     // MARK: - Live Activity
 
-    private nonisolated(unsafe) static let logger = Logger(subsystem: "app.vaultaire.ios", category: "LiveActivity")
+    private nonisolated static let logger = Logger(subsystem: "app.vaultaire.ios", category: "LiveActivity")
 
     private func startLiveActivity(_ type: TransferActivityAttributes.TransferType) {
         // End any stale activities from previous runs
@@ -524,6 +488,31 @@ final class BackgroundShareTransferManager {
         Task {
             await activity?.end(.init(state: state, staleDate: nil), dismissalPolicy: .after(.now + 5))
         }
+    }
+
+    /// Finishes a transfer by stopping the timer, updating status, ending the Live Activity,
+    /// and firing the appropriate local notification. Called via `await self?.finishTransfer(...)`.
+    private func finishTransfer(_ newStatus: TransferStatus, activityMessage: String) {
+        stopProgressTimer()
+        status = newStatus
+        let success: Bool
+        switch newStatus {
+        case .uploadComplete:
+            success = true
+            LocalNotificationManager.shared.sendUploadComplete()
+        case .uploadFailed:
+            success = false
+            LocalNotificationManager.shared.sendUploadFailed()
+        case .importComplete:
+            success = true
+            LocalNotificationManager.shared.sendImportComplete()
+        case .importFailed:
+            success = false
+            LocalNotificationManager.shared.sendImportFailed()
+        default:
+            success = false
+        }
+        endLiveActivity(success: success, message: activityMessage)
     }
 
     // MARK: - Control

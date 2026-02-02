@@ -251,11 +251,12 @@ final class ShareViewController: UIViewController {
         from provider: NSItemProvider,
         utType: UTType
     ) async throws -> (url: URL, filename: String, mimeType: String) {
-        // Capture registered types before the @Sendable closure to avoid
-        // capturing the non-Sendable NSItemProvider across concurrency boundaries.
+        // Capture registered types and provider reference before the @Sendable closure.
+        // NSItemProvider is not Sendable but loadFileRepresentation is thread-safe.
         let registeredTypes = provider.registeredTypeIdentifiers
+        nonisolated(unsafe) let unsafeProvider = provider
         return try await withCheckedThrowingContinuation { continuation in
-            provider.loadFileRepresentation(forTypeIdentifier: utType.identifier) { url, error in
+            unsafeProvider.loadFileRepresentation(forTypeIdentifier: utType.identifier) { url, error in
                 if let error = error {
                     continuation.resume(throwing: error)
                     return

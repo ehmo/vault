@@ -91,13 +91,13 @@ final class PatternInputView: UIView {
         addGestureRecognizer(drawGesture)
 
         feedbackGenerator.prepare()
+        registerTraitObservers()
     }
 
-    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
-        super.traitCollectionDidChange(previousTraitCollection)
-        if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
-            updateLineColors()
-            updateNodeAppearances()
+    private func registerTraitObservers() {
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: PatternInputView, _) in
+            self.updateLineColors()
+            self.updateNodeAppearances()
         }
     }
 
