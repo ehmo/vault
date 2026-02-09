@@ -416,10 +416,10 @@ struct VaultView: View {
                 }
             }
         }
-        .confirmationDialog("Add to Vault", isPresented: $showingImportOptions) {
-            Button("Take Photo") { showingCamera = true }
-            Button("Choose from Photos") { showingPhotoPicker = true }
-            Button("Import File") { showingFilePicker = true }
+        .confirmationDialog("Protect New Files", isPresented: $showingImportOptions) {
+            Button("Take Secure Photo") { showingCamera = true }
+            Button("Import from Library") { showingPhotoPicker = true }
+            Button("Import Documents") { showingFilePicker = true }
             Button("Cancel", role: .cancel) { }
         }
         .sheet(isPresented: $showingCamera) {
