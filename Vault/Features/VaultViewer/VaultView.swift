@@ -2,10 +2,22 @@ import SwiftUI
 import PhotosUI
 import UIKit
 
-enum FileFilter: String, CaseIterable {
+enum FileFilter: String, CaseIterable, Identifiable {
     case all = "All"
-    case images = "Images"
-    case other = "Other"
+    case photos = "Photos"
+    case videos = "Videos"
+    case documents = "Documents"
+
+    var id: String { rawValue }
+
+    var icon: String {
+        switch self {
+        case .all: "square.grid.2x2"
+        case .photos: "photo"
+        case .videos: "video"
+        case .documents: "doc"
+        }
+    }
 }
 
 enum SortOrder: String, CaseIterable {
@@ -105,8 +117,12 @@ struct VaultView: View {
         var result = files
         switch fileFilter {
         case .all: break
-        case .images: result = result.filter { ($0.mimeType ?? "").hasPrefix("image/") }
-        case .other: result = result.filter { !($0.mimeType ?? "").hasPrefix("image/") }
+        case .photos: result = result.filter { ($0.mimeType ?? "").hasPrefix("image/") }
+        case .videos: result = result.filter { ($0.mimeType ?? "").hasPrefix("video/") }
+        case .documents: result = result.filter {
+            let mime = $0.mimeType ?? ""
+            return !mime.hasPrefix("image/") && !mime.hasPrefix("video/")
+        }
         }
         if !searchText.isEmpty {
             result = result.filter {
@@ -129,19 +145,23 @@ struct VaultView: View {
         return result
     }
 
-    private var splitFiles: (all: [VaultFileItem], images: [VaultFileItem], nonImages: [VaultFileItem]) {
+    private var splitFiles: (all: [VaultFileItem], images: [VaultFileItem], videos: [VaultFileItem], documents: [VaultFileItem]) {
         let result = sortedFiles
-        let images = result.filter { $0.isImage }
-        let nonImages = result.filter { !$0.isImage }
-        return (result, images, nonImages)
+        let images = result.filter { ($0.mimeType ?? "").hasPrefix("image/") }
+        let videos = result.filter { ($0.mimeType ?? "").hasPrefix("video/") }
+        let documents = result.filter {
+            let mime = $0.mimeType ?? ""
+            return !mime.hasPrefix("image/") && !mime.hasPrefix("video/")
+        }
+        return (result, images, videos, documents)
     }
 
     private var useDateGrouping: Bool {
-        (sortOrder == .dateNewest || sortOrder == .dateOldest) && fileFilter == .all
+        sortOrder == .dateNewest || sortOrder == .dateOldest
     }
 
     @ViewBuilder
-    private func fileGridContent(split: (all: [VaultFileItem], images: [VaultFileItem], nonImages: [VaultFileItem])) -> some View {
+    private func fileGridContent(split: (all: [VaultFileItem], images: [VaultFileItem], videos: [VaultFileItem], documents: [VaultFileItem])) -> some View {
         ScrollView {
             if let masterKey {
                 if useDateGrouping {
@@ -164,7 +184,7 @@ struct VaultView: View {
                     if !group.images.isEmpty {
                         PhotosGridView(files: group.images, masterKey: masterKey, onSelect: { file, _ in
                             SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
-                            let allImages = sortedFiles.filter { $0.isImage }
+                            let allImages = sortedFiles.filter { ($0.mimeType ?? "").hasPrefix("image/") }
                             let globalIndex = allImages.firstIndex(where: { $0.id == file.id }) ?? 0
                             selectedPhotoIndex = globalIndex
                         }, onDelete: isSharedVault ? nil : deleteFileById,
@@ -193,7 +213,8 @@ struct VaultView: View {
     }
 
     @ViewBuilder
-    private func flatContent(split: (all: [VaultFileItem], images: [VaultFileItem], nonImages: [VaultFileItem]), masterKey: Data) -> some View {
+    private func flatContent(split: (all: [VaultFileItem], images: [VaultFileItem], videos: [VaultFileItem], documents: [VaultFileItem]), masterKey: Data) -> some View {
+        let nonImages = split.videos + split.documents
         switch fileFilter {
         case .all:
             if !split.images.isEmpty {
@@ -203,22 +224,28 @@ struct VaultView: View {
                 }, onDelete: isSharedVault ? nil : deleteFileById,
                    isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
             }
-            if !split.nonImages.isEmpty {
-                FilesGridView(files: split.nonImages, onSelect: { file in
+            if !nonImages.isEmpty {
+                FilesGridView(files: nonImages, onSelect: { file in
                     SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                     selectedFile = file
                 }, onDelete: isSharedVault ? nil : deleteFileById,
                    isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
                 .padding(.top, split.images.isEmpty ? 0 : 12)
             }
-        case .images:
+        case .photos:
             PhotosGridView(files: split.images, masterKey: masterKey, onSelect: { file, index in
                 SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                 selectedPhotoIndex = index
             }, onDelete: isSharedVault ? nil : deleteFileById,
                isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
-        case .other:
-            FilesGridView(files: split.nonImages, onSelect: { file in
+        case .videos:
+            FilesGridView(files: split.videos, onSelect: { file in
+                SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
+                selectedFile = file
+            }, onDelete: isSharedVault ? nil : deleteFileById,
+               isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
+        case .documents:
+            FilesGridView(files: split.documents, onSelect: { file in
                 SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                 selectedFile = file
             }, onDelete: isSharedVault ? nil : deleteFileById,
@@ -262,7 +289,6 @@ struct VaultView: View {
             }
             .navigationTitle(appState.vaultName)
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search files")
             .toolbar {
                 if !showingSettings {
                     ToolbarItem(placement: .topBarLeading) {
@@ -294,6 +320,36 @@ struct VaultView: View {
                                 )
                             }
 
+                            Button(action: lockVault) {
+                                Image(systemName: "lock.fill")
+                            }
+                            .accessibilityLabel("Lock vault")
+                        }
+                    }
+                }
+            }
+            .safeAreaInset(edge: .top) {
+                VStack(spacing: 8) {
+                    if !files.isEmpty && !showingSettings {
+                        HStack(spacing: 12) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundStyle(.vaultSecondaryText)
+                                TextField("Search files", text: $searchText)
+                                    .textFieldStyle(.plain)
+                                if !searchText.isEmpty {
+                                    Button {
+                                        searchText = ""
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundStyle(.vaultSecondaryText)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(10)
+                            .vaultGlassBackground(cornerRadius: 12)
+
                             Menu {
                                 ForEach(SortOrder.allCases, id: \.self) { order in
                                     Button {
@@ -308,30 +364,14 @@ struct VaultView: View {
                                 }
                             } label: {
                                 Image(systemName: "arrow.up.arrow.down")
+                                    .fontWeight(.medium)
+                                    .padding(10)
+                                    .vaultGlassBackground(cornerRadius: 12)
                             }
                             .accessibilityLabel("Sort files")
-
-                            Button(action: lockVault) {
-                                Image(systemName: "lock.fill")
-                            }
-                            .accessibilityLabel("Lock vault")
                         }
+                        .padding(.horizontal)
                     }
-
-                    if !files.isEmpty {
-                        ToolbarItem(placement: .bottomBar) {
-                            Picker("Filter", selection: $fileFilter) {
-                                ForEach(FileFilter.allCases, id: \.self) { filter in
-                                    Text(filter.rawValue).tag(filter)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                        }
-                    }
-                }
-            }
-            .safeAreaInset(edge: .top) {
-                VStack(spacing: 8) {
                     if isSharedVault {
                         sharedVaultBanner
                     }
@@ -343,48 +383,69 @@ struct VaultView: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                if !isSharedVault && !files.isEmpty && !showingSettings {
-                    if isEditing {
-                        HStack(spacing: 16) {
-                            Button(role: .destructive) {
-                                showingBatchDeleteConfirmation = true
-                            } label: {
-                                Label("Delete (\(selectedIds.count))", systemImage: "trash")
-                                    .font(.headline)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 12)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.red)
-                            .disabled(selectedIds.isEmpty)
-                        }
-                        .padding(.horizontal)
-                        .vaultBarMaterial()
-                    } else {
-                        VStack(spacing: 4) {
-                            if !subscriptionManager.isPremium {
-                                Text("\(files.count) of \(SubscriptionManager.maxFreeFilesPerVault) files")
-                                    .font(.caption)
-                                    .foregroundStyle(.vaultSecondaryText)
-                            }
-                            Button(action: {
-                                if subscriptionManager.canAddFile(currentFileCount: files.count) {
-                                    showingImportOptions = true
-                                } else {
-                                    showingPaywall = true
+                if !files.isEmpty && !showingSettings {
+                    VStack(spacing: 12) {
+                        if !isSharedVault {
+                            if isEditing {
+                                HStack(spacing: 16) {
+                                    Button(role: .destructive) {
+                                        showingBatchDeleteConfirmation = true
+                                    } label: {
+                                        Label("Delete (\(selectedIds.count))", systemImage: "trash")
+                                            .font(.headline)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 12)
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(.red)
+                                    .disabled(selectedIds.isEmpty)
                                 }
-                            }) {
-                                Label("Protect Files", systemImage: "plus.circle.fill")
-                                    .font(.headline)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 12)
+                                .padding(.horizontal)
+                            } else {
+                                VStack(spacing: 4) {
+                                    if !subscriptionManager.isPremium {
+                                        Text("\(files.count) of \(SubscriptionManager.maxFreeFilesPerVault) files")
+                                            .font(.caption)
+                                            .foregroundStyle(.vaultSecondaryText)
+                                    }
+                                    Button(action: {
+                                        if subscriptionManager.canAddFile(currentFileCount: files.count) {
+                                            showingImportOptions = true
+                                        } else {
+                                            showingPaywall = true
+                                        }
+                                    }) {
+                                        Label("Protect Files", systemImage: "plus.circle.fill")
+                                            .font(.headline)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 12)
+                                    }
+                                    .vaultProminentButtonStyle()
+                                }
+                                .padding(.horizontal)
+                                .accessibilityHint("Import photos, videos, or files into the vault")
                             }
-                            .vaultProminentButtonStyle()
                         }
-                        .padding(.horizontal)
-                        .vaultBarMaterial()
-                        .accessibilityHint("Import photos, videos, or files into the vault")
+
+                        HStack(spacing: 0) {
+                            ForEach(FileFilter.allCases) { filter in
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        fileFilter = filter
+                                    }
+                                } label: {
+                                    Image(systemName: filter.icon)
+                                        .font(.body.weight(.medium))
+                                        .foregroundStyle(fileFilter == filter ? Color.accentColor : .secondary)
+                                        .frame(width: 52, height: 40)
+                                        .contentShape(Rectangle())
+                                }
+                                .accessibilityLabel(filter.rawValue)
+                            }
+                        }
+                        .vaultGlassBackground(cornerRadius: 24)
                     }
+                    .vaultBarMaterial()
                 }
             }
         }
