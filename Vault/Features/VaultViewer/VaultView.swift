@@ -352,24 +352,39 @@ struct VaultView: View {
                             .vaultGlassBackground(cornerRadius: 12)
 
                             Menu {
-                                ForEach(SortOrder.allCases, id: \.self) { order in
-                                    Button {
-                                        sortOrder = order
-                                    } label: {
-                                        if sortOrder == order {
-                                            Label(order.rawValue, systemImage: "checkmark")
-                                        } else {
-                                            Text(order.rawValue)
+                                Section("Filter") {
+                                    ForEach(FileFilter.allCases) { filter in
+                                        Button {
+                                            fileFilter = filter
+                                        } label: {
+                                            if fileFilter == filter {
+                                                Label(filter.rawValue, systemImage: "checkmark")
+                                            } else {
+                                                Label(filter.rawValue, systemImage: filter.icon)
+                                            }
+                                        }
+                                    }
+                                }
+                                Section("Sort") {
+                                    ForEach(SortOrder.allCases, id: \.self) { order in
+                                        Button {
+                                            sortOrder = order
+                                        } label: {
+                                            if sortOrder == order {
+                                                Label(order.rawValue, systemImage: "checkmark")
+                                            } else {
+                                                Text(order.rawValue)
+                                            }
                                         }
                                     }
                                 }
                             } label: {
-                                Image(systemName: "arrow.up.arrow.down")
+                                Image(systemName: fileFilter == .all ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
                                     .fontWeight(.medium)
                                     .padding(10)
                                     .vaultGlassBackground(cornerRadius: 12)
                             }
-                            .accessibilityLabel("Sort files")
+                            .accessibilityLabel("Filter and sort")
                         }
                         .padding(.horizontal)
                     }
@@ -384,43 +399,21 @@ struct VaultView: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                if !files.isEmpty && !showingSettings {
-                    VStack(spacing: 12) {
-                        if !isSharedVault && isEditing {
-                            HStack(spacing: 16) {
-                                Button(role: .destructive) {
-                                    showingBatchDeleteConfirmation = true
-                                } label: {
-                                    Label("Delete (\(selectedIds.count))", systemImage: "trash")
-                                        .font(.headline)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 12)
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .tint(.red)
-                                .disabled(selectedIds.isEmpty)
-                            }
-                            .padding(.horizontal)
+                if !isSharedVault && isEditing && !files.isEmpty && !showingSettings {
+                    HStack(spacing: 16) {
+                        Button(role: .destructive) {
+                            showingBatchDeleteConfirmation = true
+                        } label: {
+                            Label("Delete (\(selectedIds.count))", systemImage: "trash")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
                         }
-
-                        HStack(spacing: 0) {
-                            ForEach(FileFilter.allCases) { filter in
-                                Button {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        fileFilter = filter
-                                    }
-                                } label: {
-                                    Image(systemName: filter.icon)
-                                        .font(.body.weight(.medium))
-                                        .foregroundStyle(fileFilter == filter ? Color.accentColor : .secondary)
-                                        .frame(width: 52, height: 40)
-                                        .contentShape(Rectangle())
-                                }
-                                .accessibilityLabel(filter.rawValue)
-                            }
-                        }
-                        .vaultGlassBackground(cornerRadius: 24)
+                        .buttonStyle(.borderedProminent)
+                        .tint(.red)
+                        .disabled(selectedIds.isEmpty)
                     }
+                    .padding(.horizontal)
                     .vaultBarMaterial()
                 }
             }
@@ -432,8 +425,8 @@ struct VaultView: View {
             .overlay(alignment: .bottomTrailing) {
                 if !files.isEmpty && !showingSettings && !isSharedVault && !isEditing {
                     fanMenuButtonAndItems
-                        .padding(.trailing, 16)
-                        .padding(.bottom, 6)
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 20)
                 }
             }
         }
