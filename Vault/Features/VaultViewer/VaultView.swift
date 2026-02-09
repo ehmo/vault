@@ -8,6 +8,65 @@ enum FileFilter: String, CaseIterable {
     case other = "Other"
 }
 
+enum SortOrder: String, CaseIterable {
+    case dateNewest = "Newest First"
+    case dateOldest = "Oldest First"
+    case sizeSmallest = "Smallest"
+    case sizeLargest = "Largest"
+    case name = "Name"
+}
+
+// MARK: - Date Grouping
+
+struct DateGroup: Identifiable {
+    let id: String // group title
+    let title: String
+    let images: [VaultFileItem]
+    let files: [VaultFileItem] // non-image files
+}
+
+private func groupFilesByDate(_ items: [VaultFileItem]) -> [DateGroup] {
+    let calendar = Calendar.current
+    let now = Date()
+    let startOfToday = calendar.startOfDay(for: now)
+    let startOfYesterday = calendar.date(byAdding: .day, value: -1, to: startOfToday)!
+    let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now))!
+    let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
+
+    var buckets: [(title: String, items: [VaultFileItem])] = [
+        ("Today", []),
+        ("Yesterday", []),
+        ("This Week", []),
+        ("This Month", []),
+        ("Earlier", [])
+    ]
+
+    for item in items {
+        guard let date = item.createdAt else {
+            buckets[4].items.append(item)
+            continue
+        }
+        if date >= startOfToday {
+            buckets[0].items.append(item)
+        } else if date >= startOfYesterday {
+            buckets[1].items.append(item)
+        } else if date >= startOfWeek {
+            buckets[2].items.append(item)
+        } else if date >= startOfMonth {
+            buckets[3].items.append(item)
+        } else {
+            buckets[4].items.append(item)
+        }
+    }
+
+    return buckets.compactMap { bucket in
+        guard !bucket.items.isEmpty else { return nil }
+        let images = bucket.items.filter { $0.isImage }
+        let files = bucket.items.filter { !$0.isImage }
+        return DateGroup(id: bucket.title, title: bucket.title, images: images, files: files)
+    }
+}
+
 struct VaultView: View {
     @Environment(AppState.self) private var appState
     @Environment(SubscriptionManager.self) private var subscriptionManager
@@ -23,6 +82,7 @@ struct VaultView: View {
     @State private var isLoading = true
     @State private var searchText = ""
     @State private var fileFilter: FileFilter = .all
+    @State private var sortOrder: SortOrder = .dateNewest
     @State private var showingPaywall = false
 
     // Transfer status
@@ -37,7 +97,7 @@ struct VaultView: View {
     @State private var selfDestructMessage: String?
     @State private var showSelfDestructAlert = false
 
-    private var splitFiles: (all: [VaultFileItem], images: [VaultFileItem], nonImages: [VaultFileItem]) {
+    private var sortedFiles: [VaultFileItem] {
         var result = files
         switch fileFilter {
         case .all: break
@@ -50,45 +110,110 @@ struct VaultView: View {
                 ($0.mimeType ?? "").localizedStandardContains(searchText)
             }
         }
+        switch sortOrder {
+        case .dateNewest:
+            result.sort { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
+        case .dateOldest:
+            result.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+        case .sizeSmallest:
+            result.sort { $0.size < $1.size }
+        case .sizeLargest:
+            result.sort { $0.size > $1.size }
+        case .name:
+            result.sort { ($0.filename ?? "").localizedStandardCompare($1.filename ?? "") == .orderedAscending }
+        }
+        return result
+    }
+
+    private var splitFiles: (all: [VaultFileItem], images: [VaultFileItem], nonImages: [VaultFileItem]) {
+        let result = sortedFiles
         let images = result.filter { $0.isImage }
         let nonImages = result.filter { !$0.isImage }
         return (result, images, nonImages)
     }
 
+    private var useDateGrouping: Bool {
+        (sortOrder == .dateNewest || sortOrder == .dateOldest) && fileFilter == .all
+    }
+
     @ViewBuilder
-    private var fileGridContent: some View {
-        let split = splitFiles
+    private func fileGridContent(split: (all: [VaultFileItem], images: [VaultFileItem], nonImages: [VaultFileItem])) -> some View {
         ScrollView {
             if let masterKey {
-                switch fileFilter {
-                case .all:
-                    if !split.images.isEmpty {
-                        PhotosGridView(files: split.images, masterKey: masterKey, onSelect: { file, index in
-                            SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
-                            selectedPhotoIndex = index
-                        }, onDelete: isSharedVault ? nil : deleteFileById)
-                    }
-                    if !split.nonImages.isEmpty {
-                        FilesGridView(files: split.nonImages, onSelect: { file in
-                            SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
-                            selectedFile = file
-                        }, onDelete: isSharedVault ? nil : deleteFileById)
-                        .padding(.top, split.images.isEmpty ? 0 : 12)
-                    }
-                case .images:
-                    PhotosGridView(files: split.images, masterKey: masterKey, onSelect: { file, index in
-                        SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
-                        selectedPhotoIndex = index
-                    }, onDelete: isSharedVault ? nil : deleteFileById)
-                case .other:
-                    FilesGridView(files: split.nonImages, onSelect: { file in
-                        SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
-                        selectedFile = file
-                    }, onDelete: isSharedVault ? nil : deleteFileById)
+                if useDateGrouping {
+                    dateGroupedContent(masterKey: masterKey)
+                } else {
+                    flatContent(split: split, masterKey: masterKey)
                 }
             } else {
                 ProgressView("Decrypting...")
             }
+        }
+    }
+
+    @ViewBuilder
+    private func dateGroupedContent(masterKey: Data) -> some View {
+        let groups = groupFilesByDate(sortedFiles)
+        LazyVStack(alignment: .leading, spacing: 0, pinnedViews: .sectionHeaders) {
+            ForEach(groups) { group in
+                Section {
+                    if !group.images.isEmpty {
+                        PhotosGridView(files: group.images, masterKey: masterKey, onSelect: { file, _ in
+                            SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
+                            // Find global index in all images for photo viewer
+                            let allImages = sortedFiles.filter { $0.isImage }
+                            let globalIndex = allImages.firstIndex(where: { $0.id == file.id }) ?? 0
+                            selectedPhotoIndex = globalIndex
+                        }, onDelete: isSharedVault ? nil : deleteFileById)
+                    }
+                    if !group.files.isEmpty {
+                        FilesGridView(files: group.files, onSelect: { file in
+                            SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
+                            selectedFile = file
+                        }, onDelete: isSharedVault ? nil : deleteFileById)
+                        .padding(.top, group.images.isEmpty ? 0 : 12)
+                    }
+                } header: {
+                    Text(group.title)
+                        .font(.headline)
+                        .foregroundStyle(.vaultSecondaryText)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(.ultraThinMaterial)
+                        .accessibilityAddTraits(.isHeader)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func flatContent(split: (all: [VaultFileItem], images: [VaultFileItem], nonImages: [VaultFileItem]), masterKey: Data) -> some View {
+        switch fileFilter {
+        case .all:
+            if !split.images.isEmpty {
+                PhotosGridView(files: split.images, masterKey: masterKey, onSelect: { file, index in
+                    SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
+                    selectedPhotoIndex = index
+                }, onDelete: isSharedVault ? nil : deleteFileById)
+            }
+            if !split.nonImages.isEmpty {
+                FilesGridView(files: split.nonImages, onSelect: { file in
+                    SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
+                    selectedFile = file
+                }, onDelete: isSharedVault ? nil : deleteFileById)
+                .padding(.top, split.images.isEmpty ? 0 : 12)
+            }
+        case .images:
+            PhotosGridView(files: split.images, masterKey: masterKey, onSelect: { file, index in
+                SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
+                selectedPhotoIndex = index
+            }, onDelete: isSharedVault ? nil : deleteFileById)
+        case .other:
+            FilesGridView(files: split.nonImages, onSelect: { file in
+                SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
+                selectedFile = file
+            }, onDelete: isSharedVault ? nil : deleteFileById)
         }
     }
 
@@ -105,6 +230,7 @@ struct VaultView: View {
     }
 
     var body: some View {
+        let split = splitFiles
         NavigationStack {
             Group {
                 if isLoading {
@@ -113,14 +239,14 @@ struct VaultView: View {
                     emptyStateView
                 } else {
                     ZStack {
-                        if splitFiles.all.isEmpty {
+                        if split.all.isEmpty {
                             ContentUnavailableView(
                                 "No matching files",
                                 systemImage: "magnifyingglass",
                                 description: Text("No files match \"\(searchText.isEmpty ? fileFilter.rawValue : searchText)\"")
                             )
                         } else {
-                            fileGridContent
+                            fileGridContent(split: split)
                         }
                     }
                 }
@@ -138,10 +264,29 @@ struct VaultView: View {
                     }
 
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button(action: lockVault) {
-                            Image(systemName: "lock.fill")
+                        HStack(spacing: 12) {
+                            Menu {
+                                ForEach(SortOrder.allCases, id: \.self) { order in
+                                    Button {
+                                        sortOrder = order
+                                    } label: {
+                                        if sortOrder == order {
+                                            Label(order.rawValue, systemImage: "checkmark")
+                                        } else {
+                                            Text(order.rawValue)
+                                        }
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: "arrow.up.arrow.down")
+                            }
+                            .accessibilityLabel("Sort files")
+
+                            Button(action: lockVault) {
+                                Image(systemName: "lock.fill")
+                            }
+                            .accessibilityLabel("Lock vault")
                         }
-                        .accessibilityLabel("Lock vault")
                     }
 
                     if !files.isEmpty {
@@ -253,7 +398,7 @@ struct VaultView: View {
         }
         .fullScreenCover(item: photoViewerItem) { item in
             FullScreenPhotoViewer(
-                files: splitFiles.images,
+                files: split.images,
                 vaultKey: appState.currentVaultKey,
                 initialIndex: item.id,
                 onDelete: isSharedVault ? nil : { deletedId in
@@ -629,7 +774,8 @@ struct VaultView: View {
                         size: entry.size,
                         encryptedThumbnail: entry.encryptedThumbnail,
                         mimeType: entry.mimeType,
-                        filename: entry.filename
+                        filename: entry.filename,
+                        createdAt: entry.createdAt
                     )
                 }
                 await MainActor.run {
@@ -687,7 +833,7 @@ struct VaultView: View {
     private func handleSelectedImages(_ imagesData: [Data]) {
         guard !isSharedVault, let key = appState.currentVaultKey else { return }
 
-        for (_, data) in imagesData.enumerated() {
+        for data in imagesData {
             Task {
                 do {
                     let filename = "IMG_\(Date().timeIntervalSince1970).jpg"
@@ -769,6 +915,16 @@ struct VaultFileItem: Identifiable, Sendable {
     let encryptedThumbnail: Data?
     let mimeType: String?
     let filename: String?
+    let createdAt: Date?
+
+    init(id: UUID, size: Int, encryptedThumbnail: Data?, mimeType: String?, filename: String?, createdAt: Date? = nil) {
+        self.id = id
+        self.size = size
+        self.encryptedThumbnail = encryptedThumbnail
+        self.mimeType = mimeType
+        self.filename = filename
+        self.createdAt = createdAt
+    }
 
     var isImage: Bool {
         (mimeType ?? "").hasPrefix("image/")

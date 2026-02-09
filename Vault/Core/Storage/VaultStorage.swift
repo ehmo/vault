@@ -291,6 +291,7 @@ final class VaultStorage {
             let mimeType: String?
             let filename: String?
             let blobId: String? // nil = primary blob (backward compat)
+            let createdAt: Date? // When the file was added to the vault
 
             // Legacy initializer for backward compatibility
             init(fileId: UUID, offset: Int, size: Int, encryptedHeaderPreview: Data, isDeleted: Bool) {
@@ -303,11 +304,13 @@ final class VaultStorage {
                 self.mimeType = nil
                 self.filename = nil
                 self.blobId = nil
+                self.createdAt = nil
             }
 
             // Full initializer with thumbnail and blobId
             init(fileId: UUID, offset: Int, size: Int, encryptedHeaderPreview: Data, isDeleted: Bool,
-                 thumbnailData: Data?, mimeType: String?, filename: String?, blobId: String? = nil) {
+                 thumbnailData: Data?, mimeType: String?, filename: String?, blobId: String? = nil,
+                 createdAt: Date? = nil) {
                 self.fileId = fileId
                 self.offset = offset
                 self.size = size
@@ -317,6 +320,7 @@ final class VaultStorage {
                 self.mimeType = mimeType
                 self.filename = filename
                 self.blobId = blobId
+                self.createdAt = createdAt
             }
         }
     }
@@ -699,7 +703,8 @@ final class VaultStorage {
             thumbnailData: encryptedThumbnail,
             mimeType: mimeType,
             filename: filename,
-            blobId: targetBlobId == "primary" ? nil : targetBlobId
+            blobId: targetBlobId == "primary" ? nil : targetBlobId,
+            createdAt: Date()
         )
         index.files.append(entry)
 
@@ -787,7 +792,8 @@ final class VaultStorage {
             thumbnailData: entry.thumbnailData,
             mimeType: entry.mimeType,
             filename: entry.filename,
-            blobId: entry.blobId
+            blobId: entry.blobId,
+            createdAt: entry.createdAt
         )
 
         try saveIndex(index, with: key)
@@ -833,6 +839,7 @@ final class VaultStorage {
         let encryptedThumbnail: Data?
         let mimeType: String?
         let filename: String?
+        let createdAt: Date?
     }
 
     /// Returns the master key and file entries without decrypting thumbnails.
@@ -850,7 +857,8 @@ final class VaultStorage {
                 size: entry.size,
                 encryptedThumbnail: entry.thumbnailData,
                 mimeType: entry.mimeType,
-                filename: entry.filename
+                filename: entry.filename,
+                createdAt: entry.createdAt
             )
         }
 
