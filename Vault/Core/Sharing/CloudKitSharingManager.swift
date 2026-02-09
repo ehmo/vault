@@ -129,18 +129,19 @@ final class CloudKitSharingManager {
         let transaction = SentryManager.shared.startTransaction(name: "share.upload", operation: "share.upload")
         let ckStart = CFAbsoluteTimeGetCurrent()
 
-        // Pre-flight: verify iCloud account is available
-        let accountStatus = await checkiCloudStatus()
+        // Pre-flight: verify iCloud account is available (retry for transient states)
+        var accountStatus = await checkiCloudStatus()
         Self.logger.info("[upload-telemetry] iCloud account status: \(accountStatus.rawValue)")
-        guard accountStatus == .available else {
-            let statusDesc: String
-            switch accountStatus {
-            case .noAccount: statusDesc = "No iCloud account. Sign in to iCloud in Settings to share vaults."
-            case .restricted: statusDesc = "iCloud is restricted on this device."
-            case .couldNotDetermine: statusDesc = "Could not determine iCloud status. Check your internet connection."
-            case .temporarilyUnavailable: statusDesc = "iCloud is temporarily unavailable. Try again later."
-            @unknown default: statusDesc = "iCloud is not available (status: \(accountStatus.rawValue))."
+        if accountStatus == .temporarilyUnavailable || accountStatus == .couldNotDetermine {
+            for attempt in 1...5 {
+                Self.logger.info("[upload-telemetry] iCloud not ready, retry \(attempt)/5...")
+                try await Task.sleep(nanoseconds: UInt64(attempt) * 2_000_000_000) // 2, 4, 6, 8, 10s
+                accountStatus = await checkiCloudStatus()
+                Self.logger.info("[upload-telemetry] iCloud status after retry: \(accountStatus.rawValue)")
+                if accountStatus == .available { break }
             }
+        }
+        guard accountStatus == .available else {
             transaction.finish(status: .internalError)
             throw CloudKitSharingError.notAvailable
         }
@@ -541,7 +542,8 @@ final class CloudKitSharingManager {
     private static func isRetryable(_ error: CKError) -> Bool {
         switch error.code {
         case .networkUnavailable, .networkFailure, .serviceUnavailable,
-             .zoneBusy, .requestRateLimited:
+             .zoneBusy, .requestRateLimited,
+             .notAuthenticated, .accountTemporarilyUnavailable:
             return true
         default:
             return false
