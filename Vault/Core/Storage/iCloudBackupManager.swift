@@ -48,11 +48,9 @@ final class iCloudBackupManager {
     // MARK: - Backup
 
     func performBackup(with key: Data) async throws {
-        guard isICloudAvailable else {
-            throw iCloudError.notAvailable
-        }
-
         guard let containerURL = iCloudContainerURL else {
+            // ubiquityIdentityToken may be nil while CKAccountStatus is .temporarilyUnavailable
+            // (user is signed in but CloudKit still syncing). Treat both as container not ready.
             throw iCloudError.containerNotFound
         }
 
