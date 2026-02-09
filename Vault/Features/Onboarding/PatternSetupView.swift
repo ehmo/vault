@@ -139,7 +139,6 @@ struct PatternSetupView: View {
             onPatternComplete: handlePatternComplete
         )
         .frame(width: 280, height: 280)
-        .vaultPatternGridBackground()
         .padding()
     }
 
