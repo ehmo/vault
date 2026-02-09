@@ -102,7 +102,7 @@ struct ShareVaultView: View {
             }
         }
         .onChange(of: ShareSyncManager.shared.syncStatus) { _, newStatus in
-            // Reload share records after sync so per-share "Last synced" updates
+            // Reload share records after sync completes
             if case .upToDate = newStatus {
                 reloadActiveShares()
             }
@@ -422,15 +422,6 @@ struct ShareVaultView: View {
                     Text("Expires")
                     Spacer()
                     Text(expires, style: .date)
-                }
-                .font(.subheadline).foregroundStyle(.vaultSecondaryText)
-            }
-
-            if let lastAccessed = share.lastSyncedAt {
-                HStack {
-                    Text("Last synced")
-                    Spacer()
-                    Text(lastAccessed, style: .relative)
                 }
                 .font(.subheadline).foregroundStyle(.vaultSecondaryText)
             }
