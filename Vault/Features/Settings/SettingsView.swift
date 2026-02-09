@@ -475,70 +475,129 @@ struct DuressSetupSheet: View {
 // MARK: - iCloud Backup Settings
 
 struct iCloudBackupSettingsView: View {
+    @Environment(AppState.self) private var appState
     @State private var isBackupEnabled = false
     @State private var lastBackupDate: Date?
     @State private var isBackingUp = false
     @State private var showingRestore = false
+    @State private var iCloudAvailable = true
+    @State private var errorMessage: String?
+
+    private let backupManager = iCloudBackupManager.shared
 
     var body: some View {
         List {
-            Section {
-                Toggle("Enable iCloud Backup", isOn: $isBackupEnabled)
-            } footer: {
-                Text("Encrypted vault data is backed up to your iCloud Drive. Only you can decrypt it with your pattern.")
-            }
-
-            if isBackupEnabled {
-                Section("Backup Status") {
-                    if let date = lastBackupDate {
-                        HStack {
-                            Text("Last backup")
-                            Spacer()
-                            Text(date, style: .relative)
-                                .foregroundStyle(.vaultSecondaryText)
-                        }
-                    } else {
-                        Text("No backup yet")
+            if !iCloudAvailable {
+                Section {
+                    VStack(spacing: 12) {
+                        Image(systemName: "icloud.slash")
+                            .font(.system(size: 36))
                             .foregroundStyle(.vaultSecondaryText)
-                    }
-
-                    Button(action: performBackup) {
-                        if isBackingUp {
-                            HStack {
-                                ProgressView()
-                                Text("Backing up...")
+                        Text("iCloud is not available. Sign in to iCloud in Settings to enable backups.")
+                            .foregroundStyle(.vaultSecondaryText)
+                            .multilineTextAlignment(.center)
+                            .font(.subheadline)
+                        Button {
+                            if let url = URL(string: "App-Prefs:root=CASTLE") {
+                                UIApplication.shared.open(url)
+                            } else if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
                             }
-                        } else {
-                            Text("Backup Now")
+                        } label: {
+                            Label("Open iCloud Settings", systemImage: "gear")
+                                .font(.body.weight(.medium))
                         }
+                        .buttonStyle(.borderedProminent)
                     }
-                    .disabled(isBackingUp)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                }
+            } else {
+                Section {
+                    Toggle("Enable iCloud Backup", isOn: $isBackupEnabled)
+                } footer: {
+                    Text("Encrypted vault data is backed up to your iCloud Drive. Only you can decrypt it with your pattern.")
                 }
 
-                Section("Restore") {
-                    Button("Restore from Backup") {
-                        showingRestore = true
+                if isBackupEnabled {
+                    Section("Backup Status") {
+                        if let date = lastBackupDate {
+                            HStack {
+                                Text("Last backup")
+                                Spacer()
+                                Text(date, style: .relative)
+                                    .foregroundStyle(.vaultSecondaryText)
+                            }
+                        } else {
+                            Text("No backup yet")
+                                .foregroundStyle(.vaultSecondaryText)
+                        }
+
+                        if let errorMessage {
+                            Text(errorMessage)
+                                .foregroundStyle(.red)
+                                .font(.caption)
+                        }
+
+                        Button(action: performBackup) {
+                            if isBackingUp {
+                                HStack {
+                                    ProgressView()
+                                    Text("Backing up...")
+                                }
+                            } else {
+                                Text("Backup Now")
+                            }
+                        }
+                        .disabled(isBackingUp)
+                    }
+
+                    Section("Restore") {
+                        Button("Restore from Backup") {
+                            showingRestore = true
+                        }
                     }
                 }
             }
         }
         .navigationTitle("iCloud Backup")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { checkAvailability() }
         .sheet(isPresented: $showingRestore) {
             RestoreFromBackupView()
         }
     }
 
+    private func checkAvailability() {
+        iCloudAvailable = backupManager.isICloudAvailable
+    }
+
     private func performBackup() {
+        guard let key = appState.currentVaultKey else {
+            errorMessage = "No vault key available"
+            return
+        }
+
         isBackingUp = true
+        errorMessage = nil
 
         Task {
-            // Perform backup
-            try? await Task.sleep(nanoseconds: 2_000_000_000) // Simulated delay
-
-            await MainActor.run {
-                lastBackupDate = Date()
-                isBackingUp = false
+            do {
+                try await backupManager.performBackup(with: key)
+                await MainActor.run {
+                    lastBackupDate = Date()
+                    isBackingUp = false
+                }
+            } catch iCloudError.notAvailable {
+                await MainActor.run {
+                    iCloudAvailable = false
+                    isBackingUp = false
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = "Backup failed: \(error.localizedDescription)"
+                    isBackingUp = false
+                }
             }
         }
     }

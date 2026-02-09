@@ -156,6 +156,25 @@ struct ShareVaultView: View {
             Text(iCloudStatusMessage(status))
                 .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
+
+            Button {
+                if let url = URL(string: "App-Prefs:root=CASTLE") {
+                    UIApplication.shared.open(url)
+                } else if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                Label("Open iCloud Settings", systemImage: "gear")
+                    .font(.body.weight(.medium))
+            }
+            .buttonStyle(.borderedProminent)
+            .padding(.top, 8)
+
+            Button("Retry") {
+                mode = .loading
+                Task { await initialize() }
+            }
+            .foregroundStyle(.vaultSecondaryText)
         }
         .padding(.top, 60)
     }
