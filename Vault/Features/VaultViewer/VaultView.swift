@@ -87,6 +87,7 @@ struct VaultView: View {
     @State private var selectedIds: Set<UUID> = []
     @State private var showingBatchDeleteConfirmation = false
     @State private var showingPaywall = false
+    @State private var toastMessage: ToastMessage?
 
     // Transfer status
     private var transferManager = BackgroundShareTransferManager.shared
@@ -475,6 +476,7 @@ struct VaultView: View {
         } message: {
             Text(selfDestructMessage ?? "This shared vault is no longer available.")
         }
+        .toast($toastMessage)
         .alert("Delete \(selectedIds.count) Files?", isPresented: $showingBatchDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) { batchDelete() }
@@ -770,6 +772,7 @@ struct VaultView: View {
     private func batchDelete() {
         guard let key = appState.currentVaultKey else { return }
         let idsToDelete = selectedIds
+        let count = idsToDelete.count
         Task {
             for id in idsToDelete {
                 try? VaultStorage.shared.deleteFile(id: id, with: key)
@@ -778,6 +781,7 @@ struct VaultView: View {
                 files.removeAll { idsToDelete.contains($0.id) }
                 selectedIds.removeAll()
                 isEditing = false
+                toastMessage = .filesDeleted(count)
             }
         }
     }
@@ -790,6 +794,7 @@ struct VaultView: View {
                 if let idx = files.firstIndex(where: { $0.id == id }) {
                     files.remove(at: idx)
                 }
+                toastMessage = .filesDeleted(1)
             }
         }
     }
@@ -887,6 +892,7 @@ struct VaultView: View {
                         mimeType: "image/jpeg",
                         filename: filename
                     ))
+                    toastMessage = .fileEncrypted()
                 }
 
                 // Trigger sync if sharing
@@ -899,6 +905,7 @@ struct VaultView: View {
 
     private func handleSelectedImages(_ imagesData: [Data]) {
         guard !isSharedVault, let key = appState.currentVaultKey else { return }
+        let count = imagesData.count
 
         for data in imagesData {
             Task {
@@ -928,6 +935,12 @@ struct VaultView: View {
                     #endif
                 }
             }
+        }
+
+        // Show toast after a short delay to allow imports to finish
+        Task {
+            try? await Task.sleep(for: .seconds(1))
+            await MainActor.run { toastMessage = .filesImported(count) }
         }
 
         // Trigger sync if sharing

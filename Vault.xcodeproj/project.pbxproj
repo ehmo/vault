@@ -29,6 +29,9 @@
 		022000001 /* PixelAnimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000000 /* PixelAnimation.swift */; };
 		022000003 /* VaultSyncIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000002 /* VaultSyncIndicator.swift */; };
 		022000005 /* PhraseActionButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000004 /* PhraseActionButtons.swift */; };
+		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
+		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
+		UX0000005 /* MilestoneTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000004 /* MilestoneTracker.swift */; };
 		021000005 /* PhotosGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000004 /* PhotosGridView.swift */; };
 		021000007 /* FilesGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000006 /* FilesGridView.swift */; };
 		021000009 /* FullScreenPhotoViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000008 /* FullScreenPhotoViewer.swift */; };
@@ -153,6 +156,9 @@
 		022000000 /* PixelAnimation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelAnimation.swift; sourceTree = "<group>"; };
 		022000002 /* VaultSyncIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultSyncIndicator.swift; sourceTree = "<group>"; };
 		022000004 /* PhraseActionButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseActionButtons.swift; sourceTree = "<group>"; };
+		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
+		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
+		UX0000004 /* MilestoneTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneTracker.swift; sourceTree = "<group>"; };
 		021000004 /* PhotosGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosGridView.swift; sourceTree = "<group>"; };
 		021000006 /* FilesGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesGridView.swift; sourceTree = "<group>"; };
 		021000008 /* FullScreenPhotoViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullScreenPhotoViewer.swift; sourceTree = "<group>"; };
@@ -280,6 +286,7 @@
 				0100000027 /* Billing */,
 				0100000028 /* Cache */,
 				0100000021 /* Crypto */,
+				UX0000010 /* Milestones */,
 				0100000022 /* Storage */,
 				0100000023 /* Security */,
 				0100000024 /* Sharing */,
@@ -288,6 +295,14 @@
 				SE000000C /* VaultCoreConstants.swift */,
 			);
 			path = Core;
+			sourceTree = "<group>";
+		};
+		UX0000010 /* Milestones */ = {
+			isa = PBXGroup;
+			children = (
+				UX0000004 /* MilestoneTracker.swift */,
+			);
+			path = Milestones;
 			sourceTree = "<group>";
 		};
 		0100000021 /* Crypto */ = {
@@ -483,6 +498,8 @@
 				022000002 /* VaultSyncIndicator.swift */,
 				022000004 /* PhraseActionButtons.swift */,
 				SE0000018 /* PendingImportBanner.swift */,
+				UX0000000 /* ToastView.swift */,
+				UX0000002 /* StorageRingView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -725,6 +742,9 @@
 				022000001 /* PixelAnimation.swift in Sources */,
 				022000003 /* VaultSyncIndicator.swift in Sources */,
 				022000005 /* PhraseActionButtons.swift in Sources */,
+				UX0000001 /* ToastView.swift in Sources */,
+				UX0000003 /* StorageRingView.swift in Sources */,
+				UX0000005 /* MilestoneTracker.swift in Sources */,
 				021000005 /* PhotosGridView.swift in Sources */,
 				021000007 /* FilesGridView.swift in Sources */,
 				021000009 /* FullScreenPhotoViewer.swift in Sources */,
