@@ -52,21 +52,6 @@ struct PatternSetupView: View {
             }
             .padding(.horizontal)
 
-            // Error message
-            if let error = errorMessage {
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.circle.fill")
-                        .foregroundStyle(.vaultHighlight)
-                    Text(error)
-                        .font(.subheadline)
-                        .foregroundStyle(.vaultHighlight)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .vaultGlassTintedBackground(tint: Color.vaultHighlight, cornerRadius: 8)
-                .transition(.scale.combined(with: .opacity))
-            }
-
             // Content based on step
             switch step {
             case .create, .confirm:
@@ -78,6 +63,18 @@ struct PatternSetupView: View {
                 Group {
                     if let result = validationResult, step == .create {
                         validationFeedback(result)
+                    } else if let error = errorMessage {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .foregroundStyle(.vaultHighlight)
+                            Text(error)
+                                .font(.subheadline)
+                                .foregroundStyle(.vaultHighlight)
+                        }
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                        .vaultGlassTintedBackground(tint: Color.vaultHighlight, cornerRadius: 8)
+                        .transition(.scale.combined(with: .opacity))
                     } else {
                         Color.clear
                     }
