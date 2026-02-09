@@ -677,9 +677,9 @@ struct iCloudBackupSettingsView: View {
                     lastBackupTimestamp = Date().timeIntervalSince1970
                     isBackingUp = false
                 }
-            } catch iCloudError.containerNotFound {
+            } catch iCloudError.notAvailable {
                 await MainActor.run {
-                    errorMessage = "iCloud Drive is not ready yet. Please wait a moment and try again."
+                    errorMessage = "iCloud is not ready yet. Please wait a moment and try again."
                     isBackingUp = false
                 }
             } catch {

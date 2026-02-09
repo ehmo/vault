@@ -29,29 +29,53 @@ enum iCloudError: Error {
 }
 
 /// Backs up encrypted vault data to CloudKit private database.
-/// Uses the same CKContainer as sharing (iCloud.app.vaultaire.shared)
-/// but the private database, so backups are only visible to the user.
+/// Uses the user's own iCloud storage (not the app's public DB quota).
+/// Private database requires CKAccountStatus.available — when status is
+/// .temporarilyUnavailable, the backup waits briefly for it to resolve.
 final class iCloudBackupManager {
     static let shared = iCloudBackupManager()
 
     private let container: CKContainer
-    private let publicDatabase: CKDatabase
+    private let privateDatabase: CKDatabase
     private let recordType = "VaultBackup"
+    private let backupRecordName = "current_backup"
     private let fileManager = FileManager.default
 
     private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "iCloudBackup")
 
     private init() {
         container = CKContainer(identifier: "iCloud.app.vaultaire.shared")
-        publicDatabase = container.publicCloudDatabase
+        privateDatabase = container.privateCloudDatabase
     }
 
-    /// Derives a unique, stable backup record name from the vault key.
-    /// Uses HMAC so the record name is unpredictable without the key.
-    private func backupRecordName(for key: Data) -> String {
-        let tag = "vaultaire.backup".data(using: .utf8)!
-        let hash = CryptoEngine.computeHMAC(for: tag, with: key)
-        return "backup_" + hash.prefix(16).map { String(format: "%02x", $0) }.joined()
+    // MARK: - Account Status
+
+    /// Waits for CKAccountStatus.available, retrying for up to ~30s.
+    /// On real devices, .temporarilyUnavailable resolves quickly after sign-in.
+    /// Throws iCloudError.notAvailable if it doesn't resolve in time.
+    private func waitForAvailableAccount() async throws {
+        for attempt in 0..<6 {
+            let status = try await container.accountStatus()
+            Self.logger.info("[backup] CKAccountStatus = \(status.rawValue) (attempt \(attempt))")
+
+            if status == .available {
+                return
+            }
+
+            if status == .temporarilyUnavailable || status == .couldNotDetermine {
+                // Wait progressively: 1, 2, 3, 5, 8, 13s
+                let delays: [UInt64] = [1, 2, 3, 5, 8, 13]
+                let delay = delays[min(attempt, delays.count - 1)]
+                Self.logger.info("[backup] Waiting \(delay)s for iCloud to become available...")
+                try await Task.sleep(nanoseconds: delay * 1_000_000_000)
+                continue
+            }
+
+            // .noAccount or .restricted — not going to resolve
+            throw iCloudError.notAvailable
+        }
+
+        throw iCloudError.notAvailable
     }
 
     // MARK: - Backup
@@ -66,6 +90,9 @@ final class iCloudBackupManager {
         }
 
         Self.logger.info("[backup] Starting backup...")
+
+        // Wait for iCloud to be fully available (private DB requires it)
+        try await waitForAvailableAccount()
 
         // Read and encrypt the blob with additional layer
         let blobData = try Data(contentsOf: blobURL)
@@ -84,14 +111,13 @@ final class iCloudBackupManager {
         try encryptedBackup.write(to: tempURL)
         defer { try? fileManager.removeItem(at: tempURL) }
 
-        // Save to CloudKit public database with key-derived record name
-        let recordName = backupRecordName(for: key)
-        let recordID = CKRecord.ID(recordName: recordName)
+        // Save to CloudKit private database
+        let recordID = CKRecord.ID(recordName: backupRecordName)
         let record: CKRecord
 
         // Try to fetch existing record to update it, or create new
         do {
-            record = try await publicDatabase.record(for: recordID)
+            record = try await privateDatabase.record(for: recordID)
         } catch {
             record = CKRecord(recordType: recordType, recordID: recordID)
         }
@@ -100,17 +126,16 @@ final class iCloudBackupManager {
         record["backupData"] = CKAsset(fileURL: tempURL)
         record["timestamp"] = metadata.timestamp as CKRecordValue
 
-        try await publicDatabase.save(record)
+        try await privateDatabase.save(record)
         Self.logger.info("[backup] Backup complete (\(encryptedBackup.count / 1024)KB)")
     }
 
     // MARK: - Restore
 
-    func checkForBackup(with key: Data) async -> BackupMetadata? {
-        let recordName = backupRecordName(for: key)
-        let recordID = CKRecord.ID(recordName: recordName)
+    func checkForBackup() async -> BackupMetadata? {
+        let recordID = CKRecord.ID(recordName: backupRecordName)
         do {
-            let record = try await publicDatabase.record(for: recordID)
+            let record = try await privateDatabase.record(for: recordID)
             guard let metadataData = record["metadata"] as? Data else { return nil }
             return try JSONDecoder().decode(BackupMetadata.self, from: metadataData)
         } catch {
@@ -119,12 +144,13 @@ final class iCloudBackupManager {
     }
 
     func restoreBackup(with key: Data) async throws {
-        let recordName = backupRecordName(for: key)
-        let recordID = CKRecord.ID(recordName: recordName)
+        try await waitForAvailableAccount()
+
+        let recordID = CKRecord.ID(recordName: backupRecordName)
 
         let record: CKRecord
         do {
-            record = try await publicDatabase.record(for: recordID)
+            record = try await privateDatabase.record(for: recordID)
         } catch {
             throw iCloudError.fileNotFound
         }
