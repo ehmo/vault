@@ -1,5 +1,7 @@
 import Foundation
 import UIKit
+import CloudKit
+import os.log
 
 /// Single source of truth for opening iCloud settings.
 /// Used by ShareVaultView and iCloudBackupSettingsView — keep in sync.
@@ -26,39 +28,28 @@ enum iCloudError: Error {
     case fileNotFound
 }
 
+/// Backs up encrypted vault data to CloudKit private database.
+/// Uses the same CKContainer as sharing (iCloud.app.vaultaire.shared)
+/// but the private database, so backups are only visible to the user.
 final class iCloudBackupManager {
     static let shared = iCloudBackupManager()
 
+    private let container: CKContainer
+    private let privateDatabase: CKDatabase
+    private let recordType = "VaultBackup"
+    private let backupRecordName = "current_backup"
     private let fileManager = FileManager.default
-    private let backupFileName = "vault_backup.bin"
 
-    private init() {}
+    private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "iCloudBackup")
 
-    // MARK: - iCloud Availability
-
-    var isICloudAvailable: Bool {
-        fileManager.ubiquityIdentityToken != nil
-    }
-
-    var iCloudContainerURL: URL? {
-        fileManager.url(forUbiquityContainerIdentifier: nil)?
-            .appendingPathComponent("Documents")
+    private init() {
+        container = CKContainer(identifier: "iCloud.app.vaultaire.shared")
+        privateDatabase = container.privateCloudDatabase
     }
 
     // MARK: - Backup
 
     func performBackup(with key: Data) async throws {
-        guard let containerURL = iCloudContainerURL else {
-            // ubiquityIdentityToken may be nil while CKAccountStatus is .temporarilyUnavailable
-            // (user is signed in but CloudKit still syncing). Treat both as container not ready.
-            throw iCloudError.containerNotFound
-        }
-
-        // Create container if needed
-        if !fileManager.fileExists(atPath: containerURL.path) {
-            try fileManager.createDirectory(at: containerURL, withIntermediateDirectories: true)
-        }
-
         // Get the vault blob
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let blobURL = documents.appendingPathComponent("vault_data.bin")
@@ -66,6 +57,8 @@ final class iCloudBackupManager {
         guard fileManager.fileExists(atPath: blobURL.path) else {
             throw iCloudError.fileNotFound
         }
+
+        Self.logger.info("[backup] Starting backup...")
 
         // Read and encrypt the blob with additional layer
         let blobData = try Data(contentsOf: blobURL)
@@ -77,73 +70,63 @@ final class iCloudBackupManager {
             size: encryptedBackup.count,
             checksum: CryptoEngine.computeHMAC(for: encryptedBackup, with: key)
         )
-
-        // Write metadata + encrypted blob
-        let backupURL = containerURL.appendingPathComponent(backupFileName)
-
-        var backupData = Data()
         let metadataJson = try JSONEncoder().encode(metadata)
-        var metadataSize = UInt32(metadataJson.count)
-        backupData.append(Data(bytes: &metadataSize, count: 4))
-        backupData.append(metadataJson)
-        backupData.append(encryptedBackup)
 
-        try backupData.write(to: backupURL, options: [.atomic])
+        // Write encrypted data to temp file for CKAsset
+        let tempURL = fileManager.temporaryDirectory.appendingPathComponent("vault_backup_\(UUID().uuidString).bin")
+        try encryptedBackup.write(to: tempURL)
+        defer { try? fileManager.removeItem(at: tempURL) }
+
+        // Save to CloudKit private database
+        let recordID = CKRecord.ID(recordName: backupRecordName)
+        let record: CKRecord
+
+        // Try to fetch existing record to update it, or create new
+        do {
+            record = try await privateDatabase.record(for: recordID)
+        } catch {
+            record = CKRecord(recordType: recordType, recordID: recordID)
+        }
+
+        record["metadata"] = metadataJson as CKRecordValue
+        record["backupData"] = CKAsset(fileURL: tempURL)
+        record["timestamp"] = metadata.timestamp as CKRecordValue
+
+        try await privateDatabase.save(record)
+        Self.logger.info("[backup] Backup complete (\(encryptedBackup.count / 1024)KB)")
     }
 
     // MARK: - Restore
 
     func checkForBackup() async -> BackupMetadata? {
-        guard let containerURL = iCloudContainerURL else { return nil }
-
-        let backupURL = containerURL.appendingPathComponent(backupFileName)
-        guard fileManager.fileExists(atPath: backupURL.path) else { return nil }
-
+        let recordID = CKRecord.ID(recordName: backupRecordName)
         do {
-            let data = try Data(contentsOf: backupURL)
-            guard data.count > 4 else { return nil }
-
-            let sizeData = data.prefix(4)
-            let metadataSize = Int(sizeData.withUnsafeBytes { $0.load(as: UInt32.self) })
-
-            guard data.count > 4 + metadataSize else { return nil }
-
-            let metadataJson = data.subdata(in: 4..<(4 + metadataSize))
-            return try JSONDecoder().decode(BackupMetadata.self, from: metadataJson)
+            let record = try await privateDatabase.record(for: recordID)
+            guard let metadataData = record["metadata"] as? Data else { return nil }
+            return try JSONDecoder().decode(BackupMetadata.self, from: metadataData)
         } catch {
             return nil
         }
     }
 
     func restoreBackup(with key: Data) async throws {
-        guard let containerURL = iCloudContainerURL else {
-            throw iCloudError.containerNotFound
-        }
+        let recordID = CKRecord.ID(recordName: backupRecordName)
 
-        let backupURL = containerURL.appendingPathComponent(backupFileName)
-        guard fileManager.fileExists(atPath: backupURL.path) else {
+        let record: CKRecord
+        do {
+            record = try await privateDatabase.record(for: recordID)
+        } catch {
             throw iCloudError.fileNotFound
         }
 
-        // Read backup
-        let data = try Data(contentsOf: backupURL)
-        guard data.count > 4 else {
+        guard let metadataData = record["metadata"] as? Data,
+              let asset = record["backupData"] as? CKAsset,
+              let assetURL = asset.fileURL else {
             throw iCloudError.downloadFailed
         }
 
-        // Parse metadata
-        let sizeData = data.prefix(4)
-        let metadataSize = Int(sizeData.withUnsafeBytes { $0.load(as: UInt32.self) })
-
-        guard data.count > 4 + metadataSize else {
-            throw iCloudError.downloadFailed
-        }
-
-        let metadataJson = data.subdata(in: 4..<(4 + metadataSize))
-        let metadata = try JSONDecoder().decode(BackupMetadata.self, from: metadataJson)
-
-        // Extract encrypted blob
-        let encryptedBlob = data.subdata(in: (4 + metadataSize)..<data.count)
+        let metadata = try JSONDecoder().decode(BackupMetadata.self, from: metadataData)
+        let encryptedBlob = try Data(contentsOf: assetURL)
 
         // Verify checksum
         let computedChecksum = CryptoEngine.computeHMAC(for: encryptedBlob, with: key)
@@ -159,6 +142,7 @@ final class iCloudBackupManager {
         let blobURL = documents.appendingPathComponent("vault_data.bin")
 
         try decryptedBlob.write(to: blobURL, options: [.atomic, .completeFileProtection])
+        Self.logger.info("[backup] Restore complete")
     }
 
     // MARK: - Backup Metadata
