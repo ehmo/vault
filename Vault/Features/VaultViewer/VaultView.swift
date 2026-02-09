@@ -892,7 +892,11 @@ struct VaultView: View {
                         mimeType: "image/jpeg",
                         filename: filename
                     ))
-                    toastMessage = .fileEncrypted()
+                    if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: files.count) {
+                        toastMessage = .milestone(milestone)
+                    } else {
+                        toastMessage = .fileEncrypted()
+                    }
                 }
 
                 // Trigger sync if sharing
