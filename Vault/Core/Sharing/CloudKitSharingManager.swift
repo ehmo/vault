@@ -129,18 +129,9 @@ final class CloudKitSharingManager {
         let transaction = SentryManager.shared.startTransaction(name: "share.upload", operation: "share.upload")
         let ckStart = CFAbsoluteTimeGetCurrent()
 
-        // Pre-flight: verify iCloud account is available (retry for transient states)
-        var accountStatus = await checkiCloudStatus()
+        // Pre-flight: verify iCloud account is available
+        let accountStatus = await checkiCloudStatus()
         Self.logger.info("[upload-telemetry] iCloud account status: \(accountStatus.rawValue)")
-        if accountStatus == .temporarilyUnavailable || accountStatus == .couldNotDetermine {
-            for attempt in 1...5 {
-                Self.logger.info("[upload-telemetry] iCloud not ready, retry \(attempt)/5...")
-                try await Task.sleep(nanoseconds: UInt64(attempt) * 2_000_000_000) // 2, 4, 6, 8, 10s
-                accountStatus = await checkiCloudStatus()
-                Self.logger.info("[upload-telemetry] iCloud status after retry: \(accountStatus.rawValue)")
-                if accountStatus == .available { break }
-            }
-        }
         guard accountStatus == .available else {
             transaction.finish(status: .internalError)
             throw CloudKitSharingError.notAvailable

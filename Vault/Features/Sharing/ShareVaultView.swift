@@ -104,7 +104,7 @@ struct ShareVaultView: View {
 
     private func initialize() async {
         let status = await CloudKitSharingManager.shared.checkiCloudStatus()
-        guard status == .available || status == .temporarilyUnavailable else {
+        guard status == .available else {
             mode = .iCloudUnavailable(status)
             return
         }
@@ -555,7 +555,7 @@ struct ShareVaultView: View {
         case .noAccount: return "Please sign in to iCloud in Settings"
         case .restricted: return "iCloud access is restricted"
         case .couldNotDetermine: return "Could not determine iCloud status"
-        case .temporarilyUnavailable: return "iCloud is temporarily unavailable"
+        case .temporarilyUnavailable: return "iCloud is temporarily unavailable. Please check your iCloud settings and try again."
         @unknown default: return "iCloud is not available"
         }
     }
