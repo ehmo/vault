@@ -158,7 +158,7 @@ final class CloudKitSharingManager {
             chunkRecord["vaultId"] = shareVaultId
 
             do {
-                try await publicDatabase.save(chunkRecord)
+                try await saveWithRetry(chunkRecord)
                 try? FileManager.default.removeItem(at: tempURL)
             } catch {
                 try? FileManager.default.removeItem(at: tempURL)
@@ -195,7 +195,7 @@ final class CloudKitSharingManager {
         manifest["policy"] = CKAsset(fileURL: policyURL)
 
         do {
-            try await publicDatabase.save(manifest)
+            try await saveWithRetry(manifest)
             try? FileManager.default.removeItem(at: policyURL)
         } catch {
             try? FileManager.default.removeItem(at: policyURL)
@@ -245,7 +245,7 @@ final class CloudKitSharingManager {
             chunkRecord["vaultId"] = shareVaultId
 
             do {
-                try await publicDatabase.save(chunkRecord)
+                try await saveWithRetry(chunkRecord)
                 try? FileManager.default.removeItem(at: tempURL)
             } catch {
                 try? FileManager.default.removeItem(at: tempURL)
@@ -490,6 +490,42 @@ final class CloudKitSharingManager {
         } catch {
             throw CloudKitSharingError.downloadFailed(error)
         }
+    }
+
+    // MARK: - Retry Logic
+
+    /// Saves a CKRecord with automatic retry on transient CloudKit errors.
+    private func saveWithRetry(_ record: CKRecord, maxRetries: Int = 3) async throws {
+        var lastError: Error?
+        for attempt in 0...maxRetries {
+            do {
+                try await publicDatabase.save(record)
+                return
+            } catch let error as CKError where Self.isRetryable(error) {
+                lastError = error
+                let delay = Self.retryDelay(for: error, attempt: attempt)
+                Self.logger.info("[upload-telemetry] save retry \(attempt + 1)/\(maxRetries) after \(String(format: "%.1f", delay))s: \(error.localizedDescription)")
+                try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            }
+        }
+        throw lastError!
+    }
+
+    private static func isRetryable(_ error: CKError) -> Bool {
+        switch error.code {
+        case .networkUnavailable, .networkFailure, .serviceUnavailable,
+             .zoneBusy, .requestRateLimited:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private static func retryDelay(for error: CKError, attempt: Int) -> TimeInterval {
+        if let retryAfter = error.retryAfterSeconds {
+            return retryAfter
+        }
+        return pow(2.0, Double(attempt)) // 1, 2, 4 seconds
     }
 
     // MARK: - Helpers

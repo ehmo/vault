@@ -59,7 +59,16 @@ final class BackgroundShareTransferManager {
         let capturedMaxOpens = maxOpens
         let capturedAllowDownloads = allowDownloads
 
+        // Request background execution time so iOS doesn't suspend during upload
+        let bgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
+            Self.logger.warning("[upload] Background time expiring — cancelling upload")
+            Task { @MainActor in self?.cancel() }
+        }
+
         activeTask = Task.detached(priority: .userInitiated) { [weak self] in
+            defer {
+                Task { @MainActor in UIApplication.shared.endBackgroundTask(bgTaskId) }
+            }
             do {
                 let uploadStart = CFAbsoluteTimeGetCurrent()
                 var phaseStart = uploadStart
@@ -237,7 +246,15 @@ final class BackgroundShareTransferManager {
         let capturedPhrase = phrase
         let capturedPatternKey = patternKey
 
+        let bgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
+            Self.logger.warning("[import] Background time expiring — cancelling import")
+            Task { @MainActor in self?.cancel() }
+        }
+
         activeTask = Task.detached(priority: .userInitiated) { [weak self] in
+            defer {
+                Task { @MainActor in UIApplication.shared.endBackgroundTask(bgTaskId) }
+            }
             do {
                 let result = try await CloudKitSharingManager.shared.downloadSharedVault(
                     phrase: capturedPhrase,
