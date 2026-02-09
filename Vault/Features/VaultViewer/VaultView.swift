@@ -562,25 +562,43 @@ struct VaultView: View {
 
     private var emptyStateView: some View {
         VStack(spacing: 20) {
-            Image(systemName: "photo.on.rectangle.angled")
-                .font(.system(size: 64))
-                .foregroundStyle(.vaultSecondaryText)
-                .accessibilityHidden(true)
-
-            Text("This vault is empty")
-                .font(.title2)
-                .fontWeight(.medium)
-
             if isSharedVault {
-                Text("Waiting for the vault owner to add files")
+                Image(systemName: "person.2.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(.vaultSecondaryText)
+                    .accessibilityHidden(true)
+
+                Text("Waiting for files")
+                    .font(.title2)
+                    .fontWeight(.medium)
+
+                Text("The vault owner hasn't added any files yet")
                     .font(.subheadline)
                     .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
             } else {
-                Text("Add photos, videos, or files to keep them secure")
-                    .font(.subheadline)
-                    .foregroundStyle(.vaultSecondaryText)
-                    .multilineTextAlignment(.center)
+                Spacer()
+
+                // 3-step walkthrough
+                VStack(spacing: 12) {
+                    walkthroughCard(
+                        icon: "plus.circle.fill",
+                        title: "Add your files",
+                        description: "Photos, videos, documents — anything you want to protect"
+                    )
+                    walkthroughCard(
+                        icon: "lock.shield.fill",
+                        title: "Encrypted instantly",
+                        description: "Your files are scrambled with military-grade encryption"
+                    )
+                    walkthroughCard(
+                        icon: "eye.slash.fill",
+                        title: "Only you can access",
+                        description: "Your pattern is the only key. Not even us."
+                    )
+                }
+
+                Spacer()
 
                 Button(action: {
                     if subscriptionManager.canAddFile(currentFileCount: files.count) {
@@ -589,14 +607,40 @@ struct VaultView: View {
                         showingPaywall = true
                     }
                 }) {
-                    Label("Add Files", systemImage: "plus.circle.fill")
+                    Label("Protect Your First Files", systemImage: "plus.circle.fill")
                         .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
                 }
                 .vaultProminentButtonStyle()
-                .padding(.top)
+                .accessibilityHint("Import photos, videos, or files into the vault")
             }
         }
         .padding()
+    }
+
+    @ViewBuilder
+    private func walkthroughCard(icon: String, title: String, description: String) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 36)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Text(description)
+                    .font(.caption)
+                    .foregroundStyle(.vaultSecondaryText)
+            }
+
+            Spacer()
+        }
+        .padding(14)
+        .vaultGlassBackground(cornerRadius: 12)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Shared Vault Checks
