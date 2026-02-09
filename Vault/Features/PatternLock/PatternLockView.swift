@@ -69,23 +69,24 @@ struct PatternLockView: View {
             .disabled(isProcessing)
             .opacity(isVoiceOverActive ? 0.3 : (isProcessing ? 0.5 : 1))
 
-            // Error message — fixed height to prevent grid from shifting
-            Group {
-                if showError, let message = errorMessage {
-                    HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.circle.fill")
-                            .foregroundStyle(.vaultHighlight)
-                        Text(message)
-                            .font(.subheadline)
-                            .foregroundStyle(.vaultHighlight)
+            // Error message — overlay so it never shifts the grid
+            Color.clear
+                .frame(height: 0)
+                .overlay(alignment: .top) {
+                    if showError, let message = errorMessage {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.circle.fill")
+                            Text(message)
+                                .font(.subheadline)
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color.vaultHighlight.opacity(0.9))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .transition(.scale.combined(with: .opacity))
                     }
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                    .vaultGlassTintedBackground(tint: Color.vaultHighlight, cornerRadius: 8)
-                    .transition(.scale.combined(with: .opacity))
                 }
-            }
-            .frame(height: 40)
 
             Spacer()
 
