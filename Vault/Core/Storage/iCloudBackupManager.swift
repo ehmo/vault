@@ -35,16 +35,23 @@ final class iCloudBackupManager {
     static let shared = iCloudBackupManager()
 
     private let container: CKContainer
-    private let privateDatabase: CKDatabase
+    private let publicDatabase: CKDatabase
     private let recordType = "VaultBackup"
-    private let backupRecordName = "current_backup"
     private let fileManager = FileManager.default
 
     private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "iCloudBackup")
 
     private init() {
         container = CKContainer(identifier: "iCloud.app.vaultaire.shared")
-        privateDatabase = container.privateCloudDatabase
+        publicDatabase = container.publicCloudDatabase
+    }
+
+    /// Derives a unique, stable backup record name from the vault key.
+    /// Uses HMAC so the record name is unpredictable without the key.
+    private func backupRecordName(for key: Data) -> String {
+        let tag = "vaultaire.backup".data(using: .utf8)!
+        let hash = CryptoEngine.computeHMAC(for: tag, with: key)
+        return "backup_" + hash.prefix(16).map { String(format: "%02x", $0) }.joined()
     }
 
     // MARK: - Backup
@@ -77,13 +84,14 @@ final class iCloudBackupManager {
         try encryptedBackup.write(to: tempURL)
         defer { try? fileManager.removeItem(at: tempURL) }
 
-        // Save to CloudKit private database
-        let recordID = CKRecord.ID(recordName: backupRecordName)
+        // Save to CloudKit public database with key-derived record name
+        let recordName = backupRecordName(for: key)
+        let recordID = CKRecord.ID(recordName: recordName)
         let record: CKRecord
 
         // Try to fetch existing record to update it, or create new
         do {
-            record = try await privateDatabase.record(for: recordID)
+            record = try await publicDatabase.record(for: recordID)
         } catch {
             record = CKRecord(recordType: recordType, recordID: recordID)
         }
@@ -92,16 +100,17 @@ final class iCloudBackupManager {
         record["backupData"] = CKAsset(fileURL: tempURL)
         record["timestamp"] = metadata.timestamp as CKRecordValue
 
-        try await privateDatabase.save(record)
+        try await publicDatabase.save(record)
         Self.logger.info("[backup] Backup complete (\(encryptedBackup.count / 1024)KB)")
     }
 
     // MARK: - Restore
 
-    func checkForBackup() async -> BackupMetadata? {
-        let recordID = CKRecord.ID(recordName: backupRecordName)
+    func checkForBackup(with key: Data) async -> BackupMetadata? {
+        let recordName = backupRecordName(for: key)
+        let recordID = CKRecord.ID(recordName: recordName)
         do {
-            let record = try await privateDatabase.record(for: recordID)
+            let record = try await publicDatabase.record(for: recordID)
             guard let metadataData = record["metadata"] as? Data else { return nil }
             return try JSONDecoder().decode(BackupMetadata.self, from: metadataData)
         } catch {
@@ -110,11 +119,12 @@ final class iCloudBackupManager {
     }
 
     func restoreBackup(with key: Data) async throws {
-        let recordID = CKRecord.ID(recordName: backupRecordName)
+        let recordName = backupRecordName(for: key)
+        let recordID = CKRecord.ID(recordName: recordName)
 
         let record: CKRecord
         do {
-            record = try await privateDatabase.record(for: recordID)
+            record = try await publicDatabase.record(for: recordID)
         } catch {
             throw iCloudError.fileNotFound
         }
