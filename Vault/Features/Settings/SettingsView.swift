@@ -1,4 +1,5 @@
 import SwiftUI
+import CloudKit
 import RevenueCatUI
 
 // MARK: - App Settings Destination
@@ -627,30 +628,39 @@ struct iCloudBackupSettingsView: View {
 
     // MARK: - Logic
 
+    private func checkiCloudAvailable() async -> Bool {
+        let status = await CloudKitSharingManager.shared.checkiCloudStatus()
+        return status == .available
+    }
+
     private func onAppear() {
-        iCloudAvailable = backupManager.isICloudAvailable
-        if !iCloudAvailable && isBackupEnabled {
-            // iCloud went away since backup was enabled
-            iCloudAvailable = false
-        }
-        // Auto-backup if enabled and overdue
-        if isBackupEnabled && iCloudAvailable && isBackupOverdue {
-            performBackup()
+        Task {
+            let available = await checkiCloudAvailable()
+            iCloudAvailable = available
+            if !available && isBackupEnabled {
+                isBackupEnabled = false
+            }
+            // Auto-backup if enabled and overdue
+            if isBackupEnabled && available && isBackupOverdue {
+                performBackup()
+            }
         }
     }
 
     private func handleToggleChange(_ enabled: Bool) {
         guard enabled else { return }
 
-        // Check iCloud before allowing enable
-        guard backupManager.isICloudAvailable else {
-            isBackupEnabled = false
-            iCloudAvailable = false
-            return
+        // Check iCloud via CloudKit account status before allowing enable
+        Task {
+            let available = await checkiCloudAvailable()
+            guard available else {
+                isBackupEnabled = false
+                iCloudAvailable = false
+                return
+            }
+            // First enable — run backup immediately
+            performBackup()
         }
-
-        // First enable — run backup immediately
-        performBackup()
     }
 
     private func performBackup() {
@@ -669,7 +679,7 @@ struct iCloudBackupSettingsView: View {
                     lastBackupTimestamp = Date().timeIntervalSince1970
                     isBackingUp = false
                 }
-            } catch iCloudError.notAvailable {
+            } catch let error as iCloudError where error == .notAvailable || error == .containerNotFound {
                 await MainActor.run {
                     iCloudAvailable = false
                     isBackupEnabled = false
