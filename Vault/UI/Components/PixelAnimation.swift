@@ -26,6 +26,7 @@ struct PixelAnimation: View {
 
     // Stored once per instance — avoids recreating the publisher on every body evaluation.
     private let timer: Publishers.Autoconnect<Timer.TimerPublisher>
+    private let frames: [[Int]]
 
     init(
         brightness: Int = 2,
@@ -50,17 +51,20 @@ struct PixelAnimation: View {
         self.animationDuration = animationDuration
         self.pattern = pattern
         self.timer = Timer.publish(every: timerInterval, on: .main, in: .common).autoconnect()
-    }
 
-    private var frames: [[Int]] {
-        guard let first = pattern.first else { return [] }
-        if pattern.count == 1 { return first.map { [$0] } }
-        let allSingles = pattern.allSatisfy { $0.count == 1 }
-        if allSingles {
-            let merged = pattern.compactMap(\.first)
-            return [merged, []]
+        // Compute frames once from the immutable pattern.
+        if let first = pattern.first {
+            if pattern.count == 1 {
+                self.frames = first.map { [$0] }
+            } else if pattern.allSatisfy({ $0.count == 1 }) {
+                let merged = pattern.compactMap(\.first)
+                self.frames = [merged, []]
+            } else {
+                self.frames = pattern
+            }
+        } else {
+            self.frames = []
         }
-        return pattern
     }
 
     var body: some View {
@@ -88,9 +92,6 @@ struct PixelAnimation: View {
             withAnimation(.smooth(duration: animationDuration)) {
                 step = (step + 1) % frames.count
             }
-        }
-        .onChange(of: frames.count) { _, _ in
-            if step >= frames.count { step = 0 }
         }
     }
 }
@@ -146,18 +147,18 @@ extension PixelAnimation {
         )
     }
 
-    /// Sync badge: plus/cross pattern pulse
+    /// Sync badge: perimeter walk matching loading() and Dynamic Island LivePixelGrid
     static func syncing(size: CGFloat = 24) -> PixelAnimation {
         let scale = size / 64
         return PixelAnimation(
-            brightness: 1,
+            brightness: 2,
             shadowBrightness: 1,
             color: .accentColor,
             tileSize: size,
             pixelSize: 14 * scale,
-            timerInterval: 0.3,
-            animationDuration: 0.2,
-            pattern: [[2], [4], [6], [8]]
+            timerInterval: 0.1,
+            animationDuration: 0.3,
+            pattern: [[1, 2, 3, 6, 9, 8, 7, 4]]
         )
     }
 

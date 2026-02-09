@@ -101,6 +101,12 @@ struct ShareVaultView: View {
                 }
             }
         }
+        .onChange(of: ShareSyncManager.shared.syncStatus) { _, newStatus in
+            // Reload share records after sync so per-share "Last synced" updates
+            if case .upToDate = newStatus {
+                reloadActiveShares()
+            }
+        }
     }
 
     // MARK: - Initialization
@@ -506,6 +512,13 @@ struct ShareVaultView: View {
         )
 
         mode = .backgroundUploadStarted(phrase)
+    }
+
+    private func reloadActiveShares() {
+        guard let key = appState.currentVaultKey,
+              let index = try? VaultStorage.shared.loadIndex(with: key),
+              let shares = index.activeShares, !shares.isEmpty else { return }
+        activeShares = shares
     }
 
     private func revokeShare(_ share: VaultStorage.ShareRecord) async {
