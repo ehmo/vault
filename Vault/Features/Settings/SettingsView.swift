@@ -503,15 +503,17 @@ struct iCloudBackupSettingsView: View {
     }
 
     var body: some View {
-        List {
+        Group {
             if !iCloudAvailable {
-                iCloudUnavailableSection
+                iCloudUnavailableView
             } else {
-                toggleSection
+                List {
+                    toggleSection
 
-                if isBackupEnabled {
-                    statusSection
-                    restoreSection
+                    if isBackupEnabled {
+                        statusSection
+                        restoreSection
+                    }
                 }
             }
         }
@@ -526,39 +528,39 @@ struct iCloudBackupSettingsView: View {
         }
     }
 
-    // MARK: - Sections
+    // MARK: - Views
 
-    private var iCloudUnavailableSection: some View {
-        Section {
-            VStack(spacing: 12) {
-                Image(systemName: "icloud.slash")
-                    .font(.system(size: 36))
-                    .foregroundStyle(.vaultSecondaryText)
-                Text("iCloud is not available. Sign in to iCloud in Settings to enable backups.")
-                    .foregroundStyle(.vaultSecondaryText)
-                    .multilineTextAlignment(.center)
-                    .font(.subheadline)
-
-                Button {
-                    if let url = URL(string: "App-Prefs:root=CASTLE") {
-                        UIApplication.shared.open(url)
-                    } else if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
-                    }
-                } label: {
-                    Label("Open iCloud Settings", systemImage: "gear")
-                        .font(.body.weight(.medium))
-                }
-                .buttonStyle(.borderedProminent)
-
-                Button("Check Again") {
-                    iCloudAvailable = backupManager.isICloudAvailable
-                }
+    private var iCloudUnavailableView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "icloud.slash")
+                .font(.system(size: 48))
                 .foregroundStyle(.vaultSecondaryText)
+            Text("iCloud Required")
+                .font(.title2).fontWeight(.semibold)
+            Text("iCloud is not available. Sign in to iCloud in Settings to enable backups.")
+                .foregroundStyle(.vaultSecondaryText)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+
+            Button {
+                if let url = URL(string: "App-Prefs:root=CASTLE") {
+                    UIApplication.shared.open(url)
+                } else if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                Label("Open iCloud Settings", systemImage: "gear")
+                    .font(.body.weight(.medium))
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            .buttonStyle(.borderedProminent)
+            .padding(.top, 8)
+
+            Button("Retry") {
+                iCloudAvailable = backupManager.isICloudAvailable
+            }
+            .foregroundStyle(.vaultSecondaryText)
         }
+        .padding(.top, 60)
     }
 
     private var toggleSection: some View {
