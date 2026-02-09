@@ -106,16 +106,18 @@ struct VaultSettingsView: View {
                 } else {
                     Toggle("Use as duress vault", isOn: $isDuressVault)
                 }
+
+                DisclosureGroup {
+                    Text("When you enter this pattern while under duress, your real vaults are silently destroyed. The person watching sees normal-looking content and has no way to know your real data ever existed.")
+                        .font(.caption)
+                        .foregroundStyle(.vaultSecondaryText)
+                } label: {
+                    Text("What is this?")
+                        .font(.caption)
+                        .foregroundStyle(.vaultSecondaryText)
+                }
             } header: {
                 Text("Duress")
-            } footer: {
-                if isSharedVault {
-                    Text("Duress mode is not available for vaults shared with you.")
-                } else if activeShareCount > 0 {
-                    Text("Stop sharing this vault before enabling duress mode.")
-                } else {
-                    Text("When this pattern is entered, all OTHER vaults are silently destroyed. This is irreversible and extremely destructive.")
-                }
             }
 
             // App Settings
@@ -319,11 +321,15 @@ struct VaultSettingsView: View {
         }
     }
     
-    private func formatBytes(_ bytes: Int64) -> String {
+    private static let byteCountFormatter: ByteCountFormatter = {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .file
         formatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB]
-        return formatter.string(fromByteCount: bytes)
+        return formatter
+    }()
+
+    private func formatBytes(_ bytes: Int64) -> String {
+        Self.byteCountFormatter.string(fromByteCount: bytes)
     }
 }
 

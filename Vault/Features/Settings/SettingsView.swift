@@ -103,6 +103,16 @@ struct AppSettingsView: View {
                     }
                     .foregroundStyle(.primary)
                 }
+
+                DisclosureGroup {
+                    Text("Your encrypted vault data is backed up to iCloud Drive. The backup itself is encrypted — only your pattern can decrypt it. Apple cannot read your files.")
+                        .font(.caption)
+                        .foregroundStyle(.vaultSecondaryText)
+                } label: {
+                    Text("What is this?")
+                        .font(.caption)
+                        .foregroundStyle(.vaultSecondaryText)
+                }
             } header: {
                 Text("Backup")
             }
