@@ -303,7 +303,21 @@ final class CloudKitSharingManager {
 
             if hashChanged {
                 let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(index)")
-                let chunkRecord = CKRecord(recordType: chunkRecordType, recordID: chunkRecordId)
+
+                // Fetch existing record to update in place (CKRecord.save on a new
+                // object attempts INSERT, which fails with serverRecordChanged if the
+                // record already exists). Only create a new record for genuinely new chunks.
+                let chunkRecord: CKRecord
+                if index < previousChunkHashes.count {
+                    do {
+                        chunkRecord = try await publicDatabase.record(for: chunkRecordId)
+                    } catch {
+                        // Record missing (e.g. orphaned delete) — create fresh
+                        chunkRecord = CKRecord(recordType: chunkRecordType, recordID: chunkRecordId)
+                    }
+                } else {
+                    chunkRecord = CKRecord(recordType: chunkRecordType, recordID: chunkRecordId)
+                }
 
                 let tempURL = FileManager.default.temporaryDirectory
                     .appendingPathComponent(UUID().uuidString)
