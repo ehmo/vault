@@ -190,7 +190,7 @@ final class CloudKitSharingManager {
 
         manifest["shareVaultId"] = shareVaultId
         manifest["updatedAt"] = Date()
-        manifest["version"] = 3  // v3: binary plist encoding, no outer encryption
+        manifest["version"] = 4  // v4: SVDF format, no outer encryption
         manifest["ownerFingerprint"] = ownerFingerprint
         manifest["chunkCount"] = totalChunks
         manifest["claimed"] = false
@@ -275,6 +275,80 @@ final class CloudKitSharingManager {
                 record["updatedAt"] = Date()
                 record["chunkCount"] = totalChunks
                 try await publicDatabase.save(record)
+            }
+        }
+    }
+
+    /// Incrementally syncs SVDF data by only uploading chunks whose content changed.
+    /// Uses deterministic CKRecord IDs (`{shareVaultId}_chunk_{index}`) so saving to
+    /// an existing ID updates in place without a separate delete.
+    func syncSharedVaultIncremental(
+        shareVaultId: String,
+        svdfData: Data,
+        newChunkHashes: [String],
+        previousChunkHashes: [String],
+        onProgress: ((Int, Int) -> Void)? = nil
+    ) async throws {
+        let chunks = stride(from: 0, to: svdfData.count, by: chunkSize).map { start in
+            let end = min(start + chunkSize, svdfData.count)
+            return svdfData[start..<end]
+        }
+        let totalChunks = chunks.count
+
+        // Upload only changed or new chunks
+        var uploadedCount = 0
+        for (index, chunkData) in chunks.enumerated() {
+            let hashChanged = index >= previousChunkHashes.count
+                || previousChunkHashes[index] != newChunkHashes[index]
+
+            if hashChanged {
+                let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(index)")
+                let chunkRecord = CKRecord(recordType: chunkRecordType, recordID: chunkRecordId)
+
+                let tempURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString)
+                try Data(chunkData).write(to: tempURL)
+
+                chunkRecord["chunkData"] = CKAsset(fileURL: tempURL)
+                chunkRecord["chunkIndex"] = index
+                chunkRecord["vaultId"] = shareVaultId
+
+                do {
+                    try await saveWithRetry(chunkRecord)
+                    try? FileManager.default.removeItem(at: tempURL)
+                } catch {
+                    try? FileManager.default.removeItem(at: tempURL)
+                    throw CloudKitSharingError.uploadFailed(error)
+                }
+
+                uploadedCount += 1
+            }
+
+            onProgress?(index + 1, totalChunks)
+        }
+
+        // Delete orphaned chunks if the blob shrank
+        if totalChunks < previousChunkHashes.count {
+            for orphanIndex in totalChunks..<previousChunkHashes.count {
+                let orphanId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(orphanIndex)")
+                _ = try? await publicDatabase.deleteRecord(withID: orphanId)
+            }
+        }
+
+        Self.logger.info("[sync-incremental] \(uploadedCount)/\(totalChunks) chunks uploaded for \(shareVaultId, privacy: .public)")
+
+        // Update manifest
+        let predicate = NSPredicate(format: "shareVaultId == %@", shareVaultId)
+        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
+        let results = try await publicDatabase.records(matching: query)
+
+        for (_, result) in results.matchResults {
+            if let record = try? result.get() {
+                let currentVersion = (record["version"] as? Int) ?? 3
+                record["version"] = currentVersion + 1
+                record["updatedAt"] = Date()
+                record["chunkCount"] = totalChunks
+                try await saveWithRetry(record)
             }
         }
     }

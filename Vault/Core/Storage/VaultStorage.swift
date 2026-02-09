@@ -231,6 +231,7 @@ final class VaultStorage {
         let policy: SharePolicy
         var lastSyncedAt: Date?
         var shareKeyData: Data?     // phrase-derived share key (stored in encrypted index)
+        var syncSequence: Int?      // incremental sync counter (nil = never synced with SVDF)
 
         var shareId: String { id }
     }

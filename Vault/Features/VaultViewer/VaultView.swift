@@ -753,28 +753,12 @@ struct VaultView: View {
                 shareKey: shareKey
             )
 
-            let sharedVault = try SharedVaultData.decode(from: data)
-
-            // Re-import files (delete old, add new)
-            for existingFile in index.files where !existingFile.isDeleted {
-                try? VaultStorage.shared.deleteFile(id: existingFile.fileId, with: key)
-            }
-
-            for file in sharedVault.files {
-                let decrypted = try CryptoEngine.decrypt(file.encryptedContent, with: shareKey)
-
-                var thumbnailData: Data? = nil
-                if file.mimeType.hasPrefix("image/") {
-                    thumbnailData = FileUtilities.generateThumbnail(from: decrypted)
-                }
-
-                _ = try VaultStorage.shared.storeFile(
-                    data: decrypted,
-                    filename: file.filename,
-                    mimeType: file.mimeType,
-                    with: key,
-                    thumbnailData: thumbnailData
-                )
+            if SVDFSerializer.isSVDF(data) {
+                // SVDF v4 delta import: only import new files, delete removed files
+                try await importSVDFDelta(data: data, shareKey: shareKey, vaultKey: key, index: index)
+            } else {
+                // Legacy v1-v3: full wipe-and-replace
+                try await importLegacyFull(data: data, shareKey: shareKey, vaultKey: key, index: index)
             }
 
             // Store the new version to avoid false "new files available"
@@ -792,6 +776,73 @@ struct VaultView: View {
             #if DEBUG
             print("❌ [VaultView] Failed to download update: \(error)")
             #endif
+        }
+    }
+
+    /// SVDF v4 delta import: parse manifest, diff file IDs vs local, import only new files.
+    private func importSVDFDelta(data: Data, shareKey: Data, vaultKey: Data, index: VaultStorage.VaultIndex) async throws {
+        let manifest = try SVDFSerializer.parseManifest(from: data, shareKey: shareKey)
+        let remoteFileIds = Set(manifest.filter { !$0.deleted }.map { $0.id })
+        let localFileIds = Set(index.files.filter { !$0.isDeleted }.map { $0.fileId.uuidString })
+
+        // Delete files that were removed remotely
+        let removedIds = localFileIds.subtracting(remoteFileIds)
+        for removedId in removedIds {
+            if let uuid = UUID(uuidString: removedId) {
+                try? VaultStorage.shared.deleteFile(id: uuid, with: vaultKey)
+            }
+        }
+
+        // Import only new files
+        let newIds = remoteFileIds.subtracting(localFileIds)
+        for entry in manifest where newIds.contains(entry.id) && !entry.deleted {
+            let file = try SVDFSerializer.extractFileEntry(from: data, at: entry.offset, size: entry.size)
+            let decrypted = try CryptoEngine.decrypt(file.encryptedContent, with: shareKey)
+
+            var thumbnailData: Data? = nil
+            if file.mimeType.hasPrefix("image/") {
+                thumbnailData = FileUtilities.generateThumbnail(from: decrypted)
+            }
+
+            _ = try VaultStorage.shared.storeFile(
+                data: decrypted,
+                filename: file.filename,
+                mimeType: file.mimeType,
+                with: vaultKey,
+                thumbnailData: thumbnailData
+            )
+        }
+
+        #if DEBUG
+        print("📦 [VaultView] SVDF delta: \(newIds.count) new, \(removedIds.count) removed, \(localFileIds.intersection(remoteFileIds).count) unchanged")
+        #endif
+    }
+
+    /// Legacy v1-v3 full wipe-and-replace import.
+    private func importLegacyFull(data: Data, shareKey: Data, vaultKey: Data, index: VaultStorage.VaultIndex) async throws {
+        let sharedVault = try SharedVaultData.decode(from: data)
+
+        // Delete all existing files
+        for existingFile in index.files where !existingFile.isDeleted {
+            try? VaultStorage.shared.deleteFile(id: existingFile.fileId, with: vaultKey)
+        }
+
+        // Import all files
+        for file in sharedVault.files {
+            let decrypted = try CryptoEngine.decrypt(file.encryptedContent, with: shareKey)
+
+            var thumbnailData: Data? = nil
+            if file.mimeType.hasPrefix("image/") {
+                thumbnailData = FileUtilities.generateThumbnail(from: decrypted)
+            }
+
+            _ = try VaultStorage.shared.storeFile(
+                data: decrypted,
+                filename: file.filename,
+                mimeType: file.mimeType,
+                with: vaultKey,
+                thumbnailData: thumbnailData
+            )
         }
     }
 

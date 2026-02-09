@@ -158,20 +158,18 @@ final class BackgroundShareTransferManager {
 
                 guard !Task.isCancelled else { return }
 
-                let sharedData = SharedVaultData(
-                    files: sharedFiles,
-                    metadata: SharedVaultData.SharedVaultMetadata(
-                        ownerFingerprint: KeyDerivation.keyFingerprint(from: capturedVaultKey),
-                        sharedAt: Date()
-                    ),
-                    createdAt: Date(),
-                    updatedAt: Date()
+                let metadata = SharedVaultData.SharedVaultMetadata(
+                    ownerFingerprint: KeyDerivation.keyFingerprint(from: capturedVaultKey),
+                    sharedAt: Date()
                 )
 
-                let encoder = PropertyListEncoder()
-                encoder.outputFormat = .binary
-                let encodedData = try encoder.encode(sharedData)
-                Self.logger.info("[upload-telemetry] plist encoding (\(encodedData.count / 1024)KB): \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - phaseStart))s")
+                let svdfResult = try SVDFSerializer.buildFull(
+                    files: sharedFiles,
+                    metadata: metadata,
+                    shareKey: capturedShareKey
+                )
+                let encodedData = svdfResult.data
+                Self.logger.info("[upload-telemetry] SVDF encoding (\(encodedData.count / 1024)KB): \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - phaseStart))s")
                 phaseStart = CFAbsoluteTimeGetCurrent()
                 await self?.setTargetProgress(5, message: "Uploading vault...")
 
@@ -202,13 +200,38 @@ final class BackgroundShareTransferManager {
                 Self.logger.info("[upload-telemetry] total elapsed so far: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - uploadStart))s")
                 phaseStart = CFAbsoluteTimeGetCurrent()
 
+                // Initialize sync cache for future incremental syncs
+                let syncCache = ShareSyncCache(shareVaultId: shareVaultId)
+                try syncCache.saveSVDF(encodedData)
+                let chunkHashes = ShareSyncCache.computeChunkHashes(encodedData)
+                let currentFileIds = Set(sharedFiles.map { $0.id.uuidString })
+                let syncState = ShareSyncCache.SyncState(
+                    syncedFileIds: currentFileIds,
+                    chunkHashes: chunkHashes,
+                    manifest: svdfResult.manifest,
+                    syncSequence: 1,
+                    deletedFileIds: [],
+                    totalDeletedBytes: 0,
+                    totalBytes: encodedData.count
+                )
+                try syncCache.saveSyncState(syncState)
+
+                // Cache each encrypted file for future incremental syncs
+                for file in sharedFiles {
+                    try? syncCache.saveEncryptedFile(file.id.uuidString, data: file.encryptedContent)
+                    if let thumb = file.encryptedThumbnail {
+                        try? syncCache.saveEncryptedThumb(file.id.uuidString, data: thumb)
+                    }
+                }
+
                 // Save share record
                 let shareRecord = VaultStorage.ShareRecord(
                     id: shareVaultId,
                     createdAt: Date(),
                     policy: policy,
                     lastSyncedAt: Date(),
-                    shareKeyData: shareKey
+                    shareKeyData: shareKey,
+                    syncSequence: 1
                 )
 
                 var updatedIndex = try VaultStorage.shared.loadIndex(with: capturedVaultKey)
