@@ -42,6 +42,26 @@ bd sync               # Sync with git
 
 After every task update AGENTS.md with the learnings you just made so you don't repeat the same mistake.
 
+## Scratch Pad (Continual Learning)
+
+A persistent scratch pad at `.scratch-pad.md` tracks errors, corrections, preferences, and learnings across sessions.
+
+**Session Start**: Read `.scratch-pad.md` before doing any work. Apply logged preferences and anticipated improvements.
+
+**Session End**: Update `.scratch-pad.md` with:
+1. **Session Log** entry — query summary, approach, errors, corrections, key learnings
+2. **Error Tracker** updates — new errors encountered, root causes, preventive measures
+3. **Corrections and Preferences** — any user corrections or preference changes
+4. **Anticipated Improvements** — proactive fixes for future sessions based on patterns
+5. **Cumulative Learnings** — update high-level improvement summary
+
+**Rules**:
+- Every session gets a numbered entry in the Session Log
+- By session 3+, proactively apply patterns from logged errors/preferences
+- Reference specific past sessions when applying learnings (e.g., "From Session 2, user prefers...")
+- Keep entries concise — this is a working reference, not a journal
+- Commit `.scratch-pad.md` changes alongside code changes
+
 ## Project Knowledge
 
 ### Xcode Project Structure
