@@ -129,6 +129,22 @@ final class CloudKitSharingManager {
         let transaction = SentryManager.shared.startTransaction(name: "share.upload", operation: "share.upload")
         let ckStart = CFAbsoluteTimeGetCurrent()
 
+        // Pre-flight: verify iCloud account is available
+        let accountStatus = await checkiCloudStatus()
+        Self.logger.info("[upload-telemetry] iCloud account status: \(accountStatus.rawValue)")
+        guard accountStatus == .available else {
+            let statusDesc: String
+            switch accountStatus {
+            case .noAccount: statusDesc = "No iCloud account. Sign in to iCloud in Settings to share vaults."
+            case .restricted: statusDesc = "iCloud is restricted on this device."
+            case .couldNotDetermine: statusDesc = "Could not determine iCloud status. Check your internet connection."
+            case .temporarilyUnavailable: statusDesc = "iCloud is temporarily unavailable. Try again later."
+            @unknown default: statusDesc = "iCloud is not available (status: \(accountStatus.rawValue))."
+            }
+            transaction.finish(status: .internalError)
+            throw CloudKitSharingError.notAvailable
+        }
+
         let phraseVaultId = Self.vaultId(from: phrase)
 
         // v2: skip outer encryption — individual files are already encrypted with shareKey
@@ -501,11 +517,22 @@ final class CloudKitSharingManager {
             do {
                 try await publicDatabase.save(record)
                 return
-            } catch let error as CKError where Self.isRetryable(error) {
-                lastError = error
-                let delay = Self.retryDelay(for: error, attempt: attempt)
-                Self.logger.info("[upload-telemetry] save retry \(attempt + 1)/\(maxRetries) after \(String(format: "%.1f", delay))s: \(error.localizedDescription)")
-                try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            } catch let error as CKError {
+                Self.logger.error("[upload-telemetry] CKError code=\(error.code.rawValue) desc=\(error.localizedDescription, privacy: .public)")
+                if let underlying = error.userInfo[NSUnderlyingErrorKey] as? Error {
+                    Self.logger.error("[upload-telemetry] underlying: \(underlying.localizedDescription, privacy: .public)")
+                }
+                if Self.isRetryable(error) && attempt < maxRetries {
+                    lastError = error
+                    let delay = Self.retryDelay(for: error, attempt: attempt)
+                    Self.logger.info("[upload-telemetry] retrying \(attempt + 1)/\(maxRetries) after \(String(format: "%.1f", delay))s")
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                } else {
+                    throw error
+                }
+            } catch {
+                Self.logger.error("[upload-telemetry] non-CK error: \(error.localizedDescription, privacy: .public)")
+                throw error
             }
         }
         throw lastError!

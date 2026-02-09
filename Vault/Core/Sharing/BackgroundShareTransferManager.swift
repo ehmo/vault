@@ -221,6 +221,13 @@ final class BackgroundShareTransferManager {
                 await self?.finishTransfer(.uploadComplete, activityMessage: "Vault shared successfully")
             } catch {
                 guard !Task.isCancelled else { return }
+                Self.logger.error("[upload-telemetry] UPLOAD FAILED: \(error.localizedDescription, privacy: .public)")
+                Self.logger.error("[upload-telemetry] error type: \(String(describing: type(of: error)), privacy: .public)")
+                if let ckError = (error as? CloudKitSharingError),
+                   case .uploadFailed(let inner) = ckError {
+                    Self.logger.error("[upload-telemetry] inner CK error: \(inner.localizedDescription, privacy: .public)")
+                }
+                SentryManager.shared.captureError(error)
                 await self?.finishTransfer(.uploadFailed(error.localizedDescription), activityMessage: "Upload failed")
             }
         }
