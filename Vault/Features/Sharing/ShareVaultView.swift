@@ -107,7 +107,10 @@ struct ShareVaultView: View {
 
     private func initialize() async {
         let status = await CloudKitSharingManager.shared.checkiCloudStatus()
-        guard status == .available else {
+        // .available = fully ready, .temporarilyUnavailable = signed in but CloudKit still syncing
+        // Both mean the user has an iCloud account — let them proceed.
+        // Only block for .noAccount, .restricted, .couldNotDetermine.
+        guard status == .available || status == .temporarilyUnavailable else {
             mode = .iCloudUnavailable(status)
             return
         }

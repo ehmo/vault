@@ -129,10 +129,10 @@ final class CloudKitSharingManager {
         let transaction = SentryManager.shared.startTransaction(name: "share.upload", operation: "share.upload")
         let ckStart = CFAbsoluteTimeGetCurrent()
 
-        // Pre-flight: verify iCloud account is available
+        // Pre-flight: verify iCloud account is available or temporarily unavailable (signed in, syncing)
         let accountStatus = await checkiCloudStatus()
         Self.logger.info("[upload-telemetry] iCloud account status: \(accountStatus.rawValue)")
-        guard accountStatus == .available else {
+        guard accountStatus == .available || accountStatus == .temporarilyUnavailable else {
             transaction.finish(status: .internalError)
             throw CloudKitSharingError.notAvailable
         }
@@ -571,9 +571,23 @@ final class CloudKitSharingManager {
 
     func checkiCloudStatus() async -> CKAccountStatus {
         do {
-            return try await container.accountStatus()
+            let status = try await container.accountStatus()
+            Self.logger.info("[icloud-check] CKAccountStatus = \(status.rawValue) (\(Self.statusName(status), privacy: .public))")
+            return status
         } catch {
+            Self.logger.error("[icloud-check] accountStatus() threw: \(error.localizedDescription, privacy: .public)")
             return .couldNotDetermine
+        }
+    }
+
+    private static func statusName(_ status: CKAccountStatus) -> String {
+        switch status {
+        case .available: return "available"
+        case .noAccount: return "noAccount"
+        case .restricted: return "restricted"
+        case .couldNotDetermine: return "couldNotDetermine"
+        case .temporarilyUnavailable: return "temporarilyUnavailable"
+        @unknown default: return "unknown(\(status.rawValue))"
         }
     }
 }

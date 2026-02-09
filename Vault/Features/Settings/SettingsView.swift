@@ -627,7 +627,8 @@ struct iCloudBackupSettingsView: View {
 
     private func checkiCloudAvailable() async -> Bool {
         let status = await CloudKitSharingManager.shared.checkiCloudStatus()
-        return status == .available
+        // .temporarilyUnavailable means signed in but CloudKit still syncing — treat as available
+        return status == .available || status == .temporarilyUnavailable
     }
 
     private func onAppear() {
