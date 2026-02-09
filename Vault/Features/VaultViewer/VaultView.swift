@@ -403,53 +403,37 @@ struct VaultView: View {
                             .padding(.horizontal)
                         }
 
-                        HStack(spacing: 12) {
-                            HStack(spacing: 0) {
-                                ForEach(FileFilter.allCases) { filter in
-                                    Button {
-                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                            fileFilter = filter
-                                        }
-                                    } label: {
-                                        Image(systemName: filter.icon)
-                                            .font(.body.weight(.medium))
-                                            .foregroundStyle(fileFilter == filter ? Color.accentColor : .secondary)
-                                            .frame(width: 48, height: 40)
-                                            .contentShape(Rectangle())
-                                    }
-                                    .accessibilityLabel(filter.rawValue)
-                                }
-                            }
-                            .vaultGlassBackground(cornerRadius: 24)
-
-                            if !isSharedVault && !isEditing {
+                        HStack(spacing: 0) {
+                            ForEach(FileFilter.allCases) { filter in
                                 Button {
-                                    if subscriptionManager.canAddFile(currentFileCount: files.count) {
-                                        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                                            showingFanMenu.toggle()
-                                        }
-                                    } else {
-                                        showingPaywall = true
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        fileFilter = filter
                                     }
                                 } label: {
-                                    Image(systemName: "plus")
-                                        .font(.body.weight(.bold))
-                                        .foregroundStyle(.white)
-                                        .frame(width: 40, height: 40)
-                                        .background(showingFanMenu ? Color(.systemGray) : Color.accentColor)
-                                        .clipShape(Circle())
-                                        .rotationEffect(.degrees(showingFanMenu ? 45 : 0))
+                                    Image(systemName: filter.icon)
+                                        .font(.body.weight(.medium))
+                                        .foregroundStyle(fileFilter == filter ? Color.accentColor : .secondary)
+                                        .frame(width: 52, height: 40)
+                                        .contentShape(Rectangle())
                                 }
-                                .accessibilityLabel(showingFanMenu ? "Close menu" : "Add files")
+                                .accessibilityLabel(filter.rawValue)
                             }
                         }
+                        .vaultGlassBackground(cornerRadius: 24)
                     }
                     .vaultBarMaterial()
                 }
             }
             .overlay {
                 if showingFanMenu {
-                    fanMenuOverlay
+                    fanMenuDimming
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                if !files.isEmpty && !showingSettings && !isSharedVault && !isEditing {
+                    fanMenuButtonAndItems
+                        .padding(.trailing, 16)
+                        .padding(.bottom, 6)
                 }
             }
         }
@@ -731,7 +715,18 @@ struct VaultView: View {
         let action: () -> Void
     }
 
-    private var fanMenuOverlay: some View {
+    private var fanMenuDimming: some View {
+        Color.black.opacity(0.3)
+            .ignoresSafeArea()
+            .onTapGesture {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                    showingFanMenu = false
+                }
+            }
+            .transition(.opacity)
+    }
+
+    private var fanMenuButtonAndItems: some View {
         let items = [
             FanItem(icon: "camera.fill", label: "Camera") {
                 showingFanMenu = false
@@ -747,25 +742,13 @@ struct VaultView: View {
             },
         ]
 
-        // Fan spreads upward from bottom-right
+        // Fan spreads upward-left from the + button
         let fanRadius: CGFloat = 80
-        let startAngle: Double = 200 // left-ish
-        let endAngle: Double = 270   // straight up
+        let startAngle: Double = 195 // slightly past left
+        let endAngle: Double = 275   // slightly past straight up
 
-        return GeometryReader { geo in
-            // Dimming backdrop
-            Color.black.opacity(0.3)
-                .ignoresSafeArea()
-                .onTapGesture {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                        showingFanMenu = false
-                    }
-                }
-
-            // Anchor point: above the + button (bottom-right area, above safe area)
-            let anchorX = geo.size.width - 40
-            let anchorY = geo.size.height - 52
-
+        return ZStack(alignment: .bottomTrailing) {
+            // Fan items (behind the + button in Z order)
             ForEach(Array(items.enumerated()), id: \.offset) { index, item in
                 let angle: Double = items.count == 1
                     ? startAngle
@@ -784,20 +767,40 @@ struct VaultView: View {
                         .shadow(color: .black.opacity(0.2), radius: 6, y: 3)
                 }
                 .accessibilityLabel(item.label)
-                .position(
-                    x: anchorX + (showingFanMenu ? cos(radians) * fanRadius : 0),
-                    y: anchorY + (showingFanMenu ? sin(radians) * fanRadius : 0)
+                .offset(
+                    x: showingFanMenu ? cos(radians) * fanRadius : 0,
+                    y: showingFanMenu ? sin(radians) * fanRadius : 0
                 )
                 .scaleEffect(showingFanMenu ? 1 : 0.3)
                 .opacity(showingFanMenu ? 1 : 0)
                 .animation(
                     .spring(response: 0.4, dampingFraction: 0.7)
-                        .delay(Double(index) * 0.05),
+                        .delay(showingFanMenu ? Double(index) * 0.05 : 0),
                     value: showingFanMenu
                 )
             }
+
+            // Main + / × button (always on top)
+            Button {
+                if subscriptionManager.canAddFile(currentFileCount: files.count) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                        showingFanMenu.toggle()
+                    }
+                } else {
+                    showingPaywall = true
+                }
+            } label: {
+                Image(systemName: "plus")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 52, height: 52)
+                    .background(showingFanMenu ? Color(.systemGray) : Color.accentColor)
+                    .clipShape(Circle())
+                    .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
+                    .rotationEffect(.degrees(showingFanMenu ? 45 : 0))
+            }
+            .accessibilityLabel(showingFanMenu ? "Close menu" : "Add files")
         }
-        .transition(.opacity)
     }
 
     // MARK: - Shared Vault Checks
