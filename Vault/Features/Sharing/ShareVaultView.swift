@@ -84,6 +84,9 @@ struct ShareVaultView: View {
         .task {
             await initialize()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .CKAccountChanged)) { _ in
+            Task { await initialize() }
+        }
         .task {
             // Poll upload status while view is visible
             while !Task.isCancelled {

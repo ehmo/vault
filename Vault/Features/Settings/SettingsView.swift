@@ -521,6 +521,9 @@ struct iCloudBackupSettingsView: View {
         .navigationTitle("iCloud Backup")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { onAppear() }
+        .onReceive(NotificationCenter.default.publisher(for: .CKAccountChanged)) { _ in
+            Task { iCloudAvailable = await checkiCloudAvailable() }
+        }
         .onChange(of: isBackupEnabled) { _, enabled in
             handleToggleChange(enabled)
         }
@@ -551,7 +554,7 @@ struct iCloudBackupSettingsView: View {
             .padding(.top, 8)
 
             Button("Retry") {
-                iCloudAvailable = backupManager.isICloudAvailable
+                Task { iCloudAvailable = await checkiCloudAvailable() }
             }
             .foregroundStyle(.vaultSecondaryText)
         }
