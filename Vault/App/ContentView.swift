@@ -4,6 +4,8 @@ struct ContentView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    @State private var showUnlockTransition = false
+
     var body: some View {
         ZStack {
             Group {
@@ -13,6 +15,8 @@ struct ContentView: View {
                     LoadingView()
                 } else if appState.isUnlocked {
                     VaultView()
+                        .opacity(showUnlockTransition ? 0 : 1)
+                        .offset(y: showUnlockTransition ? 20 : 0)
                 } else {
                     PatternLockView()
                 }
@@ -21,10 +25,31 @@ struct ContentView: View {
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: appState.showOnboarding)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: appState.isLoading)
 
+            // Vault door unlock overlay
+            if showUnlockTransition {
+                Color.vaultBackground
+                    .ignoresSafeArea()
+                    .overlay {
+                        Image(systemName: "shield.fill")
+                            .font(.system(size: 64))
+                            .foregroundStyle(Color.accentColor)
+                            .scaleEffect(showUnlockTransition ? 1.2 : 1.0)
+                            .opacity(showUnlockTransition ? 1 : 0)
+                    }
+                    .transition(.opacity)
+            }
+
             // Screenshot detected: full-screen black overlay (covers UI before lock)
             if appState.screenshotDetected {
                 Color.black
                     .ignoresSafeArea()
+            }
+        }
+        .onChange(of: appState.isUnlocked) { _, isUnlocked in
+            guard isUnlocked, !reduceMotion else { return }
+            showUnlockTransition = true
+            withAnimation(.easeOut(duration: 0.6)) {
+                showUnlockTransition = false
             }
         }
         // Screenshot detection — locks vault when user takes a screenshot
