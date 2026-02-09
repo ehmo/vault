@@ -1,4 +1,22 @@
 import Foundation
+import UIKit
+
+/// Single source of truth for opening iCloud settings.
+/// Used by ShareVaultView and iCloudBackupSettingsView — keep in sync.
+enum SettingsURLHelper {
+    static func openICloudSettings() {
+        // iOS 17+: APPLE_ACCOUNT opens the Apple ID page (which contains iCloud).
+        // Fallback to app settings if the private URL scheme is rejected.
+        let iCloudURL = URL(string: "App-Prefs:root=APPLE_ACCOUNT")
+        let fallbackURL = URL(string: UIApplication.openSettingsURLString)
+
+        if let url = iCloudURL, UIApplication.shared.canOpenURL(url) {
+            UIApplication.shared.open(url)
+        } else if let url = fallbackURL {
+            UIApplication.shared.open(url)
+        }
+    }
+}
 
 enum iCloudError: Error {
     case notAvailable

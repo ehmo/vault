@@ -543,13 +543,7 @@ struct iCloudBackupSettingsView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
 
-            Button {
-                if let url = URL(string: "App-Prefs:root=APPLE_ACCOUNT&path=ICLOUD_SERVICE") {
-                    UIApplication.shared.open(url)
-                } else if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
-                }
-            } label: {
+            Button { SettingsURLHelper.openICloudSettings() } label: {
                 Label("Open iCloud Settings", systemImage: "gear")
                     .font(.body.weight(.medium))
             }
