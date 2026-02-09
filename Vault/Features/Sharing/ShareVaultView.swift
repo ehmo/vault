@@ -453,29 +453,36 @@ struct ShareVaultView: View {
 
     @ViewBuilder
     private var syncStatusBadge: some View {
-        switch ShareSyncManager.shared.syncStatus {
-        case .idle:
-            EmptyView()
-        case .syncing:
-            HStack(spacing: 4) {
-                PixelAnimation.syncing(size: 24)
-                Text("Syncing").font(.caption)
-            }
-        case .upToDate:
-            Label("Up to date", systemImage: "checkmark.circle.fill")
-                .font(.caption).foregroundStyle(.green)
-        case .error(let msg):
-            VStack(alignment: .trailing, spacing: 4) {
+        let status = ShareSyncManager.shared.syncStatus
+        let isSyncing = status == .syncing
+
+        VStack(alignment: .trailing, spacing: 4) {
+            switch status {
+            case .idle:
+                EmptyView()
+            case .syncing:
+                HStack(spacing: 4) {
+                    PixelAnimation.syncing(size: 24)
+                    Text("Syncing").font(.caption)
+                }
+            case .upToDate:
+                Label("Up to date", systemImage: "checkmark.circle.fill")
+                    .font(.caption).foregroundStyle(.green)
+            case .error(let msg):
                 Label(msg, systemImage: "exclamationmark.circle.fill")
                     .font(.caption).foregroundStyle(.vaultHighlight)
-                Button("Retry") {
-                    guard let key = appState.currentVaultKey else { return }
-                    ShareSyncManager.shared.syncNow(vaultKey: key)
-                }
-                .font(.caption2)
-                .buttonStyle(.bordered)
-                .controlSize(.mini)
             }
+
+            Button {
+                guard let key = appState.currentVaultKey else { return }
+                ShareSyncManager.shared.syncNow(vaultKey: key)
+            } label: {
+                Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
+                    .font(.caption2)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.mini)
+            .disabled(isSyncing)
         }
     }
 
