@@ -83,6 +83,9 @@ struct VaultView: View {
     @State private var searchText = ""
     @State private var fileFilter: FileFilter = .all
     @State private var sortOrder: SortOrder = .dateNewest
+    @State private var isEditing = false
+    @State private var selectedIds: Set<UUID> = []
+    @State private var showingBatchDeleteConfirmation = false
     @State private var showingPaywall = false
 
     // Transfer status
@@ -160,17 +163,18 @@ struct VaultView: View {
                     if !group.images.isEmpty {
                         PhotosGridView(files: group.images, masterKey: masterKey, onSelect: { file, _ in
                             SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
-                            // Find global index in all images for photo viewer
                             let allImages = sortedFiles.filter { $0.isImage }
                             let globalIndex = allImages.firstIndex(where: { $0.id == file.id }) ?? 0
                             selectedPhotoIndex = globalIndex
-                        }, onDelete: isSharedVault ? nil : deleteFileById)
+                        }, onDelete: isSharedVault ? nil : deleteFileById,
+                           isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
                     }
                     if !group.files.isEmpty {
                         FilesGridView(files: group.files, onSelect: { file in
                             SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                             selectedFile = file
-                        }, onDelete: isSharedVault ? nil : deleteFileById)
+                        }, onDelete: isSharedVault ? nil : deleteFileById,
+                           isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
                         .padding(.top, group.images.isEmpty ? 0 : 12)
                     }
                 } header: {
@@ -195,25 +199,29 @@ struct VaultView: View {
                 PhotosGridView(files: split.images, masterKey: masterKey, onSelect: { file, index in
                     SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                     selectedPhotoIndex = index
-                }, onDelete: isSharedVault ? nil : deleteFileById)
+                }, onDelete: isSharedVault ? nil : deleteFileById,
+                   isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
             }
             if !split.nonImages.isEmpty {
                 FilesGridView(files: split.nonImages, onSelect: { file in
                     SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                     selectedFile = file
-                }, onDelete: isSharedVault ? nil : deleteFileById)
+                }, onDelete: isSharedVault ? nil : deleteFileById,
+                   isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
                 .padding(.top, split.images.isEmpty ? 0 : 12)
             }
         case .images:
             PhotosGridView(files: split.images, masterKey: masterKey, onSelect: { file, index in
                 SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                 selectedPhotoIndex = index
-            }, onDelete: isSharedVault ? nil : deleteFileById)
+            }, onDelete: isSharedVault ? nil : deleteFileById,
+               isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
         case .other:
             FilesGridView(files: split.nonImages, onSelect: { file in
                 SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                 selectedFile = file
-            }, onDelete: isSharedVault ? nil : deleteFileById)
+            }, onDelete: isSharedVault ? nil : deleteFileById,
+               isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
         }
     }
 
@@ -257,10 +265,22 @@ struct VaultView: View {
             .toolbar {
                 if !showingSettings {
                     ToolbarItem(placement: .topBarLeading) {
-                        Button(action: { showingSettings = true }) {
-                            Image(systemName: "gear")
+                        HStack(spacing: 12) {
+                            Button(action: { showingSettings = true }) {
+                                Image(systemName: "gear")
+                            }
+                            .accessibilityLabel("Settings")
+
+                            if !files.isEmpty && !isSharedVault {
+                                Button(isEditing ? "Done" : "Edit") {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        isEditing.toggle()
+                                        if !isEditing { selectedIds.removeAll() }
+                                    }
+                                }
+                                .accessibilityLabel(isEditing ? "Exit edit mode" : "Enter edit mode")
+                            }
                         }
-                        .accessibilityLabel("Settings")
                     }
 
                     ToolbarItem(placement: .topBarTrailing) {
@@ -315,22 +335,40 @@ struct VaultView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 if !isSharedVault && !files.isEmpty && !showingSettings {
-                    Button(action: {
-                        if subscriptionManager.canAddFile(currentFileCount: files.count) {
-                            showingImportOptions = true
-                        } else {
-                            showingPaywall = true
+                    if isEditing {
+                        HStack(spacing: 16) {
+                            Button(role: .destructive) {
+                                showingBatchDeleteConfirmation = true
+                            } label: {
+                                Label("Delete (\(selectedIds.count))", systemImage: "trash")
+                                    .font(.headline)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.red)
+                            .disabled(selectedIds.isEmpty)
                         }
-                    }) {
-                        Label("Add Files", systemImage: "plus.circle.fill")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
+                        .padding(.horizontal)
+                        .vaultBarMaterial()
+                    } else {
+                        Button(action: {
+                            if subscriptionManager.canAddFile(currentFileCount: files.count) {
+                                showingImportOptions = true
+                            } else {
+                                showingPaywall = true
+                            }
+                        }) {
+                            Label("Protect Files", systemImage: "plus.circle.fill")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                        }
+                        .vaultProminentButtonStyle()
+                        .padding(.horizontal)
+                        .vaultBarMaterial()
+                        .accessibilityHint("Import photos, videos, or files into the vault")
                     }
-                    .vaultProminentButtonStyle()
-                    .padding(.horizontal)
-                    .vaultBarMaterial()
-                    .accessibilityHint("Import photos, videos, or files into the vault")
                 }
             }
         }
@@ -436,6 +474,12 @@ struct VaultView: View {
             }
         } message: {
             Text(selfDestructMessage ?? "This shared vault is no longer available.")
+        }
+        .alert("Delete \(selectedIds.count) Files?", isPresented: $showingBatchDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) { batchDelete() }
+        } message: {
+            Text("These files will be permanently deleted from the vault.")
         }
         .premiumPaywall(isPresented: $showingPaywall)
     }
@@ -713,6 +757,29 @@ struct VaultView: View {
 
     private func lockVault() {
         appState.lockVault()
+    }
+
+    private func toggleSelection(_ id: UUID) {
+        if selectedIds.contains(id) {
+            selectedIds.remove(id)
+        } else {
+            selectedIds.insert(id)
+        }
+    }
+
+    private func batchDelete() {
+        guard let key = appState.currentVaultKey else { return }
+        let idsToDelete = selectedIds
+        Task {
+            for id in idsToDelete {
+                try? VaultStorage.shared.deleteFile(id: id, with: key)
+            }
+            await MainActor.run {
+                files.removeAll { idsToDelete.contains($0.id) }
+                selectedIds.removeAll()
+                isEditing = false
+            }
+        }
     }
 
     private func deleteFileById(_ id: UUID) {

@@ -4,6 +4,9 @@ struct FilesGridView: View {
     let files: [VaultFileItem]
     let onSelect: (VaultFileItem) -> Void
     var onDelete: ((UUID) -> Void)?
+    var isEditing: Bool = false
+    var selectedIds: Set<UUID> = []
+    var onToggleSelect: ((UUID) -> Void)?
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
 
@@ -11,7 +14,11 @@ struct FilesGridView: View {
         LazyVGrid(columns: columns, spacing: 12) {
             ForEach(files) { file in
                 Button {
-                    onSelect(file)
+                    if isEditing {
+                        onToggleSelect?(file.id)
+                    } else {
+                        onSelect(file)
+                    }
                 } label: {
                     VStack(spacing: 8) {
                         RoundedRectangle(cornerRadius: 8)
@@ -21,6 +28,12 @@ struct FilesGridView: View {
                                 Image(systemName: iconName(for: file.mimeType))
                                     .font(.title)
                                     .foregroundStyle(.vaultSecondaryText)
+                            }
+                            .overlay(alignment: .bottomTrailing) {
+                                if isEditing {
+                                    selectionCircle(selected: selectedIds.contains(file.id))
+                                        .padding(6)
+                                }
                             }
 
                         VStack(spacing: 2) {
@@ -38,9 +51,9 @@ struct FilesGridView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(file.filename ?? "File"), \(formatSize(file.size))")
-                .accessibilityHint("Double tap to open")
+                .accessibilityHint(isEditing ? "Double tap to \(selectedIds.contains(file.id) ? "deselect" : "select")" : "Double tap to open")
                 .contextMenu {
-                    if let onDelete {
+                    if let onDelete, !isEditing {
                         Button(role: .destructive, action: { onDelete(file.id) }) {
                             Label("Delete", systemImage: "trash")
                         }
@@ -49,6 +62,23 @@ struct FilesGridView: View {
             }
         }
         .padding(.horizontal, 16)
+    }
+
+    @ViewBuilder
+    private func selectionCircle(selected: Bool) -> some View {
+        ZStack {
+            Circle()
+                .fill(selected ? Color.accentColor : Color.black.opacity(0.3))
+                .frame(width: 24, height: 24)
+            Circle()
+                .stroke(Color.white, lineWidth: 1.5)
+                .frame(width: 24, height: 24)
+            if selected {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+        }
     }
 
     private func iconName(for mimeType: String?) -> String {
