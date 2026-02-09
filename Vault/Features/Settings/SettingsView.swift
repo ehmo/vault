@@ -31,46 +31,69 @@ struct AppSettingsView: View {
     var body: some View {
         List {
             // Premium
-            Section("Premium") {
-                HStack {
-                    Image(systemName: subscriptionManager.isPremium ? "crown.fill" : "crown")
-                        .foregroundStyle(subscriptionManager.isPremium ? .yellow : .secondary)
-                    Text(subscriptionManager.isPremium ? "Premium" : "Free Plan")
-                    Spacer()
-                    if subscriptionManager.isPremium {
+            if subscriptionManager.isPremium {
+                Section("Premium") {
+                    HStack {
+                        Image(systemName: "crown.fill")
+                            .foregroundStyle(.yellow)
+                        Text("Vaultaire Pro")
+                        Spacer()
                         Text("Active")
                             .font(.caption)
                             .foregroundStyle(.green)
                     }
-                }
 
-                if subscriptionManager.isPremium {
                     Button("Manage Subscription") {
                         showingCustomerCenter = true
                     }
-                } else {
-                    Button("Upgrade to Premium") {
-                        showingPaywall = true
-                    }
                 }
-
-                Button(action: {
-                    isRestoringPurchases = true
-                    Task {
-                        try? await subscriptionManager.restorePurchases()
-                        isRestoringPurchases = false
-                    }
-                }) {
-                    if isRestoringPurchases {
+            } else {
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            ProgressView()
-                            Text("Restoring...")
+                            Image(systemName: "crown.fill")
+                                .font(.title2)
+                                .foregroundStyle(.yellow)
+                            Text("Unlock Vaultaire Pro")
+                                .font(.headline)
                         }
-                    } else {
-                        Text("Restore Purchases")
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Label("Unlimited vaults & files", systemImage: "infinity")
+                            Label("Share encrypted vaults", systemImage: "person.2.fill")
+                            Label("iCloud backup & sync", systemImage: "icloud.fill")
+                        }
+                        .font(.subheadline)
+                        .foregroundStyle(.vaultSecondaryText)
+
+                        Button(action: { showingPaywall = true }) {
+                            Text("Upgrade")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                        }
+                        .vaultProminentButtonStyle()
                     }
+                    .padding(.vertical, 4)
+
+                    Button(action: {
+                        isRestoringPurchases = true
+                        Task {
+                            try? await subscriptionManager.restorePurchases()
+                            isRestoringPurchases = false
+                        }
+                    }) {
+                        if isRestoringPurchases {
+                            HStack {
+                                ProgressView()
+                                Text("Restoring...")
+                            }
+                        } else {
+                            Text("Restore Purchases")
+                        }
+                    }
+                    .disabled(isRestoringPurchases)
                 }
-                .disabled(isRestoringPurchases)
             }
 
             // Security & Privacy (merged)

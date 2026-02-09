@@ -286,6 +286,14 @@ struct VaultView: View {
 
                     ToolbarItem(placement: .topBarTrailing) {
                         HStack(spacing: 12) {
+                            if !files.isEmpty {
+                                StorageRingView(
+                                    fileCount: files.count,
+                                    maxFiles: subscriptionManager.isPremium ? nil : SubscriptionManager.maxFreeFilesPerVault,
+                                    totalBytes: Int64(files.reduce(0) { $0 + $1.size })
+                                )
+                            }
+
                             Menu {
                                 ForEach(SortOrder.allCases, id: \.self) { order in
                                     Button {
@@ -353,19 +361,26 @@ struct VaultView: View {
                         .padding(.horizontal)
                         .vaultBarMaterial()
                     } else {
-                        Button(action: {
-                            if subscriptionManager.canAddFile(currentFileCount: files.count) {
-                                showingImportOptions = true
-                            } else {
-                                showingPaywall = true
+                        VStack(spacing: 4) {
+                            if !subscriptionManager.isPremium {
+                                Text("\(files.count) of \(SubscriptionManager.maxFreeFilesPerVault) files")
+                                    .font(.caption)
+                                    .foregroundStyle(.vaultSecondaryText)
                             }
-                        }) {
-                            Label("Protect Files", systemImage: "plus.circle.fill")
-                                .font(.headline)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
+                            Button(action: {
+                                if subscriptionManager.canAddFile(currentFileCount: files.count) {
+                                    showingImportOptions = true
+                                } else {
+                                    showingPaywall = true
+                                }
+                            }) {
+                                Label("Protect Files", systemImage: "plus.circle.fill")
+                                    .font(.headline)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                            }
+                            .vaultProminentButtonStyle()
                         }
-                        .vaultProminentButtonStyle()
                         .padding(.horizontal)
                         .vaultBarMaterial()
                         .accessibilityHint("Import photos, videos, or files into the vault")
