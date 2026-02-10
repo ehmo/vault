@@ -9,4 +9,11 @@
 |----|------|---|-------|------|
 | #207 | 10:23 PM | 🔵 | ContentView Security Controls and State Routing | ~495 |
 | #206 | 10:22 PM | 🔵 | Vault App State and Security Architecture | ~633 |
+
+### Feb 10, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #641 | 1:35 AM | 🔵 | Navigation flow and security triggers identified | ~430 |
+| #639 | " | 🔵 | AppState architecture and authentication flow identified | ~464 |
 </claude-mem-context>
