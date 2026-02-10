@@ -1,6 +1,8 @@
 appId: app.vaultaire.ios
 ---
-# Toggle duress vault (premium feature)
+# Toggle duress vault — premium-gated feature
+# In test mode without premium, this taps the "Use as duress vault" button
+# which triggers the paywall. Verifies the duress section is reachable.
 - runFlow: ../helpers/launch_test_mode.yaml
 
 - tapOn:
@@ -8,11 +10,14 @@ appId: app.vaultaire.ios
 
 - scrollUntilVisible:
     element:
-      id: "settings_duress_toggle"
+      text: "Use as duress vault"
     direction: DOWN
     timeout: 5000
 
-# Toggle duress — should show warning alert for premium users
+# For premium: toggle exists; for non-premium: button exists
 - tapOn:
     id: "settings_duress_toggle"
+    optional: true
+- tapOn:
+    text: "Use as duress vault"
     optional: true

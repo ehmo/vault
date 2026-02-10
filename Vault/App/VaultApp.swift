@@ -40,6 +40,14 @@ final class AppState {
     }
 
     private func checkFirstLaunch() {
+        #if DEBUG
+        if isMaestroTestMode {
+            // Auto-complete onboarding in test mode
+            UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+            showOnboarding = false
+            return
+        }
+        #endif
         showOnboarding = !UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
     }
 
@@ -208,6 +216,50 @@ final class AppState {
         vaultName = "Test Vault"
         isUnlocked = true
         isLoading = false
+
+        // Seed test files if requested
+        if ProcessInfo.processInfo.arguments.contains("-MAESTRO_SEED_FILES") {
+            seedTestFiles(key: testKey)
+        }
+    }
+
+    /// Seeds the vault with dummy test files for Maestro flows that need files present.
+    private func seedTestFiles(key: Data) {
+        // Check if files already exist to avoid duplicates on re-launch
+        guard let index = try? VaultStorage.shared.loadIndex(with: key),
+              index.files.filter({ !$0.isDeleted }).isEmpty else {
+            return
+        }
+
+        // Create a small 2x2 red JPEG (minimal valid image data)
+        let size = CGSize(width: 100, height: 100)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let jpegData = renderer.jpegData(withCompressionQuality: 0.8) { ctx in
+            UIColor.red.setFill()
+            ctx.fill(CGRect(origin: .zero, size: size))
+        }
+        let pngData = renderer.pngData { ctx in
+            UIColor.blue.setFill()
+            ctx.fill(CGRect(origin: .zero, size: size))
+        }
+
+        // Store test files in the vault
+        let _ = try? VaultStorage.shared.storeFile(
+            data: jpegData,
+            filename: "test_photo_1.jpg",
+            mimeType: "image/jpeg",
+            with: key,
+            thumbnailData: jpegData
+        )
+        let _ = try? VaultStorage.shared.storeFile(
+            data: pngData,
+            filename: "test_photo_2.png",
+            mimeType: "image/png",
+            with: key,
+            thumbnailData: pngData
+        )
+
+        print("🧪 [Maestro] Seeded 2 test files into vault")
     }
     #endif
 }

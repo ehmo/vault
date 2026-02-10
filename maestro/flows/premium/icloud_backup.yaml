@@ -1,18 +1,21 @@
 appId: app.vaultaire.ios
 ---
-# Navigate to iCloud backup settings
+# Navigate to iCloud backup settings — premium-gated
+# In test mode without premium, the "iCloud Backup" text is still visible
+# but as a paywall button rather than a NavigationLink
 - runFlow: ../helpers/launch_test_mode.yaml
 - runFlow: ../helpers/navigate_to_app_settings.yaml
 
 - scrollUntilVisible:
     element:
-      id: "app_icloud_backup"
+      text: "iCloud Backup"
     direction: DOWN
     timeout: 5000
 
+# For premium: NavigationLink works; for non-premium: taps paywall button
 - tapOn:
     id: "app_icloud_backup"
     optional: true
-
-# iCloud backup settings view should appear
-# (May show iCloud unavailable in simulator)
+- tapOn:
+    text: "iCloud Backup"
+    optional: true

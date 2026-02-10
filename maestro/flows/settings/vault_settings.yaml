@@ -11,8 +11,13 @@ appId: app.vaultaire.ios
     id: "vault_settings_done"
 - assertVisible:
     id: "settings_change_pattern"
-- assertVisible:
-    id: "settings_app_settings"
+
+# App Settings may be below fold — scroll to find it
+- scrollUntilVisible:
+    element:
+      id: "settings_app_settings"
+    direction: DOWN
+    timeout: 5000
 
 # Dismiss
 - tapOn:

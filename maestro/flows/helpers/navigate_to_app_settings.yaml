@@ -2,5 +2,10 @@ appId: app.vaultaire.ios
 ---
 - tapOn:
     id: "vault_settings_button"
+- scrollUntilVisible:
+    element:
+      id: "settings_app_settings"
+    direction: DOWN
+    timeout: 5000
 - tapOn:
     id: "settings_app_settings"

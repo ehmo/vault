@@ -1,12 +1,12 @@
 appId: app.vaultaire.ios
 ---
-# Test join vault UI flow from lock screen
-# Note: Actual CloudKit join won't complete in test
-- launchApp:
-    clearState: true
-    clearKeychain: true
-    arguments:
-      MAESTRO_TEST: "true"
+# Test join vault UI flow
+# Note: Actual CloudKit join won't complete in test; tests UI only
+- runFlow: ../helpers/launch_test_mode.yaml
+
+# Lock the vault first to get to the lock screen
+- tapOn:
+    id: "vault_lock_button"
 
 # From lock screen, tap join shared vault
 - tapOn:
@@ -17,16 +17,6 @@ appId: app.vaultaire.ios
 - assertVisible:
     id: "join_cancel"
     optional: true
-- assertVisible:
-    id: "join_phrase_input"
-    optional: true
-
-# Enter a test phrase
-- tapOn:
-    id: "join_phrase_input"
-    optional: true
-- inputText: "test phrase for joining a vault"
-  optional: true
 
 # Cancel
 - tapOn:

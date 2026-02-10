@@ -1,20 +1,7 @@
 appId: app.vaultaire.ios
 ---
 # Enter select mode and select files
-- runFlow: ../helpers/launch_test_mode.yaml
-
-# Import test photos first
-- addMedia:
-    - ../testdata/test-photo.jpg
-    - ../testdata/test-image.png
-- tapOn:
-    id: "vault_add_button"
-- tapOn:
-    id: "vault_add_library"
-- tapOn:
-    text: "Add"
-    optional: true
-- wait: 2
+- runFlow: ../helpers/launch_with_files.yaml
 
 # Enter select mode
 - tapOn:

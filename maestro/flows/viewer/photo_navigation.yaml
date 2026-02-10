@@ -1,20 +1,7 @@
 appId: app.vaultaire.ios
 ---
 # Swipe between photos in full screen viewer
-- runFlow: ../helpers/launch_test_mode.yaml
-
-# Import multiple test photos
-- addMedia:
-    - ../testdata/test-photo.jpg
-    - ../testdata/test-image.png
-- tapOn:
-    id: "vault_add_button"
-- tapOn:
-    id: "vault_add_library"
-- tapOn:
-    text: "Add"
-    optional: true
-- wait: 2
+- runFlow: ../helpers/launch_with_files.yaml
 
 # Open first photo
 - tapOn:

@@ -1,22 +1,9 @@
 appId: app.vaultaire.ios
 ---
 # Tap a photo to open full screen viewer, then dismiss
-- runFlow: ../helpers/launch_test_mode.yaml
-
-# Import test photo first
-- addMedia:
-    - ../testdata/test-photo.jpg
-- tapOn:
-    id: "vault_add_button"
-- tapOn:
-    id: "vault_add_library"
-- tapOn:
-    text: "Add"
-    optional: true
-- wait: 2
+- runFlow: ../helpers/launch_with_files.yaml
 
 # Tap first photo in grid to open viewer
-# (Grid items will be tappable after import)
 - tapOn:
     index: 0
     optional: true

@@ -1,7 +1,7 @@
 appId: app.vaultaire.ios
 ---
-# Open filter menu and select sort options
-- runFlow: ../helpers/launch_test_mode.yaml
+# Open filter menu and select sort options (needs files present)
+- runFlow: ../helpers/launch_with_files.yaml
 
 - assertVisible:
     id: "vault_filter_menu"

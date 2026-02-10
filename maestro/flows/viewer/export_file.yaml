@@ -1,26 +1,14 @@
 appId: app.vaultaire.ios
 ---
 # Export a file from full screen viewer
-- runFlow: ../helpers/launch_test_mode.yaml
-
-# Import test photo
-- addMedia:
-    - ../testdata/test-photo.jpg
-- tapOn:
-    id: "vault_add_button"
-- tapOn:
-    id: "vault_add_library"
-- tapOn:
-    text: "Add"
-    optional: true
-- wait: 2
+- runFlow: ../helpers/launch_with_files.yaml
 
 # Open photo
 - tapOn:
     index: 0
     optional: true
 
-# Actions → Export
+# Actions -> Export
 - tapOn:
     id: "viewer_actions"
     optional: true

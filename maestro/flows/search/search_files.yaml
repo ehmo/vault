@@ -1,7 +1,7 @@
 appId: app.vaultaire.ios
 ---
-# Search for files in vault
-- runFlow: ../helpers/launch_test_mode.yaml
+# Search for files in vault (needs files present for search field to show)
+- runFlow: ../helpers/launch_with_files.yaml
 
 - assertVisible:
     id: "vault_search_field"
@@ -11,7 +11,6 @@ appId: app.vaultaire.ios
     id: "vault_search_field"
 - inputText: "test"
 
-# Clear search
-- clearInput:
-    id: "vault_search_field"
-    optional: true
+# Clear search by erasing text
+- eraseText:
+    charactersToErase: 4

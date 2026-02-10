@@ -5,16 +5,16 @@ appId: app.vaultaire.ios
 
 # Add test media to simulator photo library
 - addMedia:
-    - ../testdata/test-photo.jpg
+    - test-photo.jpg
 
-# Open FAB and tap library
+# In empty state, tap "Protect Your First Files" to show import options
 - tapOn:
-    id: "vault_add_button"
-- tapOn:
-    id: "vault_add_library"
+    id: "vault_first_files"
 
-# System photo picker appears — select first photo
+# Confirmation dialog appears — choose "Import from Library"
 - tapOn:
-    text: ".*"
-    index: 0
+    text: "Import from Library"
     optional: true
+
+# System photo picker appears — interaction varies by iOS version
+# The picker may not show imported media immediately

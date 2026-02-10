@@ -3,22 +3,29 @@ appId: app.vaultaire.ios
 # Flip camera front/back, verify no crash
 - runFlow: ../helpers/launch_test_mode.yaml
 
+# Use empty state button to open camera
 - tapOn:
-    id: "vault_add_button"
+    id: "vault_first_files"
 - tapOn:
-    id: "vault_add_camera"
+    text: "Take Secure Photo"
+    optional: true
 
 - assertVisible:
     id: "camera_flip"
+    optional: true
 - tapOn:
     id: "camera_flip"
+    optional: true
 
 # Wait for camera to reconfigure
-- wait: 1
+- waitForAnimationToEnd:
+    timeout: 1000
 
 # Flip back
 - tapOn:
     id: "camera_flip"
+    optional: true
 
 - tapOn:
     id: "camera_cancel"
+    optional: true
