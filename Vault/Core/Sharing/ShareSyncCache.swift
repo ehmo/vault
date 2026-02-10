@@ -17,7 +17,6 @@ final class ShareSyncCache: Sendable {
     private let thumbsDir: URL
     private let syncStateURL: URL
     private let svdfURL: URL
-    private let fm = FileManager.default
 
     // MARK: - Sync State
 
@@ -58,14 +57,14 @@ final class ShareSyncCache: Sendable {
     // MARK: - Directory Management
 
     func ensureDirectories() throws {
-        try fm.createDirectory(at: filesDir, withIntermediateDirectories: true)
-        try fm.createDirectory(at: thumbsDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: filesDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: thumbsDir, withIntermediateDirectories: true)
     }
 
     /// Removes the entire cache directory for this share.
     func purge() throws {
-        if fm.fileExists(atPath: cacheDir.path) {
-            try fm.removeItem(at: cacheDir)
+        if FileManager.default.fileExists(atPath: cacheDir.path) {
+            try FileManager.default.removeItem(at: cacheDir)
         }
     }
 
@@ -96,7 +95,7 @@ final class ShareSyncCache: Sendable {
     // MARK: - Encrypted File Cache
 
     func hasEncryptedFile(_ fileId: String) -> Bool {
-        fm.fileExists(atPath: filesDir.appendingPathComponent("\(fileId).enc").path)
+        FileManager.default.fileExists(atPath: filesDir.appendingPathComponent("\(fileId).enc").path)
     }
 
     func loadEncryptedFile(_ fileId: String) -> Data? {
@@ -109,7 +108,7 @@ final class ShareSyncCache: Sendable {
     }
 
     func hasEncryptedThumb(_ fileId: String) -> Bool {
-        fm.fileExists(atPath: thumbsDir.appendingPathComponent("\(fileId).enc").path)
+        FileManager.default.fileExists(atPath: thumbsDir.appendingPathComponent("\(fileId).enc").path)
     }
 
     func loadEncryptedThumb(_ fileId: String) -> Data? {
@@ -123,12 +122,12 @@ final class ShareSyncCache: Sendable {
 
     /// Removes cached encrypted files for IDs no longer in the vault.
     func pruneFiles(keeping activeIds: Set<String>) {
-        let allCached = (try? fm.contentsOfDirectory(atPath: filesDir.path)) ?? []
+        let allCached = (try? FileManager.default.contentsOfDirectory(atPath: filesDir.path)) ?? []
         for filename in allCached {
             let id = filename.replacingOccurrences(of: ".enc", with: "")
             if !activeIds.contains(id) {
-                try? fm.removeItem(at: filesDir.appendingPathComponent(filename))
-                try? fm.removeItem(at: thumbsDir.appendingPathComponent(filename))
+                try? FileManager.default.removeItem(at: filesDir.appendingPathComponent(filename))
+                try? FileManager.default.removeItem(at: thumbsDir.appendingPathComponent(filename))
             }
         }
     }
@@ -152,3 +151,4 @@ final class ShareSyncCache: Sendable {
         return ratio > SVDFSerializer.compactionThreshold
     }
 }
+

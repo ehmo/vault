@@ -38,9 +38,9 @@ struct FullScreenPhotoViewer: View {
             Color.black.ignoresSafeArea()
 
             TabView(selection: $currentIndex) {
-                ForEach(Array(files.enumerated()), id: \.element.id) { index, file in
+                ForEach(files) { file in
                     photoPage(file: file)
-                        .tag(index)
+                        .tag(files.firstIndex(where: { $0.id == file.id }) ?? 0)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))

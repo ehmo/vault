@@ -398,3 +398,4 @@ enum CryptoEngine {
         return hmac == computed
     }
 }
+

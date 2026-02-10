@@ -58,7 +58,14 @@ final class CameraManager: NSObject, @unchecked Sendable {
     }
 
     deinit {
-        stopSession()
+        // Capture session directly — don't use [weak self] during deallocation
+        // as forming a weak reference to a deallocating object is undefined behavior.
+        let session = self.session
+        sessionQueue.async {
+            if session.isRunning {
+                session.stopRunning()
+            }
+        }
     }
 
     // MARK: - Authorization

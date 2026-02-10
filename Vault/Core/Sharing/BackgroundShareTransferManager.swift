@@ -24,6 +24,7 @@ final class BackgroundShareTransferManager {
 
     private var activeTask: Task<Void, Never>?
     private var currentActivity: Activity<TransferActivityAttributes>?
+    private var currentBgTaskId: UIBackgroundTaskIdentifier = .invalid
 
     private var targetProgress: Int = 0
     private var displayProgress: Int = 0
@@ -32,6 +33,17 @@ final class BackgroundShareTransferManager {
     private var progressTimer: Timer?
 
     private init() {}
+
+    // MARK: - Background Task Management
+
+    /// Ends the current iOS background task if one is active. Idempotent.
+    private func endBackgroundExecution() {
+        let taskId = currentBgTaskId
+        currentBgTaskId = .invalid
+        if taskId != .invalid {
+            UIApplication.shared.endBackgroundTask(taskId)
+        }
+    }
 
     // MARK: - Background Upload
 
@@ -59,15 +71,26 @@ final class BackgroundShareTransferManager {
         let capturedMaxOpens = maxOpens
         let capturedAllowDownloads = allowDownloads
 
-        // Request background execution time so iOS doesn't suspend during upload
-        let bgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
-            Self.logger.warning("[upload] Background time expiring — cancelling upload")
-            Task { @MainActor in self?.cancel() }
+        // Request background execution time so iOS doesn't suspend during upload.
+        // End any prior background task first to prevent orphaned task IDs.
+        endBackgroundExecution()
+        currentBgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
+            // Expiration handler runs on main queue — use assumeIsolated to avoid async hop.
+            // Must end the background task synchronously before this handler returns.
+            MainActor.assumeIsolated {
+                Self.logger.warning("[upload] Background time expiring — cancelling upload")
+                self?.activeTask?.cancel()
+                self?.activeTask = nil
+                self?.stopProgressTimer()
+                self?.status = .uploadFailed("Upload interrupted — iOS suspended the app. Try again while keeping the app in the foreground.")
+                self?.endLiveActivity(success: false, message: "Upload interrupted")
+                self?.endBackgroundExecution()
+            }
         }
 
         activeTask = Task.detached(priority: .userInitiated) { [weak self] in
             defer {
-                Task { @MainActor in UIApplication.shared.endBackgroundTask(bgTaskId) }
+                Task { @MainActor [weak self] in self?.endBackgroundExecution() }
             }
             do {
                 let uploadStart = CFAbsoluteTimeGetCurrent()
@@ -276,14 +299,22 @@ final class BackgroundShareTransferManager {
         let capturedPhrase = phrase
         let capturedPatternKey = patternKey
 
-        let bgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
-            Self.logger.warning("[import] Background time expiring — cancelling import")
-            Task { @MainActor in self?.cancel() }
+        endBackgroundExecution()
+        currentBgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
+            MainActor.assumeIsolated {
+                Self.logger.warning("[import] Background time expiring — cancelling import")
+                self?.activeTask?.cancel()
+                self?.activeTask = nil
+                self?.stopProgressTimer()
+                self?.status = .importFailed("Import interrupted — iOS suspended the app.")
+                self?.endLiveActivity(success: false, message: "Import interrupted")
+                self?.endBackgroundExecution()
+            }
         }
 
         activeTask = Task.detached(priority: .userInitiated) { [weak self] in
             defer {
-                Task { @MainActor in UIApplication.shared.endBackgroundTask(bgTaskId) }
+                Task { @MainActor [weak self] in self?.endBackgroundExecution() }
             }
             do {
                 let result = try await CloudKitSharingManager.shared.downloadSharedVault(
@@ -368,7 +399,23 @@ final class BackgroundShareTransferManager {
         let capturedPhrase = phrase
         let capturedPatternKey = patternKey
 
+        endBackgroundExecution()
+        currentBgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
+            MainActor.assumeIsolated {
+                Self.logger.warning("[import] Background time expiring — cancelling import")
+                self?.activeTask?.cancel()
+                self?.activeTask = nil
+                self?.stopProgressTimer()
+                self?.status = .importFailed("Import interrupted — iOS suspended the app.")
+                self?.endLiveActivity(success: false, message: "Import interrupted")
+                self?.endBackgroundExecution()
+            }
+        }
+
         activeTask = Task.detached(priority: .userInitiated) { [weak self] in
+            defer {
+                Task { @MainActor [weak self] in self?.endBackgroundExecution() }
+            }
             do {
                 let sharedVault = try SharedVaultData.decode(from: capturedData)
                 let shareKey = try CloudKitSharingManager.deriveShareKey(from: capturedPhrase)
@@ -570,6 +617,7 @@ final class BackgroundShareTransferManager {
         stopProgressTimer()
         status = .idle
         endLiveActivity(success: false, message: "Transfer cancelled")
+        endBackgroundExecution()
     }
 
     func reset() {

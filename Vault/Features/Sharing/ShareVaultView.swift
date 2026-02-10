@@ -50,16 +50,8 @@ struct ShareVaultView: View {
 
             ScrollView {
                 VStack(spacing: 24) {
-                    // Upload progress indicator
-                    if case .uploading(let progress, let total) = uploadStatus {
-                        VaultSyncIndicator(
-                            style: .uploading,
-                            message: "Uploading shared vault...",
-                            progress: (current: progress, total: total)
-                        )
-                        .padding()
-                        .vaultGlassBackground(cornerRadius: 12)
-                    }
+                    // Upload status indicator
+                    transferStatusBanner
 
                     switch mode {
                     case .loading:
@@ -450,6 +442,48 @@ struct ShareVaultView: View {
     }
 
     // MARK: - Components
+
+    @ViewBuilder
+    private var transferStatusBanner: some View {
+        switch uploadStatus {
+        case .uploading(let progress, let total):
+            VaultSyncIndicator(
+                style: .uploading,
+                message: "Uploading shared vault...",
+                progress: (current: progress, total: total)
+            )
+            .padding()
+            .vaultGlassBackground(cornerRadius: 12)
+        case .uploadFailed(let error):
+            VStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .foregroundStyle(.red)
+                    Text("Upload Failed")
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                }
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.vaultSecondaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding()
+            .vaultGlassBackground(cornerRadius: 12)
+        case .uploadComplete:
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                Text("Upload complete")
+                    .font(.subheadline.weight(.medium))
+                Spacer()
+            }
+            .padding()
+            .vaultGlassBackground(cornerRadius: 12)
+        default:
+            EmptyView()
+        }
+    }
 
     @ViewBuilder
     private var syncStatusBadge: some View {

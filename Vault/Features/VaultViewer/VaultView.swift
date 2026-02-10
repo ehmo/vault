@@ -103,6 +103,8 @@ struct VaultView: View {
     @State private var isExporting = false
     @State private var exportURLs: [URL] = []
     @State private var toastMessage: ToastMessage?
+    private let floatingButtonTrailingInset: CGFloat = 15
+    private let floatingButtonBottomInset: CGFloat = -15
 
     // Transfer status
     private var transferManager = BackgroundShareTransferManager.shared
@@ -469,14 +471,27 @@ struct VaultView: View {
                 }
             }
             .overlay {
-                if showingFanMenu {
-                    fanMenuDimming
-                }
+                Color.black.opacity(showingFanMenu ? 0.3 : 0)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(showingFanMenu)
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                            showingFanMenu = false
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.25), value: showingFanMenu)
             }
             .overlay(alignment: .bottomTrailing) {
-                fanMenuButtonAndItems
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 20)
+                fanMenuItems
+                    .padding(.trailing, floatingButtonTrailingInset)
+                    .padding(.bottom, floatingButtonBottomInset)
+                    .opacity(!files.isEmpty && !showingSettings && !isSharedVault && !isEditing ? 1 : 0)
+                    .allowsHitTesting(!files.isEmpty && !showingSettings && !isSharedVault && !isEditing)
+            }
+            .overlay(alignment: .bottomTrailing) {
+                mainPlusButton
+                    .padding(.trailing, floatingButtonTrailingInset)
+                    .padding(.bottom, floatingButtonBottomInset)
                     .opacity(!files.isEmpty && !showingSettings && !isSharedVault && !isEditing ? 1 : 0)
                     .allowsHitTesting(!files.isEmpty && !showingSettings && !isSharedVault && !isEditing)
             }
@@ -768,18 +783,7 @@ struct VaultView: View {
         let action: () -> Void
     }
 
-    private var fanMenuDimming: some View {
-        Color.black.opacity(0.3)
-            .ignoresSafeArea()
-            .onTapGesture {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                    showingFanMenu = false
-                }
-            }
-            .transition(.opacity)
-    }
-
-    private var fanMenuButtonAndItems: some View {
+    private var fanMenuItems: some View {
         let items = [
             FanItem(icon: "camera.fill", label: "Camera") {
                 showingFanMenu = false
@@ -795,13 +799,12 @@ struct VaultView: View {
             },
         ]
 
-        // Fan spreads upward-left from the + button in a quarter-circle arc
-        let fanRadius: CGFloat = 110
-        let startAngle: Double = 190 // just past left
-        let endAngle: Double = 280   // just past straight up
+        // Fan spreads upward-left from the + button in a quarter-circle
+        let fanRadius: CGFloat = 80
+        let startAngle: Double = 180 // straight left (camera aligned with + button)
+        let endAngle: Double = 270   // straight up (documents aligned with + button)
 
         return ZStack(alignment: .bottomTrailing) {
-            // Fan items (behind the + button in Z order)
             ForEach(Array(items.enumerated()), id: \.offset) { index, item in
                 let angle: Double = items.count == 1
                     ? startAngle
@@ -832,28 +835,32 @@ struct VaultView: View {
                     value: showingFanMenu
                 )
             }
-
-            // Main + / × button (always on top)
-            Button {
-                if subscriptionManager.canAddFile(currentFileCount: files.count) {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                        showingFanMenu.toggle()
-                    }
-                } else {
-                    showingPaywall = true
-                }
-            } label: {
-                Image(systemName: "plus")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 52, height: 52)
-                    .background(showingFanMenu ? Color(.systemGray) : Color.accentColor)
-                    .clipShape(Circle())
-                    .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
-                    .rotationEffect(.degrees(showingFanMenu ? 45 : 0))
-            }
-            .accessibilityLabel(showingFanMenu ? "Close menu" : "Add files")
+            // Invisible spacer so ZStack matches button size for alignment
+            Color.clear.frame(width: 52, height: 52)
         }
+    }
+
+    private var mainPlusButton: some View {
+        Button {
+            if subscriptionManager.canAddFile(currentFileCount: files.count) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                    showingFanMenu.toggle()
+                }
+            } else {
+                showingPaywall = true
+            }
+        } label: {
+            Image(systemName: "plus")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 52, height: 52)
+                .background(showingFanMenu ? Color(.systemGray) : Color.accentColor)
+                .clipShape(Circle())
+                .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
+                .rotationEffect(.degrees(showingFanMenu ? 45 : 0))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(showingFanMenu ? "Close menu" : "Add files")
     }
 
     // MARK: - Shared Vault Checks
@@ -1111,9 +1118,11 @@ struct VaultView: View {
                 try? result.content.write(to: url, options: [.atomic])
                 urls.append(url)
             }
-
-            await MainActor.run {
-                self.exportURLs = urls
+            
+            let finalizedURLs = urls
+            
+            await MainActor.run { [finalizedURLs] in
+                self.exportURLs = finalizedURLs
                 self.isExporting = true
             }
         }
@@ -1415,4 +1424,3 @@ struct PhotoPicker: UIViewControllerRepresentable {
         .environment(AppState())
         .environment(SubscriptionManager.shared)
 }
-

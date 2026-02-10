@@ -242,7 +242,8 @@ final class CloudKitSharingManager {
 
         for (index, chunkData) in chunks.enumerated() {
             let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(index)")
-            let chunkRecord = CKRecord(recordType: chunkRecordType, recordID: chunkRecordId)
+            // Fetch existing record to update in place (delete may have failed silently)
+            let chunkRecord = await fetchOrCreateRecord(id: chunkRecordId)
 
             let tempURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent(UUID().uuidString)
@@ -304,20 +305,13 @@ final class CloudKitSharingManager {
             if hashChanged {
                 let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(index)")
 
-                // Fetch existing record to update in place (CKRecord.save on a new
-                // object attempts INSERT, which fails with serverRecordChanged if the
-                // record already exists). Only create a new record for genuinely new chunks.
-                let chunkRecord: CKRecord
-                if index < previousChunkHashes.count {
-                    do {
-                        chunkRecord = try await publicDatabase.record(for: chunkRecordId)
-                    } catch {
-                        // Record missing (e.g. orphaned delete) — create fresh
-                        chunkRecord = CKRecord(recordType: chunkRecordType, recordID: chunkRecordId)
-                    }
-                } else {
-                    chunkRecord = CKRecord(recordType: chunkRecordType, recordID: chunkRecordId)
-                }
+                // ALWAYS fetch existing record first. CKRecord.save() on a new object
+                // attempts INSERT, which fails with serverRecordChanged (code 14) if the
+                // record already exists. This can happen when:
+                // - The initial upload created chunks but the sync cache wasn't populated
+                // - A previous sync partially uploaded chunks before failing
+                // - Multiple syncs race on the same share
+                let chunkRecord = await fetchOrCreateRecord(id: chunkRecordId)
 
                 let tempURL = FileManager.default.temporaryDirectory
                     .appendingPathComponent(UUID().uuidString)
@@ -588,20 +582,48 @@ final class CloudKitSharingManager {
         }
     }
 
+    // MARK: - Record Helpers
+
+    /// Fetches an existing CKRecord by ID, or creates a new one if it doesn't exist.
+    /// This prevents CKError 14 ("record to insert already exists") when saving.
+    private func fetchOrCreateRecord(id: CKRecord.ID) async -> CKRecord {
+        do {
+            return try await publicDatabase.record(for: id)
+        } catch {
+            return CKRecord(recordType: chunkRecordType, recordID: id)
+        }
+    }
+
     // MARK: - Retry Logic
 
     /// Saves a CKRecord with automatic retry on transient CloudKit errors.
+    /// Handles serverRecordChanged (code 14) by fetching the server record and retrying.
     private func saveWithRetry(_ record: CKRecord, maxRetries: Int = 3) async throws {
+        var currentRecord = record
         var lastError: Error?
         for attempt in 0...maxRetries {
             do {
-                try await publicDatabase.save(record)
+                try await publicDatabase.save(currentRecord)
                 return
             } catch let error as CKError {
                 Self.logger.error("[upload-telemetry] CKError code=\(error.code.rawValue) desc=\(error.localizedDescription, privacy: .public)")
                 if let underlying = error.userInfo[NSUnderlyingErrorKey] as? Error {
                     Self.logger.error("[upload-telemetry] underlying: \(underlying.localizedDescription, privacy: .public)")
                 }
+
+                // Handle "record already exists" by fetching server version and updating it
+                if error.code == .serverRecordChanged, attempt < maxRetries {
+                    Self.logger.info("[upload-telemetry] record exists, fetching server version to update")
+                    if let serverRecord = try? await publicDatabase.record(for: currentRecord.recordID) {
+                        // Copy all fields from our record to the server record
+                        for key in currentRecord.allKeys() {
+                            serverRecord[key] = currentRecord[key]
+                        }
+                        currentRecord = serverRecord
+                        continue
+                    }
+                }
+
                 if Self.isRetryable(error) && attempt < maxRetries {
                     lastError = error
                     let delay = Self.retryDelay(for: error, attempt: attempt)
