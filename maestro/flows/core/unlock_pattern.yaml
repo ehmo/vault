@@ -1,0 +1,8 @@
+appId: app.vaultaire.ios
+---
+# Test that test mode auto-unlocks the vault
+- runFlow: ../helpers/launch_test_mode.yaml
+
+# Should auto-unlock — verify main vault screen
+- assertVisible:
+    id: "vault_add_button"

@@ -1,0 +1,12 @@
+appId: app.vaultaire.ios
+---
+# Verify welcome screen elements
+- launchApp:
+    clearState: true
+    clearKeychain: true
+
+- assertVisible: "Welcome to Vaultaire"
+- assertVisible:
+    id: "welcome_continue"
+- tapOn:
+    id: "welcome_continue"

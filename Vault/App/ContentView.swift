@@ -21,6 +21,13 @@ struct ContentView: View {
                     PatternLockView()
                 }
             }
+            #if DEBUG
+            .onAppear {
+                if appState.isMaestroTestMode && !appState.isUnlocked && !appState.showOnboarding {
+                    appState.maestroTestUnlock()
+                }
+            }
+            #endif
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: appState.isUnlocked)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: appState.showOnboarding)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: appState.isLoading)
@@ -55,6 +62,7 @@ struct ContentView: View {
         // Screenshot detection — locks vault when user takes a screenshot
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.userDidTakeScreenshotNotification)) { _ in
             #if DEBUG
+            if appState.isMaestroTestMode { return }
             print("📸 [ContentView] Screenshot notification received!")
             #endif
             SentryManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "screenshot"])
@@ -66,6 +74,9 @@ struct ContentView: View {
         }
         // Screen recording detection
         .onReceive(NotificationCenter.default.publisher(for: UIScreen.capturedDidChangeNotification)) { notification in
+            #if DEBUG
+            if appState.isMaestroTestMode { return }
+            #endif
             guard let screen = notification.object as? UIScreen else { return }
             if screen.isCaptured {
                 #if DEBUG
@@ -78,6 +89,7 @@ struct ContentView: View {
         // Lock on background
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
             #if DEBUG
+            if appState.isMaestroTestMode { return }
             print("⏸️ [ContentView] App resigning active — locking vault")
             #endif
             SentryManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "background"])

@@ -300,6 +300,7 @@ struct VaultView: View {
                         Button(action: { showingSettings = true }) {
                             Image(systemName: "gear")
                         }
+                        .accessibilityIdentifier("vault_settings_button")
                         .accessibilityLabel("Settings")
                     }
 
@@ -316,6 +317,7 @@ struct VaultView: View {
                             Button(action: lockVault) {
                                 Image(systemName: "lock.fill")
                             }
+                            .accessibilityIdentifier("vault_lock_button")
                             .accessibilityLabel("Lock vault")
                         }
                     }
@@ -344,6 +346,7 @@ struct VaultView: View {
                                         .frame(maxWidth: .infinity)
                                         .vaultGlassBackground(cornerRadius: 12)
                                 }
+                                .accessibilityIdentifier("vault_select_all")
 
                                 // Done button
                                 Button {
@@ -358,6 +361,7 @@ struct VaultView: View {
                                         .padding(.vertical, 10)
                                         .vaultGlassBackground(cornerRadius: 12)
                                 }
+                                .accessibilityIdentifier("vault_edit_done")
                             } else {
                                 // Search bar
                                 HStack(spacing: 8) {
@@ -365,6 +369,7 @@ struct VaultView: View {
                                         .foregroundStyle(.vaultSecondaryText)
                                     TextField("Search files", text: $searchText)
                                         .textFieldStyle(.plain)
+                                        .accessibilityIdentifier("vault_search_field")
                                     if !searchText.isEmpty {
                                         Button {
                                             searchText = ""
@@ -412,6 +417,7 @@ struct VaultView: View {
                                         .padding(10)
                                         .vaultGlassBackground(cornerRadius: 12)
                                 }
+                                .accessibilityIdentifier("vault_filter_menu")
                                 .accessibilityLabel("Filter and sort")
 
                                 // Select button (hidden for shared vaults)
@@ -426,6 +432,7 @@ struct VaultView: View {
                                             .padding(10)
                                             .vaultGlassBackground(cornerRadius: 12)
                                     }
+                                    .accessibilityIdentifier("vault_select_button")
                                     .accessibilityLabel("Select files")
                                 }
                             }
@@ -455,6 +462,7 @@ struct VaultView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.red)
+                        .accessibilityIdentifier("vault_edit_delete")
 
                         Button {
                             batchExport()
@@ -465,6 +473,7 @@ struct VaultView: View {
                                 .padding(.vertical, 12)
                         }
                         .vaultProminentButtonStyle()
+                        .accessibilityIdentifier("vault_edit_export")
                     }
                     .padding(.horizontal)
                     .vaultBarMaterial()
@@ -745,6 +754,7 @@ struct VaultView: View {
                         .padding(.vertical, 4)
                 }
                 .vaultProminentButtonStyle()
+                .accessibilityIdentifier("vault_first_files")
                 .accessibilityHint("Import photos, videos, or files into the vault")
             }
         }
@@ -780,20 +790,21 @@ struct VaultView: View {
     private struct FanItem {
         let icon: String
         let label: String
+        var accessibilityId: String? = nil
         let action: () -> Void
     }
 
     private var fanMenuItems: some View {
         let items = [
-            FanItem(icon: "camera.fill", label: "Camera") {
+            FanItem(icon: "camera.fill", label: "Camera", accessibilityId: "vault_add_camera") {
                 showingFanMenu = false
                 showingCamera = true
             },
-            FanItem(icon: "photo.on.rectangle", label: "Library") {
+            FanItem(icon: "photo.on.rectangle", label: "Library", accessibilityId: "vault_add_library") {
                 showingFanMenu = false
                 showingPhotoPicker = true
             },
-            FanItem(icon: "doc.fill", label: "Files") {
+            FanItem(icon: "doc.fill", label: "Files", accessibilityId: "vault_add_files") {
                 showingFanMenu = false
                 showingFilePicker = true
             },
@@ -823,6 +834,7 @@ struct VaultView: View {
                         .shadow(color: .black.opacity(0.2), radius: 6, y: 3)
                 }
                 .accessibilityLabel(item.label)
+                .accessibilityIdentifier(item.accessibilityId ?? item.label)
                 .offset(
                     x: showingFanMenu ? cos(radians) * fanRadius : 0,
                     y: showingFanMenu ? sin(radians) * fanRadius : 0
@@ -860,6 +872,7 @@ struct VaultView: View {
                 .rotationEffect(.degrees(showingFanMenu ? 45 : 0))
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("vault_add_button")
         .accessibilityLabel(showingFanMenu ? "Close menu" : "Add files")
     }
 

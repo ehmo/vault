@@ -1,5 +1,6 @@
 import SwiftUI
 import UserNotifications
+import CryptoKit
 
 @main
 struct VaultApp: App {
@@ -28,6 +29,11 @@ final class AppState {
     private(set) var vaultName: String = "Vault"
     var pendingImportCount = 0
     var hasPendingImports = false
+
+    #if DEBUG
+    /// When true, Maestro E2E tests are running — disables lock triggers and enables test bypass
+    let isMaestroTestMode = ProcessInfo.processInfo.arguments.contains("-MAESTRO_TEST")
+    #endif
 
     init() {
         checkFirstLaunch()
@@ -176,6 +182,32 @@ final class AppState {
     func resetOnboarding() {
         UserDefaults.standard.removeObject(forKey: "hasCompletedOnboarding")
         resetToOnboarding()
+    }
+
+    /// Auto-unlock with a deterministic test key for Maestro E2E tests.
+    /// Uses a fixed pattern [0,1,2,3,4,5] and derives a test key via SHA-256 hash
+    /// so crypto operations (encrypt/decrypt) work consistently in tests.
+    func maestroTestUnlock() {
+        let testPattern = [0, 1, 2, 3, 4, 5]
+        let testSeed = "MAESTRO_TEST_KEY_SEED_2026".data(using: .utf8)!
+        // Deterministic 32-byte key via SHA-256 (no Secure Enclave needed)
+        let testKey = Data(CryptoKit.SHA256.hash(data: testSeed))
+
+        // Initialize empty vault if needed
+        if !VaultStorage.shared.vaultExists(for: testKey) {
+            let emptyIndex = VaultStorage.VaultIndex(
+                files: [],
+                nextOffset: 0,
+                totalSize: 500 * 1024 * 1024
+            )
+            try? VaultStorage.shared.saveIndex(emptyIndex, with: testKey)
+        }
+
+        currentVaultKey = testKey
+        currentPattern = testPattern
+        vaultName = "Test Vault"
+        isUnlocked = true
+        isLoading = false
     }
     #endif
 }

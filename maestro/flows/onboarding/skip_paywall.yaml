@@ -1,0 +1,16 @@
+appId: app.vaultaire.ios
+---
+# Test paywall skip during onboarding
+- launchApp:
+    clearState: true
+    clearKeychain: true
+
+- tapOn:
+    id: "welcome_continue"
+- tapOn:
+    id: "analytics_decline"
+
+# Skip paywall
+- tapOn:
+    id: "paywall_skip"
+    optional: true

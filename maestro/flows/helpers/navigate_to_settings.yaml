@@ -1,0 +1,4 @@
+appId: app.vaultaire.ios
+---
+- tapOn:
+    id: "vault_settings_button"

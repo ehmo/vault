@@ -38,6 +38,7 @@ struct ShareVaultView: View {
             // Header
             HStack {
                 Button("Cancel") { dismiss() }
+                    .accessibilityIdentifier("share_cancel")
                 Spacer()
                 Text("Share Vault")
                     .font(.headline)
@@ -194,6 +195,7 @@ struct ShareVaultView: View {
             VStack(spacing: 16) {
                 // Expiration
                 Toggle("Set expiration date", isOn: $hasExpiration)
+                    .accessibilityIdentifier("share_expiration_toggle")
                 if hasExpiration {
                     HStack {
                         DatePicker("Expires", selection: Binding(
@@ -211,6 +213,7 @@ struct ShareVaultView: View {
 
                 // Max opens
                 Toggle("Limit number of opens", isOn: $hasMaxOpens)
+                    .accessibilityIdentifier("share_max_opens_toggle")
                 if hasMaxOpens {
                     Stepper("Max opens: \(maxOpens ?? 10)", value: Binding(
                         get: { maxOpens ?? 10 },
@@ -222,6 +225,7 @@ struct ShareVaultView: View {
 
                 // Allow downloads
                 Toggle("Allow file exports", isOn: $allowDownloads)
+                    .accessibilityIdentifier("share_allow_exports_toggle")
             }
             .padding()
             .vaultGlassBackground(cornerRadius: 12)
@@ -241,6 +245,7 @@ struct ShareVaultView: View {
             Button("Generate Share Phrase") {
                 generatePhrase()
             }
+            .accessibilityIdentifier("share_generate_phrase")
             .vaultProminentButtonStyle()
         }
     }
@@ -316,6 +321,7 @@ struct ShareVaultView: View {
                 let uploadPhrase = useCustomPhrase ? customPhrase.trimmingCharacters(in: .whitespacesAndNewlines) : phrase
                 startBackgroundUpload(phrase: uploadPhrase)
             }
+            .accessibilityIdentifier("share_upload_vault")
             .vaultProminentButtonStyle()
             .disabled(useCustomPhrase && !(customPhraseValidation?.isAcceptable ?? false))
         }
@@ -339,6 +345,7 @@ struct ShareVaultView: View {
             PhraseActionButtons(phrase: phrase)
 
             Button("Done") { dismiss() }
+                .accessibilityIdentifier("share_done")
                 .vaultProminentButtonStyle()
                 .padding(.top)
         }

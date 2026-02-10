@@ -1,0 +1,18 @@
+appId: app.vaultaire.ios
+---
+# Toggle duress vault (premium feature)
+- runFlow: ../helpers/launch_test_mode.yaml
+
+- tapOn:
+    id: "vault_settings_button"
+
+- scrollUntilVisible:
+    element:
+      id: "settings_duress_toggle"
+    direction: DOWN
+    timeout: 5000
+
+# Toggle duress — should show warning alert for premium users
+- tapOn:
+    id: "settings_duress_toggle"
+    optional: true

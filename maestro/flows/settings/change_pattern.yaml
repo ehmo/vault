@@ -1,0 +1,13 @@
+appId: app.vaultaire.ios
+---
+# Test change pattern flow
+- runFlow: ../helpers/launch_test_mode.yaml
+
+- tapOn:
+    id: "vault_settings_button"
+- tapOn:
+    id: "settings_change_pattern"
+
+# Change pattern view should appear
+# Pattern drawing requires coordinate-based swipe gestures
+# In test mode, the flow opens but pattern drawing is simulator-dependent

@@ -26,6 +26,7 @@ struct AnalyticsConsentView: View {
                         .font(.subheadline)
                         .foregroundStyle(.vaultSecondaryText)
                 }
+                .accessibilityIdentifier("paywall_skip")
                 .padding(.bottom, 24)
             }
         } else {
@@ -66,6 +67,7 @@ struct AnalyticsConsentView: View {
                             .padding()
                     }
                     .vaultProminentButtonStyle()
+                    .accessibilityIdentifier("analytics_enable")
 
                     Button(action: {
                         consentChosen = true
@@ -76,6 +78,7 @@ struct AnalyticsConsentView: View {
                             .padding()
                     }
                     .vaultSecondaryButtonStyle()
+                    .accessibilityIdentifier("analytics_decline")
                 }
                 .padding(.horizontal, 40)
                 .padding(.bottom, 40)

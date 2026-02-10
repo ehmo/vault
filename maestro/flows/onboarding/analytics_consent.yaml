@@ -1,0 +1,20 @@
+appId: app.vaultaire.ios
+---
+# Test analytics consent screen (requires welcome to be completed first)
+- launchApp:
+    clearState: true
+    clearKeychain: true
+
+- tapOn:
+    id: "welcome_continue"
+
+# Verify consent options
+- assertVisible: "Help Improve Vaultaire"
+- assertVisible:
+    id: "analytics_enable"
+- assertVisible:
+    id: "analytics_decline"
+
+# Decline analytics
+- tapOn:
+    id: "analytics_decline"

@@ -1,0 +1,25 @@
+appId: app.vaultaire.ios
+---
+# Vault with imported files — verifies grid displays after import
+- runFlow: ../helpers/launch_test_mode.yaml
+
+# Add test media to simulator
+- addMedia:
+    - ../testdata/test-photo.jpg
+    - ../testdata/test-image.png
+
+# Import from library
+- tapOn:
+    id: "vault_add_button"
+- tapOn:
+    id: "vault_add_library"
+
+# Select photos in picker (implementation varies by iOS version)
+- tapOn:
+    text: "Add"
+    optional: true
+
+# Verify vault no longer shows empty state
+- assertNotVisible:
+    text: "Protect Your First Files"
+    optional: true

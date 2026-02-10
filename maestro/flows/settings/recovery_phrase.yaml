@@ -1,0 +1,20 @@
+appId: app.vaultaire.ios
+---
+# Regenerate recovery phrase
+- runFlow: ../helpers/launch_test_mode.yaml
+
+- tapOn:
+    id: "vault_settings_button"
+
+# Scroll to find regenerate phrase button
+- scrollUntilVisible:
+    element:
+      id: "settings_regen_phrase"
+    direction: DOWN
+    timeout: 5000
+
+- tapOn:
+    id: "settings_regen_phrase"
+    optional: true
+
+# Should show new phrase or confirmation

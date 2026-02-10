@@ -1,0 +1,22 @@
+appId: app.vaultaire.ios
+---
+# Test manage shares UI (requires active share)
+# This flow verifies the share management screen opens
+- runFlow: ../helpers/launch_test_mode.yaml
+
+- tapOn:
+    id: "vault_settings_button"
+
+- scrollUntilVisible:
+    element:
+      id: "settings_share_vault"
+    direction: DOWN
+    timeout: 5000
+
+- tapOn:
+    id: "settings_share_vault"
+    optional: true
+
+# If shares exist, manage shares view is shown
+# If no shares, new share view is shown
+# Both are valid states for this test

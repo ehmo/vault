@@ -1,0 +1,23 @@
+appId: app.vaultaire.ios
+---
+# Toggle app settings
+- runFlow: ../helpers/launch_test_mode.yaml
+- runFlow: ../helpers/navigate_to_app_settings.yaml
+
+# Toggle pattern feedback
+- tapOn:
+    id: "app_pattern_feedback"
+    optional: true
+
+# Toggle analytics
+- tapOn:
+    id: "app_analytics_toggle"
+    optional: true
+
+# Toggle back
+- tapOn:
+    id: "app_pattern_feedback"
+    optional: true
+- tapOn:
+    id: "app_analytics_toggle"
+    optional: true

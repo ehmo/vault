@@ -68,6 +68,7 @@ struct PatternLockView: View {
             .frame(maxWidth: 280, maxHeight: 280)
             .disabled(isProcessing)
             .opacity(isVoiceOverActive ? 0.3 : (isProcessing ? 0.5 : 1))
+            .accessibilityIdentifier("unlock_pattern_grid")
 
             // Error message — overlay so it never shifts the grid
             Color.clear
@@ -99,6 +100,7 @@ struct PatternLockView: View {
                             .foregroundStyle(.vaultSecondaryText)
                             .frame(minHeight: 44)
                     }
+                    .accessibilityIdentifier("unlock_recovery_link")
                     .accessibilityHint("Unlock vault using your recovery phrase instead of drawing a pattern")
 
                     Button(action: { showJoinSharedVault = true }) {
@@ -107,6 +109,7 @@ struct PatternLockView: View {
                             .foregroundStyle(.vaultSecondaryText)
                             .frame(minHeight: 44)
                     }
+                    .accessibilityIdentifier("unlock_join_link")
                     .accessibilityHint("Enter a share phrase to access a vault shared with you")
                 }
             } else {
@@ -116,6 +119,7 @@ struct PatternLockView: View {
                         .foregroundStyle(.vaultSecondaryText)
                         .frame(minHeight: 44)
                 }
+                .accessibilityIdentifier("unlock_join_link")
                 .accessibilityHint("Enter a share phrase to access a vault shared with you")
             }
 

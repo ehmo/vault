@@ -1,0 +1,64 @@
+appId: app.vaultaire.ios
+---
+# Full onboarding happy path
+- launchApp:
+    clearState: true
+    clearKeychain: true
+
+# Welcome screen
+- assertVisible: "Welcome to Vaultaire"
+- tapOn:
+    id: "welcome_continue"
+
+# Analytics consent
+- assertVisible: "Help Improve Vaultaire"
+- tapOn:
+    id: "analytics_decline"
+
+# Paywall — skip
+- tapOn:
+    id: "paywall_skip"
+    optional: true
+
+# Pattern setup — draw a 6-dot pattern (first row + one node)
+# Grid is 280x280 with 5x5 nodes, spacing=56, start=28
+# Node positions: 28, 84, 140, 196, 252
+# Pattern: nodes 0→1→2→3→4→5 (top row + first of second row)
+- assertVisible:
+    id: "pattern_grid"
+- swipe:
+    start: "10%, 50%"
+    end: "90%, 50%"
+    duration: 800
+
+# If pattern is too short, try a long swipe across the grid element
+- tapOn:
+    id: "pattern_grid"
+    longPress: true
+    optional: true
+
+# Confirm pattern — draw same pattern
+- swipe:
+    start: "10%, 50%"
+    end: "90%, 50%"
+    duration: 800
+    optional: true
+
+# Recovery phrase screen
+- tapOn:
+    id: "recovery_saved"
+    optional: true
+
+# Confirm saving recovery phrase
+- tapOn: "I've Saved It"
+  optional: true
+
+# All set screen
+- tapOn:
+    id: "onboarding_complete"
+    optional: true
+
+# Verify vault main screen
+- assertVisible:
+    id: "vault_add_button"
+    optional: true

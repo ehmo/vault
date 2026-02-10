@@ -1,0 +1,18 @@
+appId: app.vaultaire.ios
+---
+# Navigate to iCloud backup settings
+- runFlow: ../helpers/launch_test_mode.yaml
+- runFlow: ../helpers/navigate_to_app_settings.yaml
+
+- scrollUntilVisible:
+    element:
+      id: "app_icloud_backup"
+    direction: DOWN
+    timeout: 5000
+
+- tapOn:
+    id: "app_icloud_backup"
+    optional: true
+
+# iCloud backup settings view should appear
+# (May show iCloud unavailable in simulator)

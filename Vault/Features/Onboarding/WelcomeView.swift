@@ -78,6 +78,7 @@ struct WelcomeView: View {
                     .vaultProminentButtonStyle()
                     .padding(.horizontal, 40)
                     .padding(.bottom, 40)
+                    .accessibilityIdentifier("welcome_continue")
                 }
             }
     }

@@ -74,6 +74,7 @@ struct AppSettingsView: View {
                                 .padding(.vertical, 8)
                         }
                         .vaultProminentButtonStyle()
+                        .accessibilityIdentifier("app_upgrade")
                     }
                     .padding(.vertical, 4)
 
@@ -94,23 +95,28 @@ struct AppSettingsView: View {
                         }
                     }
                     .disabled(isRestoringPurchases)
+                    .accessibilityIdentifier("app_restore_purchases")
                 }
             }
 
             // Security & Privacy (merged)
             Section {
                 Toggle("Show pattern feedback", isOn: $showFeedback)
+                    .accessibilityIdentifier("app_pattern_feedback")
 
                 Toggle("Help improve Vault", isOn: $analyticsEnabled)
+                    .accessibilityIdentifier("app_analytics_toggle")
 
                 NavigationLink("Duress pattern") {
                     DuressPatternSettingsView()
                 }
+                .accessibilityIdentifier("app_duress_pattern")
 
                 if subscriptionManager.canSyncWithICloud() {
                     NavigationLink("iCloud Backup") {
                         iCloudBackupSettingsView()
                     }
+                    .accessibilityIdentifier("app_icloud_backup")
                 } else {
                     Button(action: { showingPaywall = true }) {
                         HStack {
@@ -171,7 +177,8 @@ struct AppSettingsView: View {
                         Text("Reset Onboarding")
                     }
                 }
-                
+                .accessibilityIdentifier("debug_reset_onboarding")
+
                 Button(action: { showingDebugResetConfirmation = true }) {
                     HStack {
                         Image(systemName: "trash.fill")
@@ -180,6 +187,7 @@ struct AppSettingsView: View {
                             .foregroundStyle(.vaultHighlight)
                     }
                 }
+                .accessibilityIdentifier("debug_full_reset")
             } header: {
                 HStack {
                     Image(systemName: "hammer.fill")
@@ -199,6 +207,7 @@ struct AppSettingsView: View {
                         Text("Nuclear Option - Destroy All Data")
                     }
                 }
+                .accessibilityIdentifier("app_nuclear_option")
             } header: {
                 Text("Danger Zone")
             } footer: {

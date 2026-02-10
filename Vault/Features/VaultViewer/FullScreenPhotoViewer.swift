@@ -53,6 +53,7 @@ struct FullScreenPhotoViewer: View {
                     Button("Done") { dismiss() }
                         .foregroundStyle(.white)
                         .frame(minWidth: 44, minHeight: 44)
+                        .accessibilityIdentifier("viewer_done")
                     Spacer()
                     if onDelete != nil || allowDownloads {
                         Button(action: { showingActions = true }) {
@@ -61,6 +62,7 @@ struct FullScreenPhotoViewer: View {
                                 .imageScale(.large)
                         }
                         .frame(minWidth: 44, minHeight: 44)
+                        .accessibilityIdentifier("viewer_actions")
                         .accessibilityLabel("More actions")
                     }
                 }

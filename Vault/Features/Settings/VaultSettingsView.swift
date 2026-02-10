@@ -44,6 +44,7 @@ struct VaultSettingsView: View {
                 Button("Change pattern for this vault") {
                     showingChangePattern = true
                 }
+                .accessibilityIdentifier("settings_change_pattern")
             }
 
             // Recovery
@@ -51,10 +52,12 @@ struct VaultSettingsView: View {
                 Button("Regenerate recovery phrase") {
                     showingRegenerateConfirmation = true
                 }
+                .accessibilityIdentifier("settings_regen_phrase")
 
                 Button("Set custom recovery phrase") {
                     showingCustomPhraseInput = true
                 }
+                .accessibilityIdentifier("settings_custom_phrase")
             }
 
             // Sharing
@@ -74,6 +77,7 @@ struct VaultSettingsView: View {
                             showingPaywall = true
                         }
                     }
+                    .accessibilityIdentifier("settings_share_vault")
                     if activeShareCount > 0 {
                         HStack {
                             Text("Shared with")
@@ -105,6 +109,7 @@ struct VaultSettingsView: View {
                     .foregroundStyle(.primary)
                 } else {
                     Toggle("Use as duress vault", isOn: $isDuressVault)
+                        .accessibilityIdentifier("settings_duress_toggle")
                 }
 
                 DisclosureGroup {
@@ -125,6 +130,7 @@ struct VaultSettingsView: View {
                 NavigationLink("App Settings") {
                     AppSettingsView()
                 }
+                .accessibilityIdentifier("settings_app_settings")
             }
 
             // Danger
@@ -134,6 +140,7 @@ struct VaultSettingsView: View {
                 } label: {
                     Text("Delete this vault")
                 }
+                .accessibilityIdentifier("settings_delete_vault")
             } footer: {
                 Text("Permanently deletes all files in this vault. This cannot be undone.")
             }
@@ -142,6 +149,7 @@ struct VaultSettingsView: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Done") { dismiss() }
+                    .accessibilityIdentifier("vault_settings_done")
             }
         }
         .sheet(isPresented: $showingChangePattern) {

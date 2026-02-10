@@ -1,0 +1,20 @@
+appId: app.vaultaire.ios
+---
+# Import a photo from the photo library
+- runFlow: ../helpers/launch_test_mode.yaml
+
+# Add test media to simulator photo library
+- addMedia:
+    - ../testdata/test-photo.jpg
+
+# Open FAB and tap library
+- tapOn:
+    id: "vault_add_button"
+- tapOn:
+    id: "vault_add_library"
+
+# System photo picker appears — select first photo
+- tapOn:
+    text: ".*"
+    index: 0
+    optional: true

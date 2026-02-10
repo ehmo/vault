@@ -1,0 +1,19 @@
+appId: app.vaultaire.ios
+---
+# Open vault settings and verify all sections visible
+- runFlow: ../helpers/launch_test_mode.yaml
+
+- tapOn:
+    id: "vault_settings_button"
+
+# Verify key settings elements
+- assertVisible:
+    id: "vault_settings_done"
+- assertVisible:
+    id: "settings_change_pattern"
+- assertVisible:
+    id: "settings_app_settings"
+
+# Dismiss
+- tapOn:
+    id: "vault_settings_done"

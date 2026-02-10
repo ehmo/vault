@@ -1,0 +1,28 @@
+appId: app.vaultaire.ios
+---
+# Cycle flash modes: auto → on → off → auto
+- runFlow: ../helpers/launch_test_mode.yaml
+
+- tapOn:
+    id: "vault_add_button"
+- tapOn:
+    id: "vault_add_camera"
+
+# Flash starts on auto
+- assertVisible:
+    id: "camera_flash"
+
+# Cycle: auto → on
+- tapOn:
+    id: "camera_flash"
+
+# Cycle: on → off
+- tapOn:
+    id: "camera_flash"
+
+# Cycle: off → auto
+- tapOn:
+    id: "camera_flash"
+
+- tapOn:
+    id: "camera_cancel"

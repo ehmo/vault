@@ -1,0 +1,34 @@
+appId: app.vaultaire.ios
+---
+# Open share settings, configure options, generate phrase
+# Note: CloudKit upload won't work in simulator; test up to phrase generation
+- runFlow: ../helpers/launch_test_mode.yaml
+
+- tapOn:
+    id: "vault_settings_button"
+
+- scrollUntilVisible:
+    element:
+      id: "settings_share_vault"
+    direction: DOWN
+    timeout: 5000
+
+- tapOn:
+    id: "settings_share_vault"
+    optional: true
+
+# Configure share options (if iCloud is available)
+- tapOn:
+    id: "share_expiration_toggle"
+    optional: true
+- tapOn:
+    id: "share_max_opens_toggle"
+    optional: true
+- tapOn:
+    id: "share_allow_exports_toggle"
+    optional: true
+
+# Generate phrase
+- tapOn:
+    id: "share_generate_phrase"
+    optional: true

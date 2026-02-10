@@ -1,0 +1,12 @@
+appId: app.vaultaire.ios
+---
+# Lock button returns to pattern screen
+- runFlow: ../helpers/launch_test_mode.yaml
+
+- assertVisible:
+    id: "vault_lock_button"
+- tapOn:
+    id: "vault_lock_button"
+
+# Should show pattern lock screen
+- assertVisible: "Draw your pattern"

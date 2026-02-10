@@ -31,7 +31,8 @@ struct SecureCameraView: View {
                     }
                     .foregroundStyle(.white)
                     .padding()
-                    
+                    .accessibilityIdentifier("camera_cancel")
+
                     Spacer()
                 }
                 
@@ -45,6 +46,7 @@ struct SecureCameraView: View {
                             .foregroundStyle(.white)
                             .frame(width: 44, height: 44)
                     }
+                    .accessibilityIdentifier("camera_flash")
                     .accessibilityLabel("Flash \(flashMode == .auto ? "auto" : flashMode == .on ? "on" : "off")")
                     .accessibilityHint("Cycles through auto, on, and off")
 
@@ -60,6 +62,7 @@ struct SecureCameraView: View {
                                 .frame(width: 60, height: 60)
                         }
                     }
+                    .accessibilityIdentifier("camera_capture")
                     .accessibilityLabel("Take photo")
 
                     // Camera flip
@@ -69,6 +72,7 @@ struct SecureCameraView: View {
                             .foregroundStyle(.white)
                             .frame(width: 44, height: 44)
                     }
+                    .accessibilityIdentifier("camera_flip")
                     .accessibilityLabel("Switch camera")
                 }
                 .padding(.bottom, 40)

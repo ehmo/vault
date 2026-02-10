@@ -1,0 +1,13 @@
+appId: app.vaultaire.ios
+---
+# Import a document via Files picker
+- runFlow: ../helpers/launch_test_mode.yaml
+
+# Open FAB and tap files
+- tapOn:
+    id: "vault_add_button"
+- tapOn:
+    id: "vault_add_files"
+
+# System file picker appears — interaction is device/simulator specific
+# This flow verifies the picker opens; actual file selection depends on simulator state

@@ -33,6 +33,7 @@ struct JoinVaultView: View {
             // Header
             HStack {
                 Button("Cancel") { dismiss() }
+                    .accessibilityIdentifier("join_cancel")
                 Spacer()
                 Text("Join Shared Vault")
                     .font(.headline)
@@ -90,6 +91,7 @@ struct JoinVaultView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
+                .accessibilityIdentifier("join_phrase_input")
 
             Button(action: {
                 if subscriptionManager.isPremium {
@@ -100,6 +102,7 @@ struct JoinVaultView: View {
             }) {
                 Text("Join Vault")
             }
+            .accessibilityIdentifier("join_vault_button")
             .vaultProminentButtonStyle()
             .disabled(phrase.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 

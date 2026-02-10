@@ -1,0 +1,19 @@
+appId: app.vaultaire.ios
+---
+# Open camera, take photo, save to vault
+- runFlow: ../helpers/launch_test_mode.yaml
+
+- tapOn:
+    id: "vault_add_button"
+- tapOn:
+    id: "vault_add_camera"
+
+# Camera view
+- assertVisible:
+    id: "camera_capture"
+- tapOn:
+    id: "camera_capture"
+
+# Photo captured alert
+- assertVisible: "Photo Captured"
+- tapOn: "Save to Vault"

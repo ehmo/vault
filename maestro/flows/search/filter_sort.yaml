@@ -1,0 +1,14 @@
+appId: app.vaultaire.ios
+---
+# Open filter menu and select sort options
+- runFlow: ../helpers/launch_test_mode.yaml
+
+- assertVisible:
+    id: "vault_filter_menu"
+- tapOn:
+    id: "vault_filter_menu"
+
+# Filter menu appears with sort options
+- tapOn:
+    text: "Date Added"
+    optional: true

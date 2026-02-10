@@ -1,0 +1,17 @@
+appId: app.vaultaire.ios
+---
+# Search for files in vault
+- runFlow: ../helpers/launch_test_mode.yaml
+
+- assertVisible:
+    id: "vault_search_field"
+
+# Tap search field and type
+- tapOn:
+    id: "vault_search_field"
+- inputText: "test"
+
+# Clear search
+- clearInput:
+    id: "vault_search_field"
+    optional: true

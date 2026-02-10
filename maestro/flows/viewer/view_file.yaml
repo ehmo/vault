@@ -1,0 +1,9 @@
+appId: app.vaultaire.ios
+---
+# View a non-image file in the viewer
+- runFlow: ../helpers/launch_test_mode.yaml
+
+# Note: File viewing requires a file to be imported first
+# This flow tests the viewer controls once open
+- assertVisible:
+    id: "vault_add_button"

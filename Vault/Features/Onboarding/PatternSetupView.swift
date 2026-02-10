@@ -137,6 +137,7 @@ struct PatternSetupView: View {
         )
         .frame(width: 280, height: 280)
         .padding()
+        .accessibilityIdentifier("pattern_grid")
     }
 
     private var recoverySection: some View {
@@ -148,6 +149,7 @@ struct PatternSetupView: View {
             }
             .pickerStyle(.segmented)
             .padding(.horizontal)
+            .accessibilityIdentifier("recovery_picker")
 
             // Fixed-height phrase area — prevents layout shift between modes
             VStack(spacing: 12) {
@@ -279,6 +281,7 @@ struct PatternSetupView: View {
                     validationResult = nil
                 }
                 .disabled(patternState.selectedNodes.isEmpty)
+                .accessibilityIdentifier("pattern_clear")
 
             case .confirm:
                 Button("Start Over") {
@@ -287,6 +290,7 @@ struct PatternSetupView: View {
                     patternState.reset()
                     validationResult = nil
                 }
+                .accessibilityIdentifier("pattern_start_over")
 
             case .recovery:
                 Button(action: {
@@ -299,6 +303,7 @@ struct PatternSetupView: View {
                 }
                 .vaultProminentButtonStyle()
                 .disabled(useCustomPhrase && !(customPhraseValidation?.isAcceptable ?? false))
+                .accessibilityIdentifier("recovery_saved")
                 .alert("Are you sure?", isPresented: $showSaveConfirmation) {
                     Button("Cancel", role: .cancel) { }
                     Button("Yes, I've saved it") {
@@ -322,6 +327,7 @@ struct PatternSetupView: View {
                         .padding()
                 }
                 .vaultProminentButtonStyle()
+                .accessibilityIdentifier("onboarding_complete")
             }
         }
     }

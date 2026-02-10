@@ -1,0 +1,8 @@
+appId: app.vaultaire.ios
+---
+# Vault shows empty state after fresh test mode launch
+- runFlow: ../helpers/launch_test_mode.yaml
+
+- assertVisible: "Protect Your First Files"
+- assertVisible:
+    id: "vault_add_button"

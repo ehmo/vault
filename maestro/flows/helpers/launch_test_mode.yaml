@@ -1,0 +1,7 @@
+appId: app.vaultaire.ios
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+    arguments:
+      MAESTRO_TEST: "true"
