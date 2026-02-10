@@ -474,11 +474,11 @@ struct VaultView: View {
                 }
             }
             .overlay(alignment: .bottomTrailing) {
-                if !files.isEmpty && !showingSettings && !isSharedVault && !isEditing {
-                    fanMenuButtonAndItems
-                        .padding(.trailing, 20)
-                        .padding(.bottom, 20)
-                }
+                fanMenuButtonAndItems
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 20)
+                    .opacity(!files.isEmpty && !showingSettings && !isSharedVault && !isEditing ? 1 : 0)
+                    .allowsHitTesting(!files.isEmpty && !showingSettings && !isSharedVault && !isEditing)
             }
         }
         .task {
@@ -795,10 +795,10 @@ struct VaultView: View {
             },
         ]
 
-        // Fan spreads upward-left from the + button
-        let fanRadius: CGFloat = 80
-        let startAngle: Double = 195 // slightly past left
-        let endAngle: Double = 275   // slightly past straight up
+        // Fan spreads upward-left from the + button in a quarter-circle arc
+        let fanRadius: CGFloat = 110
+        let startAngle: Double = 190 // just past left
+        let endAngle: Double = 280   // just past straight up
 
         return ZStack(alignment: .bottomTrailing) {
             // Fan items (behind the + button in Z order)
