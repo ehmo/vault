@@ -78,6 +78,7 @@ final class ShareSyncManager {
         let totalShares = activeShares.count
         var successCount = 0
         var missingKeyCount = 0
+        var shareUpdates: [(id: String, syncSequence: Int)] = []
 
         for (i, share) in activeShares.enumerated() {
             do {
@@ -130,14 +131,7 @@ final class ShareSyncManager {
                 try cache.saveSyncState(updatedState)
 
                 successCount += 1
-
-                // Update lastSyncedAt on the share record
-                var updatedIndex = try VaultStorage.shared.loadIndex(with: vaultKey)
-                if let idx = updatedIndex.activeShares?.firstIndex(where: { $0.id == share.id }) {
-                    updatedIndex.activeShares?[idx].lastSyncedAt = Date()
-                    updatedIndex.activeShares?[idx].syncSequence = updatedState.syncSequence
-                    try VaultStorage.shared.saveIndex(updatedIndex, with: vaultKey)
-                }
+                shareUpdates.append((id: share.id, syncSequence: updatedState.syncSequence))
             } catch {
                 #if DEBUG
                 print("⚠️ [ShareSync] Failed to sync share \(share.id): \(error)")
@@ -146,6 +140,24 @@ final class ShareSyncManager {
         }
 
         syncProgress = nil
+
+        // Batch-update share records in a single index load/save
+        if !shareUpdates.isEmpty {
+            do {
+                var updatedIndex = try VaultStorage.shared.loadIndex(with: vaultKey)
+                for update in shareUpdates {
+                    if let idx = updatedIndex.activeShares?.firstIndex(where: { $0.id == update.id }) {
+                        updatedIndex.activeShares?[idx].lastSyncedAt = Date()
+                        updatedIndex.activeShares?[idx].syncSequence = update.syncSequence
+                    }
+                }
+                try VaultStorage.shared.saveIndex(updatedIndex, with: vaultKey)
+            } catch {
+                #if DEBUG
+                print("⚠️ [ShareSync] Failed to update share records: \(error)")
+                #endif
+            }
+        }
 
         if successCount == totalShares {
             syncStatus = .upToDate

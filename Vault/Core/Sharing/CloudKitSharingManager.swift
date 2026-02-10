@@ -45,6 +45,9 @@ final class CloudKitSharingManager {
     /// progress updates since CKDatabase.save() has no byte-level callback.
     private let chunkSize = 2 * 1024 * 1024
 
+    /// Maximum concurrent CloudKit chunk uploads/saves.
+    private static let maxConcurrentChunkUploads = 4
+
     private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "CloudKitSharing")
 
     private init() {
@@ -151,13 +154,12 @@ final class CloudKitSharingManager {
         let totalChunks = chunks.count
         Self.logger.info("[upload-telemetry] \(totalChunks) chunks (\(uploadData.count / 1024)KB total)")
 
-        // Upload chunks
-        for (index, chunkData) in chunks.enumerated() {
-            let chunkStart = CFAbsoluteTimeGetCurrent()
-            try await saveChunkRecord(shareVaultId: shareVaultId, index: index, data: Data(chunkData))
-            Self.logger.info("[upload-telemetry] chunk[\(index)]/\(totalChunks) (\(chunkData.count / 1024)KB): \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - chunkStart))s")
-            onProgress?(index + 1, totalChunks)
-        }
+        // Upload chunks in parallel
+        try await uploadChunksParallel(
+            shareVaultId: shareVaultId,
+            chunks: chunks.enumerated().map { ($0, Data($1)) },
+            onProgress: onProgress
+        )
 
         Self.logger.info("[upload-telemetry] all chunks uploaded: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - ckStart))s")
         let manifestStart = CFAbsoluteTimeGetCurrent()
@@ -222,10 +224,11 @@ final class CloudKitSharingManager {
 
         let totalChunks = chunks.count
 
-        for (index, chunkData) in chunks.enumerated() {
-            try await saveChunkRecord(shareVaultId: shareVaultId, index: index, data: Data(chunkData))
-            onProgress?(index + 1, totalChunks)
-        }
+        try await uploadChunksParallel(
+            shareVaultId: shareVaultId,
+            chunks: chunks.enumerated().map { ($0, Data($1)) },
+            onProgress: onProgress
+        )
 
         // Update manifest version & timestamp
         // Find the manifest that references this shareVaultId
@@ -259,19 +262,19 @@ final class CloudKitSharingManager {
         }
         let totalChunks = chunks.count
 
-        // Upload only changed or new chunks
-        var uploadedCount = 0
-        for (index, chunkData) in chunks.enumerated() {
+        // Filter to only changed or new chunks, then upload in parallel
+        let changedChunks = chunks.enumerated().compactMap { (index, chunkData) -> (Int, Data)? in
             let hashChanged = index >= previousChunkHashes.count
                 || previousChunkHashes[index] != newChunkHashes[index]
-
-            if hashChanged {
-                try await saveChunkRecord(shareVaultId: shareVaultId, index: index, data: Data(chunkData))
-                uploadedCount += 1
-            }
-
-            onProgress?(index + 1, totalChunks)
+            return hashChanged ? (index, Data(chunkData)) : nil
         }
+        let uploadedCount = changedChunks.count
+
+        try await uploadChunksParallel(
+            shareVaultId: shareVaultId,
+            chunks: changedChunks,
+            onProgress: onProgress
+        )
 
         // Delete orphaned chunks if the blob shrank
         if totalChunks < previousChunkHashes.count {
@@ -550,6 +553,44 @@ final class CloudKitSharingManager {
             try await saveWithRetry(chunkRecord)
         } catch {
             throw CloudKitSharingError.uploadFailed(error)
+        }
+    }
+
+    /// Uploads chunk records in parallel with bounded concurrency.
+    /// Progress reports completed count (order-independent).
+    private func uploadChunksParallel(
+        shareVaultId: String,
+        chunks: [(Int, Data)],
+        onProgress: ((Int, Int) -> Void)? = nil
+    ) async throws {
+        let totalChunks = chunks.count
+        guard totalChunks > 0 else { return }
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            var completed = 0
+            var inFlight = 0
+
+            for (index, data) in chunks {
+                if inFlight >= Self.maxConcurrentChunkUploads {
+                    try await group.next()
+                    completed += 1
+                    inFlight -= 1
+                    onProgress?(completed, totalChunks)
+                }
+
+                group.addTask {
+                    try await self.saveChunkRecord(
+                        shareVaultId: shareVaultId, index: index, data: data
+                    )
+                }
+                inFlight += 1
+            }
+
+            // Drain remaining in-flight uploads
+            for try await _ in group {
+                completed += 1
+                onProgress?(completed, totalChunks)
+            }
         }
     }
 
