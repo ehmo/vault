@@ -64,17 +64,17 @@ struct PatternSetupView: View {
                     if let result = validationResult, step == .create {
                         validationFeedback(result)
                     } else if let error = errorMessage {
-                        HStack(spacing: 8) {
-                            Image(systemName: "exclamationmark.circle.fill")
+                        HStack {
+                            Image(systemName: "xmark.circle.fill")
                                 .foregroundStyle(.vaultHighlight)
                             Text(error)
-                                .font(.subheadline)
-                                .foregroundStyle(.vaultHighlight)
+                                .font(.caption)
                         }
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
-                        .vaultGlassTintedBackground(tint: Color.vaultHighlight, cornerRadius: 8)
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .vaultGlassBackground(cornerRadius: 12)
                         .transition(.scale.combined(with: .opacity))
+                        .accessibilityIdentifier("pattern_error_message")
                     } else {
                         Color.clear
                     }

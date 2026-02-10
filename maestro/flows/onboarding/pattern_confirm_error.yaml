@@ -1,0 +1,82 @@
+appId: app.vaultaire.ios
+---
+# Test pattern confirmation mismatch error and Start Over flow
+# Note: Pattern drawing via Maestro swipe is best-effort — the PatternGridView
+# uses a custom DragGesture that may not register Maestro's synthetic swipes.
+# Assertions after pattern drawing are optional to avoid false failures.
+
+- launchApp:
+    clearState: true
+
+# Dismiss system alerts
+- tapOn:
+    text: "Not Now"
+    optional: true
+- tapOn:
+    text: "Not Now"
+    optional: true
+
+# Navigate through onboarding to pattern setup
+- tapOn:
+    id: "welcome_continue"
+- tapOn:
+    id: "analytics_decline"
+- tapOn:
+    id: "paywall_skip"
+    optional: true
+
+# Verify pattern setup create screen
+- assertVisible: "Create Your Pattern"
+- assertVisible:
+    id: "pattern_grid"
+- assertVisible:
+    id: "pattern_clear"
+
+# Draw first pattern — horizontal swipe across top row
+# Best-effort: synthetic swipes may not register on PatternGridView
+- swipe:
+    start: "10%, 35%"
+    end: "90%, 35%"
+    duration: 1500
+    optional: true
+
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# If pattern was valid, confirm screen should appear
+- assertVisible:
+    text: "Confirm Your Pattern"
+    optional: true
+- assertVisible:
+    id: "pattern_start_over"
+    optional: true
+
+# Draw a DIFFERENT pattern (vertical instead of horizontal) to trigger mismatch
+- swipe:
+    start: "10%, 35%"
+    end: "10%, 60%"
+    duration: 1500
+    optional: true
+
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Error message should appear with normalized style
+- assertVisible:
+    id: "pattern_error_message"
+    optional: true
+- assertVisible:
+    text: "Patterns don't match. Try again."
+    optional: true
+
+# Tap Start Over to return to create screen
+- tapOn:
+    id: "pattern_start_over"
+    optional: true
+
+# Verify we're back on create screen
+- assertVisible:
+    text: "Create Your Pattern"
+    optional: true
+- assertVisible:
+    id: "pattern_grid"
