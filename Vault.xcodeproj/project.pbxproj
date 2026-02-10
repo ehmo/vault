@@ -101,6 +101,10 @@
 		SE0000017 /* ImportIngestor.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE0000016 /* ImportIngestor.swift */; };
 		SE0000019 /* PendingImportBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE0000018 /* PendingImportBanner.swift */; };
 		SE000001B /* ShareExtension.entitlements in Resources */ = {isa = PBXBuildFile; fileRef = SE000001A /* ShareExtension.entitlements */; };
+		TS0000001 /* CryptoEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000000 /* CryptoEngineTests.swift */; };
+		TS0000003 /* SVDFSerializerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000002 /* SVDFSerializerTests.swift */; };
+		TS0000005 /* ShareSyncCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000004 /* ShareSyncCacheTests.swift */; };
+		TS0000007 /* SharedVaultDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000006 /* SharedVaultDataTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -117,6 +121,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = SE0000030;
 			remoteInfo = ShareExtension;
+		};
+		TS000000B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0100000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0110000000;
+			remoteInfo = Vault;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -221,6 +232,11 @@
 		SE0000018 /* PendingImportBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingImportBanner.swift; sourceTree = "<group>"; };
 		SE000001A /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
 		SE000001C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		TS0000000 /* CryptoEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoEngineTests.swift; sourceTree = "<group>"; };
+		TS0000002 /* SVDFSerializerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SVDFSerializerTests.swift; sourceTree = "<group>"; };
+		TS0000004 /* ShareSyncCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSyncCacheTests.swift; sourceTree = "<group>"; };
+		TS0000006 /* SharedVaultDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedVaultDataTests.swift; sourceTree = "<group>"; };
+		TS0000010 /* VaultTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -249,6 +265,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		TS00000F0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -271,6 +294,7 @@
 				088000000000 /* Vault.app */,
 				LA000000A /* VaultLiveActivityExtension.appex */,
 				SE0000010 /* ShareExtension.appex */,
+				TS0000010 /* VaultTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -534,6 +558,7 @@
 				0100000001 /* Vault */,
 				LA00000070 /* VaultLiveActivity */,
 				SE0000070 /* ShareExtension */,
+				TS0000070 /* VaultTests */,
 				0100000002 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -557,6 +582,17 @@
 				SE000001C /* Info.plist */,
 			);
 			path = "Vault/Extensions/ShareExtension";
+			sourceTree = "<group>";
+		};
+		TS0000070 /* VaultTests */ = {
+			isa = PBXGroup;
+			children = (
+				TS0000000 /* CryptoEngineTests.swift */,
+				TS0000002 /* SVDFSerializerTests.swift */,
+				TS0000004 /* ShareSyncCacheTests.swift */,
+				TS0000006 /* SharedVaultDataTests.swift */,
+			);
+			path = VaultTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -623,6 +659,24 @@
 			productReference = SE0000010 /* ShareExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		TS0000040 /* VaultTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = TS000F000 /* Build configuration list for PBXNativeTarget "VaultTests" */;
+			buildPhases = (
+				TS00000E0 /* Sources */,
+				TS00000F0 /* Frameworks */,
+				TS0000100 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				TS000000D /* PBXTargetDependency */,
+			);
+			name = VaultTests;
+			productName = VaultTests;
+			productReference = TS0000010 /* VaultTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -641,6 +695,10 @@
 					};
 					SE0000030 = {
 						CreatedOnToolsVersion = 15.0;
+					};
+					TS0000040 = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = 0110000000;
 					};
 				};
 			};
@@ -665,6 +723,7 @@
 				0110000000 /* Vault */,
 				LA0000010 /* VaultLiveActivityExtension */,
 				SE0000030 /* ShareExtension */,
+				TS0000040 /* VaultTests */,
 			);
 		};
 /* End PBXProject section */
@@ -693,6 +752,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		SE0000100 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		TS0000100 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -821,6 +887,17 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		TS00000E0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				TS0000001 /* CryptoEngineTests.swift in Sources */,
+				TS0000003 /* SVDFSerializerTests.swift in Sources */,
+				TS0000005 /* ShareSyncCacheTests.swift in Sources */,
+				TS0000007 /* SharedVaultDataTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -833,6 +910,11 @@
 			isa = PBXTargetDependency;
 			target = SE0000030 /* ShareExtension */;
 			targetProxy = SE0000020 /* PBXContainerItemProxy */;
+		};
+		TS000000D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0110000000 /* Vault */;
+			targetProxy = TS000000B /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1156,6 +1238,40 @@
 			};
 			name = Release;
 		};
+		TS000F001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = UFV835UGV6;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios.VaultTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Vault.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Vault";
+			};
+			name = Debug;
+		};
+		TS000F002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = UFV835UGV6;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios.VaultTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Vault.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Vault";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1191,6 +1307,15 @@
 			buildConfigurations = (
 				SE000F001 /* Debug */,
 				SE000F002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		TS000F000 /* Build configuration list for PBXNativeTarget "VaultTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				TS000F001 /* Debug */,
+				TS000F002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
