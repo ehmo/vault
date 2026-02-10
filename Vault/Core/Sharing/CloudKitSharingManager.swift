@@ -155,7 +155,7 @@ final class CloudKitSharingManager {
         for (index, chunkData) in chunks.enumerated() {
             let chunkStart = CFAbsoluteTimeGetCurrent()
             let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(index)")
-            let chunkRecord = CKRecord(recordType: chunkRecordType, recordID: chunkRecordId)
+            let chunkRecord = await fetchOrCreateRecord(id: chunkRecordId)
 
             let tempURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent(UUID().uuidString)
