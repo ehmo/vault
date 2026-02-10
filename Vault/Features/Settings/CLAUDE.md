@@ -8,5 +8,4 @@
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
 | #230 | 10:29 PM | 🔵 | VaultSettingsView Per-Vault Configuration Management | ~890 |
-| #229 | " | 🔵 | SettingsView Comprehensive Configuration Interface | ~789 |
 </claude-mem-context>
