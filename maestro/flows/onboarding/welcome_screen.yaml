@@ -3,7 +3,14 @@ appId: app.vaultaire.ios
 # Verify welcome screen elements
 - launchApp:
     clearState: true
-    clearKeychain: true
+
+# Dismiss system alerts
+- tapOn:
+    text: "Not Now"
+    optional: true
+- tapOn:
+    text: "Not Now"
+    optional: true
 
 - assertVisible: "Welcome to Vaultaire"
 - assertVisible:

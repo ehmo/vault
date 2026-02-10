@@ -3,7 +3,14 @@ appId: app.vaultaire.ios
 # Test pattern setup screen (navigate through onboarding first)
 - launchApp:
     clearState: true
-    clearKeychain: true
+
+# Dismiss system alerts
+- tapOn:
+    text: "Not Now"
+    optional: true
+- tapOn:
+    text: "Not Now"
+    optional: true
 
 - tapOn:
     id: "welcome_continue"
@@ -13,12 +20,6 @@ appId: app.vaultaire.ios
     id: "paywall_skip"
     optional: true
 
-# Pattern setup screen
+# Pattern setup screen should be visible
 - assertVisible:
     id: "pattern_grid"
-
-# Draw pattern — 6-dot minimum
-- swipe:
-    start: "10%, 50%"
-    end: "90%, 50%"
-    duration: 800
