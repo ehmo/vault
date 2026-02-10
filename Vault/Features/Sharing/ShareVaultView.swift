@@ -467,6 +467,18 @@ struct ShareVaultView: View {
                     .font(.caption)
                     .foregroundStyle(.vaultSecondaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
+
+                if BackgroundShareTransferManager.shared.hasPendingUpload {
+                    Button {
+                        BackgroundShareTransferManager.shared.resumePendingUpload(
+                            vaultKey: appState.currentVaultKey
+                        )
+                    } label: {
+                        Label("Resume Upload", systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
             }
             .padding()
             .vaultGlassBackground(cornerRadius: 12)

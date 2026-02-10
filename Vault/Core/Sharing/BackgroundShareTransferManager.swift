@@ -20,6 +20,63 @@ final class BackgroundShareTransferManager {
         case importFailed(String)
     }
 
+    // MARK: - Pending Upload State (Resumable Uploads)
+
+    struct PendingUploadState: Codable {
+        let shareVaultId: String
+        let phraseVaultId: String
+        let shareKeyData: Data
+        let policy: VaultStorage.SharePolicy
+        let ownerFingerprint: String
+        let totalChunks: Int
+        let sharedFileIds: [String]
+        let svdfManifest: [SVDFSerializer.FileManifestEntry]
+        let createdAt: Date
+    }
+
+    private static let pendingDir: URL = {
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("pending_upload", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }()
+
+    private static let stateURL = pendingDir.appendingPathComponent("state.json")
+    private static let svdfURL = pendingDir.appendingPathComponent("svdf_data.bin")
+
+    /// 24-hour TTL for pending uploads
+    private static let pendingTTL: TimeInterval = 24 * 60 * 60
+
+    nonisolated static func savePendingUpload(_ state: PendingUploadState, svdfData: Data) throws {
+        try JSONEncoder().encode(state).write(to: stateURL)
+        try svdfData.write(to: svdfURL)
+    }
+
+    nonisolated static func loadPendingUpload() -> (state: PendingUploadState, svdfData: Data)? {
+        guard let stateData = try? Data(contentsOf: stateURL),
+              let state = try? JSONDecoder().decode(PendingUploadState.self, from: stateData) else {
+            return nil
+        }
+        // TTL check
+        guard Date().timeIntervalSince(state.createdAt) < pendingTTL else {
+            clearPendingUpload()
+            return nil
+        }
+        guard let svdfData = try? Data(contentsOf: svdfURL) else {
+            return nil
+        }
+        return (state, svdfData)
+    }
+
+    nonisolated static func clearPendingUpload() {
+        try? FileManager.default.removeItem(at: stateURL)
+        try? FileManager.default.removeItem(at: svdfURL)
+    }
+
+    var hasPendingUpload: Bool {
+        Self.loadPendingUpload() != nil
+    }
+
     var status: TransferStatus = .idle
 
     private var activeTask: Task<Void, Never>?
@@ -213,6 +270,24 @@ final class BackgroundShareTransferManager {
 
                 guard !Task.isCancelled else { return }
 
+                // Persist pending upload state so we can resume if backgrounded
+                let phraseVaultId = CloudKitSharingManager.vaultId(from: capturedPhrase)
+                let chunkSize = 2 * 1024 * 1024
+                let totalChunks = (encodedData.count + chunkSize - 1) / chunkSize
+                let pendingState = PendingUploadState(
+                    shareVaultId: shareVaultId,
+                    phraseVaultId: phraseVaultId,
+                    shareKeyData: shareKey,
+                    policy: policy,
+                    ownerFingerprint: KeyDerivation.keyFingerprint(from: capturedVaultKey),
+                    totalChunks: totalChunks,
+                    sharedFileIds: sharedFiles.map { $0.id.uuidString },
+                    svdfManifest: svdfResult.manifest,
+                    createdAt: Date()
+                )
+                try Self.savePendingUpload(pendingState, svdfData: encodedData)
+                Self.logger.info("[upload-telemetry] pending upload state saved to disk")
+
                 Self.logger.info("[upload-telemetry] starting CloudKit upload (\(encodedData.count / (1024 * 1024))MB)...")
                 try await CloudKitSharingManager.shared.uploadSharedVault(
                     shareVaultId: shareVaultId,
@@ -279,6 +354,7 @@ final class BackgroundShareTransferManager {
                 updatedIndex.activeShares?.append(shareRecord)
                 try VaultStorage.shared.saveIndex(updatedIndex, with: capturedVaultKey)
 
+                Self.clearPendingUpload()
                 await self?.finishTransfer(.uploadComplete, activityMessage: "Vault shared successfully")
             } catch {
                 guard !Task.isCancelled else { return }
@@ -290,6 +366,142 @@ final class BackgroundShareTransferManager {
                 }
                 SentryManager.shared.captureError(error)
                 await self?.finishTransfer(.uploadFailed(error.localizedDescription), activityMessage: "Upload failed")
+            }
+        }
+    }
+
+    // MARK: - Resume Pending Upload
+
+    /// Resumes a previously interrupted upload by querying CloudKit for already-uploaded
+    /// chunks and only uploading the missing ones. Skips all crypto (PBKDF2, re-encryption,
+    /// SVDF build) since those results are persisted to disk.
+    func resumePendingUpload(vaultKey: Data?) {
+        guard let (pending, svdfData) = Self.loadPendingUpload() else {
+            Self.logger.warning("[resume] No pending upload found")
+            return
+        }
+        guard let vaultKey else {
+            Self.logger.warning("[resume] No vault key available")
+            return
+        }
+
+        activeTask?.cancel()
+        isUploadOperation = true
+        status = .uploading(progress: 0, total: 100)
+        startLiveActivity(.uploading)
+        startProgressTimer()
+
+        let capturedVaultKey = vaultKey
+        let capturedPending = pending
+        let capturedSvdfData = svdfData
+
+        let bgTaskId = beginProtectedTask(
+            failureStatus: .uploadFailed("Resume interrupted — iOS suspended the app. You can try again."),
+            logTag: "resume"
+        )
+
+        activeTask = Task.detached(priority: .userInitiated) { [weak self] in
+            defer {
+                Task { @MainActor in UIApplication.shared.endBackgroundTask(bgTaskId) }
+            }
+            do {
+                await self?.setTargetProgress(2, message: "Checking uploaded chunks...")
+
+                // Query CloudKit for already-uploaded chunks
+                let existingIndices = try await CloudKitSharingManager.shared.existingChunkIndices(
+                    for: capturedPending.shareVaultId
+                )
+                Self.logger.info("[resume] \(existingIndices.count)/\(capturedPending.totalChunks) chunks already uploaded")
+
+                guard !Task.isCancelled else { return }
+
+                // Chunk the SVDF data and filter to missing chunks only
+                let chunkSize = 2 * 1024 * 1024
+                let allChunks: [(Int, Data)] = stride(from: 0, to: capturedSvdfData.count, by: chunkSize)
+                    .enumerated()
+                    .map { (index, start) in
+                        let end = min(start + chunkSize, capturedSvdfData.count)
+                        return (index, Data(capturedSvdfData[start..<end]))
+                    }
+                let missingChunks = allChunks.filter { !existingIndices.contains($0.0) }
+
+                Self.logger.info("[resume] uploading \(missingChunks.count) missing chunks")
+                await self?.setTargetProgress(5, message: "Uploading remaining chunks...")
+
+                // Upload missing chunks
+                let missingCount = missingChunks.count
+                try await CloudKitSharingManager.shared.uploadChunksParallel(
+                    shareVaultId: capturedPending.shareVaultId,
+                    chunks: missingChunks,
+                    onProgress: { current, total in
+                        Task { @MainActor [weak self] in
+                            guard let self else { return }
+                            let pct = total > 0 ? 5 + 84 * current / total : 89
+                            self.setTargetProgress(pct, message: "Uploading remaining chunks...")
+                        }
+                    }
+                )
+
+                guard !Task.isCancelled else { return }
+                await self?.setTargetProgress(90, message: "Saving manifest...")
+
+                // Save manifest (may already exist — saveWithRetry handles serverRecordChanged)
+                try await CloudKitSharingManager.shared.saveManifest(
+                    shareVaultId: capturedPending.shareVaultId,
+                    phraseVaultId: capturedPending.phraseVaultId,
+                    shareKey: capturedPending.shareKeyData,
+                    policy: capturedPending.policy,
+                    ownerFingerprint: capturedPending.ownerFingerprint,
+                    totalChunks: capturedPending.totalChunks
+                )
+
+                guard !Task.isCancelled else { return }
+                await self?.setTargetProgress(95, message: "Finalizing...")
+
+                // Initialize sync cache
+                let syncCache = ShareSyncCache(shareVaultId: capturedPending.shareVaultId)
+                try syncCache.saveSVDF(capturedSvdfData)
+                let chunkHashes = ShareSyncCache.computeChunkHashes(capturedSvdfData)
+                let currentFileIds = Set(capturedPending.sharedFileIds)
+                let syncState = ShareSyncCache.SyncState(
+                    syncedFileIds: currentFileIds,
+                    chunkHashes: chunkHashes,
+                    manifest: capturedPending.svdfManifest,
+                    syncSequence: 1,
+                    deletedFileIds: [],
+                    totalDeletedBytes: 0,
+                    totalBytes: capturedSvdfData.count
+                )
+                try syncCache.saveSyncState(syncState)
+
+                // Save share record (guard against duplicates)
+                var updatedIndex = try VaultStorage.shared.loadIndex(with: capturedVaultKey)
+                let alreadyExists = updatedIndex.activeShares?.contains(where: {
+                    $0.id == capturedPending.shareVaultId
+                }) ?? false
+                if !alreadyExists {
+                    let shareRecord = VaultStorage.ShareRecord(
+                        id: capturedPending.shareVaultId,
+                        createdAt: Date(),
+                        policy: capturedPending.policy,
+                        lastSyncedAt: Date(),
+                        shareKeyData: capturedPending.shareKeyData,
+                        syncSequence: 1
+                    )
+                    if updatedIndex.activeShares == nil {
+                        updatedIndex.activeShares = []
+                    }
+                    updatedIndex.activeShares?.append(shareRecord)
+                    try VaultStorage.shared.saveIndex(updatedIndex, with: capturedVaultKey)
+                }
+
+                Self.clearPendingUpload()
+                await self?.finishTransfer(.uploadComplete, activityMessage: "Vault shared successfully")
+            } catch {
+                guard !Task.isCancelled else { return }
+                Self.logger.error("[resume] RESUME FAILED: \(error.localizedDescription, privacy: .public)")
+                SentryManager.shared.captureError(error)
+                await self?.finishTransfer(.uploadFailed(error.localizedDescription), activityMessage: "Resume failed")
             }
         }
     }

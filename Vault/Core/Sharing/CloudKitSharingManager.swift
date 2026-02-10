@@ -164,36 +164,19 @@ final class CloudKitSharingManager {
         Self.logger.info("[upload-telemetry] all chunks uploaded: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - ckStart))s")
         let manifestStart = CFAbsoluteTimeGetCurrent()
 
-        // Encrypt policy
-        let policyData = try JSONEncoder().encode(policy)
-        let encryptedPolicy = try CryptoEngine.encrypt(policyData, with: shareKey)
-
-        // Create manifest record (keyed by phrase-derived ID for recipient lookup)
-        let manifestRecordId = CKRecord.ID(recordName: phraseVaultId)
-        let manifest = CKRecord(recordType: manifestRecordType, recordID: manifestRecordId)
-
-        manifest["shareVaultId"] = shareVaultId
-        manifest["updatedAt"] = Date()
-        manifest["version"] = 4  // v4: SVDF format, no outer encryption
-        manifest["ownerFingerprint"] = ownerFingerprint
-        manifest["chunkCount"] = totalChunks
-        manifest["claimed"] = false
-        manifest["revoked"] = false
-
-        // Store encrypted policy as asset
-        let policyURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-        try encryptedPolicy.write(to: policyURL)
-        manifest["policy"] = CKAsset(fileURL: policyURL)
-
         do {
-            try await saveWithRetry(manifest)
-            try? FileManager.default.removeItem(at: policyURL)
+            try await saveManifest(
+                shareVaultId: shareVaultId,
+                phraseVaultId: phraseVaultId,
+                shareKey: shareKey,
+                policy: policy,
+                ownerFingerprint: ownerFingerprint,
+                totalChunks: totalChunks
+            )
         } catch {
-            try? FileManager.default.removeItem(at: policyURL)
             SentryManager.shared.captureError(error)
             transaction.finish(status: .internalError)
-            throw CloudKitSharingError.uploadFailed(error)
+            throw error
         }
 
         Self.logger.info("[upload-telemetry] manifest saved: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - manifestStart))s")
@@ -558,7 +541,7 @@ final class CloudKitSharingManager {
 
     /// Uploads chunk records in parallel with bounded concurrency.
     /// Progress reports completed count (order-independent).
-    private func uploadChunksParallel(
+    func uploadChunksParallel(
         shareVaultId: String,
         chunks: [(Int, Data)],
         onProgress: ((Int, Int) -> Void)? = nil
@@ -591,6 +574,46 @@ final class CloudKitSharingManager {
                 completed += 1
                 onProgress?(completed, totalChunks)
             }
+        }
+    }
+
+    // MARK: - Manifest
+
+    /// Saves (or updates) the SharedVault manifest record in CloudKit.
+    /// Extracted for reuse by both initial upload and resume paths.
+    func saveManifest(
+        shareVaultId: String,
+        phraseVaultId: String,
+        shareKey: Data,
+        policy: VaultStorage.SharePolicy,
+        ownerFingerprint: String,
+        totalChunks: Int
+    ) async throws {
+        let policyData = try JSONEncoder().encode(policy)
+        let encryptedPolicy = try CryptoEngine.encrypt(policyData, with: shareKey)
+
+        let manifestRecordId = CKRecord.ID(recordName: phraseVaultId)
+        let manifest = CKRecord(recordType: manifestRecordType, recordID: manifestRecordId)
+
+        manifest["shareVaultId"] = shareVaultId
+        manifest["updatedAt"] = Date()
+        manifest["version"] = 4
+        manifest["ownerFingerprint"] = ownerFingerprint
+        manifest["chunkCount"] = totalChunks
+        manifest["claimed"] = false
+        manifest["revoked"] = false
+
+        let policyURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        try encryptedPolicy.write(to: policyURL)
+        manifest["policy"] = CKAsset(fileURL: policyURL)
+
+        do {
+            try await saveWithRetry(manifest)
+            try? FileManager.default.removeItem(at: policyURL)
+        } catch {
+            try? FileManager.default.removeItem(at: policyURL)
+            throw CloudKitSharingError.uploadFailed(error)
         }
     }
 
@@ -675,6 +698,46 @@ final class CloudKitSharingManager {
             print("⚠️ [CloudKit] Failed to delete chunks: \(error)")
             #endif
         }
+    }
+
+    /// Queries CloudKit for chunk indices that already exist for a given share vault ID.
+    /// Uses cursor pagination to handle vaults with >100 chunks.
+    func existingChunkIndices(for shareVaultId: String) async throws -> Set<Int> {
+        let predicate = NSPredicate(format: "vaultId == %@", shareVaultId)
+        let query = CKQuery(recordType: chunkRecordType, predicate: predicate)
+
+        var indices = Set<Int>()
+        var cursor: CKQueryOperation.Cursor?
+
+        // First page
+        let firstResult = try await publicDatabase.records(
+            matching: query,
+            desiredKeys: ["chunkIndex"]
+        )
+        for (_, result) in firstResult.matchResults {
+            if let record = try? result.get(),
+               let index = record["chunkIndex"] as? Int {
+                indices.insert(index)
+            }
+        }
+        cursor = firstResult.queryCursor
+
+        // Paginate through remaining results
+        while let activeCursor = cursor {
+            let page = try await publicDatabase.records(
+                continuingMatchFrom: activeCursor,
+                desiredKeys: ["chunkIndex"]
+            )
+            for (_, result) in page.matchResults {
+                if let record = try? result.get(),
+                   let index = record["chunkIndex"] as? Int {
+                    indices.insert(index)
+                }
+            }
+            cursor = page.queryCursor
+        }
+
+        return indices
     }
 
     // MARK: - iCloud Status
