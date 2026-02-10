@@ -645,6 +645,13 @@ final class CloudKitSharingManager {
                         currentRecord = serverRecord
                         continue
                     }
+                    // Fetch failed (transient network error) — retry with delay
+                    // so we get another chance to fetch the server record
+                    lastError = error
+                    let delay = Self.retryDelay(for: error, attempt: attempt)
+                    Self.logger.info("[upload-telemetry] server record fetch failed, retrying \(attempt + 1)/\(maxRetries) after \(String(format: "%.1f", delay))s")
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                    continue
                 }
 
                 if Self.isRetryable(error) && attempt < maxRetries {

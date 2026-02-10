@@ -428,8 +428,6 @@ final class BackgroundShareTransferManager {
                 Self.logger.info("[resume] uploading \(missingChunks.count) missing chunks")
                 await self?.setTargetProgress(5, message: "Uploading remaining chunks...")
 
-                // Upload missing chunks
-                let missingCount = missingChunks.count
                 try await CloudKitSharingManager.shared.uploadChunksParallel(
                     shareVaultId: capturedPending.shareVaultId,
                     chunks: missingChunks,
