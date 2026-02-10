@@ -299,8 +299,7 @@ final class BackgroundShareTransferManager {
     /// Downloads and imports a shared vault entirely in the background.
     func startBackgroundDownloadAndImport(
         phrase: String,
-        patternKey: Data,
-        pattern: [Int]
+        patternKey: Data
     ) {
         activeTask?.cancel()
         isUploadOperation = false
@@ -379,86 +378,7 @@ final class BackgroundShareTransferManager {
                 await self?.finishTransfer(.importComplete, activityMessage: "Shared vault is ready")
             } catch {
                 guard !Task.isCancelled else { return }
-                await self?.finishTransfer(.importFailed(error.localizedDescription), activityMessage: "Import failed")
-            }
-        }
-    }
-
-    // MARK: - Background Import
-
-    /// Starts a background import of downloaded vault data. All keys captured by value.
-    func startBackgroundImport(
-        downloadedData: Data,
-        downloadedPolicy: VaultStorage.SharePolicy,
-        shareVaultId: String,
-        phrase: String,
-        patternKey: Data,
-        pattern: [Int]
-    ) {
-        activeTask?.cancel()
-        isUploadOperation = false
-        status = .importing
-        startLiveActivity(.downloading)
-        startProgressTimer()
-
-        // Capture everything by value
-        let capturedData = downloadedData
-        let capturedPolicy = downloadedPolicy
-        let capturedShareVaultId = shareVaultId
-        let capturedPhrase = phrase
-        let capturedPatternKey = patternKey
-
-        let bgTaskId = beginProtectedTask(
-            failureStatus: .importFailed("Import interrupted — iOS suspended the app."),
-            logTag: "import"
-        )
-
-        activeTask = Task.detached(priority: .userInitiated) { [weak self] in
-            defer {
-                Task { @MainActor in UIApplication.shared.endBackgroundTask(bgTaskId) }
-            }
-            do {
-                let sharedVault = try SharedVaultData.decode(from: capturedData)
-                let shareKey = try CloudKitSharingManager.deriveShareKey(from: capturedPhrase)
-                let fileCount = sharedVault.files.count
-
-                for (i, file) in sharedVault.files.enumerated() {
-                    guard !Task.isCancelled else { return }
-                    let decrypted = try CryptoEngine.decrypt(file.encryptedContent, with: shareKey)
-                    let thumbnailData = Self.resolveThumbnail(
-                        encryptedThumbnail: file.encryptedThumbnail,
-                        mimeType: file.mimeType,
-                        decryptedData: decrypted,
-                        shareKey: shareKey
-                    )
-
-                    _ = try VaultStorage.shared.storeFile(
-                        data: decrypted,
-                        filename: file.filename,
-                        mimeType: file.mimeType,
-                        with: capturedPatternKey,
-                        thumbnailData: thumbnailData
-                    )
-
-                    let pct = fileCount > 0 ? 99 * (i + 1) / fileCount : 99
-                    await self?.setTargetProgress(pct, message: "Importing files...")
-                    await Task.yield()
-                }
-
-                guard !Task.isCancelled else { return }
-
-                // Mark vault index as shared vault
-                var index = try VaultStorage.shared.loadIndex(with: capturedPatternKey)
-                index.isSharedVault = true
-                index.sharedVaultId = capturedShareVaultId
-                index.sharePolicy = capturedPolicy
-                index.openCount = 0
-                index.shareKeyData = shareKey
-                try VaultStorage.shared.saveIndex(index, with: capturedPatternKey)
-
-                await self?.finishTransfer(.importComplete, activityMessage: "Shared vault is ready")
-            } catch {
-                guard !Task.isCancelled else { return }
+                SentryManager.shared.captureError(error)
                 await self?.finishTransfer(.importFailed(error.localizedDescription), activityMessage: "Import failed")
             }
         }

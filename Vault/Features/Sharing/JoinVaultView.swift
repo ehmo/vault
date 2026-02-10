@@ -247,8 +247,7 @@ struct JoinVaultView: View {
             // Download and import in background
             BackgroundShareTransferManager.shared.startBackgroundDownloadAndImport(
                 phrase: trimmedPhrase,
-                patternKey: patternKey,
-                pattern: newPattern
+                patternKey: patternKey
             )
         } catch {
             mode = .error("Failed to set up vault: \(error.localizedDescription)")

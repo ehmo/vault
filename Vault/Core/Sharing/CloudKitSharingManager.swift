@@ -154,25 +154,7 @@ final class CloudKitSharingManager {
         // Upload chunks
         for (index, chunkData) in chunks.enumerated() {
             let chunkStart = CFAbsoluteTimeGetCurrent()
-            let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(index)")
-            let chunkRecord = await fetchOrCreateRecord(id: chunkRecordId)
-
-            let tempURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent(UUID().uuidString)
-            try Data(chunkData).write(to: tempURL)
-
-            chunkRecord["chunkData"] = CKAsset(fileURL: tempURL)
-            chunkRecord["chunkIndex"] = index
-            chunkRecord["vaultId"] = shareVaultId
-
-            do {
-                try await saveWithRetry(chunkRecord)
-                try? FileManager.default.removeItem(at: tempURL)
-            } catch {
-                try? FileManager.default.removeItem(at: tempURL)
-                throw CloudKitSharingError.uploadFailed(error)
-            }
-
+            try await saveChunkRecord(shareVaultId: shareVaultId, index: index, data: Data(chunkData))
             Self.logger.info("[upload-telemetry] chunk[\(index)]/\(totalChunks) (\(chunkData.count / 1024)KB): \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - chunkStart))s")
             onProgress?(index + 1, totalChunks)
         }
@@ -241,26 +223,7 @@ final class CloudKitSharingManager {
         let totalChunks = chunks.count
 
         for (index, chunkData) in chunks.enumerated() {
-            let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(index)")
-            // Fetch existing record to update in place (delete may have failed silently)
-            let chunkRecord = await fetchOrCreateRecord(id: chunkRecordId)
-
-            let tempURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent(UUID().uuidString)
-            try Data(chunkData).write(to: tempURL)
-
-            chunkRecord["chunkData"] = CKAsset(fileURL: tempURL)
-            chunkRecord["chunkIndex"] = index
-            chunkRecord["vaultId"] = shareVaultId
-
-            do {
-                try await saveWithRetry(chunkRecord)
-                try? FileManager.default.removeItem(at: tempURL)
-            } catch {
-                try? FileManager.default.removeItem(at: tempURL)
-                throw CloudKitSharingError.uploadFailed(error)
-            }
-
+            try await saveChunkRecord(shareVaultId: shareVaultId, index: index, data: Data(chunkData))
             onProgress?(index + 1, totalChunks)
         }
 
@@ -303,32 +266,7 @@ final class CloudKitSharingManager {
                 || previousChunkHashes[index] != newChunkHashes[index]
 
             if hashChanged {
-                let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(index)")
-
-                // ALWAYS fetch existing record first. CKRecord.save() on a new object
-                // attempts INSERT, which fails with serverRecordChanged (code 14) if the
-                // record already exists. This can happen when:
-                // - The initial upload created chunks but the sync cache wasn't populated
-                // - A previous sync partially uploaded chunks before failing
-                // - Multiple syncs race on the same share
-                let chunkRecord = await fetchOrCreateRecord(id: chunkRecordId)
-
-                let tempURL = FileManager.default.temporaryDirectory
-                    .appendingPathComponent(UUID().uuidString)
-                try Data(chunkData).write(to: tempURL)
-
-                chunkRecord["chunkData"] = CKAsset(fileURL: tempURL)
-                chunkRecord["chunkIndex"] = index
-                chunkRecord["vaultId"] = shareVaultId
-
-                do {
-                    try await saveWithRetry(chunkRecord)
-                    try? FileManager.default.removeItem(at: tempURL)
-                } catch {
-                    try? FileManager.default.removeItem(at: tempURL)
-                    throw CloudKitSharingError.uploadFailed(error)
-                }
-
+                try await saveChunkRecord(shareVaultId: shareVaultId, index: index, data: Data(chunkData))
                 uploadedCount += 1
             }
 
@@ -591,6 +529,27 @@ final class CloudKitSharingManager {
             return try await publicDatabase.record(for: id)
         } catch {
             return CKRecord(recordType: chunkRecordType, recordID: id)
+        }
+    }
+
+    /// Saves a chunk record to CloudKit with temp file lifecycle management.
+    /// Uses fetch-or-create pattern for idempotent saves.
+    private func saveChunkRecord(shareVaultId: String, index: Int, data: Data) async throws {
+        let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(index)")
+        let chunkRecord = await fetchOrCreateRecord(id: chunkRecordId)
+
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try data.write(to: tempURL)
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+
+        chunkRecord["chunkData"] = CKAsset(fileURL: tempURL)
+        chunkRecord["chunkIndex"] = index
+        chunkRecord["vaultId"] = shareVaultId
+
+        do {
+            try await saveWithRetry(chunkRecord)
+        } catch {
+            throw CloudKitSharingError.uploadFailed(error)
         }
     }
 
