@@ -100,6 +100,8 @@ struct VaultView: View {
     @State private var showingBatchDeleteConfirmation = false
     @State private var showingPaywall = false
     @State private var showingFanMenu = false
+    @State private var isExporting = false
+    @State private var exportURLs: [URL] = []
     @State private var toastMessage: ToastMessage?
 
     // Transfer status
@@ -293,22 +295,10 @@ struct VaultView: View {
             .toolbar {
                 if !showingSettings {
                     ToolbarItem(placement: .topBarLeading) {
-                        HStack(spacing: 12) {
-                            Button(action: { showingSettings = true }) {
-                                Image(systemName: "gear")
-                            }
-                            .accessibilityLabel("Settings")
-
-                            if !files.isEmpty && !isSharedVault {
-                                Button(isEditing ? "Done" : "Edit") {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        isEditing.toggle()
-                                        if !isEditing { selectedIds.removeAll() }
-                                    }
-                                }
-                                .accessibilityLabel(isEditing ? "Exit edit mode" : "Enter edit mode")
-                            }
+                        Button(action: { showingSettings = true }) {
+                            Image(systemName: "gear")
                         }
+                        .accessibilityLabel("Settings")
                     }
 
                     ToolbarItem(placement: .topBarTrailing) {
@@ -332,59 +322,111 @@ struct VaultView: View {
             .safeAreaInset(edge: .top) {
                 VStack(spacing: 8) {
                     if !files.isEmpty && !showingSettings {
-                        HStack(spacing: 12) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "magnifyingglass")
-                                    .foregroundStyle(.vaultSecondaryText)
-                                TextField("Search files", text: $searchText)
-                                    .textFieldStyle(.plain)
-                                if !searchText.isEmpty {
-                                    Button {
-                                        searchText = ""
-                                    } label: {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .foregroundStyle(.vaultSecondaryText)
+                        HStack(spacing: 8) {
+                            if isEditing {
+                                // Select All / Deselect All button
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        if selectedIds.count == sortedFiles.count {
+                                            selectedIds.removeAll()
+                                        } else {
+                                            selectedIds = Set(sortedFiles.map(\.id))
+                                        }
                                     }
-                                    .buttonStyle(.plain)
+                                } label: {
+                                    Text(selectedIds.count == sortedFiles.count ? "Deselect All" : "Select All (\(sortedFiles.count))")
+                                        .font(.subheadline.weight(.medium))
+                                        .lineLimit(1)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 10)
+                                        .frame(maxWidth: .infinity)
+                                        .vaultGlassBackground(cornerRadius: 12)
                                 }
-                            }
-                            .padding(10)
-                            .vaultGlassBackground(cornerRadius: 12)
 
-                            Menu {
-                                Section("Filter") {
-                                    ForEach(FileFilter.allCases) { filter in
+                                // Done button
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        isEditing = false
+                                        selectedIds.removeAll()
+                                    }
+                                } label: {
+                                    Text("Done")
+                                        .font(.subheadline.weight(.semibold))
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 10)
+                                        .vaultGlassBackground(cornerRadius: 12)
+                                }
+                            } else {
+                                // Search bar
+                                HStack(spacing: 8) {
+                                    Image(systemName: "magnifyingglass")
+                                        .foregroundStyle(.vaultSecondaryText)
+                                    TextField("Search files", text: $searchText)
+                                        .textFieldStyle(.plain)
+                                    if !searchText.isEmpty {
                                         Button {
-                                            fileFilter = filter
+                                            searchText = ""
                                         } label: {
-                                            if fileFilter == filter {
-                                                Label(filter.rawValue, systemImage: "checkmark")
-                                            } else {
-                                                Label(filter.rawValue, systemImage: filter.icon)
+                                            Image(systemName: "xmark.circle.fill")
+                                                .foregroundStyle(.vaultSecondaryText)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                                .padding(10)
+                                .vaultGlassBackground(cornerRadius: 12)
+
+                                // Filter & sort menu
+                                Menu {
+                                    Section("Filter") {
+                                        ForEach(FileFilter.allCases) { filter in
+                                            Button {
+                                                fileFilter = filter
+                                            } label: {
+                                                if fileFilter == filter {
+                                                    Label(filter.rawValue, systemImage: "checkmark")
+                                                } else {
+                                                    Label(filter.rawValue, systemImage: filter.icon)
+                                                }
                                             }
                                         }
                                     }
-                                }
-                                Section("Sort") {
-                                    ForEach(SortOrder.allCases, id: \.self) { order in
-                                        Button {
-                                            sortOrder = order
-                                        } label: {
-                                            if sortOrder == order {
-                                                Label(order.rawValue, systemImage: "checkmark")
-                                            } else {
-                                                Text(order.rawValue)
+                                    Section("Sort") {
+                                        ForEach(SortOrder.allCases, id: \.self) { order in
+                                            Button {
+                                                sortOrder = order
+                                            } label: {
+                                                if sortOrder == order {
+                                                    Label(order.rawValue, systemImage: "checkmark")
+                                                } else {
+                                                    Text(order.rawValue)
+                                                }
                                             }
                                         }
                                     }
+                                } label: {
+                                    Image(systemName: fileFilter == .all ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
+                                        .fontWeight(.medium)
+                                        .padding(10)
+                                        .vaultGlassBackground(cornerRadius: 12)
                                 }
-                            } label: {
-                                Image(systemName: fileFilter == .all ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
-                                    .fontWeight(.medium)
-                                    .padding(10)
-                                    .vaultGlassBackground(cornerRadius: 12)
+                                .accessibilityLabel("Filter and sort")
+
+                                // Select button (hidden for shared vaults)
+                                if !isSharedVault {
+                                    Button {
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            isEditing = true
+                                        }
+                                    } label: {
+                                        Image(systemName: "checkmark.circle")
+                                            .fontWeight(.medium)
+                                            .padding(10)
+                                            .vaultGlassBackground(cornerRadius: 12)
+                                    }
+                                    .accessibilityLabel("Select files")
+                                }
                             }
-                            .accessibilityLabel("Filter and sort")
                         }
                         .padding(.horizontal)
                     }
@@ -399,19 +441,28 @@ struct VaultView: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                if !isSharedVault && isEditing && !files.isEmpty && !showingSettings {
-                    HStack(spacing: 16) {
+                if isEditing && !selectedIds.isEmpty && !files.isEmpty && !showingSettings {
+                    HStack(spacing: 12) {
                         Button(role: .destructive) {
                             showingBatchDeleteConfirmation = true
                         } label: {
-                            Label("Delete (\(selectedIds.count))", systemImage: "trash")
-                                .font(.headline)
+                            Label("Delete", systemImage: "trash")
+                                .font(.subheadline.weight(.semibold))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.red)
-                        .disabled(selectedIds.isEmpty)
+
+                        Button {
+                            batchExport()
+                        } label: {
+                            Label("Export", systemImage: "square.and.arrow.up")
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                        }
+                        .vaultProminentButtonStyle()
                     }
                     .padding(.horizontal)
                     .vaultBarMaterial()
@@ -541,6 +592,15 @@ struct VaultView: View {
             Text("These files will be permanently deleted from the vault.")
         }
         .premiumPaywall(isPresented: $showingPaywall)
+        .sheet(isPresented: $isExporting, onDismiss: {
+            cleanupExportFiles()
+            selectedIds.removeAll()
+            isEditing = false
+        }) {
+            if !exportURLs.isEmpty {
+                ActivityView(activityItems: exportURLs)
+            }
+        }
     }
 
     // MARK: - Shared Vault Banner
@@ -1032,6 +1092,38 @@ struct VaultView: View {
                 toastMessage = .filesDeleted(count)
             }
         }
+    }
+
+    private func batchExport() {
+        guard let key = appState.currentVaultKey else { return }
+        let idsToExport = selectedIds
+        let filesList = files
+
+        Task.detached(priority: .userInitiated) {
+            let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            var urls: [URL] = []
+
+            for id in idsToExport {
+                guard let result = try? VaultStorage.shared.retrieveFile(id: id, with: key) else { continue }
+                let file = filesList.first { $0.id == id }
+                let filename = file?.filename ?? "Export_\(id.uuidString)"
+                let url = tempDir.appendingPathComponent(filename)
+                try? result.content.write(to: url, options: [.atomic])
+                urls.append(url)
+            }
+
+            await MainActor.run {
+                self.exportURLs = urls
+                self.isExporting = true
+            }
+        }
+    }
+
+    private func cleanupExportFiles() {
+        for url in exportURLs {
+            try? FileManager.default.removeItem(at: url)
+        }
+        exportURLs = []
     }
 
     private func deleteFileById(_ id: UUID) {
