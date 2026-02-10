@@ -34,18 +34,18 @@ final class BackgroundShareTransferManager {
         let createdAt: Date
     }
 
-    private static let pendingDir: URL = {
+    private nonisolated static let pendingDir: URL = {
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("pending_upload", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }()
 
-    private static let stateURL = pendingDir.appendingPathComponent("state.json")
-    private static let svdfURL = pendingDir.appendingPathComponent("svdf_data.bin")
+    private nonisolated static let stateURL = pendingDir.appendingPathComponent("state.json")
+    private nonisolated static let svdfURL = pendingDir.appendingPathComponent("svdf_data.bin")
 
     /// 24-hour TTL for pending uploads
-    private static let pendingTTL: TimeInterval = 24 * 60 * 60
+    private nonisolated static let pendingTTL: TimeInterval = 24 * 60 * 60
 
     nonisolated static func savePendingUpload(_ state: PendingUploadState, svdfData: Data) throws {
         try JSONEncoder().encode(state).write(to: stateURL)
