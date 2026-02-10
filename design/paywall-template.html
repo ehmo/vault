@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vaultaire Paywall Template</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    background: #1a1a2e;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
+    padding: 40px 20px;
+    gap: 40px;
+    flex-wrap: wrap;
+  }
+
+  .phone-frame {
+    width: 393px;
+    height: 852px;
+    border-radius: 48px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 25px 80px rgba(0,0,0,0.4), inset 0 0 0 2px rgba(255,255,255,0.1);
+  }
+
+  .label {
+    color: #aaa;
+    font-size: 13px;
+    text-align: center;
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  /* ═══════════════════════════════════════
+     LIGHT MODE
+     ═══════════════════════════════════════ */
+  .paywall-light {
+    background: #d1d1e9;
+    color: #2b2c34;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+  }
+
+  .paywall-light .top-bar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 60px 20px 0 20px;
+  }
+
+  .paywall-light .close-btn {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: rgba(43, 44, 52, 0.08);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: #2b2c34; opacity: 0.5;
+    cursor: pointer;
+  }
+
+  .paywall-light .hero {
+    text-align: center;
+    padding: 20px 32px 0;
+  }
+
+  .paywall-light .hero .pixel-grid {
+    display: inline-grid;
+    grid-template-columns: repeat(3, 14px);
+    gap: 4px;
+    margin-bottom: 24px;
+  }
+
+  .paywall-light .hero .pixel-grid .cell {
+    width: 14px; height: 14px;
+    border-radius: 2px;
+    background: #6246ea;
+  }
+
+  .paywall-light .hero .pixel-grid .cell.off {
+    background: rgba(98, 70, 234, 0.12);
+  }
+
+  .paywall-light .hero .pixel-grid .cell.dim {
+    background: rgba(98, 70, 234, 0.35);
+  }
+
+  .paywall-light .hero h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+  }
+
+  .paywall-light .hero p {
+    font-size: 16px;
+    color: rgba(43, 44, 52, 0.7);
+    line-height: 1.4;
+  }
+
+  .paywall-light .features {
+    padding: 28px 28px 0;
+    flex: 1;
+  }
+
+  .paywall-light .feature-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .paywall-light .feature-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: rgba(98, 70, 234, 0.1);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 17px;
+  }
+
+  .paywall-light .feature-text h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .paywall-light .feature-text p {
+    font-size: 13px;
+    color: rgba(43, 44, 52, 0.6);
+    line-height: 1.35;
+  }
+
+  .paywall-light .bottom {
+    padding: 0 28px 48px;
+  }
+
+  .paywall-light .price-card {
+    background: rgba(255, 255, 254, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    text-align: center;
+    border: 1.5px solid rgba(98, 70, 234, 0.2);
+  }
+
+  .paywall-light .price-card .badge {
+    display: inline-block;
+    background: #6246ea;
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .paywall-light .price-card .price {
+    font-size: 40px;
+    font-weight: 800;
+    color: #2b2c34;
+    letter-spacing: -1px;
+  }
+
+  .paywall-light .price-card .price sup {
+    font-size: 20px;
+    font-weight: 600;
+    vertical-align: super;
+    top: -0.3em;
+    position: relative;
+  }
+
+  .paywall-light .price-card .price-sub {
+    font-size: 14px;
+    color: rgba(43, 44, 52, 0.6);
+    margin-top: 4px;
+  }
+
+  .paywall-light .cta-btn {
+    display: block;
+    width: 100%;
+    padding: 17px;
+    border: none;
+    border-radius: 14px;
+    background: #6246ea;
+    color: white;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    letter-spacing: -0.2px;
+    margin-bottom: 12px;
+  }
+
+  .paywall-light .restore {
+    text-align: center;
+    font-size: 13px;
+    color: rgba(43, 44, 52, 0.45);
+  }
+
+  .paywall-light .restore a {
+    color: rgba(43, 44, 52, 0.45);
+    text-decoration: none;
+    margin: 0 8px;
+  }
+
+  /* ═══════════════════════════════════════
+     DARK MODE
+     ═══════════════════════════════════════ */
+  .paywall-dark {
+    background: #1a1b2e;
+    color: #e8e8f0;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+  }
+
+  .paywall-dark .top-bar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 60px 20px 0 20px;
+  }
+
+  .paywall-dark .close-btn {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: rgba(232, 232, 240, 0.08);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: #e8e8f0; opacity: 0.5;
+    cursor: pointer;
+  }
+
+  .paywall-dark .hero {
+    text-align: center;
+    padding: 20px 32px 0;
+  }
+
+  .paywall-dark .hero .pixel-grid {
+    display: inline-grid;
+    grid-template-columns: repeat(3, 14px);
+    gap: 4px;
+    margin-bottom: 24px;
+  }
+
+  .paywall-dark .hero .pixel-grid .cell {
+    width: 14px; height: 14px;
+    border-radius: 2px;
+    background: #6246ea;
+    box-shadow: 0 0 10px rgba(98, 70, 234, 0.5);
+  }
+
+  .paywall-dark .hero .pixel-grid .cell.off {
+    background: rgba(98, 70, 234, 0.12);
+    box-shadow: none;
+  }
+
+  .paywall-dark .hero .pixel-grid .cell.dim {
+    background: rgba(98, 70, 234, 0.35);
+    box-shadow: 0 0 6px rgba(98, 70, 234, 0.3);
+  }
+
+  .paywall-dark .hero h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+  }
+
+  .paywall-dark .hero p {
+    font-size: 16px;
+    color: rgba(232, 232, 240, 0.6);
+    line-height: 1.4;
+  }
+
+  .paywall-dark .features {
+    padding: 28px 28px 0;
+    flex: 1;
+  }
+
+  .paywall-dark .feature-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .paywall-dark .feature-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: rgba(98, 70, 234, 0.15);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 17px;
+  }
+
+  .paywall-dark .feature-text h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .paywall-dark .feature-text p {
+    font-size: 13px;
+    color: rgba(232, 232, 240, 0.5);
+    line-height: 1.35;
+  }
+
+  .paywall-dark .bottom {
+    padding: 0 28px 48px;
+  }
+
+  .paywall-dark .price-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    text-align: center;
+    border: 1.5px solid rgba(98, 70, 234, 0.3);
+  }
+
+  .paywall-dark .price-card .badge {
+    display: inline-block;
+    background: #6246ea;
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .paywall-dark .price-card .price {
+    font-size: 40px;
+    font-weight: 800;
+    color: #e8e8f0;
+    letter-spacing: -1px;
+  }
+
+  .paywall-dark .price-card .price sup {
+    font-size: 20px;
+    font-weight: 600;
+    vertical-align: super;
+    top: -0.3em;
+    position: relative;
+  }
+
+  .paywall-dark .price-card .price-sub {
+    font-size: 14px;
+    color: rgba(232, 232, 240, 0.5);
+    margin-top: 4px;
+  }
+
+  .paywall-dark .cta-btn {
+    display: block;
+    width: 100%;
+    padding: 17px;
+    border: none;
+    border-radius: 14px;
+    background: #6246ea;
+    color: white;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    letter-spacing: -0.2px;
+    margin-bottom: 12px;
+  }
+
+  .paywall-dark .restore {
+    text-align: center;
+    font-size: 13px;
+    color: rgba(232, 232, 240, 0.35);
+  }
+
+  .paywall-dark .restore a {
+    color: rgba(232, 232, 240, 0.35);
+    text-decoration: none;
+    margin: 0 8px;
+  }
+
+  /* ═══════════════════════════════════════
+     COMPARISON TABLE VARIANT (LIGHT)
+     ═══════════════════════════════════════ */
+  .paywall-table {
+    background: #d1d1e9;
+    color: #2b2c34;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .paywall-table .top-bar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 60px 20px 0 20px;
+  }
+
+  .paywall-table .close-btn {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: rgba(43, 44, 52, 0.08);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: #2b2c34; opacity: 0.5;
+  }
+
+  .paywall-table .hero {
+    text-align: center;
+    padding: 20px 32px 0;
+  }
+
+  .paywall-table .hero .pixel-grid {
+    display: inline-grid;
+    grid-template-columns: repeat(3, 14px);
+    gap: 4px;
+    margin-bottom: 24px;
+  }
+
+  .paywall-table .hero .pixel-grid .cell {
+    width: 14px; height: 14px; border-radius: 2px; background: #6246ea;
+  }
+  .paywall-table .hero .pixel-grid .cell.off {
+    background: rgba(98, 70, 234, 0.12);
+  }
+  .paywall-table .hero .pixel-grid .cell.dim {
+    background: rgba(98, 70, 234, 0.35);
+  }
+
+  .paywall-table .hero h1 {
+    font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px;
+  }
+
+  .paywall-table .hero p {
+    font-size: 15px; color: rgba(43, 44, 52, 0.6); line-height: 1.4;
+  }
+
+  .paywall-table .comparison {
+    margin: 24px 24px 0;
+    background: rgba(255, 255, 254, 0.6);
+    backdrop-filter: blur(20px);
+    border-radius: 16px;
+    overflow: hidden;
+    flex: 1;
+  }
+
+  .paywall-table .comparison .header-row {
+    display: grid;
+    grid-template-columns: 1fr 60px 60px;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid rgba(43, 44, 52, 0.08);
+  }
+
+  .paywall-table .comparison .header-row span {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(43, 44, 52, 0.45);
+    text-align: center;
+  }
+
+  .paywall-table .comparison .header-row span:first-child {
+    text-align: left;
+  }
+
+  .paywall-table .comparison .header-row .pro-badge {
+    background: #6246ea;
+    color: white;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+  }
+
+  .paywall-table .comparison .comp-row {
+    display: grid;
+    grid-template-columns: 1fr 60px 60px;
+    padding: 13px 16px;
+    border-bottom: 1px solid rgba(43, 44, 52, 0.05);
+    align-items: center;
+  }
+
+  .paywall-table .comparison .comp-row .feature-name {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .paywall-table .comparison .comp-row .check {
+    text-align: center;
+    font-size: 15px;
+  }
+
+  .paywall-table .comparison .comp-row .check.yes { color: #6246ea; }
+  .paywall-table .comparison .comp-row .check.no { color: rgba(43, 44, 52, 0.2); }
+  .paywall-table .comparison .comp-row .check.limit { color: rgba(43, 44, 52, 0.45); font-size: 12px; }
+
+  .paywall-table .bottom {
+    padding: 20px 28px 48px;
+  }
+
+  .paywall-table .cta-btn {
+    display: block;
+    width: 100%;
+    padding: 17px;
+    border: none;
+    border-radius: 14px;
+    background: #6246ea;
+    color: white;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+
+  .paywall-table .cta-sub {
+    text-align: center;
+    font-size: 13px;
+    color: rgba(43, 44, 52, 0.45);
+    margin-bottom: 12px;
+  }
+
+  .paywall-table .restore {
+    text-align: center;
+    font-size: 13px;
+    color: rgba(43, 44, 52, 0.4);
+  }
+
+  .paywall-table .restore a {
+    color: rgba(43, 44, 52, 0.4);
+    text-decoration: none;
+    margin: 0 8px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     OPTION A: FEATURE LIST — LIGHT MODE
+     ═══════════════════════════════════════════ -->
+<div>
+  <div class="label">Option A — Feature List (Light)</div>
+  <div class="phone-frame">
+    <div class="paywall-light">
+      <div class="top-bar">
+        <div class="close-btn">&times;</div>
+      </div>
+
+      <div class="hero">
+        <!-- Pixel grid representing the 3x3 animation (perimeter walk, frame frozen) -->
+        <div class="pixel-grid">
+          <div class="cell"></div>
+          <div class="cell"></div>
+          <div class="cell dim"></div>
+          <div class="cell off"></div>
+          <div class="cell off"></div>
+          <div class="cell off"></div>
+          <div class="cell off"></div>
+          <div class="cell off"></div>
+          <div class="cell off"></div>
+        </div>
+        <h1>Unlock Vaultaire</h1>
+        <p>One purchase. Yours forever.</p>
+      </div>
+
+      <div class="features">
+        <div class="feature-row">
+          <div class="feature-icon">&#x1F4F8;</div>
+          <div class="feature-text">
+            <h3>Unlimited Photos & Videos</h3>
+            <p>Remove the 100 photo and 10 video limit per vault</p>
+          </div>
+        </div>
+
+        <div class="feature-row">
+          <div class="feature-icon">&#x1F512;</div>
+          <div class="feature-text">
+            <h3>Unlimited Vaults</h3>
+            <p>Create more than 10 pattern-locked vaults</p>
+          </div>
+        </div>
+
+        <div class="feature-row">
+          <div class="feature-icon">&#x1F6E1;</div>
+          <div class="feature-text">
+            <h3>Duress Vault</h3>
+            <p>A decoy vault that opens under coercion</p>
+          </div>
+        </div>
+
+        <div class="feature-row">
+          <div class="feature-icon">&#x1F91D;</div>
+          <div class="feature-text">
+            <h3>Vault Sharing</h3>
+            <p>Share an encrypted vault with a passphrase</p>
+          </div>
+        </div>
+
+        <div class="feature-row">
+          <div class="feature-icon">&#x2601;</div>
+          <div class="feature-text">
+            <h3>iCloud Backup</h3>
+            <p>Encrypted backups you can restore on any device</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom">
+        <div class="price-card">
+          <div class="badge">Lifetime</div>
+          <div class="price"><sup>$</sup>9<sup>.99</sup></div>
+          <div class="price-sub">One-time purchase &middot; No subscription</div>
+        </div>
+        <button class="cta-btn">Purchase for $9.99</button>
+        <div class="restore">
+          <a href="#">Restore Purchases</a> &middot; <a href="#">Terms</a> &middot; <a href="#">Privacy</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     OPTION A: FEATURE LIST — DARK MODE
+     ═══════════════════════════════════════════ -->
+<div>
+  <div class="label">Option A — Feature List (Dark)</div>
+  <div class="phone-frame">
+    <div class="paywall-dark">
+      <div class="top-bar">
+        <div class="close-btn">&times;</div>
+      </div>
+
+      <div class="hero">
+        <div class="pixel-grid">
+          <div class="cell"></div>
+          <div class="cell"></div>
+          <div class="cell dim"></div>
+          <div class="cell off"></div>
+          <div class="cell off"></div>
+          <div class="cell off"></div>
+          <div class="cell off"></div>
+          <div class="cell off"></div>
+          <div class="cell off"></div>
+        </div>
+        <h1>Unlock Vaultaire</h1>
+        <p>One purchase. Yours forever.</p>
+      </div>
+
+      <div class="features">
+        <div class="feature-row">
+          <div class="feature-icon">&#x1F4F8;</div>
+          <div class="feature-text">
+            <h3>Unlimited Photos & Videos</h3>
+            <p>Remove the 100 photo and 10 video limit per vault</p>
+          </div>
+        </div>
+
+        <div class="feature-row">
+          <div class="feature-icon">&#x1F512;</div>
+          <div class="feature-text">
+            <h3>Unlimited Vaults</h3>
+            <p>Create more than 10 pattern-locked vaults</p>
+          </div>
+        </div>
+
+        <div class="feature-row">
+          <div class="feature-icon">&#x1F6E1;</div>
+          <div class="feature-text">
+            <h3>Duress Vault</h3>
+            <p>A decoy vault that opens under coercion</p>
+          </div>
+        </div>
+
+        <div class="feature-row">
+          <div class="feature-icon">&#x1F91D;</div>
+          <div class="feature-text">
+            <h3>Vault Sharing</h3>
+            <p>Share an encrypted vault with a passphrase</p>
+          </div>
+        </div>
+
+        <div class="feature-row">
+          <div class="feature-icon">&#x2601;</div>
+          <div class="feature-text">
+            <h3>iCloud Backup</h3>
+            <p>Encrypted backups you can restore on any device</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom">
+        <div class="price-card">
+          <div class="badge">Lifetime</div>
+          <div class="price"><sup>$</sup>9<sup>.99</sup></div>
+          <div class="price-sub">One-time purchase &middot; No subscription</div>
+        </div>
+        <button class="cta-btn">Purchase for $9.99</button>
+        <div class="restore">
+          <a href="#">Restore Purchases</a> &middot; <a href="#">Terms</a> &middot; <a href="#">Privacy</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     OPTION B: COMPARISON TABLE — LIGHT MODE
+     ═══════════════════════════════════════════ -->
+<div>
+  <div class="label">Option B — Comparison Table (Light)</div>
+  <div class="phone-frame">
+    <div class="paywall-table">
+      <div class="top-bar">
+        <div class="close-btn">&times;</div>
+      </div>
+
+      <div class="hero">
+        <div class="pixel-grid">
+          <div class="cell"></div>
+          <div class="cell"></div>
+          <div class="cell dim"></div>
+          <div class="cell off"></div>
+          <div class="cell off"></div>
+          <div class="cell off"></div>
+          <div class="cell off"></div>
+          <div class="cell off"></div>
+          <div class="cell off"></div>
+        </div>
+        <h1>Unlock Vaultaire</h1>
+        <p>One purchase. Yours forever.</p>
+      </div>
+
+      <div class="comparison">
+        <div class="header-row">
+          <span></span>
+          <span>Free</span>
+          <span><span class="pro-badge">PRO</span></span>
+        </div>
+
+        <div class="comp-row">
+          <span class="feature-name">Photos per vault</span>
+          <span class="check limit">100</span>
+          <span class="check yes">&#x221E;</span>
+        </div>
+
+        <div class="comp-row">
+          <span class="feature-name">Videos per vault</span>
+          <span class="check limit">10</span>
+          <span class="check yes">&#x221E;</span>
+        </div>
+
+        <div class="comp-row">
+          <span class="feature-name">Vaults</span>
+          <span class="check limit">10</span>
+          <span class="check yes">&#x221E;</span>
+        </div>
+
+        <div class="comp-row">
+          <span class="feature-name">Duress vault</span>
+          <span class="check no">&mdash;</span>
+          <span class="check yes">&#x2713;</span>
+        </div>
+
+        <div class="comp-row">
+          <span class="feature-name">Vault sharing</span>
+          <span class="check no">&mdash;</span>
+          <span class="check yes">&#x2713;</span>
+        </div>
+
+        <div class="comp-row">
+          <span class="feature-name">iCloud backup</span>
+          <span class="check no">&mdash;</span>
+          <span class="check yes">&#x2713;</span>
+        </div>
+
+        <div class="comp-row">
+          <span class="feature-name">Pattern encryption</span>
+          <span class="check yes">&#x2713;</span>
+          <span class="check yes">&#x2713;</span>
+        </div>
+
+        <div class="comp-row">
+          <span class="feature-name">Plausible deniability</span>
+          <span class="check yes">&#x2713;</span>
+          <span class="check yes">&#x2713;</span>
+        </div>
+      </div>
+
+      <div class="bottom">
+        <button class="cta-btn">Purchase for $9.99</button>
+        <div class="cta-sub">Lifetime &middot; One-time purchase</div>
+        <div class="restore">
+          <a href="#">Restore Purchases</a> &middot; <a href="#">Terms</a> &middot; <a href="#">Privacy</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
