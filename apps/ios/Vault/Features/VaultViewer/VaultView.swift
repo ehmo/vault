@@ -1384,7 +1384,7 @@ struct VaultView: View {
                 }
             }
 
-            ShareSyncManager.shared.scheduleSync(vaultKey: key)
+            await ShareSyncManager.shared.scheduleSync(vaultKey: key)
         }
     }
 
@@ -1437,7 +1437,7 @@ struct VaultView: View {
                 self.toastMessage = .filesImported(count)
             }
 
-            ShareSyncManager.shared.scheduleSync(vaultKey: key)
+            await ShareSyncManager.shared.scheduleSync(vaultKey: key)
         }
     }
 
