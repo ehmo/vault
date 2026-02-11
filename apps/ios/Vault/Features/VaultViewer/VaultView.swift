@@ -1338,7 +1338,7 @@ struct VaultView: View {
                 }
 
                 // Trigger sync if sharing
-                await ShareSyncManager.shared.scheduleSync(vaultKey: key)
+                ShareSyncManager.shared.scheduleSync(vaultKey: key)
             } catch {
                 // Handle error silently
             }
@@ -1346,7 +1346,7 @@ struct VaultView: View {
     }
 
     private func handleSelectedPhotos(_ results: [PHPickerResult]) {
-        guard !isSharedVault, let key = appState.currentVaultKey else { return }
+        guard !isSharedVault, appState.currentVaultKey != nil else { return }
 
         if !subscriptionManager.isPremium {
             let remaining = max(0, SubscriptionManager.maxFreeFilesPerVault - files.count)
@@ -1445,12 +1445,13 @@ struct VaultView: View {
                 }
             }
 
+            let imported = successCount
             await MainActor.run {
                 self.importProgress = nil
                 if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: self.files.count) {
                     self.toastMessage = .milestone(milestone)
                 } else {
-                    self.toastMessage = .filesImported(successCount)
+                    self.toastMessage = .filesImported(imported)
                 }
             }
 
@@ -1503,7 +1504,7 @@ struct VaultView: View {
     }
 
     private func handleImportedFiles(_ result: Result<[URL], Error>) {
-        guard !isSharedVault, let key = appState.currentVaultKey else { return }
+        guard !isSharedVault, appState.currentVaultKey != nil else { return }
         guard case .success(let urls) = result else { return }
 
         if !subscriptionManager.isPremium {
@@ -1570,9 +1571,10 @@ struct VaultView: View {
                 successCount += 1
             }
 
+            let imported = successCount
             await MainActor.run {
                 self.importProgress = nil
-                self.toastMessage = .filesImported(successCount)
+                self.toastMessage = .filesImported(imported)
             }
 
             await ShareSyncManager.shared.scheduleSync(vaultKey: key)
