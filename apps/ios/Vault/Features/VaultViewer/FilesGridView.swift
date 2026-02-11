@@ -5,6 +5,7 @@ struct FilesGridView: View {
     let files: [VaultFileItem]
     let onSelect: (VaultFileItem) -> Void
     var onDelete: ((UUID) -> Void)?
+    var masterKey: Data? = nil
     var isEditing: Bool = false
     var selectedIds: Set<UUID> = []
     var onToggleSelect: ((UUID) -> Void)?
@@ -40,14 +41,9 @@ struct FilesGridView: View {
     @ViewBuilder
     private func cellView(for file: VaultFileItem) -> some View {
         VStack(spacing: 8) {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.vaultSurface)
+            thumbnailOrIcon(for: file)
                 .aspectRatio(1, contentMode: .fit)
-                .overlay {
-                    Image(systemName: iconName(for: file.mimeType))
-                        .font(.title)
-                        .foregroundStyle(.vaultSecondaryText)
-                }
+                .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(alignment: .bottomTrailing) {
                     if isEditing {
                         selectionCircle(selected: selectedIds.contains(file.id))
@@ -83,6 +79,39 @@ struct FilesGridView: View {
                     Label("Delete", systemImage: "trash")
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func thumbnailOrIcon(for file: VaultFileItem) -> some View {
+        if let masterKey, file.encryptedThumbnail != nil {
+            Color.clear
+                .overlay {
+                    AsyncThumbnailView(
+                        fileId: file.id,
+                        encryptedThumbnail: file.encryptedThumbnail,
+                        masterKey: masterKey,
+                        contentMode: .fill
+                    )
+                }
+                .clipped()
+                .overlay(alignment: .bottomLeading) {
+                    if (file.mimeType ?? "").hasPrefix("video/") {
+                        Image(systemName: "play.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.white)
+                            .padding(4)
+                            .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 4))
+                            .padding(4)
+                    }
+                }
+        } else {
+            Color.vaultSurface
+                .overlay {
+                    Image(systemName: iconName(for: file.mimeType))
+                        .font(.title)
+                        .foregroundStyle(.vaultSecondaryText)
+                }
         }
     }
 
@@ -154,6 +183,7 @@ struct FilesGridView: View {
 
     private func iconName(for mimeType: String?) -> String {
         guard let mimeType else { return "doc.fill" }
+        if mimeType.hasPrefix("image/") { return "photo.fill" }
         if mimeType.hasPrefix("video/") { return "video.fill" }
         if mimeType.hasPrefix("application/pdf") { return "doc.text.fill" }
         if mimeType.hasPrefix("text/") { return "doc.text.fill" }

@@ -40,6 +40,7 @@ enum PendingImport {
 struct DateGroup: Identifiable {
     let id: String // group title
     let title: String
+    let items: [VaultFileItem] // all items in original order
     let images: [VaultFileItem]
     let files: [VaultFileItem] // non-image files
 }
@@ -82,7 +83,7 @@ private func groupFilesByDate(_ items: [VaultFileItem]) -> [DateGroup] {
         guard !bucket.items.isEmpty else { return nil }
         let images = bucket.items.filter { $0.isImage }
         let files = bucket.items.filter { !$0.isImage }
-        return DateGroup(id: bucket.title, title: bucket.title, images: images, files: files)
+        return DateGroup(id: bucket.title, title: bucket.title, items: bucket.items, images: images, files: files)
     }
 }
 
@@ -197,8 +198,8 @@ struct VaultView: View {
         LazyVStack(alignment: .leading, spacing: 0, pinnedViews: .sectionHeaders) {
             ForEach(groups) { group in
                 Section {
-                    VStack(spacing: 0) {
-                        if !group.images.isEmpty {
+                    Group {
+                        if fileFilter == .photos {
                             PhotosGridView(files: group.images, masterKey: masterKey, onSelect: { file, _ in
                                 SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                                 let allImages = sortedFiles.filter { ($0.mimeType ?? "").hasPrefix("image/") }
@@ -206,14 +207,13 @@ struct VaultView: View {
                                 selectedPhotoIndex = globalIndex
                             }, onDelete: isSharedVault ? nil : deleteFileById,
                                isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
-                        }
-                        if !group.files.isEmpty {
-                            FilesGridView(files: group.files, onSelect: { file in
+                        } else {
+                            FilesGridView(files: group.items, onSelect: { file in
                                 SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                                 selectedFile = file
                             }, onDelete: isSharedVault ? nil : deleteFileById,
+                               masterKey: masterKey,
                                isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
-                            .padding(.top, group.images.isEmpty ? 0 : 12)
                         }
                     }
                     .padding(.top, 8)
@@ -233,41 +233,19 @@ struct VaultView: View {
 
     @ViewBuilder
     private func flatContent(split: (all: [VaultFileItem], images: [VaultFileItem], videos: [VaultFileItem], documents: [VaultFileItem]), masterKey: Data) -> some View {
-        let nonImages = split.videos + split.documents
         switch fileFilter {
-        case .all:
-            if !split.images.isEmpty {
-                PhotosGridView(files: split.images, masterKey: masterKey, onSelect: { file, index in
-                    SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
-                    selectedPhotoIndex = index
-                }, onDelete: isSharedVault ? nil : deleteFileById,
-                   isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
-            }
-            if !nonImages.isEmpty {
-                FilesGridView(files: nonImages, onSelect: { file in
-                    SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
-                    selectedFile = file
-                }, onDelete: isSharedVault ? nil : deleteFileById,
-                   isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
-                .padding(.top, split.images.isEmpty ? 0 : 12)
-            }
         case .photos:
             PhotosGridView(files: split.images, masterKey: masterKey, onSelect: { file, index in
                 SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                 selectedPhotoIndex = index
             }, onDelete: isSharedVault ? nil : deleteFileById,
                isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
-        case .videos:
-            FilesGridView(files: split.videos, onSelect: { file in
+        default:
+            FilesGridView(files: split.all, onSelect: { file in
                 SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                 selectedFile = file
             }, onDelete: isSharedVault ? nil : deleteFileById,
-               isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
-        case .documents:
-            FilesGridView(files: split.documents, onSelect: { file in
-                SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
-                selectedFile = file
-            }, onDelete: isSharedVault ? nil : deleteFileById,
+               masterKey: masterKey,
                isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
         }
     }
