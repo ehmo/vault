@@ -1326,7 +1326,7 @@ struct VaultView: View {
                 }
 
                 // Trigger sync if sharing
-                ShareSyncManager.shared.scheduleSync(vaultKey: key)
+                await ShareSyncManager.shared.scheduleSync(vaultKey: key)
             } catch {
                 // Handle error silently
             }
