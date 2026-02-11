@@ -758,25 +758,197 @@ struct iCloudBackupSettingsView: View {
 }
 
 struct RestoreFromBackupView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(AppState.self) private var appState
+
+    @State private var patternState = PatternState()
+    @State private var showFeedback = true
+    @State private var backupInfo: iCloudBackupManager.BackupMetadata?
+    @State private var isCheckingBackup = true
+    @State private var noBackupFound = false
+    @State private var isRestoring = false
+    @State private var restoreStage: String?
+    @State private var errorMessage: String?
+    @State private var restoreSuccess = false
+
+    private let backupManager = iCloudBackupManager.shared
+
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "arrow.down.circle")
+        NavigationStack {
+            Group {
+                if isCheckingBackup {
+                    ProgressView("Checking for backup...")
+                } else if noBackupFound {
+                    noBackupView
+                } else if restoreSuccess {
+                    successView
+                } else {
+                    restoreContentView
+                }
+            }
+            .navigationTitle("Restore from Backup")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+        .interactiveDismissDisabled(isRestoring)
+        .task { await checkForBackup() }
+    }
+
+    private var noBackupView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "icloud.slash")
                 .font(.system(size: 48))
                 .foregroundStyle(.vaultSecondaryText)
-
-            Text("Restore from iCloud")
-                .font(.title2)
-                .fontWeight(.medium)
-
-            Text("Enter your pattern to restore a vault from your iCloud backup.")
-                .font(.subheadline)
+            Text("No Backup Found")
+                .font(.title2).fontWeight(.semibold)
+            Text("No iCloud backup was found for this account. Enable iCloud Backup and create a backup first.")
                 .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
+                .padding(.horizontal)
+        }
+        .padding(.top, 60)
+    }
+
+    private var successView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 48))
+                .foregroundStyle(.green)
+            Text("Restore Complete")
+                .font(.title2).fontWeight(.semibold)
+            Text("Your vault has been restored. Lock and re-enter your pattern to access it.")
+                .foregroundStyle(.vaultSecondaryText)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+
+            Button("Done") { dismiss() }
+                .buttonStyle(.borderedProminent)
+                .padding(.top, 8)
+        }
+        .padding(.top, 60)
+    }
+
+    private var restoreContentView: some View {
+        VStack(spacing: 16) {
+            if let info = backupInfo {
+                HStack(spacing: 12) {
+                    Image(systemName: "icloud.fill")
+                        .foregroundStyle(Color.accentColor)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Backup from \(info.formattedDate)")
+                            .font(.subheadline.weight(.medium))
+                        Text(info.formattedSize)
+                            .font(.caption)
+                            .foregroundStyle(.vaultSecondaryText)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
+            }
+
+            if isRestoring {
+                VStack(spacing: 12) {
+                    ProgressView()
+                    Text(restoreStage ?? "Restoring...")
+                        .font(.subheadline)
+                        .foregroundStyle(.vaultSecondaryText)
+                }
+                .padding(.top, 40)
+            } else {
+                Text("Draw your pattern to decrypt the backup")
+                    .font(.subheadline)
+                    .foregroundStyle(.vaultSecondaryText)
+                    .multilineTextAlignment(.center)
+
+                PatternGridView(state: patternState, showFeedback: $showFeedback) { pattern in
+                    performRestore(with: pattern)
+                }
+                .frame(maxWidth: 280, maxHeight: 280)
+                .padding()
+            }
+
+            if let errorMessage {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("Restore Failed", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                        .font(.subheadline.weight(.medium))
+                    Text(errorMessage)
+                        .foregroundStyle(.vaultSecondaryText)
+                        .font(.caption)
+                        .textSelection(.enabled)
+                }
+                .padding(.horizontal)
+
+                Button("Try Again") {
+                    resetForRetry()
+                }
+                .font(.subheadline)
+            }
 
             Spacer()
         }
-        .padding()
-        .navigationTitle("Restore")
+    }
+
+    private func resetForRetry() {
+        errorMessage = nil
+        patternState.reset()
+    }
+
+    private func checkForBackup() async {
+        isCheckingBackup = true
+        let info = await backupManager.checkForBackup()
+        await MainActor.run {
+            backupInfo = info
+            noBackupFound = info == nil
+            isCheckingBackup = false
+        }
+    }
+
+    private func performRestore(with pattern: [Int]) {
+        guard pattern.count >= 6 else {
+            patternState.reset()
+            return
+        }
+
+        isRestoring = true
+        errorMessage = nil
+        restoreStage = "Deriving encryption key..."
+
+        Task {
+            do {
+                let key = try await KeyDerivation.deriveKey(from: pattern, gridSize: patternState.gridSize)
+
+                await MainActor.run { restoreStage = "Downloading from iCloud..." }
+                try await backupManager.restoreBackup(with: key)
+
+                await MainActor.run {
+                    isRestoring = false
+                    restoreSuccess = true
+                }
+            } catch iCloudError.notAvailable {
+                await MainActor.run {
+                    errorMessage = "iCloud is not available. Check your connection and try again."
+                    isRestoring = false
+                    patternState.reset()
+                }
+            } catch iCloudError.downloadFailed {
+                await MainActor.run {
+                    errorMessage = "Decryption failed. This usually means the pattern doesn't match the one used to create the backup."
+                    isRestoring = false
+                    patternState.reset()
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = "\(error.localizedDescription)\n\nDetails: \(error)"
+                    isRestoring = false
+                    patternState.reset()
+                }
+            }
+        }
     }
 }
 
