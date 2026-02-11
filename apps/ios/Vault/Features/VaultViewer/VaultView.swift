@@ -109,6 +109,7 @@ struct VaultView: View {
     @State private var exportURLs: [URL] = []
     @State private var toastMessage: ToastMessage?
     @State private var importProgress: (completed: Int, total: Int)?
+    @State private var isDeleteInProgress = false
     @State private var showingLimitAlert = false
     @State private var pendingImport: PendingImport?
     @State private var limitAlertRemaining = 0
@@ -521,6 +522,7 @@ struct VaultView: View {
             activeImportTask?.cancel()
             activeImportTask = nil
             importProgress = nil
+            isDeleteInProgress = false
             UIApplication.shared.isIdleTimerDisabled = false
 
             if oldKey != newKey {
@@ -858,7 +860,7 @@ struct VaultView: View {
         return VStack(spacing: 24) {
             PixelAnimation.loading(size: 60)
 
-            Text("Importing \(completed) of \(total)...")
+            Text(isDeleteInProgress ? "Deleting \(completed) of \(total)..." : "Importing \(completed) of \(total)...")
                 .font(.title3)
                 .fontWeight(.medium)
 
@@ -1192,6 +1194,7 @@ struct VaultView: View {
         let count = idsToDelete.count
 
         // Show progress and prevent sleep
+        isDeleteInProgress = true
         importProgress = (0, count)
         UIApplication.shared.isIdleTimerDisabled = true
         isEditing = false
@@ -1210,6 +1213,7 @@ struct VaultView: View {
                 files.removeAll { idsToDelete.contains($0.id) }
                 selectedIds.removeAll()
                 importProgress = nil
+                isDeleteInProgress = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 toastMessage = .filesDeleted(count)
             }
