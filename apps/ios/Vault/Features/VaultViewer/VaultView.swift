@@ -197,23 +197,26 @@ struct VaultView: View {
         LazyVStack(alignment: .leading, spacing: 0, pinnedViews: .sectionHeaders) {
             ForEach(groups) { group in
                 Section {
-                    if !group.images.isEmpty {
-                        PhotosGridView(files: group.images, masterKey: masterKey, onSelect: { file, _ in
-                            SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
-                            let allImages = sortedFiles.filter { ($0.mimeType ?? "").hasPrefix("image/") }
-                            let globalIndex = allImages.firstIndex(where: { $0.id == file.id }) ?? 0
-                            selectedPhotoIndex = globalIndex
-                        }, onDelete: isSharedVault ? nil : deleteFileById,
-                           isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
+                    VStack(spacing: 0) {
+                        if !group.images.isEmpty {
+                            PhotosGridView(files: group.images, masterKey: masterKey, onSelect: { file, _ in
+                                SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
+                                let allImages = sortedFiles.filter { ($0.mimeType ?? "").hasPrefix("image/") }
+                                let globalIndex = allImages.firstIndex(where: { $0.id == file.id }) ?? 0
+                                selectedPhotoIndex = globalIndex
+                            }, onDelete: isSharedVault ? nil : deleteFileById,
+                               isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
+                        }
+                        if !group.files.isEmpty {
+                            FilesGridView(files: group.files, onSelect: { file in
+                                SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
+                                selectedFile = file
+                            }, onDelete: isSharedVault ? nil : deleteFileById,
+                               isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
+                            .padding(.top, group.images.isEmpty ? 0 : 12)
+                        }
                     }
-                    if !group.files.isEmpty {
-                        FilesGridView(files: group.files, onSelect: { file in
-                            SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
-                            selectedFile = file
-                        }, onDelete: isSharedVault ? nil : deleteFileById,
-                           isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
-                        .padding(.top, group.images.isEmpty ? 0 : 12)
-                    }
+                    .padding(.top, 8)
                 } header: {
                     Text(group.title)
                         .font(.headline)
