@@ -102,6 +102,7 @@ struct VaultView: View {
     @State private var showingFanMenu = false
     @State private var exportURLs: [URL] = []
     @State private var toastMessage: ToastMessage?
+    @State private var importProgress: (completed: Int, total: Int)?
     private let floatingButtonTrailingInset: CGFloat = 15
     private let floatingButtonBottomInset: CGFloat = -15
 
@@ -489,6 +490,16 @@ struct VaultView: View {
                     }
                     .animation(.easeInOut(duration: 0.25), value: showingFanMenu)
             }
+            .overlay {
+                if let progress = importProgress {
+                    ZStack {
+                        Color.black.opacity(0.4)
+                            .ignoresSafeArea()
+                        localImportProgressView(completed: progress.completed, total: progress.total)
+                    }
+                    .accessibilityIdentifier("vault_local_import_progress")
+                }
+            }
             .overlay(alignment: .bottomTrailing) {
                 fanMenuItems
                     .padding(.trailing, floatingButtonTrailingInset)
@@ -814,6 +825,29 @@ struct VaultView: View {
                 .foregroundStyle(.vaultSecondaryText)
         }
         .accessibilityIdentifier("vault_import_progress")
+    }
+
+    // MARK: - Local Import Progress
+
+    private func localImportProgressView(completed: Int, total: Int) -> some View {
+        let percentage = total > 0 ? Int(Double(completed) / Double(total) * 100) : 0
+        return VStack(spacing: 24) {
+            PixelAnimation.loading(size: 60)
+
+            Text("Encrypting \(completed) of \(total)...")
+                .font(.title3)
+                .fontWeight(.medium)
+
+            VStack(spacing: 8) {
+                ProgressView(value: Double(completed), total: Double(total))
+                    .tint(.accentColor)
+                    .padding(.horizontal, 40)
+
+                Text("\(percentage)%")
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(.vaultSecondaryText)
+            }
+        }
     }
 
     // MARK: - Fan Menu
@@ -1302,11 +1336,17 @@ struct VaultView: View {
     private func handleSelectedImages(_ imagesData: [Data]) {
         guard !isSharedVault, let key = appState.currentVaultKey else { return }
         let count = imagesData.count
+        let showProgress = count > 1
+        let encryptionKey = self.masterKey ?? key
 
-        for data in imagesData {
-            Task {
+        Task.detached(priority: .userInitiated) {
+            if showProgress {
+                await MainActor.run { self.importProgress = (0, count) }
+            }
+
+            for (index, data) in imagesData.enumerated() {
                 do {
-                    let filename = "IMG_\(Date().timeIntervalSince1970).jpg"
+                    let filename = "IMG_\(Date().timeIntervalSince1970)_\(index).jpg"
                     let thumbnail = FileUtilities.generateThumbnail(from: data)
                     let fileId = try VaultStorage.shared.storeFile(
                         data: data,
@@ -1315,15 +1355,18 @@ struct VaultView: View {
                         with: key,
                         thumbnailData: thumbnail
                     )
-                    let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: self.masterKey ?? key) }
+                    let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
                     await MainActor.run {
-                        files.append(VaultFileItem(
+                        self.files.append(VaultFileItem(
                             id: fileId,
                             size: data.count,
                             encryptedThumbnail: encThumb,
                             mimeType: "image/jpeg",
                             filename: filename
                         ))
+                        if showProgress {
+                            self.importProgress = (index + 1, count)
+                        }
                     }
                 } catch {
                     #if DEBUG
@@ -1331,25 +1374,33 @@ struct VaultView: View {
                     #endif
                 }
             }
-        }
 
-        // Show toast after a short delay to allow imports to finish
-        Task {
-            try? await Task.sleep(for: .seconds(1))
-            await MainActor.run { toastMessage = .filesImported(count) }
-        }
+            await MainActor.run {
+                self.importProgress = nil
+                if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: self.files.count) {
+                    self.toastMessage = .milestone(milestone)
+                } else {
+                    self.toastMessage = .filesImported(count)
+                }
+            }
 
-        // Trigger sync if sharing
-        ShareSyncManager.shared.scheduleSync(vaultKey: key)
+            ShareSyncManager.shared.scheduleSync(vaultKey: key)
+        }
     }
 
     private func handleImportedFiles(_ result: Result<[URL], Error>) {
         guard !isSharedVault, let key = appState.currentVaultKey else { return }
         guard case .success(let urls) = result else { return }
+        let count = urls.count
+        let showProgress = count > 1
         let encryptionKey = self.masterKey ?? key
 
-        Task {
-            for url in urls {
+        Task.detached(priority: .userInitiated) {
+            if showProgress {
+                await MainActor.run { self.importProgress = (0, count) }
+            }
+
+            for (index, url) in urls.enumerated() {
                 guard url.startAccessingSecurityScopedResource() else { continue }
                 defer { url.stopAccessingSecurityScopedResource() }
 
@@ -1367,18 +1418,27 @@ struct VaultView: View {
                 ) else { continue }
 
                 let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
-                files.append(VaultFileItem(
-                    id: fileId,
-                    size: data.count,
-                    encryptedThumbnail: encThumb,
-                    mimeType: mimeType,
-                    filename: filename
-                ))
+                await MainActor.run {
+                    self.files.append(VaultFileItem(
+                        id: fileId,
+                        size: data.count,
+                        encryptedThumbnail: encThumb,
+                        mimeType: mimeType,
+                        filename: filename
+                    ))
+                    if showProgress {
+                        self.importProgress = (index + 1, count)
+                    }
+                }
             }
-        }
 
-        // Trigger sync if sharing
-        ShareSyncManager.shared.scheduleSync(vaultKey: key)
+            await MainActor.run {
+                self.importProgress = nil
+                self.toastMessage = .filesImported(count)
+            }
+
+            ShareSyncManager.shared.scheduleSync(vaultKey: key)
+        }
     }
 
 }
