@@ -1501,6 +1501,10 @@ struct VaultView: View {
                 } else {
                     self.toastMessage = .filesImported(imported)
                 }
+                // Switch to Media filter so imported photos/videos are visible
+                if imported > 0 && self.fileFilter == .documents {
+                    self.fileFilter = .media
+                }
             }
 
             if !Task.isCancelled {
@@ -1637,6 +1641,10 @@ struct VaultView: View {
                 self.importProgress = nil
                 UIApplication.shared.isIdleTimerDisabled = false
                 self.toastMessage = .filesImported(imported)
+                // Switch to All filter so imported files are visible
+                if imported > 0 && self.fileFilter != .all {
+                    self.fileFilter = .all
+                }
             }
 
             if !Task.isCancelled {
