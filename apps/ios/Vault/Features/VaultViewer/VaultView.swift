@@ -1190,15 +1190,34 @@ struct VaultView: View {
         guard let key = appState.currentVaultKey else { return }
         let idsToDelete = selectedIds
         let count = idsToDelete.count
-        Task {
-            for id in idsToDelete {
-                try? VaultStorage.shared.deleteFile(id: id, with: key)
+
+        // Show progress and prevent sleep
+        importProgress = (0, count)
+        UIApplication.shared.isIdleTimerDisabled = true
+        isEditing = false
+
+        activeImportTask?.cancel()
+        activeImportTask = Task.detached(priority: .userInitiated) {
+            try? VaultStorage.shared.deleteFiles(ids: idsToDelete, with: key) { deleted in
+                Task { @MainActor in
+                    guard !Task.isCancelled else { return }
+                    self.importProgress = (deleted, count)
+                }
             }
+
             await MainActor.run {
+                guard !Task.isCancelled else { return }
                 files.removeAll { idsToDelete.contains($0.id) }
                 selectedIds.removeAll()
-                isEditing = false
+                importProgress = nil
+                UIApplication.shared.isIdleTimerDisabled = false
                 toastMessage = .filesDeleted(count)
+            }
+
+            if !Task.isCancelled {
+                await MainActor.run {
+                    ShareSyncManager.shared.scheduleSync(vaultKey: key)
+                }
             }
         }
     }

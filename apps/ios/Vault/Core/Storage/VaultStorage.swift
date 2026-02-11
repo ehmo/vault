@@ -800,6 +800,57 @@ final class VaultStorage {
         try saveIndex(index, with: key)
     }
 
+    /// Delete multiple files in a single index load/save cycle.
+    /// Calls `onProgress` after each file is securely overwritten (on the calling thread).
+    func deleteFiles(ids: Set<UUID>, with key: Data, onProgress: ((Int) -> Void)? = nil) throws {
+        ensureBlobReady()
+        var index = try loadIndex(with: key)
+
+        // Group entries by blob to reuse file handles (nil blobId = "primary")
+        var entriesByBlob: [String: [(arrayIndex: Int, entry: VaultIndex.VaultFileEntry)]] = [:]
+        for (arrayIndex, entry) in index.files.enumerated() {
+            guard ids.contains(entry.fileId), !entry.isDeleted else { continue }
+            let effectiveBlobId = entry.blobId ?? "primary"
+            entriesByBlob[effectiveBlobId, default: []].append((arrayIndex, entry))
+        }
+
+        var deletedCount = 0
+
+        for (blobId, entries) in entriesByBlob {
+            let targetURL = blobURL(for: blobId, in: index)
+            guard let handle = try? FileHandle(forWritingTo: targetURL) else { continue }
+            defer { try? handle.close() }
+
+            for (arrayIndex, entry) in entries {
+                // Securely overwrite file data with random bytes
+                try handle.seek(toOffset: UInt64(entry.offset))
+                if let randomData = CryptoEngine.generateRandomBytes(count: entry.size) {
+                    handle.write(randomData)
+                }
+
+                // Mark as deleted in index
+                index.files[arrayIndex] = VaultIndex.VaultFileEntry(
+                    fileId: entry.fileId,
+                    offset: entry.offset,
+                    size: entry.size,
+                    encryptedHeaderPreview: entry.encryptedHeaderPreview,
+                    isDeleted: true,
+                    thumbnailData: entry.thumbnailData,
+                    mimeType: entry.mimeType,
+                    filename: entry.filename,
+                    blobId: entry.blobId,
+                    createdAt: entry.createdAt
+                )
+
+                deletedCount += 1
+                onProgress?(deletedCount)
+            }
+        }
+
+        // Save index once for all deletions
+        try saveIndex(index, with: key)
+    }
+
     func listFiles(with key: Data) throws -> [VaultFileEntry] {
         let span = SentryManager.shared.startTransaction(name: "storage.list_files", operation: "storage.list_files")
         defer { span.finish(status: .ok) }
