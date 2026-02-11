@@ -304,10 +304,10 @@ struct VaultView: View {
 
                     ToolbarItem(placement: .topBarTrailing) {
                         HStack(spacing: 12) {
-                            if !files.isEmpty {
+                            if !files.isEmpty && !subscriptionManager.isPremium {
                                 StorageRingView(
                                     fileCount: files.count,
-                                    maxFiles: subscriptionManager.isPremium ? nil : SubscriptionManager.maxFreeFilesPerVault,
+                                    maxFiles: SubscriptionManager.maxFreeFilesPerVault,
                                     totalBytes: Int64(files.reduce(0) { $0 + $1.size })
                                 )
                             }

@@ -9,7 +9,6 @@ struct StorageRingView: View {
 
     private var progress: Double {
         guard let max = maxFiles, max > 0 else {
-            // Premium: show relative fill, cap at 1.0 visually
             return min(Double(fileCount) / 200.0, 1.0)
         }
         return min(Double(fileCount) / Double(max), 1.0)
@@ -26,18 +25,17 @@ struct StorageRingView: View {
             ZStack {
                 Circle()
                     .stroke(ringColor.opacity(0.2), lineWidth: 2.5)
-                    .frame(width: 22, height: 22)
 
                 Circle()
                     .trim(from: 0, to: progress)
                     .stroke(ringColor, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                    .frame(width: 22, height: 22)
                     .rotationEffect(.degrees(-90))
 
                 Text("\(fileCount)")
                     .font(.system(size: 8, weight: .bold, design: .rounded))
                     .foregroundStyle(ringColor)
             }
+            .frame(width: 26, height: 26)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(fileCount) files, \(formattedBytes) used")
