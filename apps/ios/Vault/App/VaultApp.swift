@@ -282,12 +282,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         AnalyticsManager.shared.startIfEnabled()
 
         // Initialize RevenueCat
-        // Test API keys cause fatalError in Release builds — only use in Debug
         #if DEBUG
         SubscriptionManager.shared.configure(apiKey: "test_GqDBKuyzTuNOClYgpyIUbvSEtTu")
         #else
-        // TODO: Replace with production API key from RevenueCat dashboard
-        // SubscriptionManager.shared.configure(apiKey: "appl_YOUR_PRODUCTION_KEY")
+        SubscriptionManager.shared.configure(apiKey: "appl_RHwamtdCBAsxHNQBRDVaKMNLMaB")
         #endif
 
         UNUserNotificationCenter.current().delegate = self

@@ -8,6 +8,7 @@ final class SubscriptionManager: NSObject {
     static let shared = SubscriptionManager()
 
     private(set) var isPremium = false
+    private(set) var isConfigured = false
     private(set) var customerInfo: CustomerInfo?
 
     static let entitlementID = "lifetime"
@@ -23,6 +24,7 @@ final class SubscriptionManager: NSObject {
         Purchases.logLevel = .debug
         Purchases.configure(withAPIKey: apiKey)
         Purchases.shared.delegate = self
+        isConfigured = true
 
         Task {
             await checkSubscriptionStatus()

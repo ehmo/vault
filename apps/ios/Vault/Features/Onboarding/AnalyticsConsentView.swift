@@ -9,25 +9,29 @@ struct AnalyticsConsentView: View {
 
     var body: some View {
         if consentChosen {
-            // Paywall phase
-            VStack(spacing: 0) {
-                PaywallView()
-                    .onPurchaseCompleted { info in
-                        subscriptionManager.updateFromCustomerInfo(info)
-                        onContinue()
-                    }
-                    .onRestoreCompleted { info in
-                        subscriptionManager.updateFromCustomerInfo(info)
-                        onContinue()
-                    }
+            // Paywall phase — skip if RevenueCat not configured (no production key)
+            if subscriptionManager.isConfigured {
+                VStack(spacing: 0) {
+                    PaywallView()
+                        .onPurchaseCompleted { info in
+                            subscriptionManager.updateFromCustomerInfo(info)
+                            onContinue()
+                        }
+                        .onRestoreCompleted { info in
+                            subscriptionManager.updateFromCustomerInfo(info)
+                            onContinue()
+                        }
 
-                Button(action: onContinue) {
-                    Text("Skip")
-                        .font(.subheadline)
-                        .foregroundStyle(.vaultSecondaryText)
+                    Button(action: onContinue) {
+                        Text("Skip")
+                            .font(.subheadline)
+                            .foregroundStyle(.vaultSecondaryText)
+                    }
+                    .accessibilityIdentifier("paywall_skip")
+                    .padding(.bottom, 24)
                 }
-                .accessibilityIdentifier("paywall_skip")
-                .padding(.bottom, 24)
+            } else {
+                Color.clear.onAppear { onContinue() }
             }
         } else {
             // Consent phase

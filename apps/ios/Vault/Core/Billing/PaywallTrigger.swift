@@ -28,15 +28,21 @@ struct PremiumGateModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .sheet(isPresented: $showPaywall) {
-                PaywallView()
-                    .onPurchaseCompleted { info in
-                        subscriptionManager.updateFromCustomerInfo(info)
-                        showPaywall = false
-                    }
-                    .onRestoreCompleted { info in
-                        subscriptionManager.updateFromCustomerInfo(info)
-                        showPaywall = false
-                    }
+                if subscriptionManager.isConfigured {
+                    PaywallView()
+                        .onPurchaseCompleted { info in
+                            subscriptionManager.updateFromCustomerInfo(info)
+                            showPaywall = false
+                        }
+                        .onRestoreCompleted { info in
+                            subscriptionManager.updateFromCustomerInfo(info)
+                            showPaywall = false
+                        }
+                } else {
+                    Text("Premium features coming soon")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                }
             }
     }
 }
