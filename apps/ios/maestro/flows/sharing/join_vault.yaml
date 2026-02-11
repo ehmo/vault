@@ -45,7 +45,6 @@ appId: app.vaultaire.ios
     id: "join_phrase_input"
     optional: true
 - inputText: "test phrase for maestro flow"
-  optional: true
 - tapOn:
     id: "join_vault_button"
     optional: true
