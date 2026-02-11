@@ -151,6 +151,7 @@ struct JoinVaultView: View {
             )
             .frame(width: 280, height: 280)
             .vaultPatternGridBackground()
+            .accessibilityIdentifier("join_pattern_grid")
 
             // Validation feedback — fixed height to prevent layout shift
             Group {
@@ -167,6 +168,7 @@ struct JoinVaultView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .vaultGlassBackground(cornerRadius: 12)
                     .transition(.scale.combined(with: .opacity))
+                    .accessibilityIdentifier("join_pattern_error")
                 } else {
                     Color.clear
                 }
@@ -183,6 +185,7 @@ struct JoinVaultView: View {
                     errorMessage = nil
                 }
                 .font(.subheadline)
+                .accessibilityIdentifier("join_pattern_start_over")
             }
         }
     }

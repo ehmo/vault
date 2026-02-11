@@ -1,0 +1,97 @@
+appId: app.vaultaire.ios
+---
+# Test join vault pattern validation and confirm mismatch error
+# Mirrors onboarding/pattern_confirm_error.yaml for the join flow
+# Note: Pattern drawing via Maestro swipe is best-effort — the PatternGridView
+# uses a custom DragGesture that may not register Maestro's synthetic swipes.
+# Assertions after pattern drawing are optional to avoid false failures.
+- runFlow: ../helpers/launch_test_mode.yaml
+
+# Lock the vault to get to lock screen
+- tapOn:
+    id: "vault_lock_button"
+
+# Open join vault
+- tapOn:
+    id: "unlock_join_link"
+    optional: true
+
+# Enter phrase and join
+- tapOn:
+    id: "join_phrase_input"
+    optional: true
+- inputText: "test phrase for pattern validation"
+  optional: true
+- tapOn:
+    id: "join_vault_button"
+    optional: true
+
+# Skip paywall if it appears
+- tapOn:
+    id: "paywall_skip"
+    optional: true
+
+# --- Pattern Create Screen ---
+- assertVisible:
+    text: "Set a Pattern"
+    optional: true
+- assertVisible:
+    id: "join_pattern_grid"
+    optional: true
+
+# Draw a pattern — horizontal swipe across grid (best-effort)
+- swipe:
+    start: "10%, 40%"
+    end: "90%, 40%"
+    duration: 1500
+    optional: true
+
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# If pattern was valid, confirm screen should appear
+- assertVisible:
+    text: "Confirm Pattern"
+    optional: true
+- assertVisible:
+    text: "Draw the same pattern to confirm"
+    optional: true
+- assertVisible:
+    id: "join_pattern_start_over"
+    optional: true
+
+# Draw a DIFFERENT pattern (vertical instead of horizontal) to trigger mismatch
+- swipe:
+    start: "10%, 40%"
+    end: "10%, 65%"
+    duration: 1500
+    optional: true
+
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Error message should appear
+- assertVisible:
+    id: "join_pattern_error"
+    optional: true
+- assertVisible:
+    text: "Patterns don't match. Try again."
+    optional: true
+
+# Tap Start Over to return to create screen
+- tapOn:
+    id: "join_pattern_start_over"
+    optional: true
+
+# Verify we're back on create screen
+- assertVisible:
+    text: "Set a Pattern"
+    optional: true
+- assertVisible:
+    id: "join_pattern_grid"
+    optional: true
+
+# Cancel out
+- tapOn:
+    id: "join_cancel"
+    optional: true

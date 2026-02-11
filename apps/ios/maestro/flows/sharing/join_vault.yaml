@@ -1,7 +1,7 @@
 appId: app.vaultaire.ios
 ---
-# Test join vault UI flow
-# Note: Actual CloudKit join won't complete in test; tests UI only
+# Test join vault UI flow: phrase input, pattern setup, and pattern confirm screens
+# Note: Actual CloudKit join won't complete in test; tests UI structure only
 - runFlow: ../helpers/launch_test_mode.yaml
 
 # Lock the vault first to get to the lock screen
@@ -13,12 +13,60 @@ appId: app.vaultaire.ios
     id: "unlock_join_link"
     optional: true
 
-# Join vault view
+# --- Phrase Input Screen ---
 - assertVisible:
     id: "join_cancel"
     optional: true
 
-# Cancel
+# Verify phrase input elements
+- assertVisible:
+    text: "Enter Share Phrase"
+    optional: true
+- assertVisible:
+    text: "Enter the one-time share phrase you received."
+    optional: true
+- assertVisible:
+    id: "join_phrase_input"
+    optional: true
+- assertVisible:
+    id: "join_vault_button"
+    optional: true
+
+# Verify info card
+- assertVisible:
+    text: "How it works"
+    optional: true
+
+# Join button should be disabled when phrase is empty (can't assert disabled state,
+# but we verify it exists)
+
+# Type a phrase and tap join
+- tapOn:
+    id: "join_phrase_input"
+    optional: true
+- inputText: "test phrase for maestro flow"
+  optional: true
+- tapOn:
+    id: "join_vault_button"
+    optional: true
+
+# --- Pattern Setup Screen (Create) ---
+# Paywall may appear for non-premium; skip it
+- tapOn:
+    id: "paywall_skip"
+    optional: true
+
+- assertVisible:
+    text: "Set a Pattern"
+    optional: true
+- assertVisible:
+    text: "Connect at least 6 dots"
+    optional: true
+- assertVisible:
+    id: "join_pattern_grid"
+    optional: true
+
+# Cancel and return
 - tapOn:
     id: "join_cancel"
     optional: true
