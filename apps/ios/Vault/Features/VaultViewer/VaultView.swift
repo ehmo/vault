@@ -113,6 +113,7 @@ struct VaultView: View {
     @State private var pendingImport: PendingImport?
     @State private var limitAlertRemaining = 0
     @State private var limitAlertSelected = 0
+    @State private var activeImportTask: Task<Void, Never>?
     private let floatingButtonTrailingInset: CGFloat = 15
     private let floatingButtonBottomInset: CGFloat = -15
 
@@ -515,8 +516,14 @@ struct VaultView: View {
         .task {
             loadVault()
         }
-        .onChange(of: appState.currentVaultKey) { _, newKey in
-            if newKey == nil {
+        .onChange(of: appState.currentVaultKey) { oldKey, newKey in
+            // Cancel any in-flight imports immediately on vault key change
+            activeImportTask?.cancel()
+            activeImportTask = nil
+            importProgress = nil
+            UIApplication.shared.isIdleTimerDisabled = false
+
+            if oldKey != newKey {
                 files = []
                 masterKey = nil
                 Task { await ThumbnailCache.shared.clear() }
@@ -1206,6 +1213,7 @@ struct VaultView: View {
             var urls: [URL] = []
 
             for id in idsToExport {
+                guard !Task.isCancelled else { break }
                 guard let result = try? VaultStorage.shared.retrieveFile(id: id, with: key) else { continue }
                 let file = filesList.first { $0.id == id }
                 let filename = file?.filename ?? "Export_\(id.uuidString)"
@@ -1213,10 +1221,11 @@ struct VaultView: View {
                 try? result.content.write(to: url, options: [.atomic])
                 urls.append(url)
             }
-            
+
             let finalizedURLs = urls
-            
+
             await MainActor.run { [finalizedURLs] in
+                guard !Task.isCancelled else { return }
                 self.exportURLs = finalizedURLs
             }
         }
@@ -1376,13 +1385,19 @@ struct VaultView: View {
         let encryptionKey = self.masterKey ?? key
         let count = results.count
 
+        // Cancel any existing import before starting a new one
+        activeImportTask?.cancel()
+
         // Show progress IMMEDIATELY — before any async image loading
         importProgress = (0, count)
         UIApplication.shared.isIdleTimerDisabled = true
 
-        Task.detached(priority: .userInitiated) {
+        activeImportTask = Task.detached(priority: .userInitiated) {
             var successCount = 0
             for (index, result) in results.enumerated() {
+                // Stop immediately if vault was locked or switched
+                guard !Task.isCancelled else { break }
+
                 let provider = result.itemProvider
                 let isVideo = provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier)
 
@@ -1392,6 +1407,7 @@ struct VaultView: View {
                     if isVideo {
                         // Load video via file representation
                         let videoData = try await Self.loadVideoData(from: provider)
+                        guard !Task.isCancelled else { break }
                         let ext = provider.suggestedName.flatMap { URL(string: $0)?.pathExtension } ?? "mov"
                         let mime = FileUtilities.mimeType(forExtension: ext)
                         let thumbData = await Self.generateVideoThumbnail(from: videoData)
@@ -1412,6 +1428,7 @@ struct VaultView: View {
                                 continuation.resume(returning: object as? UIImage)
                             }
                         }
+                        guard !Task.isCancelled else { break }
 
                         guard let image, let jpegData = image.jpegData(compressionQuality: 0.8) else {
                             await MainActor.run { self.importProgress = (index + 1, count) }
@@ -1424,6 +1441,8 @@ struct VaultView: View {
                         thumbnail = FileUtilities.generateThumbnail(from: jpegData)
                     }
 
+                    guard !Task.isCancelled else { break }
+
                     let fileId = try VaultStorage.shared.storeFile(
                         data: data,
                         filename: filename,
@@ -1433,6 +1452,7 @@ struct VaultView: View {
                     )
                     let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
                     await MainActor.run {
+                        guard !Task.isCancelled else { return }
                         self.files.append(VaultFileItem(
                             id: fileId,
                             size: data.count,
@@ -1444,6 +1464,7 @@ struct VaultView: View {
                     }
                     successCount += 1
                 } catch {
+                    if Task.isCancelled { break }
                     await MainActor.run { self.importProgress = (index + 1, count) }
                     #if DEBUG
                     print("❌ [VaultView] Failed to import item \(index): \(error)")
@@ -1453,6 +1474,7 @@ struct VaultView: View {
 
             let imported = successCount
             await MainActor.run {
+                guard !Task.isCancelled else { return }
                 self.importProgress = nil
                 UIApplication.shared.isIdleTimerDisabled = false
                 if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: self.files.count) {
@@ -1462,7 +1484,11 @@ struct VaultView: View {
                 }
             }
 
-            await ShareSyncManager.shared.scheduleSync(vaultKey: key)
+            if !Task.isCancelled {
+                await MainActor.run {
+                    ShareSyncManager.shared.scheduleSync(vaultKey: key)
+                }
+            }
         }
     }
 
@@ -1538,19 +1564,25 @@ struct VaultView: View {
         let count = urls.count
         let showProgress = count > 1
 
+        // Cancel any existing import before starting a new one
+        activeImportTask?.cancel()
+
         // Show progress immediately on main actor before detaching
         if showProgress {
             importProgress = (0, count)
         }
         UIApplication.shared.isIdleTimerDisabled = true
 
-        Task.detached(priority: .userInitiated) {
+        activeImportTask = Task.detached(priority: .userInitiated) {
             var successCount = 0
             for (index, url) in urls.enumerated() {
+                guard !Task.isCancelled else { break }
                 guard url.startAccessingSecurityScopedResource() else { continue }
                 defer { url.stopAccessingSecurityScopedResource() }
 
                 guard let data = try? Data(contentsOf: url) else { continue }
+                guard !Task.isCancelled else { break }
+
                 let filename = url.lastPathComponent
                 let mimeType = FileUtilities.mimeType(forExtension: url.pathExtension)
                 let thumbnail = mimeType.hasPrefix("image/") ? FileUtilities.generateThumbnail(from: data) : nil
@@ -1565,6 +1597,7 @@ struct VaultView: View {
 
                 let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
                 await MainActor.run {
+                    guard !Task.isCancelled else { return }
                     self.files.append(VaultFileItem(
                         id: fileId,
                         size: data.count,
@@ -1581,12 +1614,17 @@ struct VaultView: View {
 
             let imported = successCount
             await MainActor.run {
+                guard !Task.isCancelled else { return }
                 self.importProgress = nil
                 UIApplication.shared.isIdleTimerDisabled = false
                 self.toastMessage = .filesImported(imported)
             }
 
-            await ShareSyncManager.shared.scheduleSync(vaultKey: key)
+            if !Task.isCancelled {
+                await MainActor.run {
+                    ShareSyncManager.shared.scheduleSync(vaultKey: key)
+                }
+            }
         }
     }
 
