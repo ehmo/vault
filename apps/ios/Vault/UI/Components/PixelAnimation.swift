@@ -115,56 +115,16 @@ private struct PixelAnimationCell: View {
 }
 
 // MARK: - Factory Methods
+//
+// ALL presets MUST match the Dynamic Island's LivePixelGrid:
+//   - Pattern: perimeter walk [1,2,3,6,9,8,7,4]
+//   - brightness: 3, shadowBrightness: 2
+//   - timerInterval: 0.1, animationDuration: 0.3 (creates ~3-cell trail)
+// Only `size` varies between presets. Never create alternate patterns.
 
 extension PixelAnimation {
-    /// Upload/sync: wave left-to-right pattern, accent color
-    static func uploading(size: CGFloat = 40) -> PixelAnimation {
-        let scale = size / 64
-        return PixelAnimation(
-            brightness: 2,
-            shadowBrightness: 1,
-            color: .accentColor,
-            tileSize: size,
-            pixelSize: 14 * scale,
-            timerInterval: 0.17,
-            animationDuration: 0.2,
-            pattern: [[1, 4, 7], [2, 5, 8], [3, 6, 9]]
-        )
-    }
-
-    /// Download: wave right-to-left pattern, accent color
-    static func downloading(size: CGFloat = 40) -> PixelAnimation {
-        let scale = size / 64
-        return PixelAnimation(
-            brightness: 2,
-            shadowBrightness: 1,
-            color: .accentColor,
-            tileSize: size,
-            pixelSize: 14 * scale,
-            timerInterval: 0.17,
-            animationDuration: 0.2,
-            pattern: [[3, 6, 9], [2, 5, 8], [1, 4, 7]]
-        )
-    }
-
-    /// Sync badge: perimeter walk matching loading() and Dynamic Island LivePixelGrid
-    static func syncing(size: CGFloat = 24) -> PixelAnimation {
-        let scale = size / 64
-        return PixelAnimation(
-            brightness: 2,
-            shadowBrightness: 1,
-            color: .accentColor,
-            tileSize: size,
-            pixelSize: 14 * scale,
-            timerInterval: 0.1,
-            animationDuration: 0.3,
-            pattern: [[1, 2, 3, 6, 9, 8, 7, 4]]
-        )
-    }
-
-    /// Generic loading: frame rotation pattern (unlock screen).
-    /// Trail effect: animationDuration (0.3s) > timerInterval (0.1s) -> ~3 cells visible at once,
-    /// matching the Dynamic Island's LivePixelGrid explicit trail computation.
+    /// Standard loader — perimeter walk matching Dynamic Island LivePixelGrid.
+    /// Trail effect: animationDuration (0.3s) > timerInterval (0.1s) → ~3 cells visible at once.
     static func loading(size: CGFloat = 60) -> PixelAnimation {
         let scale = size / 80
         return PixelAnimation(
@@ -178,16 +138,21 @@ extension PixelAnimation {
             pattern: [[1, 2, 3, 6, 9, 8, 7, 4]]
         )
     }
-}
 
-#Preview("Uploading") {
-    PixelAnimation.uploading()
-        .padding()
-        .background(.black)
+    /// Compact badge variant — same appearance as loading(), just smaller.
+    static func syncing(size: CGFloat = 24) -> PixelAnimation {
+        loading(size: size)
+    }
 }
 
 #Preview("Loading") {
     PixelAnimation.loading(size: 80)
+        .padding()
+        .background(.black)
+}
+
+#Preview("Syncing") {
+    PixelAnimation.syncing()
         .padding()
         .background(.black)
 }

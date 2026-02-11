@@ -70,13 +70,23 @@ Required sections — missing any one causes Xcode to fail silently or at build 
 3. Changed text/labels? → Update `assertVisible` text in existing tests
 4. Changed flow/navigation? → Update test flow sequence
 
+## PixelAnimation (Loaders)
+
+**MANDATORY**: ALL pixel loaders MUST match the Dynamic Island's `LivePixelGrid` appearance. No exceptions.
+
+- **Canonical preset**: `PixelAnimation.loading(size:)` — perimeter walk `[1,2,3,6,9,8,7,4]`, brightness 3, shadowBrightness 2, timerInterval 0.1, animationDuration 0.3
+- **Only vary size** — never create alternate patterns, brightness, or timing
+- `syncing(size:)` delegates to `loading(size:)` — it's just a size alias
+- `uploading()` and `downloading()` factory methods were removed — they had inconsistent patterns/brightness
+- Trail effect requires `Timer.publish` + `.onReceive`, NOT `TimelineView` (which resets view tree and kills in-flight animations)
+- When adding a new loader anywhere, use `PixelAnimation.loading(size: N)` — nothing else
+
 ## SwiftUI Patterns
 
 - `@Observable` (iOS 17+ Observation framework), not `ObservableObject`
 - `@Environment(AppState.self)` for dependency injection
 - `BackgroundShareTransferManager.shared` singleton (not via environment)
 - Transfer status: enum with associated values (`.uploading(progress:total:)`, `.importComplete`, etc.)
-- **PixelAnimation trail**: requires `Timer.publish` + `.onReceive`, NOT `TimelineView` (which resets view tree and kills in-flight animations)
 
 ## Learnings
 

@@ -793,7 +793,7 @@ struct VaultView: View {
 
     private var importingProgressView: some View {
         VStack(spacing: 24) {
-            PixelAnimation.downloading(size: 60)
+            PixelAnimation.loading(size: 60)
 
             Text("Downloading shared vault...")
                 .font(.title3)
