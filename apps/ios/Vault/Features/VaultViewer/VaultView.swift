@@ -1373,6 +1373,7 @@ struct VaultView: View {
 
         // Show progress IMMEDIATELY — before any async image loading
         importProgress = (0, count)
+        UIApplication.shared.isIdleTimerDisabled = true
 
         Task.detached(priority: .userInitiated) {
             var successCount = 0
@@ -1448,6 +1449,7 @@ struct VaultView: View {
             let imported = successCount
             await MainActor.run {
                 self.importProgress = nil
+                UIApplication.shared.isIdleTimerDisabled = false
                 if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: self.files.count) {
                     self.toastMessage = .milestone(milestone)
                 } else {
@@ -1535,6 +1537,7 @@ struct VaultView: View {
         if showProgress {
             importProgress = (0, count)
         }
+        UIApplication.shared.isIdleTimerDisabled = true
 
         Task.detached(priority: .userInitiated) {
             var successCount = 0
@@ -1574,6 +1577,7 @@ struct VaultView: View {
             let imported = successCount
             await MainActor.run {
                 self.importProgress = nil
+                UIApplication.shared.isIdleTimerDisabled = false
                 self.toastMessage = .filesImported(imported)
             }
 
