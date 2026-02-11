@@ -199,6 +199,27 @@ struct AppSettingsView: View {
             }
             #endif
 
+            // Testing Tools (visible in TestFlight / sandbox builds only)
+            if SubscriptionManager.isSandbox {
+                Section {
+                    Toggle(isOn: Bindable(subscriptionManager).hasPremiumOverride) {
+                        HStack {
+                            Image(systemName: "crown.fill")
+                                .foregroundStyle(.yellow)
+                            Text("Premium Override")
+                        }
+                    }
+                    .accessibilityIdentifier("testing_premium_override")
+                } header: {
+                    HStack {
+                        Image(systemName: "testtube.2")
+                        Text("Testing")
+                    }
+                } footer: {
+                    Text("Grants premium access for testing. Only visible in TestFlight builds.")
+                }
+            }
+
             // Danger Zone
             Section {
                 Button(role: .destructive, action: { showingNuclearConfirmation = true }) {

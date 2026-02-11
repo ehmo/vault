@@ -24,17 +24,6 @@
 		005000005 /* PatternValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005000004 /* PatternValidator.swift */; };
 		005000007 /* PatternNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005000006 /* PatternNode.swift */; };
 		006000001 /* VaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006000000 /* VaultView.swift */; };
-		021000001 /* ThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000000 /* ThumbnailCache.swift */; };
-		021000003 /* AsyncThumbnailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000002 /* AsyncThumbnailView.swift */; };
-		022000001 /* PixelAnimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000000 /* PixelAnimation.swift */; };
-		022000003 /* VaultSyncIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000002 /* VaultSyncIndicator.swift */; };
-		022000005 /* PhraseActionButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000004 /* PhraseActionButtons.swift */; };
-		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
-		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
-		UX0000005 /* MilestoneTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000004 /* MilestoneTracker.swift */; };
-		021000005 /* PhotosGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000004 /* PhotosGridView.swift */; };
-		021000007 /* FilesGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000006 /* FilesGridView.swift */; };
-		021000009 /* FullScreenPhotoViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000008 /* FullScreenPhotoViewer.swift */; };
 		006000005 /* SecureImageViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006000004 /* SecureImageViewer.swift */; };
 		006000007 /* SecureVideoPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006000006 /* SecureVideoPlayer.swift */; };
 		006000009 /* FileImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006000008 /* FileImporter.swift */; };
@@ -47,8 +36,8 @@
 		009000003 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009000002 /* WelcomeView.swift */; };
 		009000005 /* PatternSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009000004 /* PatternSetupView.swift */; };
 		010000001 /* LoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000 /* LoadingView.swift */; };
-		0100000044 /* VaultTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0100000043 /* VaultTheme.swift */; };
 		010000003 /* SecureTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000002 /* SecureTextField.swift */; };
+		0100000044 /* VaultTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0100000043 /* VaultTheme.swift */; };
 		011000001 /* RecoveryPhraseGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011000000 /* RecoveryPhraseGenerator.swift */; };
 		011000003 /* WordLists.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011000002 /* WordLists.swift */; };
 		012000001 /* VaultFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012000000 /* VaultFile.swift */; };
@@ -58,11 +47,8 @@
 		014000003 /* ShareSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014000002 /* ShareSyncManager.swift */; };
 		014000005 /* SVDFSerializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014000004 /* SVDFSerializer.swift */; };
 		014000007 /* ShareSyncCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014000006 /* ShareSyncCache.swift */; };
-		SL0000001 /* ShareLinkEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = SL0000000 /* ShareLinkEncoder.swift */; };
-		SL0000003 /* DeepLinkHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = SL0000002 /* DeepLinkHandler.swift */; };
 		015000001 /* ShareVaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 015000000 /* ShareVaultView.swift */; };
 		015000003 /* JoinVaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 015000002 /* JoinVaultView.swift */; };
-		SL0000005 /* SharedVaultInviteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SL0000004 /* SharedVaultInviteView.swift */; };
 		016000001 /* LocalNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016000000 /* LocalNotificationManager.swift */; };
 		016000003 /* BackgroundShareTransferManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016000002 /* BackgroundShareTransferManager.swift */; };
 		017000001 /* SentryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017000000 /* SentryManager.swift */; };
@@ -71,6 +57,14 @@
 		019000001 /* AnalyticsConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000000 /* AnalyticsConsentView.swift */; };
 		020000001 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000 /* SubscriptionManager.swift */; };
 		020000003 /* PaywallTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000002 /* PaywallTrigger.swift */; };
+		021000001 /* ThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000000 /* ThumbnailCache.swift */; };
+		021000003 /* AsyncThumbnailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000002 /* AsyncThumbnailView.swift */; };
+		021000005 /* PhotosGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000004 /* PhotosGridView.swift */; };
+		021000007 /* FilesGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000006 /* FilesGridView.swift */; };
+		021000009 /* FullScreenPhotoViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000008 /* FullScreenPhotoViewer.swift */; };
+		022000001 /* PixelAnimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000000 /* PixelAnimation.swift */; };
+		022000003 /* VaultSyncIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000002 /* VaultSyncIndicator.swift */; };
+		022000005 /* PhraseActionButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000004 /* PhraseActionButtons.swift */; };
 		39EACF9D2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACF9C2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md */; };
 		39EACF9F2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACF9E2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md */; };
 		39EACFA12F29B36D00FA7EC2 /* RecoveryPhraseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39EACFA02F29B36D00FA7EC2 /* RecoveryPhraseManager.swift */; };
@@ -103,11 +97,16 @@
 		SE0000015 /* StagedImportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE000000E /* StagedImportManager.swift */; };
 		SE0000017 /* ImportIngestor.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE0000016 /* ImportIngestor.swift */; };
 		SE0000019 /* PendingImportBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE0000018 /* PendingImportBanner.swift */; };
-		SE000001B /* ShareExtension.entitlements in Resources */ = {isa = PBXBuildFile; fileRef = SE000001A /* ShareExtension.entitlements */; };
+		SL0000001 /* ShareLinkEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = SL0000000 /* ShareLinkEncoder.swift */; };
+		SL0000003 /* DeepLinkHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = SL0000002 /* DeepLinkHandler.swift */; };
+		SL0000005 /* SharedVaultInviteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SL0000004 /* SharedVaultInviteView.swift */; };
 		TS0000001 /* CryptoEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000000 /* CryptoEngineTests.swift */; };
 		TS0000003 /* SVDFSerializerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000002 /* SVDFSerializerTests.swift */; };
 		TS0000005 /* ShareSyncCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000004 /* ShareSyncCacheTests.swift */; };
 		TS0000007 /* SharedVaultDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000006 /* SharedVaultDataTests.swift */; };
+		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
+		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
+		UX0000005 /* MilestoneTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000004 /* MilestoneTracker.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -167,17 +166,6 @@
 		005000004 /* PatternValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidator.swift; sourceTree = "<group>"; };
 		005000006 /* PatternNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternNode.swift; sourceTree = "<group>"; };
 		006000000 /* VaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultView.swift; sourceTree = "<group>"; };
-		021000000 /* ThumbnailCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailCache.swift; sourceTree = "<group>"; };
-		021000002 /* AsyncThumbnailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncThumbnailView.swift; sourceTree = "<group>"; };
-		022000000 /* PixelAnimation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelAnimation.swift; sourceTree = "<group>"; };
-		022000002 /* VaultSyncIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultSyncIndicator.swift; sourceTree = "<group>"; };
-		022000004 /* PhraseActionButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseActionButtons.swift; sourceTree = "<group>"; };
-		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
-		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
-		UX0000004 /* MilestoneTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneTracker.swift; sourceTree = "<group>"; };
-		021000004 /* PhotosGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosGridView.swift; sourceTree = "<group>"; };
-		021000006 /* FilesGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesGridView.swift; sourceTree = "<group>"; };
-		021000008 /* FullScreenPhotoViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullScreenPhotoViewer.swift; sourceTree = "<group>"; };
 		006000004 /* SecureImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureImageViewer.swift; sourceTree = "<group>"; };
 		006000006 /* SecureVideoPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureVideoPlayer.swift; sourceTree = "<group>"; };
 		006000008 /* FileImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileImporter.swift; sourceTree = "<group>"; };
@@ -190,8 +178,8 @@
 		009000002 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		009000004 /* PatternSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupView.swift; sourceTree = "<group>"; };
 		010000000 /* LoadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingView.swift; sourceTree = "<group>"; };
-		0100000043 /* VaultTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultTheme.swift; sourceTree = "<group>"; };
 		010000002 /* SecureTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureTextField.swift; sourceTree = "<group>"; };
+		0100000043 /* VaultTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultTheme.swift; sourceTree = "<group>"; };
 		011000000 /* RecoveryPhraseGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryPhraseGenerator.swift; sourceTree = "<group>"; };
 		011000002 /* WordLists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordLists.swift; sourceTree = "<group>"; };
 		012000000 /* VaultFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFile.swift; sourceTree = "<group>"; };
@@ -201,11 +189,8 @@
 		014000002 /* ShareSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSyncManager.swift; sourceTree = "<group>"; };
 		014000004 /* SVDFSerializer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SVDFSerializer.swift; sourceTree = "<group>"; };
 		014000006 /* ShareSyncCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSyncCache.swift; sourceTree = "<group>"; };
-		SL0000000 /* ShareLinkEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareLinkEncoder.swift; sourceTree = "<group>"; };
-		SL0000002 /* DeepLinkHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkHandler.swift; sourceTree = "<group>"; };
 		015000000 /* ShareVaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareVaultView.swift; sourceTree = "<group>"; };
 		015000002 /* JoinVaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinVaultView.swift; sourceTree = "<group>"; };
-		SL0000004 /* SharedVaultInviteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedVaultInviteView.swift; sourceTree = "<group>"; };
 		016000000 /* LocalNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNotificationManager.swift; sourceTree = "<group>"; };
 		016000002 /* BackgroundShareTransferManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundShareTransferManager.swift; sourceTree = "<group>"; };
 		017000000 /* SentryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentryManager.swift; sourceTree = "<group>"; };
@@ -214,6 +199,14 @@
 		019000000 /* AnalyticsConsentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsConsentView.swift; sourceTree = "<group>"; };
 		020000000 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
 		020000002 /* PaywallTrigger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallTrigger.swift; sourceTree = "<group>"; };
+		021000000 /* ThumbnailCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailCache.swift; sourceTree = "<group>"; };
+		021000002 /* AsyncThumbnailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncThumbnailView.swift; sourceTree = "<group>"; };
+		021000004 /* PhotosGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosGridView.swift; sourceTree = "<group>"; };
+		021000006 /* FilesGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesGridView.swift; sourceTree = "<group>"; };
+		021000008 /* FullScreenPhotoViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullScreenPhotoViewer.swift; sourceTree = "<group>"; };
+		022000000 /* PixelAnimation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelAnimation.swift; sourceTree = "<group>"; };
+		022000002 /* VaultSyncIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultSyncIndicator.swift; sourceTree = "<group>"; };
+		022000004 /* PhraseActionButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseActionButtons.swift; sourceTree = "<group>"; };
 		088000000000 /* Vault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Vault.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		39EACF9C2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = NAVIGATION_REDESIGN.md; sourceTree = "<group>"; };
 		39EACF9E2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEBUG_RESET_FEATURE.md; sourceTree = "<group>"; };
@@ -238,11 +231,17 @@
 		SE0000018 /* PendingImportBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingImportBanner.swift; sourceTree = "<group>"; };
 		SE000001A /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
 		SE000001C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		SL0000000 /* ShareLinkEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareLinkEncoder.swift; sourceTree = "<group>"; };
+		SL0000002 /* DeepLinkHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkHandler.swift; sourceTree = "<group>"; };
+		SL0000004 /* SharedVaultInviteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedVaultInviteView.swift; sourceTree = "<group>"; };
 		TS0000000 /* CryptoEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoEngineTests.swift; sourceTree = "<group>"; };
 		TS0000002 /* SVDFSerializerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SVDFSerializerTests.swift; sourceTree = "<group>"; };
 		TS0000004 /* ShareSyncCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSyncCacheTests.swift; sourceTree = "<group>"; };
 		TS0000006 /* SharedVaultDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedVaultDataTests.swift; sourceTree = "<group>"; };
 		TS0000010 /* VaultTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
+		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
+		UX0000004 /* MilestoneTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneTracker.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -329,14 +328,6 @@
 				SE000000C /* VaultCoreConstants.swift */,
 			);
 			path = Core;
-			sourceTree = "<group>";
-		};
-		UX0000010 /* Milestones */ = {
-			isa = PBXGroup;
-			children = (
-				UX0000004 /* MilestoneTracker.swift */,
-			);
-			path = Milestones;
 			sourceTree = "<group>";
 		};
 		0100000021 /* Crypto */ = {
@@ -519,14 +510,6 @@
 			path = UI;
 			sourceTree = "<group>";
 		};
-		0100000042 /* Theme */ = {
-			isa = PBXGroup;
-			children = (
-				0100000043 /* VaultTheme.swift */,
-			);
-			path = Theme;
-			sourceTree = "<group>";
-		};
 		0100000041 /* Components */ = {
 			isa = PBXGroup;
 			children = (
@@ -541,6 +524,14 @@
 				UX0000002 /* StorageRingView.swift */,
 			);
 			path = Components;
+			sourceTree = "<group>";
+		};
+		0100000042 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				0100000043 /* VaultTheme.swift */,
+			);
+			path = Theme;
 			sourceTree = "<group>";
 		};
 		0100000050 /* Models */ = {
@@ -566,7 +557,7 @@
 			children = (
 				0100000001 /* Vault */,
 				LA00000070 /* VaultLiveActivity */,
-				SE0000070 /* ShareExtension */,
+				SE0000070 /* Vault/Extensions/ShareExtension */,
 				TS0000070 /* VaultTests */,
 				0100000002 /* Products */,
 			);
@@ -582,7 +573,7 @@
 			path = VaultLiveActivity;
 			sourceTree = "<group>";
 		};
-		SE0000070 /* ShareExtension */ = {
+		SE0000070 /* Vault/Extensions/ShareExtension */ = {
 			isa = PBXGroup;
 			children = (
 				SE0000000 /* ShareViewController.swift */,
@@ -590,7 +581,7 @@
 				SE000001A /* ShareExtension.entitlements */,
 				SE000001C /* Info.plist */,
 			);
-			path = "Vault/Extensions/ShareExtension";
+			path = Vault/Extensions/ShareExtension;
 			sourceTree = "<group>";
 		};
 		TS0000070 /* VaultTests */ = {
@@ -602,6 +593,14 @@
 				TS0000006 /* SharedVaultDataTests.swift */,
 			);
 			path = VaultTests;
+			sourceTree = "<group>";
+		};
+		UX0000010 /* Milestones */ = {
+			isa = PBXGroup;
+			children = (
+				UX0000004 /* MilestoneTracker.swift */,
+			);
+			path = Milestones;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -724,6 +723,7 @@
 				E5E387BF1AA14DDCA8D53E3C /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
 				A9B8C7D6E5F4A3B2C1D0E9F8 /* XCRemoteSwiftPackageReference "SwiftSDK" */,
 				F5A6B7C8D9E0F1A2B3C4D5E6 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
+				393FA1132F3C632C00DF030B /* XCRemoteSwiftPackageReference "DebugSwift" */,
 			);
 			productRefGroup = 0100000002 /* Products */;
 			projectDirPath = "";
@@ -1060,7 +1060,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = UFV835UGV6;
@@ -1101,7 +1101,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = UFV835UGV6;
@@ -1138,7 +1138,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = VaultLiveActivity/Info.plist;
@@ -1167,7 +1167,7 @@
 			buildSettings = {
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = VaultLiveActivity/Info.plist;
@@ -1195,12 +1195,12 @@
 		SE000F001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = "Vault/Extensions/ShareExtension/ShareExtension.entitlements";
+				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Vault/Extensions/ShareExtension/Info.plist";
+				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Add to Vaultaire";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1225,13 +1225,13 @@
 		SE000F002 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = "Vault/Extensions/ShareExtension/ShareExtension.entitlements";
+				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Vault/Extensions/ShareExtension/Info.plist";
+				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Add to Vaultaire";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1259,7 +1259,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1276,7 +1276,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1339,6 +1339,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		393FA1132F3C632C00DF030B /* XCRemoteSwiftPackageReference "DebugSwift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/DebugSwift/DebugSwift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.11.0;
+			};
+		};
 		A9B8C7D6E5F4A3B2C1D0E9F8 /* XCRemoteSwiftPackageReference "SwiftSDK" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/TelemetryDeck/SwiftSDK";

@@ -16,8 +16,32 @@ final class SubscriptionManager: NSObject {
     static let maxFreeSharedVaults = 10
     static let maxFreeFilesPerVault = 100
 
+    private static let premiumOverrideKey = "premiumTestingOverride"
+
+    /// Whether the app is running in a sandbox environment (TestFlight or Xcode)
+    static var isSandbox: Bool {
+        Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
+    }
+
+    /// Testing override for premium status (persisted in UserDefaults)
+    var hasPremiumOverride: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.premiumOverrideKey) }
+        set {
+            UserDefaults.standard.set(newValue, forKey: Self.premiumOverrideKey)
+            isPremium = newValue
+            Self.isPremiumSnapshot = newValue
+            UserDefaults(suiteName: VaultCoreConstants.appGroupIdentifier)?
+                .set(newValue, forKey: VaultCoreConstants.isPremiumKey)
+        }
+    }
+
     private override init() {
         super.init()
+        // Apply testing override on launch
+        if UserDefaults.standard.bool(forKey: Self.premiumOverrideKey) {
+            isPremium = true
+            Self.isPremiumSnapshot = true
+        }
     }
 
     func configure(apiKey: String) {
@@ -91,8 +115,10 @@ final class SubscriptionManager: NSObject {
         customerInfo = info
         // Check for the specific "lifetime" entitlement, or fall back to any active entitlement
         // (covers sandbox/test mode where entitlement-product mapping may not be configured)
-        isPremium = info.entitlements[Self.entitlementID]?.isActive == true
+        let rcPremium = info.entitlements[Self.entitlementID]?.isActive == true
             || !info.entitlements.active.isEmpty
+        // Don't downgrade if testing override is active
+        isPremium = rcPremium || UserDefaults.standard.bool(forKey: Self.premiumOverrideKey)
         Self.isPremiumSnapshot = isPremium
 
         // Cache premium status in app group for share extension access
