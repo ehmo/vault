@@ -66,6 +66,7 @@ bd sync               # Sync with git
 - NEVER say "ready to push when you are" — YOU must push
 - If push fails, resolve and retry until it succeeds
 - **COMMIT AND PUSH AFTER EVERY SUCCESSFUL BUILD** — small, frequent commits prevent losing work
+- **FIX ALL BUILD WARNINGS BEFORE COMMITTING** — at session end, run a full build and fix every warning and error in project code before the final commit. Xcode/system warnings (e.g. AppIntents metadata) can be ignored.
 
 After every task update the relevant AGENTS.md with learnings.
 
