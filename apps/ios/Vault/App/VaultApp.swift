@@ -78,12 +78,11 @@ final class AppState {
             if let precomputed = precomputedKey {
                 // Reuse key already derived by the caller (avoids double PBKDF2)
                 key = precomputed
-                // Still add a small UX delay so the unlock feels intentional
-                try? await Task.sleep(nanoseconds: UInt64(Double.random(in: 0.5...1.0) * 1_000_000_000))
+                // Consistent unlock ceremony: loader shown for 1.5s
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
             } else {
-                // Run delay and key derivation concurrently: total time = max(delay, derivation)
-                let delay = Double.random(in: 0.5...1.0)
-                async let delayTask: Void = Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                // Run delay and key derivation concurrently: total time = max(1.5s, derivation)
+                async let delayTask: Void = Task.sleep(nanoseconds: 1_500_000_000)
 
                 let keySpan = SentryManager.shared.startSpan(parent: transaction, operation: "crypto.key_derivation", description: "PBKDF2 key derivation")
                 async let keyTask = KeyDerivation.deriveKey(from: pattern, gridSize: gridSize)
