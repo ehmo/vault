@@ -510,6 +510,8 @@ struct iCloudBackupSettingsView: View {
     @AppStorage("iCloudBackupEnabled") private var isBackupEnabled = false
     @AppStorage("lastBackupTimestamp") private var lastBackupTimestamp: Double = 0
     @State private var isBackingUp = false
+    @State private var backupStage: iCloudBackupManager.BackupStage?
+    @State private var backupTask: Task<Void, Never>?
     @State private var showingRestore = false
     @State private var iCloudAvailable = true
     @State private var errorMessage: String?
@@ -604,9 +606,17 @@ struct iCloudBackupSettingsView: View {
             if isBackingUp {
                 HStack(spacing: 10) {
                     ProgressView()
-                    Text("Backing up...")
+                    Text(backupStage?.rawValue ?? "Preparing...")
                         .foregroundStyle(.vaultSecondaryText)
                 }
+
+                Button("Cancel Backup", role: .destructive) {
+                    backupTask?.cancel()
+                    backupTask = nil
+                    isBackingUp = false
+                    backupStage = nil
+                }
+                .font(.subheadline)
             } else if let date = lastBackupDate {
                 HStack {
                     Text("Last backup")
@@ -629,14 +639,20 @@ struct iCloudBackupSettingsView: View {
                     }
                 }
             } else {
-                Text("First backup starting...")
+                Text("No backup yet")
                     .foregroundStyle(.vaultSecondaryText)
             }
 
             if let errorMessage {
-                Text(errorMessage)
-                    .foregroundStyle(.red)
-                    .font(.caption)
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("Backup Failed", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                        .font(.subheadline.weight(.medium))
+                    Text(errorMessage)
+                        .foregroundStyle(.vaultSecondaryText)
+                        .font(.caption)
+                        .textSelection(.enabled)
+                }
             }
 
             if !isBackingUp {
@@ -698,24 +714,43 @@ struct iCloudBackupSettingsView: View {
         }
 
         isBackingUp = true
+        backupStage = nil
         errorMessage = nil
 
-        Task {
+        backupTask = Task {
             do {
-                try await backupManager.performBackup(with: key)
+                try await backupManager.performBackup(with: key) { stage in
+                    Task { @MainActor in
+                        backupStage = stage
+                    }
+                }
                 await MainActor.run {
                     lastBackupTimestamp = Date().timeIntervalSince1970
                     isBackingUp = false
+                    backupStage = nil
+                }
+            } catch is CancellationError {
+                await MainActor.run {
+                    isBackingUp = false
+                    backupStage = nil
                 }
             } catch iCloudError.notAvailable {
                 await MainActor.run {
-                    errorMessage = "iCloud is not ready yet. Please wait a moment and try again."
+                    errorMessage = "iCloud is not available. Check that you're signed in to iCloud in Settings."
                     isBackingUp = false
+                    backupStage = nil
+                }
+            } catch iCloudError.fileNotFound {
+                await MainActor.run {
+                    errorMessage = "No vault data found to back up. Add some files first."
+                    isBackingUp = false
+                    backupStage = nil
                 }
             } catch {
                 await MainActor.run {
-                    errorMessage = "Backup failed: \(error.localizedDescription)"
+                    errorMessage = "\(error.localizedDescription)\n\nError type: \(type(of: error))\nDetails: \(error)"
                     isBackingUp = false
+                    backupStage = nil
                 }
             }
         }

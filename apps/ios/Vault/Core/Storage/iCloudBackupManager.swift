@@ -80,7 +80,15 @@ final class iCloudBackupManager {
 
     // MARK: - Backup
 
-    func performBackup(with key: Data) async throws {
+    enum BackupStage: String {
+        case waitingForICloud = "Connecting to iCloud..."
+        case readingVault = "Reading vault data..."
+        case encrypting = "Encrypting backup..."
+        case uploading = "Uploading to iCloud..."
+        case complete = "Backup complete"
+    }
+
+    func performBackup(with key: Data, onProgress: @escaping (BackupStage) -> Void) async throws {
         // Get the vault blob
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let blobURL = documents.appendingPathComponent("vault_data.bin")
@@ -92,10 +100,17 @@ final class iCloudBackupManager {
         Self.logger.info("[backup] Starting backup...")
 
         // Wait for iCloud to be fully available (private DB requires it)
+        onProgress(.waitingForICloud)
+        try Task.checkCancellation()
         try await waitForAvailableAccount()
 
         // Read and encrypt the blob with additional layer
+        onProgress(.readingVault)
+        try Task.checkCancellation()
         let blobData = try Data(contentsOf: blobURL)
+
+        onProgress(.encrypting)
+        try Task.checkCancellation()
         let encryptedBackup = try CryptoEngine.encrypt(blobData, with: key)
 
         // Create backup metadata
@@ -112,6 +127,8 @@ final class iCloudBackupManager {
         defer { try? fileManager.removeItem(at: tempURL) }
 
         // Save to CloudKit private database
+        onProgress(.uploading)
+        try Task.checkCancellation()
         let recordID = CKRecord.ID(recordName: backupRecordName)
         let record: CKRecord
 
@@ -126,7 +143,9 @@ final class iCloudBackupManager {
         record["backupData"] = CKAsset(fileURL: tempURL)
         record["timestamp"] = metadata.timestamp as CKRecordValue
 
+        try Task.checkCancellation()
         try await privateDatabase.save(record)
+        onProgress(.complete)
         Self.logger.info("[backup] Backup complete (\(encryptedBackup.count / 1024)KB)")
     }
 
