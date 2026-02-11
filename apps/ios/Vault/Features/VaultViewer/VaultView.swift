@@ -5,19 +5,17 @@ import AVFoundation
 import UniformTypeIdentifiers
 
 enum FileFilter: String, CaseIterable, Identifiable {
-    case all = "All"
-    case photos = "Photos"
-    case videos = "Videos"
+    case media = "Media"
     case documents = "Documents"
+    case all = "All"
 
     var id: String { rawValue }
 
     var icon: String {
         switch self {
-        case .all: "square.grid.2x2"
-        case .photos: "photo"
-        case .videos: "video"
+        case .media: "photo.on.rectangle"
         case .documents: "doc"
+        case .all: "square.grid.2x2"
         }
     }
 }
@@ -41,8 +39,8 @@ struct DateGroup: Identifiable {
     let id: String // group title
     let title: String
     let items: [VaultFileItem] // all items in original order
-    let images: [VaultFileItem]
-    let files: [VaultFileItem] // non-image files
+    let media: [VaultFileItem] // images + videos
+    let files: [VaultFileItem] // non-media files
 }
 
 private func groupFilesByDate(_ items: [VaultFileItem]) -> [DateGroup] {
@@ -81,9 +79,9 @@ private func groupFilesByDate(_ items: [VaultFileItem]) -> [DateGroup] {
 
     return buckets.compactMap { bucket in
         guard !bucket.items.isEmpty else { return nil }
-        let images = bucket.items.filter { $0.isImage }
-        let files = bucket.items.filter { !$0.isImage }
-        return DateGroup(id: bucket.title, title: bucket.title, items: bucket.items, images: images, files: files)
+        let media = bucket.items.filter { $0.isMedia }
+        let files = bucket.items.filter { !$0.isMedia }
+        return DateGroup(id: bucket.title, title: bucket.title, items: bucket.items, media: media, files: files)
     }
 }
 
@@ -101,7 +99,7 @@ struct VaultView: View {
     @State private var showingSettings = false
     @State private var isLoading = true
     @State private var searchText = ""
-    @State private var fileFilter: FileFilter = .all
+    @State private var fileFilter: FileFilter = .media
     @State private var sortOrder: SortOrder = .dateNewest
     @State private var isEditing = false
     @State private var selectedIds: Set<UUID> = []
@@ -134,8 +132,10 @@ struct VaultView: View {
         var result = files
         switch fileFilter {
         case .all: break
-        case .photos: result = result.filter { ($0.mimeType ?? "").hasPrefix("image/") }
-        case .videos: result = result.filter { ($0.mimeType ?? "").hasPrefix("video/") }
+        case .media: result = result.filter {
+            let mime = $0.mimeType ?? ""
+            return mime.hasPrefix("image/") || mime.hasPrefix("video/")
+        }
         case .documents: result = result.filter {
             let mime = $0.mimeType ?? ""
             return !mime.hasPrefix("image/") && !mime.hasPrefix("video/")
@@ -162,15 +162,17 @@ struct VaultView: View {
         return result
     }
 
-    private var splitFiles: (all: [VaultFileItem], images: [VaultFileItem], videos: [VaultFileItem], documents: [VaultFileItem]) {
+    private var splitFiles: (all: [VaultFileItem], media: [VaultFileItem], documents: [VaultFileItem]) {
         let result = sortedFiles
-        let images = result.filter { ($0.mimeType ?? "").hasPrefix("image/") }
-        let videos = result.filter { ($0.mimeType ?? "").hasPrefix("video/") }
+        let media = result.filter {
+            let mime = $0.mimeType ?? ""
+            return mime.hasPrefix("image/") || mime.hasPrefix("video/")
+        }
         let documents = result.filter {
             let mime = $0.mimeType ?? ""
             return !mime.hasPrefix("image/") && !mime.hasPrefix("video/")
         }
-        return (result, images, videos, documents)
+        return (result, media, documents)
     }
 
     private var useDateGrouping: Bool {
@@ -178,7 +180,7 @@ struct VaultView: View {
     }
 
     @ViewBuilder
-    private func fileGridContent(split: (all: [VaultFileItem], images: [VaultFileItem], videos: [VaultFileItem], documents: [VaultFileItem])) -> some View {
+    private func fileGridContent(split: (all: [VaultFileItem], media: [VaultFileItem], documents: [VaultFileItem])) -> some View {
         ScrollView {
             if let masterKey {
                 if useDateGrouping {
@@ -199,11 +201,14 @@ struct VaultView: View {
             ForEach(groups) { group in
                 Section {
                     Group {
-                        if fileFilter == .photos {
-                            PhotosGridView(files: group.images, masterKey: masterKey, onSelect: { file, _ in
+                        if fileFilter == .media {
+                            PhotosGridView(files: group.media, masterKey: masterKey, onSelect: { file, _ in
                                 SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
-                                let allImages = sortedFiles.filter { ($0.mimeType ?? "").hasPrefix("image/") }
-                                let globalIndex = allImages.firstIndex(where: { $0.id == file.id }) ?? 0
+                                let allMedia = sortedFiles.filter {
+                                    let mime = $0.mimeType ?? ""
+                                    return mime.hasPrefix("image/") || mime.hasPrefix("video/")
+                                }
+                                let globalIndex = allMedia.firstIndex(where: { $0.id == file.id }) ?? 0
                                 selectedPhotoIndex = globalIndex
                             }, onDelete: isSharedVault ? nil : deleteFileById,
                                isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
@@ -232,10 +237,10 @@ struct VaultView: View {
     }
 
     @ViewBuilder
-    private func flatContent(split: (all: [VaultFileItem], images: [VaultFileItem], videos: [VaultFileItem], documents: [VaultFileItem]), masterKey: Data) -> some View {
+    private func flatContent(split: (all: [VaultFileItem], media: [VaultFileItem], documents: [VaultFileItem]), masterKey: Data) -> some View {
         switch fileFilter {
-        case .photos:
-            PhotosGridView(files: split.images, masterKey: masterKey, onSelect: { file, index in
+        case .media:
+            PhotosGridView(files: split.media, masterKey: masterKey, onSelect: { file, index in
                 SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                 selectedPhotoIndex = index
             }, onDelete: isSharedVault ? nil : deleteFileById,
@@ -252,7 +257,7 @@ struct VaultView: View {
 
     /// Identifiable wrapper so `fullScreenCover(item:)` can drive presentation from an Int index.
     private struct PhotoViewerItem: Identifiable {
-        let id: Int // index into splitFiles.images
+        let id: Int // index into splitFiles.media
     }
 
     private var photoViewerItem: Binding<PhotoViewerItem?> {
@@ -404,7 +409,7 @@ struct VaultView: View {
                                         }
                                     }
                                 } label: {
-                                    Image(systemName: fileFilter == .all ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
+                                    Image(systemName: fileFilter == .media ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
                                         .fontWeight(.medium)
                                         .padding(10)
                                         .vaultGlassBackground(cornerRadius: 12)
@@ -571,7 +576,7 @@ struct VaultView: View {
         }
         .fullScreenCover(item: photoViewerItem) { item in
             FullScreenPhotoViewer(
-                files: split.images,
+                files: split.media,
                 vaultKey: appState.currentVaultKey,
                 initialIndex: item.id,
                 onDelete: isSharedVault ? nil : { deletedId in
@@ -1621,6 +1626,11 @@ struct VaultFileItem: Identifiable, Sendable {
 
     var isImage: Bool {
         (mimeType ?? "").hasPrefix("image/")
+    }
+
+    var isMedia: Bool {
+        let mime = mimeType ?? ""
+        return mime.hasPrefix("image/") || mime.hasPrefix("video/")
     }
 }
 
