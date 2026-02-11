@@ -1,0 +1,21 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "UFV835UGV6.app.vaultaire.ios"
+        ],
+        "components": [
+          {
+            "/": "/s",
+            "comment": "Share link — phrase is in URL fragment, never reaches server"
+          },
+          {
+            "/": "/s/*",
+            "comment": "Share link path variants"
+          }
+        ]
+      }
+    ]
+  }
+}

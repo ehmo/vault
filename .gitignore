@@ -60,3 +60,8 @@ Thumbs.db
 Secrets/
 
 .sentryclirc
+
+# Web
+node_modules/
+web/styles/output.css
+.wrangler/
