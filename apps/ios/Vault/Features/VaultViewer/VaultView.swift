@@ -28,6 +28,11 @@ enum SortOrder: String, CaseIterable {
     case name = "Name"
 }
 
+enum PendingImport {
+    case photos([PHPickerResult])
+    case files([URL])
+}
+
 // MARK: - Date Grouping
 
 struct DateGroup: Identifiable {
@@ -103,6 +108,10 @@ struct VaultView: View {
     @State private var exportURLs: [URL] = []
     @State private var toastMessage: ToastMessage?
     @State private var importProgress: (completed: Int, total: Int)?
+    @State private var showingLimitAlert = false
+    @State private var pendingImport: PendingImport?
+    @State private var limitAlertRemaining = 0
+    @State private var limitAlertSelected = 0
     private let floatingButtonTrailingInset: CGFloat = 15
     private let floatingButtonBottomInset: CGFloat = -15
 
@@ -626,6 +635,26 @@ struct VaultView: View {
             Text("These files will be permanently deleted from the vault.")
         }
         .premiumPaywall(isPresented: $showingPaywall)
+        .alert("Free Plan Limit", isPresented: $showingLimitAlert) {
+            if limitAlertRemaining > 0 {
+                Button("Import \(limitAlertRemaining) Files") {
+                    proceedWithLimitedImport()
+                }
+            }
+            Button("Upgrade to PRO") {
+                pendingImport = nil
+                showingPaywall = true
+            }
+            Button("Cancel", role: .cancel) {
+                pendingImport = nil
+            }
+        } message: {
+            if limitAlertRemaining > 0 {
+                Text("You selected \(limitAlertSelected) files, but free vaults can only store 100 files. You have room for \(limitAlertRemaining) more.")
+            } else {
+                Text("Free vaults can only store 100 files. Upgrade to PRO for unlimited storage.")
+            }
+        }
         .onChange(of: exportURLs) { _, urls in
             guard !urls.isEmpty else { return }
             ShareSheetHelper.present(items: urls) {
@@ -1335,33 +1364,41 @@ struct VaultView: View {
 
     private func handleSelectedPhotos(_ results: [PHPickerResult]) {
         guard !isSharedVault, let key = appState.currentVaultKey else { return }
-        let encryptionKey = self.masterKey ?? key
 
-        // Enforce free tier limit: cap to remaining slots, show paywall for overflow
-        let limitedResults: [PHPickerResult]
-        let hitLimit: Bool
-        if subscriptionManager.isPremium {
-            limitedResults = results
-            hitLimit = false
-        } else {
+        if !subscriptionManager.isPremium {
             let remaining = max(0, SubscriptionManager.maxFreeFilesPerVault - files.count)
             if remaining == 0 {
                 showingPaywall = true
                 return
             }
-            hitLimit = results.count > remaining
-            limitedResults = hitLimit ? Array(results.prefix(remaining)) : results
+            if results.count > remaining {
+                pendingImport = .photos(results)
+                limitAlertSelected = results.count
+                limitAlertRemaining = remaining
+                showingLimitAlert = true
+                return
+            }
         }
 
-        let count = limitedResults.count
+        performPhotoImport(results)
+    }
+
+    private func performPhotoImport(_ results: [PHPickerResult]) {
+        guard let key = appState.currentVaultKey else { return }
+        let encryptionKey = self.masterKey ?? key
+        let count = results.count
 
         // Show progress IMMEDIATELY — before any async image loading
         importProgress = (0, count)
 
         Task.detached(priority: .userInitiated) {
-            for (index, result) in limitedResults.enumerated() {
+            var successCount = 0
+            for (index, result) in results.enumerated() {
                 let provider = result.itemProvider
-                guard provider.canLoadObject(ofClass: UIImage.self) else { continue }
+                guard provider.canLoadObject(ofClass: UIImage.self) else {
+                    await MainActor.run { self.importProgress = (index + 1, count) }
+                    continue
+                }
 
                 let image: UIImage? = await withCheckedContinuation { continuation in
                     provider.loadObject(ofClass: UIImage.self) { object, _ in
@@ -1369,7 +1406,10 @@ struct VaultView: View {
                     }
                 }
 
-                guard let image, let data = image.jpegData(compressionQuality: 0.8) else { continue }
+                guard let image, let data = image.jpegData(compressionQuality: 0.8) else {
+                    await MainActor.run { self.importProgress = (index + 1, count) }
+                    continue
+                }
 
                 do {
                     let filename = "IMG_\(Date().timeIntervalSince1970)_\(index).jpg"
@@ -1392,7 +1432,9 @@ struct VaultView: View {
                         ))
                         self.importProgress = (index + 1, count)
                     }
+                    successCount += 1
                 } catch {
+                    await MainActor.run { self.importProgress = (index + 1, count) }
                     #if DEBUG
                     print("❌ [VaultView] Failed to add image: \(error)")
                     #endif
@@ -1401,12 +1443,10 @@ struct VaultView: View {
 
             await MainActor.run {
                 self.importProgress = nil
-                if hitLimit {
-                    self.showingPaywall = true
-                } else if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: self.files.count) {
+                if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: self.files.count) {
                     self.toastMessage = .milestone(milestone)
                 } else {
-                    self.toastMessage = .filesImported(count)
+                    self.toastMessage = .filesImported(successCount)
                 }
             }
 
@@ -1417,25 +1457,29 @@ struct VaultView: View {
     private func handleImportedFiles(_ result: Result<[URL], Error>) {
         guard !isSharedVault, let key = appState.currentVaultKey else { return }
         guard case .success(let urls) = result else { return }
-        let encryptionKey = self.masterKey ?? key
 
-        // Enforce free tier limit: cap to remaining slots, show paywall for overflow
-        let limitedURLs: [URL]
-        let hitLimit: Bool
-        if subscriptionManager.isPremium {
-            limitedURLs = urls
-            hitLimit = false
-        } else {
+        if !subscriptionManager.isPremium {
             let remaining = max(0, SubscriptionManager.maxFreeFilesPerVault - files.count)
             if remaining == 0 {
                 showingPaywall = true
                 return
             }
-            hitLimit = urls.count > remaining
-            limitedURLs = hitLimit ? Array(urls.prefix(remaining)) : urls
+            if urls.count > remaining {
+                pendingImport = .files(urls)
+                limitAlertSelected = urls.count
+                limitAlertRemaining = remaining
+                showingLimitAlert = true
+                return
+            }
         }
 
-        let count = limitedURLs.count
+        performFileImport(urls)
+    }
+
+    private func performFileImport(_ urls: [URL]) {
+        guard let key = appState.currentVaultKey else { return }
+        let encryptionKey = self.masterKey ?? key
+        let count = urls.count
         let showProgress = count > 1
 
         // Show progress immediately on main actor before detaching
@@ -1444,7 +1488,8 @@ struct VaultView: View {
         }
 
         Task.detached(priority: .userInitiated) {
-            for (index, url) in limitedURLs.enumerated() {
+            var successCount = 0
+            for (index, url) in urls.enumerated() {
                 guard url.startAccessingSecurityScopedResource() else { continue }
                 defer { url.stopAccessingSecurityScopedResource() }
 
@@ -1474,18 +1519,28 @@ struct VaultView: View {
                         self.importProgress = (index + 1, count)
                     }
                 }
+                successCount += 1
             }
 
             await MainActor.run {
                 self.importProgress = nil
-                if hitLimit {
-                    self.showingPaywall = true
-                } else {
-                    self.toastMessage = .filesImported(count)
-                }
+                self.toastMessage = .filesImported(successCount)
             }
 
             await ShareSyncManager.shared.scheduleSync(vaultKey: key)
+        }
+    }
+
+    private func proceedWithLimitedImport() {
+        guard let pending = pendingImport else { return }
+        let remaining = limitAlertRemaining
+        pendingImport = nil
+
+        switch pending {
+        case .photos(let results):
+            performPhotoImport(Array(results.prefix(remaining)))
+        case .files(let urls):
+            performFileImport(Array(urls.prefix(remaining)))
         }
     }
 
