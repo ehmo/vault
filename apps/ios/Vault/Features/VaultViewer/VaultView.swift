@@ -568,7 +568,7 @@ struct VaultView: View {
             SecureCameraView(onCapture: handleCapturedImage)
         }
         .sheet(isPresented: $showingPhotoPicker) {
-            PhotoPicker(onImagesSelected: handleSelectedImages)
+            PhotoPicker(onPhotosSelected: handleSelectedPhotos)
         }
         .fileImporter(
             isPresented: $showingFilePicker,
@@ -834,7 +834,7 @@ struct VaultView: View {
         return VStack(spacing: 24) {
             PixelAnimation.loading(size: 60)
 
-            Text("Encrypting \(completed) of \(total)...")
+            Text("Importing \(completed) of \(total)...")
                 .font(.title3)
                 .fontWeight(.medium)
 
@@ -1333,18 +1333,27 @@ struct VaultView: View {
         }
     }
 
-    private func handleSelectedImages(_ imagesData: [Data]) {
+    private func handleSelectedPhotos(_ results: [PHPickerResult]) {
         guard !isSharedVault, let key = appState.currentVaultKey else { return }
-        let count = imagesData.count
-        let showProgress = count > 1
+        let count = results.count
         let encryptionKey = self.masterKey ?? key
 
-        Task.detached(priority: .userInitiated) {
-            if showProgress {
-                await MainActor.run { self.importProgress = (0, count) }
-            }
+        // Show progress IMMEDIATELY — before any async image loading
+        importProgress = (0, count)
 
-            for (index, data) in imagesData.enumerated() {
+        Task.detached(priority: .userInitiated) {
+            for (index, result) in results.enumerated() {
+                let provider = result.itemProvider
+                guard provider.canLoadObject(ofClass: UIImage.self) else { continue }
+
+                let image: UIImage? = await withCheckedContinuation { continuation in
+                    provider.loadObject(ofClass: UIImage.self) { object, _ in
+                        continuation.resume(returning: object as? UIImage)
+                    }
+                }
+
+                guard let image, let data = image.jpegData(compressionQuality: 0.8) else { continue }
+
                 do {
                     let filename = "IMG_\(Date().timeIntervalSince1970)_\(index).jpg"
                     let thumbnail = FileUtilities.generateThumbnail(from: data)
@@ -1364,9 +1373,7 @@ struct VaultView: View {
                             mimeType: "image/jpeg",
                             filename: filename
                         ))
-                        if showProgress {
-                            self.importProgress = (index + 1, count)
-                        }
+                        self.importProgress = (index + 1, count)
                     }
                 } catch {
                     #if DEBUG
@@ -1395,10 +1402,12 @@ struct VaultView: View {
         let showProgress = count > 1
         let encryptionKey = self.masterKey ?? key
 
+        // Show progress immediately on main actor before detaching
+        if showProgress {
+            importProgress = (0, count)
+        }
+
         Task.detached(priority: .userInitiated) {
-            if showProgress {
-                await MainActor.run { self.importProgress = (0, count) }
-            }
 
             for (index, url) in urls.enumerated() {
                 guard url.startAccessingSecurityScopedResource() else { continue }
@@ -1470,7 +1479,7 @@ struct VaultFileItem: Identifiable, Sendable {
 // MARK: - Photo Picker Wrapper
 
 struct PhotoPicker: UIViewControllerRepresentable {
-    let onImagesSelected: ([Data]) -> Void
+    let onPhotosSelected: ([PHPickerResult]) -> Void
 
     func makeUIViewController(context: Context) -> PHPickerViewController {
         var config = PHPickerConfiguration()
@@ -1485,39 +1494,20 @@ struct PhotoPicker: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {}
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onImagesSelected: onImagesSelected)
+        Coordinator(onPhotosSelected: onPhotosSelected)
     }
 
     class Coordinator: NSObject, PHPickerViewControllerDelegate {
-        let onImagesSelected: ([Data]) -> Void
+        let onPhotosSelected: ([PHPickerResult]) -> Void
 
-        init(onImagesSelected: @escaping ([Data]) -> Void) {
-            self.onImagesSelected = onImagesSelected
+        init(onPhotosSelected: @escaping ([PHPickerResult]) -> Void) {
+            self.onPhotosSelected = onPhotosSelected
         }
 
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
             picker.dismiss(animated: true)
             guard !results.isEmpty else { return }
-
-            let callback = onImagesSelected
-            Task {
-                var imagesData: [Data] = []
-                for result in results {
-                    let provider = result.itemProvider
-                    guard provider.canLoadObject(ofClass: UIImage.self) else { continue }
-                    let image: UIImage? = await withCheckedContinuation { continuation in
-                        provider.loadObject(ofClass: UIImage.self) { object, _ in
-                            continuation.resume(returning: object as? UIImage)
-                        }
-                    }
-                    if let image, let data = image.jpegData(compressionQuality: 0.8) {
-                        imagesData.append(data)
-                    }
-                }
-                await MainActor.run {
-                    callback(imagesData)
-                }
-            }
+            onPhotosSelected(results)
         }
     }
 }
