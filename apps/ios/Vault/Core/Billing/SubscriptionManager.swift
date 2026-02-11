@@ -9,6 +9,7 @@ final class SubscriptionManager: NSObject {
 
     private(set) var isPremium = false
     private(set) var isConfigured = false
+    private(set) var hasOfferings = false
     private(set) var customerInfo: CustomerInfo?
 
     static let entitlementID = "lifetime"
@@ -52,6 +53,7 @@ final class SubscriptionManager: NSObject {
 
         Task {
             await checkSubscriptionStatus()
+            await checkOfferings()
         }
     }
 
@@ -62,6 +64,18 @@ final class SubscriptionManager: NSObject {
         } catch {
             #if DEBUG
             print("❌ [SubscriptionManager] Failed to fetch customer info: \(error)")
+            #endif
+        }
+    }
+
+    private func checkOfferings() async {
+        do {
+            let offerings = try await Purchases.shared.offerings()
+            hasOfferings = offerings.current != nil
+        } catch {
+            hasOfferings = false
+            #if DEBUG
+            print("❌ [SubscriptionManager] Failed to fetch offerings: \(error)")
             #endif
         }
     }
