@@ -1,4 +1,5 @@
 import SwiftUI
+import QuickLook
 
 struct SecureImageViewer: View {
     let file: VaultFileItem
@@ -8,12 +9,16 @@ struct SecureImageViewer: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var image: UIImage?
+    @State private var tempFileURL: URL?
     @State private var isLoading = true
     @State private var error: String?
     @State private var showingExportConfirmation = false
     @State private var showingDeleteConfirmation = false
     @State private var showingActions = false
     @State private var shareURL: URL?
+
+    private var isImage: Bool { (file.mimeType ?? "").hasPrefix("image/") }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -41,13 +46,16 @@ struct SecureImageViewer: View {
                         .tint(.white)
                 } else if let image = image {
                     imageView(image)
+                } else if let url = tempFileURL {
+                    QuickLookPreview(url: url)
+                        .ignoresSafeArea(edges: .bottom)
                 } else if let error = error {
                     errorView(error)
                 }
             }
         }
-        .task { loadImage() }
-        .onDisappear(perform: clearImage)
+        .task { loadFile() }
+        .onDisappear(perform: cleanup)
         .alert("Export File?", isPresented: $showingExportConfirmation) {
             Button("Export", role: .destructive) { exportFile() }
             Button("Cancel", role: .cancel) { }
@@ -64,7 +72,9 @@ struct SecureImageViewer: View {
             if allowDownloads {
                 Button("Export") { showingExportConfirmation = true }
             }
-            Button("Delete", role: .destructive) { showingDeleteConfirmation = true }
+            if onDelete != nil {
+                Button("Delete", role: .destructive) { showingDeleteConfirmation = true }
+            }
             Button("Cancel", role: .cancel) { }
         }
         .onChange(of: shareURL) { _, url in
@@ -113,7 +123,7 @@ struct SecureImageViewer: View {
 
     // MARK: - Actions
 
-    private func loadImage() {
+    private func loadFile() {
         guard let key = vaultKey else {
             error = "No vault key"
             isLoading = false
@@ -124,19 +134,25 @@ struct SecureImageViewer: View {
             do {
                 let (header, content) = try VaultStorage.shared.retrieveFile(id: file.id, with: key)
 
-                // Only handle images for now
-                if header.mimeType.hasPrefix("image/") {
-                    if let uiImage = UIImage(data: content) {
-                        await MainActor.run {
-                            self.image = uiImage
-                            self.isLoading = false
-                        }
-                        return
+                // Images: display inline
+                if header.mimeType.hasPrefix("image/"), let uiImage = UIImage(data: content) {
+                    await MainActor.run {
+                        self.image = uiImage
+                        self.isLoading = false
                     }
+                    return
                 }
 
+                // All other files: write to temp and present via Quick Look
+                let filename = file.filename ?? "file_\(file.id.uuidString)"
+                let tempDir = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("vault_preview", isDirectory: true)
+                try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                let tempURL = tempDir.appendingPathComponent(filename)
+                try content.write(to: tempURL)
+
                 await MainActor.run {
-                    self.error = "Unsupported file type"
+                    self.tempFileURL = tempURL
                     self.isLoading = false
                 }
             } catch {
@@ -148,30 +164,35 @@ struct SecureImageViewer: View {
         }
     }
 
-    private func clearImage() {
-        // Clear image from memory when view disappears
+    private func cleanup() {
         image = nil
+        if let url = tempFileURL {
+            try? FileManager.default.removeItem(at: url)
+            tempFileURL = nil
+        }
     }
 
     private func exportFile() {
-        guard let image = image, let data = image.jpegData(compressionQuality: 0.95) else { return }
+        guard let key = vaultKey else { return }
 
-        // Write to a temporary location for sharing
-        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-        let filename = "Export_\(file.id.uuidString).jpg"
-        let url = tempDir.appendingPathComponent(filename)
-
-        do {
-            try data.write(to: url, options: [.atomic])
-            shareURL = url
-        } catch {
-            // Ignore share if we cannot write
+        Task {
+            do {
+                let (_, content) = try VaultStorage.shared.retrieveFile(id: file.id, with: key)
+                let filename = file.filename ?? "Export_\(file.id.uuidString)"
+                let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+                let url = tempDir.appendingPathComponent(filename)
+                try content.write(to: url, options: [.atomic])
+                await MainActor.run {
+                    shareURL = url
+                }
+            } catch {
+                // Ignore export errors
+            }
         }
     }
 
     private func deleteFile() {
         guard let key = vaultKey else {
-            // Even if key is missing, notify parent to refresh UI
             onDelete?(file.id)
             dismiss()
             return
@@ -180,11 +201,44 @@ struct SecureImageViewer: View {
         Task {
             try? VaultStorage.shared.deleteFile(id: file.id, with: key)
             await MainActor.run {
-                // Inform parent to remove this item from its list
                 onDelete?(file.id)
-                // Dismiss the viewer
                 dismiss()
             }
+        }
+    }
+}
+
+// MARK: - Quick Look Preview
+
+struct QuickLookPreview: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> QLPreviewController {
+        let controller = QLPreviewController()
+        controller.dataSource = context.coordinator
+        // Hide the default nav bar — our custom header handles Done/Actions
+        controller.navigationItem.leftBarButtonItems = []
+        controller.navigationItem.rightBarButtonItems = []
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: QLPreviewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(url: url)
+    }
+
+    class Coordinator: NSObject, QLPreviewControllerDataSource {
+        let url: URL
+
+        init(url: URL) {
+            self.url = url
+        }
+
+        func numberOfPreviewItems(in controller: QLPreviewController) -> Int { 1 }
+
+        func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
+            url as QLPreviewItem
         }
     }
 }
@@ -224,4 +278,3 @@ enum ShareSheetHelper {
         presenter.present(activityVC, animated: true)
     }
 }
-
