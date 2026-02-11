@@ -13,7 +13,6 @@ struct SecureImageViewer: View {
     @State private var showingExportConfirmation = false
     @State private var showingDeleteConfirmation = false
     @State private var showingActions = false
-    @State private var isSharing = false
     @State private var shareURL: URL?
     var body: some View {
         VStack(spacing: 0) {
@@ -68,14 +67,11 @@ struct SecureImageViewer: View {
             Button("Delete", role: .destructive) { showingDeleteConfirmation = true }
             Button("Cancel", role: .cancel) { }
         }
-        .sheet(isPresented: $isSharing, onDismiss: {
-            if let url = shareURL {
+        .onChange(of: shareURL) { _, url in
+            guard let url else { return }
+            ShareSheetHelper.present(items: [url]) {
                 try? FileManager.default.removeItem(at: url)
-                shareURL = nil
-            }
-        }) {
-            if let url = shareURL {
-                ActivityView(activityItems: [url])
+                self.shareURL = nil
             }
         }
     }
@@ -168,7 +164,6 @@ struct SecureImageViewer: View {
         do {
             try data.write(to: url, options: [.atomic])
             shareURL = url
-            isSharing = true
         } catch {
             // Ignore share if we cannot write
         }
@@ -208,16 +203,25 @@ struct SecureImageViewer: View {
     )
 }
 
-// MARK: - Activity View (Share Sheet)
-struct ActivityView: UIViewControllerRepresentable {
-    let activityItems: [Any]
-    var applicationActivities: [UIActivity]? = nil
+// MARK: - Share Sheet Helper
 
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        let controller = UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
-        return controller
+/// Presents UIActivityViewController imperatively from the topmost view controller.
+/// Avoids _UIReparentingView warnings caused by UIViewControllerRepresentable inside .sheet().
+enum ShareSheetHelper {
+    static func present(items: [Any], completion: (() -> Void)? = nil) {
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let root = scene.keyWindow?.rootViewController else { return }
+
+        var presenter = root
+        while let presented = presenter.presentedViewController {
+            presenter = presented
+        }
+
+        let activityVC = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        activityVC.completionWithItemsHandler = { _, _, _, _ in
+            completion?()
+        }
+        presenter.present(activityVC, animated: true)
     }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 

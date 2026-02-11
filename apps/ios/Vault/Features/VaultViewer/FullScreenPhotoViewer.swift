@@ -14,7 +14,6 @@ struct FullScreenPhotoViewer: View {
     @State private var showingActions = false
     @State private var showingExportConfirmation = false
     @State private var showingDeleteConfirmation = false
-    @State private var isSharing = false
     @State private var shareURL: URL?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -99,14 +98,11 @@ struct FullScreenPhotoViewer: View {
         } message: {
             Text("This file will be permanently deleted from the vault.")
         }
-        .sheet(isPresented: $isSharing, onDismiss: {
-            if let url = shareURL {
+        .onChange(of: shareURL) { _, url in
+            guard let url else { return }
+            ShareSheetHelper.present(items: [url]) {
                 try? FileManager.default.removeItem(at: url)
-                shareURL = nil
-            }
-        }) {
-            if let url = shareURL {
-                ActivityView(activityItems: [url])
+                self.shareURL = nil
             }
         }
     }
@@ -198,7 +194,6 @@ struct FullScreenPhotoViewer: View {
         do {
             try data.write(to: url, options: [.atomic])
             shareURL = url
-            isSharing = true
         } catch {
             // Ignore
         }

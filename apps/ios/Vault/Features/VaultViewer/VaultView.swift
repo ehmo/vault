@@ -100,7 +100,6 @@ struct VaultView: View {
     @State private var showingBatchDeleteConfirmation = false
     @State private var showingPaywall = false
     @State private var showingFanMenu = false
-    @State private var isExporting = false
     @State private var exportURLs: [URL] = []
     @State private var toastMessage: ToastMessage?
     private let floatingButtonTrailingInset: CGFloat = 15
@@ -616,13 +615,12 @@ struct VaultView: View {
             Text("These files will be permanently deleted from the vault.")
         }
         .premiumPaywall(isPresented: $showingPaywall)
-        .sheet(isPresented: $isExporting, onDismiss: {
-            cleanupExportFiles()
-            selectedIds.removeAll()
-            isEditing = false
-        }) {
-            if !exportURLs.isEmpty {
-                ActivityView(activityItems: exportURLs)
+        .onChange(of: exportURLs) { _, urls in
+            guard !urls.isEmpty else { return }
+            ShareSheetHelper.present(items: urls) {
+                cleanupExportFiles()
+                selectedIds.removeAll()
+                isEditing = false
             }
         }
     }
@@ -1169,7 +1167,6 @@ struct VaultView: View {
             
             await MainActor.run { [finalizedURLs] in
                 self.exportURLs = finalizedURLs
-                self.isExporting = true
             }
         }
     }
