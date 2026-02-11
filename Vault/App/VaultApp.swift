@@ -6,12 +6,17 @@ import CryptoKit
 struct VaultApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var appState = AppState()
+    @State private var deepLinkHandler = DeepLinkHandler()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(appState)
+                .environment(deepLinkHandler)
                 .environment(SubscriptionManager.shared)
+                .onOpenURL { url in
+                    deepLinkHandler.handle(url)
+                }
         }
     }
 }

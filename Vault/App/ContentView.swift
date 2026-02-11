@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(AppState.self) private var appState
+    @Environment(DeepLinkHandler.self) private var deepLinkHandler
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var showUnlockTransition = false
@@ -51,6 +52,15 @@ struct ContentView: View {
                 Color.black
                     .ignoresSafeArea()
             }
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { deepLinkHandler.pendingSharePhrase != nil },
+            set: { if !$0 { deepLinkHandler.clearPending() } }
+        )) {
+            SharedVaultInviteView()
+                .environment(appState)
+                .environment(deepLinkHandler)
+                .environment(SubscriptionManager.shared)
         }
         .onChange(of: appState.isUnlocked) { _, isUnlocked in
             guard isUnlocked, !reduceMotion else { return }

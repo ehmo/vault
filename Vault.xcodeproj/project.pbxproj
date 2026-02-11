@@ -58,8 +58,11 @@
 		014000003 /* ShareSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014000002 /* ShareSyncManager.swift */; };
 		014000005 /* SVDFSerializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014000004 /* SVDFSerializer.swift */; };
 		014000007 /* ShareSyncCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014000006 /* ShareSyncCache.swift */; };
+		SL0000001 /* ShareLinkEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = SL0000000 /* ShareLinkEncoder.swift */; };
+		SL0000003 /* DeepLinkHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = SL0000002 /* DeepLinkHandler.swift */; };
 		015000001 /* ShareVaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 015000000 /* ShareVaultView.swift */; };
 		015000003 /* JoinVaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 015000002 /* JoinVaultView.swift */; };
+		SL0000005 /* SharedVaultInviteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SL0000004 /* SharedVaultInviteView.swift */; };
 		016000001 /* LocalNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016000000 /* LocalNotificationManager.swift */; };
 		016000003 /* BackgroundShareTransferManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016000002 /* BackgroundShareTransferManager.swift */; };
 		017000001 /* SentryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017000000 /* SentryManager.swift */; };
@@ -198,8 +201,11 @@
 		014000002 /* ShareSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSyncManager.swift; sourceTree = "<group>"; };
 		014000004 /* SVDFSerializer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SVDFSerializer.swift; sourceTree = "<group>"; };
 		014000006 /* ShareSyncCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSyncCache.swift; sourceTree = "<group>"; };
+		SL0000000 /* ShareLinkEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareLinkEncoder.swift; sourceTree = "<group>"; };
+		SL0000002 /* DeepLinkHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkHandler.swift; sourceTree = "<group>"; };
 		015000000 /* ShareVaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareVaultView.swift; sourceTree = "<group>"; };
 		015000002 /* JoinVaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinVaultView.swift; sourceTree = "<group>"; };
+		SL0000004 /* SharedVaultInviteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedVaultInviteView.swift; sourceTree = "<group>"; };
 		016000000 /* LocalNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNotificationManager.swift; sourceTree = "<group>"; };
 		016000002 /* BackgroundShareTransferManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundShareTransferManager.swift; sourceTree = "<group>"; };
 		017000000 /* SentryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentryManager.swift; sourceTree = "<group>"; };
@@ -377,6 +383,8 @@
 				014000002 /* ShareSyncManager.swift */,
 				014000004 /* SVDFSerializer.swift */,
 				014000006 /* ShareSyncCache.swift */,
+				SL0000000 /* ShareLinkEncoder.swift */,
+				SL0000002 /* DeepLinkHandler.swift */,
 				016000002 /* BackgroundShareTransferManager.swift */,
 			);
 			path = Sharing;
@@ -497,6 +505,7 @@
 			children = (
 				015000000 /* ShareVaultView.swift */,
 				015000002 /* JoinVaultView.swift */,
+				SL0000004 /* SharedVaultInviteView.swift */,
 			);
 			path = Sharing;
 			sourceTree = "<group>";
@@ -843,8 +852,11 @@
 				014000003 /* ShareSyncManager.swift in Sources */,
 				014000005 /* SVDFSerializer.swift in Sources */,
 				014000007 /* ShareSyncCache.swift in Sources */,
+				SL0000001 /* ShareLinkEncoder.swift in Sources */,
+				SL0000003 /* DeepLinkHandler.swift in Sources */,
 				015000001 /* ShareVaultView.swift in Sources */,
 				015000003 /* JoinVaultView.swift in Sources */,
+				SL0000005 /* SharedVaultInviteView.swift in Sources */,
 				016000001 /* LocalNotificationManager.swift in Sources */,
 				016000003 /* BackgroundShareTransferManager.swift in Sources */,
 				017000001 /* SentryManager.swift in Sources */,

@@ -1,5 +1,6 @@
 import SwiftUI
 import CloudKit
+import UIKit
 
 struct ShareVaultView: View {
     @Environment(AppState.self) private var appState
@@ -29,6 +30,7 @@ struct ShareVaultView: View {
     @State private var customPhrase = ""
     @State private var customPhraseValidation: RecoveryPhraseGenerator.PhraseValidation?
     @State private var uploadStatus: BackgroundShareTransferManager.TransferStatus = .idle
+    @State private var linkCopied = false
 
     // Active shares data
     @State private var activeShares: [VaultStorage.ShareRecord] = []
@@ -302,10 +304,12 @@ struct ShareVaultView: View {
                 }
 
                 PhraseActionButtons(phrase: customPhrase.trimmingCharacters(in: .whitespacesAndNewlines))
+                shareLinkButtons(for: customPhrase.trimmingCharacters(in: .whitespacesAndNewlines))
             } else {
                 PhraseDisplayCard(phrase: phrase)
 
                 PhraseActionButtons(phrase: phrase)
+                shareLinkButtons(for: phrase)
             }
 
             // Warning
@@ -343,6 +347,7 @@ struct ShareVaultView: View {
             PhraseDisplayCard(phrase: phrase)
 
             PhraseActionButtons(phrase: phrase)
+            shareLinkButtons(for: phrase)
 
             Button("Done") { dismiss() }
                 .accessibilityIdentifier("share_done")
@@ -536,6 +541,55 @@ struct ShareVaultView: View {
             .buttonStyle(.bordered)
             .controlSize(.mini)
             .disabled(isSyncing)
+        }
+    }
+
+    private func shareLinkButtons(for phrase: String) -> some View {
+        HStack(spacing: 12) {
+            Button {
+                guard let url = ShareLinkEncoder.shareURL(for: phrase) else { return }
+                UIPasteboard.general.string = url.absoluteString
+                linkCopied = true
+
+                Task {
+                    try? await Task.sleep(for: .seconds(2))
+                    await MainActor.run { linkCopied = false }
+                }
+
+                // Auto-clear clipboard after 60s
+                let urlString = url.absoluteString
+                Task {
+                    try? await Task.sleep(for: .seconds(60))
+                    if UIPasteboard.general.string == urlString {
+                        UIPasteboard.general.string = ""
+                    }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: linkCopied ? "checkmark" : "link")
+                    Text(linkCopied ? "Link Copied!" : "Copy Link")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .accessibilityIdentifier("share_copy_link")
+            .buttonStyle(.bordered)
+
+            Button {
+                guard let url = ShareLinkEncoder.shareURL(for: phrase) else { return }
+                guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                      let root = scene.keyWindow?.rootViewController else { return }
+
+                let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+                root.present(activityVC, animated: true)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "square.and.arrow.up")
+                    Text("Share")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .accessibilityIdentifier("share_share_link")
+            .buttonStyle(.bordered)
         }
     }
 
