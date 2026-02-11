@@ -105,12 +105,20 @@ private struct PixelAnimationCell: View {
     var brightness: Int = 2
     var shadowRadius: CGFloat = 20
 
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var effectiveColor: Color {
+        guard colorScheme == .dark else { return color }
+        // Lighten the accent color in dark mode for better visibility
+        return Color(UIColor(color).lighter(by: 0.35))
+    }
+
     var body: some View {
         Rectangle()
-            .foregroundStyle(isOn ? color : .clear)
+            .foregroundStyle(isOn ? effectiveColor : .clear)
             .frame(width: size, height: size)
             .opacity(isOn ? Double(brightness) / 3.0 + 0.34 : 0)
-            .shadow(color: isOn ? color : .clear, radius: shadowRadius)
+            .shadow(color: isOn ? effectiveColor : .clear, radius: shadowRadius)
     }
 }
 
@@ -142,6 +150,16 @@ extension PixelAnimation {
     /// Compact badge variant — same appearance as loading(), just smaller.
     static func syncing(size: CGFloat = 24) -> PixelAnimation {
         loading(size: size)
+    }
+}
+
+// MARK: - UIColor Lightening
+
+private extension UIColor {
+    func lighter(by amount: CGFloat) -> UIColor {
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        return UIColor(hue: h, saturation: s * (1 - amount), brightness: min(b + amount, 1.0), alpha: a)
     }
 }
 
