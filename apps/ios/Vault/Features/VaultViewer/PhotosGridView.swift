@@ -93,17 +93,15 @@ struct PhotosGridView: View {
     // MARK: - Drag-to-Select
 
     private var dragSelectGesture: some Gesture {
-        DragGesture(minimumDistance: 1, coordinateSpace: .named("photosGrid"))
+        DragGesture(minimumDistance: 30, coordinateSpace: .named("photosGrid"))
             .onChanged { value in
                 guard isEditing else { return }
 
                 if !isDragging {
-                    // Wait for enough movement to distinguish from scroll
                     let dx = abs(value.translation.width)
                     let dy = abs(value.translation.height)
-                    guard dx + dy >= 10 else { return }
-                    // Reject pure vertical drags (let scroll handle those)
-                    guard dx > dy * 0.5 else { return }
+                    // Only activate on predominantly horizontal drags
+                    guard dx > dy else { return }
 
                     isDragging = true
                     if let id = cellId(at: value.startLocation) {
