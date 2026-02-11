@@ -579,8 +579,14 @@ struct ShareVaultView: View {
                 guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                       let root = scene.keyWindow?.rootViewController else { return }
 
-                let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-                root.present(activityVC, animated: true)
+                // Walk to topmost presented VC — rootViewController is already presenting this sheet
+                var presenter = root
+                while let presented = presenter.presentedViewController {
+                    presenter = presented
+                }
+
+                let activityVC = UIActivityViewController(activityItems: [url.absoluteString], applicationActivities: nil)
+                presenter.present(activityVC, animated: true)
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "square.and.arrow.up")
