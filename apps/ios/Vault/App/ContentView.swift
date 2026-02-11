@@ -65,7 +65,7 @@ struct ContentView: View {
         .onChange(of: appState.isUnlocked) { _, isUnlocked in
             guard isUnlocked, !reduceMotion else { return }
             showUnlockTransition = true
-            withAnimation(.easeOut(duration: 0.5)) {
+            withAnimation(.easeOut(duration: 0.9)) {
                 showUnlockTransition = false
             }
         }
