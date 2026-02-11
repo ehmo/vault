@@ -24,6 +24,8 @@ struct AppSettingsView: View {
     @State private var showingPaywall = false
     @State private var showingCustomerCenter = false
     @State private var isRestoringPurchases = false
+    @State private var showingClearStagedConfirmation = false
+    @State private var pendingStagedSize: Int64 = 0
 
     #if DEBUG
     @State private var showingDebugResetConfirmation = false
@@ -136,6 +138,26 @@ struct AppSettingsView: View {
             }
             .onChange(of: analyticsEnabled) { _, newValue in
                 AnalyticsManager.shared.setEnabled(newValue)
+            }
+
+            // Storage Management
+            if pendingStagedSize > 0 {
+                Section {
+                    HStack {
+                        Text("Pending share imports")
+                        Spacer()
+                        Text(ByteCountFormatter.string(fromByteCount: pendingStagedSize, countStyle: .file))
+                            .foregroundStyle(.vaultSecondaryText)
+                    }
+
+                    Button("Clear Pending Imports", role: .destructive) {
+                        showingClearStagedConfirmation = true
+                    }
+                } header: {
+                    Text("Storage")
+                } footer: {
+                    Text("Files shared via a pattern you no longer use. These are automatically cleared after 24 hours.")
+                }
             }
 
             // About
@@ -255,6 +277,18 @@ struct AppSettingsView: View {
             Text("This will completely wipe:\n• All vault files and indexes\n• Recovery phrase mappings\n• User preferences\n• Keychain entries\n• Onboarding state\n\nThe app will restart as if freshly installed.")
         }
         #endif
+        .onAppear {
+            pendingStagedSize = StagedImportManager.totalPendingSize()
+        }
+        .alert("Clear Pending Imports?", isPresented: $showingClearStagedConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Clear All", role: .destructive) {
+                StagedImportManager.deleteAllBatches()
+                pendingStagedSize = 0
+            }
+        } message: {
+            Text("This will delete all files shared via the share extension that haven't been imported yet.")
+        }
         .premiumPaywall(isPresented: $showingPaywall)
         .sheet(isPresented: $showingCustomerCenter) {
             CustomerCenterView()

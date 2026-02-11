@@ -177,6 +177,95 @@ enum StagedImportManager {
             }
         }
     }
+
+    /// Deletes all batches older than the given time interval (default 24 hours).
+    /// Returns the number of batches deleted.
+    @discardableResult
+    static func cleanupExpiredBatches(olderThan interval: TimeInterval = 24 * 60 * 60) -> Int {
+        guard let baseURL = pendingImportsURL,
+              let contents = try? fm.contentsOfDirectory(at: baseURL, includingPropertiesForKeys: nil) else {
+            return 0
+        }
+
+        let cutoff = Date().addingTimeInterval(-interval)
+        var deletedCount = 0
+
+        for dir in contents where dir.hasDirectoryPath {
+            let manifestURL = dir.appendingPathComponent(VaultCoreConstants.manifestFilename)
+
+            if let data = try? Data(contentsOf: manifestURL),
+               let manifest = try? decoder.decode(StagedImportManifest.self, from: data) {
+                if manifest.timestamp < cutoff {
+                    try? fm.removeItem(at: dir)
+                    deletedCount += 1
+                }
+            } else {
+                // No manifest or unreadable — check directory modification date
+                if let attrs = try? fm.attributesOfItem(atPath: dir.path),
+                   let modDate = attrs[.modificationDate] as? Date,
+                   modDate < cutoff {
+                    try? fm.removeItem(at: dir)
+                    deletedCount += 1
+                }
+            }
+        }
+        return deletedCount
+    }
+
+    /// Returns all pending batches regardless of fingerprint, for management UI.
+    static func allPendingBatches() -> [(manifest: StagedImportManifest, directoryURL: URL)] {
+        guard let baseURL = pendingImportsURL,
+              let contents = try? fm.contentsOfDirectory(at: baseURL, includingPropertiesForKeys: nil) else {
+            return []
+        }
+
+        var results: [(manifest: StagedImportManifest, directoryURL: URL)] = []
+        for dir in contents where dir.hasDirectoryPath {
+            let manifestURL = dir.appendingPathComponent(VaultCoreConstants.manifestFilename)
+            if let data = try? Data(contentsOf: manifestURL),
+               let manifest = try? decoder.decode(StagedImportManifest.self, from: data) {
+                results.append((manifest, dir))
+            }
+        }
+        return results.sorted { $0.manifest.timestamp < $1.manifest.timestamp }
+    }
+
+    /// Deletes all pending batches. Returns the number deleted.
+    @discardableResult
+    static func deleteAllBatches() -> Int {
+        guard let baseURL = pendingImportsURL,
+              let contents = try? fm.contentsOfDirectory(at: baseURL, includingPropertiesForKeys: nil) else {
+            return 0
+        }
+
+        var count = 0
+        for dir in contents where dir.hasDirectoryPath {
+            try? fm.removeItem(at: dir)
+            count += 1
+        }
+        return count
+    }
+
+    /// Returns the total size in bytes of all pending batches.
+    static func totalPendingSize() -> Int64 {
+        guard let baseURL = pendingImportsURL,
+              let contents = try? fm.contentsOfDirectory(at: baseURL, includingPropertiesForKeys: nil) else {
+            return 0
+        }
+
+        var totalSize: Int64 = 0
+        for dir in contents where dir.hasDirectoryPath {
+            if let files = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.fileSizeKey]) {
+                for file in files {
+                    if let attrs = try? file.resourceValues(forKeys: [.fileSizeKey]),
+                       let size = attrs.fileSize {
+                        totalSize += Int64(size)
+                    }
+                }
+            }
+        }
+        return totalSize
+    }
 }
 
 // MARK: - Errors

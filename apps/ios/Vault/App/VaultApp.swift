@@ -122,6 +122,10 @@ final class AppState {
             }
             indexSpan.finish()
 
+            // Clean up expired staged imports (older than 24h)
+            StagedImportManager.cleanupExpiredBatches()
+            StagedImportManager.cleanupOrphans()
+
             // Check for pending imports from share extension
             let fingerprint = KeyDerivation.keyFingerprint(from: key)
             let pending = StagedImportManager.pendingBatches(for: fingerprint)
