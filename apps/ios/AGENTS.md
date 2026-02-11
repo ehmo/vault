@@ -52,6 +52,24 @@ Required sections — missing any one causes Xcode to fail silently or at build 
 - `Activity.request()` from main app, widget only provides UI via `ActivityConfiguration`
 - End activities with `.after(.now + 5)` dismissal policy
 
+## Maestro E2E Tests
+
+**MANDATORY**: Every visual or UI change MUST include corresponding Maestro test updates. This is non-negotiable.
+
+- Tests live in `maestro/flows/` organized by feature area
+- Every new accessibility identifier must be tested
+- Every new screen, button, or user-facing text must have assertions
+- Pattern: mirror onboarding tests when adding similar flows elsewhere (e.g., `pattern_confirm_error.yaml` → `join_vault_pattern_validation.yaml`)
+- Use `optional: true` for assertions after synthetic swipes (PatternGridView may not register them)
+- Use `waitForAnimationToEnd` instead of `wait`
+- Run with: `maestro test maestro/flows/<path>.yaml`
+
+**Checklist before committing UI changes:**
+1. New screen? → New `.yaml` test flow
+2. New button/input? → Add `accessibilityIdentifier`, assert in test
+3. Changed text/labels? → Update `assertVisible` text in existing tests
+4. Changed flow/navigation? → Update test flow sequence
+
 ## SwiftUI Patterns
 
 - `@Observable` (iOS 17+ Observation framework), not `ObservableObject`
