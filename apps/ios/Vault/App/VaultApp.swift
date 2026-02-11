@@ -34,6 +34,7 @@ final class AppState {
     private(set) var vaultName: String = "Vault"
     var pendingImportCount = 0
     var hasPendingImports = false
+    var suppressLockForShareSheet = false
 
     #if DEBUG
     /// When true, Maestro E2E tests are running — disables lock triggers and enables test bypass
@@ -176,6 +177,7 @@ final class AppState {
         screenshotDetected = false
         pendingImportCount = 0
         hasPendingImports = false
+        suppressLockForShareSheet = false
 
         #if DEBUG
         print("🔒 [AppState] After lock - currentVaultKey: nil, isUnlocked: false")

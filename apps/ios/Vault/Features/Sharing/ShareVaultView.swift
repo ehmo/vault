@@ -12,8 +12,7 @@ struct ShareVaultView: View {
         case loading
         case iCloudUnavailable(CKAccountStatus)
         case newShare
-        case phraseReady(String)
-        case backgroundUploadStarted(String) // phrase
+        case uploading(phrase: String)
         case manageShares
         case error(String)
     }
@@ -26,11 +25,9 @@ struct ShareVaultView: View {
     @State private var allowDownloads = true
     @State private var isStopping = false
     @State private var estimatedUploadSize: Int?
-    @State private var useCustomPhrase = false
-    @State private var customPhrase = ""
-    @State private var customPhraseValidation: RecoveryPhraseGenerator.PhraseValidation?
     @State private var uploadStatus: BackgroundShareTransferManager.TransferStatus = .idle
     @State private var linkCopied = false
+    @State private var showDismissWarning = false
 
     // Active shares data
     @State private var activeShares: [VaultStorage.ShareRecord] = []
@@ -39,8 +36,14 @@ struct ShareVaultView: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Button("Cancel") { dismiss() }
-                    .accessibilityIdentifier("share_cancel")
+                Button("Cancel") {
+                    if case .uploading = mode {
+                        showDismissWarning = true
+                    } else {
+                        dismiss()
+                    }
+                }
+                .accessibilityIdentifier("share_cancel")
                 Spacer()
                 Text("Share Vault")
                     .font(.headline)
@@ -63,10 +66,8 @@ struct ShareVaultView: View {
                         iCloudUnavailableView(status)
                     case .newShare:
                         newShareSettingsView
-                    case .phraseReady(let phrase):
-                        phraseReadyView(phrase)
-                    case .backgroundUploadStarted(let phrase):
-                        backgroundUploadStartedView(phrase)
+                    case .uploading(let phrase):
+                        uploadingView(phrase)
                     case .manageShares:
                         manageSharesView
                     case .error(let message):
@@ -75,6 +76,16 @@ struct ShareVaultView: View {
                 }
                 .padding()
             }
+        }
+        .interactiveDismissDisabled({
+            if case .uploading = mode { return true }
+            return false
+        }())
+        .alert("Save Your Phrase?", isPresented: $showDismissWarning) {
+            Button("Go Back", role: .cancel) { }
+            Button("Close", role: .destructive) { dismiss() }
+        } message: {
+            Text("This phrase won't be shown again. Make sure you've saved it.")
         }
         .task {
             await initialize()
@@ -89,15 +100,16 @@ struct ShareVaultView: View {
                 let newStatus = BackgroundShareTransferManager.shared.status
                 if newStatus != uploadStatus {
                     uploadStatus = newStatus
-                    // Refresh share list when upload completes
-                    if case .uploadComplete = newStatus {
+                    // Don't navigate away when showing phrase — user needs to save it
+                    if case .uploadComplete = newStatus, case .uploading = mode {
+                        // Stay on uploading screen
+                    } else if case .uploadComplete = newStatus {
                         await initialize()
                     }
                 }
             }
         }
         .onChange(of: ShareSyncManager.shared.syncStatus) { _, newStatus in
-            // Reload share records after sync completes
             if case .upToDate = newStatus {
                 reloadActiveShares()
             }
@@ -108,27 +120,21 @@ struct ShareVaultView: View {
 
     private func initialize() async {
         let status = await CloudKitSharingManager.shared.checkiCloudStatus()
-        // .available = fully ready, .temporarilyUnavailable = signed in but CloudKit still syncing
-        // Both mean the user has an iCloud account — let them proceed.
-        // Only block for .noAccount, .restricted, .couldNotDetermine.
         guard status == .available || status == .temporarilyUnavailable else {
             mode = .iCloudUnavailable(status)
             return
         }
 
-        // Check if vault already has active shares
         guard let key = appState.currentVaultKey else {
             mode = .error("No vault key available")
             return
         }
 
-        // Check for in-progress uploads
         let transferStatus = BackgroundShareTransferManager.shared.status
         uploadStatus = transferStatus
 
         do {
             let index = try VaultStorage.shared.loadIndex(with: key)
-            // Pre-compute estimated upload size from index metadata (no decryption needed)
             estimatedUploadSize = index.files.filter { !$0.isDeleted }.reduce(0) { $0 + $1.size }
             if let shares = index.activeShares, !shares.isEmpty {
                 activeShares = shares
@@ -232,7 +238,7 @@ struct ShareVaultView: View {
             .padding()
             .vaultGlassBackground(cornerRadius: 12)
 
-            // Estimated size (pre-computed in initialize, no decryption during render)
+            // Estimated size
             if let totalSize = estimatedUploadSize {
                 HStack {
                     Text("Estimated upload")
@@ -244,117 +250,41 @@ struct ShareVaultView: View {
                 .font(.subheadline)
             }
 
-            Button("Generate Share Phrase") {
-                generatePhrase()
+            Button("Share Vault") {
+                let phrase = RecoveryPhraseGenerator.shared.generatePhrase()
+                startBackgroundUpload(phrase: phrase)
             }
             .accessibilityIdentifier("share_generate_phrase")
             .vaultProminentButtonStyle()
         }
     }
 
-    private func phraseReadyView(_ phrase: String) -> some View {
+    private func uploadingView(_ phrase: String) -> some View {
         VStack(spacing: 24) {
-            Image(systemName: "key.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.tint)
-
-            Text("Share Phrase (one-time use)")
-                .font(.title2).fontWeight(.semibold)
-
-            // Auto / Custom phrase picker
-            Picker("Phrase Type", selection: $useCustomPhrase) {
-                Text("Auto-Generated").tag(false)
-                Text("Custom Phrase").tag(true)
-            }
-            .pickerStyle(.segmented)
-
-            if useCustomPhrase {
-                ZStack(alignment: .topLeading) {
-                    TextEditor(text: $customPhrase)
-                        .autocorrectionDisabled()
-                        .onChange(of: customPhrase) { _, newValue in
-                            guard !newValue.isEmpty else { customPhraseValidation = nil; return }
-                            customPhraseValidation = RecoveryPhraseGenerator.shared.validatePhrase(newValue)
-                        }
-
-                    if customPhrase.isEmpty {
-                        Text("Type a memorable phrase with 6-9 words...")
-                            .foregroundStyle(.vaultSecondaryText.opacity(0.6))
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 8)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .frame(height: 100)
-                .padding(8)
-                .background(Color.vaultSurface)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.vaultSecondaryText.opacity(0.3), lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                if let validation = customPhraseValidation {
-                    HStack(spacing: 8) {
-                        Image(systemName: validation.isAcceptable ? "checkmark.circle.fill" : "xmark.circle.fill")
-                            .foregroundStyle(validation.isAcceptable ? .green : .orange)
-                        Text(validation.message)
-                            .font(.caption)
-                    }
-                }
-
-                PhraseActionButtons(phrase: customPhrase.trimmingCharacters(in: .whitespacesAndNewlines))
-                shareLinkButtons(for: customPhrase.trimmingCharacters(in: .whitespacesAndNewlines))
-            } else {
-                PhraseDisplayCard(phrase: phrase)
-
-                PhraseActionButtons(phrase: phrase)
-                shareLinkButtons(for: phrase)
-            }
-
-            // Warning
-            VStack(alignment: .leading, spacing: 12) {
-                Label("Write this down", systemImage: "pencil")
-                Label("Store it somewhere safe", systemImage: "lock")
-                Label("One-time use only", systemImage: "exclamationmark.triangle")
-            }
-            .font(.subheadline)
-            .foregroundStyle(.vaultSecondaryText)
-
-            Button("Upload Vault") {
-                let uploadPhrase = useCustomPhrase ? customPhrase.trimmingCharacters(in: .whitespacesAndNewlines) : phrase
-                startBackgroundUpload(phrase: uploadPhrase)
-            }
-            .accessibilityIdentifier("share_upload_vault")
-            .vaultProminentButtonStyle()
-            .disabled(useCustomPhrase && !(customPhraseValidation?.isAcceptable ?? false))
-        }
-    }
-
-    private func backgroundUploadStartedView(_ phrase: String) -> some View {
-        VStack(spacing: 24) {
-            Image(systemName: "icloud.and.arrow.up.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.tint)
-
-            Text("Uploading in Background")
-                .font(.title2).fontWeight(.semibold)
-
-            Text("You can dismiss this screen. You'll be notified when the upload completes.")
-                .foregroundStyle(.vaultSecondaryText)
-                .multilineTextAlignment(.center)
-
             PhraseDisplayCard(phrase: phrase)
 
             PhraseActionButtons(phrase: phrase)
             shareLinkButtons(for: phrase)
 
-            Button("Done") { dismiss() }
-                .accessibilityIdentifier("share_done")
-                .vaultProminentButtonStyle()
-                .padding(.top)
+            // Upload status warning
+            if case .uploading = uploadStatus {
+                Label {
+                    Text("Keep this screen open until upload finishes. Closing may pause the upload.")
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle")
+                }
+                .font(.subheadline)
+                .foregroundStyle(.vaultSecondaryText)
+                .multilineTextAlignment(.center)
+            }
+
+            Button("Done") {
+                showDismissWarning = true
+            }
+            .accessibilityIdentifier("share_done")
+            .vaultProminentButtonStyle()
+            .padding(.top)
         }
-        .padding(.top, 40)
     }
 
     private var manageSharesView: some View {
@@ -585,7 +515,11 @@ struct ShareVaultView: View {
                     presenter = presented
                 }
 
+                appState.suppressLockForShareSheet = true
                 let activityVC = UIActivityViewController(activityItems: [url.absoluteString], applicationActivities: nil)
+                activityVC.completionWithItemsHandler = { _, _, _, _ in
+                    appState.suppressLockForShareSheet = false
+                }
                 presenter.present(activityVC, animated: true)
             } label: {
                 HStack(spacing: 6) {
@@ -600,11 +534,6 @@ struct ShareVaultView: View {
     }
 
     // MARK: - Actions
-
-    private func generatePhrase() {
-        let phrase = RecoveryPhraseGenerator.shared.generatePhrase()
-        mode = .phraseReady(phrase)
-    }
 
     private func startBackgroundUpload(phrase: String) {
         guard let vaultKey = appState.currentVaultKey else {
@@ -622,7 +551,7 @@ struct ShareVaultView: View {
             allowDownloads: allowDownloads
         )
 
-        mode = .backgroundUploadStarted(phrase)
+        mode = .uploading(phrase: phrase)
     }
 
     private func reloadActiveShares() {

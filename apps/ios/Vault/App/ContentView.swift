@@ -100,6 +100,9 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
             #if DEBUG
             if appState.isMaestroTestMode { return }
+            #endif
+            if appState.suppressLockForShareSheet { return }
+            #if DEBUG
             print("⏸️ [ContentView] App resigning active — locking vault")
             #endif
             SentryManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "background"])
