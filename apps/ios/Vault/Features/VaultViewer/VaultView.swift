@@ -1335,14 +1335,31 @@ struct VaultView: View {
 
     private func handleSelectedPhotos(_ results: [PHPickerResult]) {
         guard !isSharedVault, let key = appState.currentVaultKey else { return }
-        let count = results.count
         let encryptionKey = self.masterKey ?? key
+
+        // Enforce free tier limit: cap to remaining slots, show paywall for overflow
+        let limitedResults: [PHPickerResult]
+        let hitLimit: Bool
+        if subscriptionManager.isPremium {
+            limitedResults = results
+            hitLimit = false
+        } else {
+            let remaining = max(0, SubscriptionManager.maxFreeFilesPerVault - files.count)
+            if remaining == 0 {
+                showingPaywall = true
+                return
+            }
+            hitLimit = results.count > remaining
+            limitedResults = hitLimit ? Array(results.prefix(remaining)) : results
+        }
+
+        let count = limitedResults.count
 
         // Show progress IMMEDIATELY — before any async image loading
         importProgress = (0, count)
 
         Task.detached(priority: .userInitiated) {
-            for (index, result) in results.enumerated() {
+            for (index, result) in limitedResults.enumerated() {
                 let provider = result.itemProvider
                 guard provider.canLoadObject(ofClass: UIImage.self) else { continue }
 
@@ -1384,7 +1401,9 @@ struct VaultView: View {
 
             await MainActor.run {
                 self.importProgress = nil
-                if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: self.files.count) {
+                if hitLimit {
+                    self.showingPaywall = true
+                } else if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: self.files.count) {
                     self.toastMessage = .milestone(milestone)
                 } else {
                     self.toastMessage = .filesImported(count)
@@ -1398,9 +1417,26 @@ struct VaultView: View {
     private func handleImportedFiles(_ result: Result<[URL], Error>) {
         guard !isSharedVault, let key = appState.currentVaultKey else { return }
         guard case .success(let urls) = result else { return }
-        let count = urls.count
-        let showProgress = count > 1
         let encryptionKey = self.masterKey ?? key
+
+        // Enforce free tier limit: cap to remaining slots, show paywall for overflow
+        let limitedURLs: [URL]
+        let hitLimit: Bool
+        if subscriptionManager.isPremium {
+            limitedURLs = urls
+            hitLimit = false
+        } else {
+            let remaining = max(0, SubscriptionManager.maxFreeFilesPerVault - files.count)
+            if remaining == 0 {
+                showingPaywall = true
+                return
+            }
+            hitLimit = urls.count > remaining
+            limitedURLs = hitLimit ? Array(urls.prefix(remaining)) : urls
+        }
+
+        let count = limitedURLs.count
+        let showProgress = count > 1
 
         // Show progress immediately on main actor before detaching
         if showProgress {
@@ -1408,8 +1444,7 @@ struct VaultView: View {
         }
 
         Task.detached(priority: .userInitiated) {
-
-            for (index, url) in urls.enumerated() {
+            for (index, url) in limitedURLs.enumerated() {
                 guard url.startAccessingSecurityScopedResource() else { continue }
                 defer { url.stopAccessingSecurityScopedResource() }
 
@@ -1443,7 +1478,11 @@ struct VaultView: View {
 
             await MainActor.run {
                 self.importProgress = nil
-                self.toastMessage = .filesImported(count)
+                if hitLimit {
+                    self.showingPaywall = true
+                } else {
+                    self.toastMessage = .filesImported(count)
+                }
             }
 
             await ShareSyncManager.shared.scheduleSync(vaultKey: key)
