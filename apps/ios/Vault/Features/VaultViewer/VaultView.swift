@@ -703,7 +703,11 @@ struct VaultView: View {
 
     private var emptyStateView: some View {
         VStack(spacing: 20) {
-            if isSharedVault {
+            if case .importing = transferManager.status {
+                Spacer()
+                importingProgressView
+                Spacer()
+            } else if isSharedVault {
                 Image(systemName: "person.2.fill")
                     .font(.system(size: 48))
                     .foregroundStyle(.vaultSecondaryText)
@@ -783,6 +787,35 @@ struct VaultView: View {
         .padding(14)
         .vaultGlassBackground(cornerRadius: 12)
         .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - Import Progress
+
+    private var importingProgressView: some View {
+        VStack(spacing: 24) {
+            PixelAnimation.downloading(size: 60)
+
+            Text("Downloading shared vault...")
+                .font(.title3)
+                .fontWeight(.medium)
+
+            if transferManager.displayProgress > 0 {
+                VStack(spacing: 8) {
+                    ProgressView(value: Double(transferManager.displayProgress), total: 100)
+                        .tint(.accentColor)
+                        .padding(.horizontal, 40)
+
+                    Text("\(transferManager.displayProgress)%")
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(.vaultSecondaryText)
+                }
+            }
+
+            Text(transferManager.currentMessage)
+                .font(.caption)
+                .foregroundStyle(.vaultSecondaryText)
+        }
+        .accessibilityIdentifier("vault_import_progress")
     }
 
     // MARK: - Fan Menu

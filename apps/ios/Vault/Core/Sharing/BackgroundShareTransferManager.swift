@@ -85,9 +85,9 @@ final class BackgroundShareTransferManager {
     private var isUploadOperation: Bool = true
 
     private var targetProgress: Int = 0
-    private var displayProgress: Int = 0
+    private(set) var displayProgress: Int = 0
     private var animationStep: Int = 0
-    private var currentMessage: String = ""
+    private(set) var currentMessage: String = ""
     private var progressTimer: Timer?
 
     private init() {}
@@ -546,8 +546,13 @@ final class BackgroundShareTransferManager {
 
                 guard !Task.isCancelled else { return }
 
-                let sharedVault = try SharedVaultData.decode(from: result.data)
                 let shareKey = try CloudKitSharingManager.deriveShareKey(from: capturedPhrase)
+                let sharedVault: SharedVaultData
+                if SVDFSerializer.isSVDF(result.data) {
+                    sharedVault = try SVDFSerializer.deserialize(from: result.data, shareKey: shareKey)
+                } else {
+                    sharedVault = try SharedVaultData.decode(from: result.data)
+                }
                 let fileCount = sharedVault.files.count
 
                 for (i, file) in sharedVault.files.enumerated() {
