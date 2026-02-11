@@ -19,7 +19,15 @@ struct FilesGridView: View {
     @State private var isDragging = false
 
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 12) {
+        grid
+            .padding(.horizontal, 16)
+            .coordinateSpace(name: "filesGrid")
+            .onPreferenceChange(FileCellFramePreference.self) { cellFrames = $0 }
+    }
+
+    @ViewBuilder
+    private var grid: some View {
+        let base = LazyVGrid(columns: columns, spacing: 12) {
             ForEach(files) { file in
                 cellView(for: file)
                     .background(
@@ -32,10 +40,11 @@ struct FilesGridView: View {
                     )
             }
         }
-        .padding(.horizontal, 16)
-        .coordinateSpace(name: "filesGrid")
-        .onPreferenceChange(FileCellFramePreference.self) { cellFrames = $0 }
-        .simultaneousGesture(dragSelectGesture)
+        if isEditing {
+            base.simultaneousGesture(dragSelectGesture)
+        } else {
+            base
+        }
     }
 
     @ViewBuilder
