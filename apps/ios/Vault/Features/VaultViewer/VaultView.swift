@@ -1,6 +1,8 @@
 import SwiftUI
 import PhotosUI
 import UIKit
+import AVFoundation
+import UniformTypeIdentifiers
 
 enum FileFilter: String, CaseIterable, Identifiable {
     case all = "All"
@@ -1395,29 +1397,50 @@ struct VaultView: View {
             var successCount = 0
             for (index, result) in results.enumerated() {
                 let provider = result.itemProvider
-                guard provider.canLoadObject(ofClass: UIImage.self) else {
-                    await MainActor.run { self.importProgress = (index + 1, count) }
-                    continue
-                }
-
-                let image: UIImage? = await withCheckedContinuation { continuation in
-                    provider.loadObject(ofClass: UIImage.self) { object, _ in
-                        continuation.resume(returning: object as? UIImage)
-                    }
-                }
-
-                guard let image, let data = image.jpegData(compressionQuality: 0.8) else {
-                    await MainActor.run { self.importProgress = (index + 1, count) }
-                    continue
-                }
+                let isVideo = provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier)
 
                 do {
-                    let filename = "IMG_\(Date().timeIntervalSince1970)_\(index).jpg"
-                    let thumbnail = FileUtilities.generateThumbnail(from: data)
+                    let (data, filename, mimeType, thumbnail): (Data, String, String, Data?)
+
+                    if isVideo {
+                        // Load video via file representation
+                        let videoData = try await Self.loadVideoData(from: provider)
+                        let ext = provider.suggestedName.flatMap { URL(string: $0)?.pathExtension } ?? "mov"
+                        let mime = FileUtilities.mimeType(forExtension: ext)
+                        let thumbData = await Self.generateVideoThumbnail(from: videoData)
+
+                        data = videoData
+                        filename = provider.suggestedName ?? "VID_\(Date().timeIntervalSince1970)_\(index).\(ext)"
+                        mimeType = mime.hasPrefix("video/") ? mime : "video/quicktime"
+                        thumbnail = thumbData
+                    } else {
+                        // Load image via UIImage
+                        guard provider.canLoadObject(ofClass: UIImage.self) else {
+                            await MainActor.run { self.importProgress = (index + 1, count) }
+                            continue
+                        }
+
+                        let image: UIImage? = await withCheckedContinuation { continuation in
+                            provider.loadObject(ofClass: UIImage.self) { object, _ in
+                                continuation.resume(returning: object as? UIImage)
+                            }
+                        }
+
+                        guard let image, let jpegData = image.jpegData(compressionQuality: 0.8) else {
+                            await MainActor.run { self.importProgress = (index + 1, count) }
+                            continue
+                        }
+
+                        data = jpegData
+                        filename = "IMG_\(Date().timeIntervalSince1970)_\(index).jpg"
+                        mimeType = "image/jpeg"
+                        thumbnail = FileUtilities.generateThumbnail(from: jpegData)
+                    }
+
                     let fileId = try VaultStorage.shared.storeFile(
                         data: data,
                         filename: filename,
-                        mimeType: "image/jpeg",
+                        mimeType: mimeType,
                         with: key,
                         thumbnailData: thumbnail
                     )
@@ -1427,7 +1450,7 @@ struct VaultView: View {
                             id: fileId,
                             size: data.count,
                             encryptedThumbnail: encThumb,
-                            mimeType: "image/jpeg",
+                            mimeType: mimeType,
                             filename: filename
                         ))
                         self.importProgress = (index + 1, count)
@@ -1436,7 +1459,7 @@ struct VaultView: View {
                 } catch {
                     await MainActor.run { self.importProgress = (index + 1, count) }
                     #if DEBUG
-                    print("❌ [VaultView] Failed to add image: \(error)")
+                    print("❌ [VaultView] Failed to import item \(index): \(error)")
                     #endif
                 }
             }
@@ -1451,6 +1474,50 @@ struct VaultView: View {
             }
 
             await ShareSyncManager.shared.scheduleSync(vaultKey: key)
+        }
+    }
+
+    /// Load video data from a PHPicker item provider
+    private static func loadVideoData(from provider: NSItemProvider) async throws -> Data {
+        try await withCheckedThrowingContinuation { continuation in
+            provider.loadFileRepresentation(forTypeIdentifier: UTType.movie.identifier) { url, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                guard let url else {
+                    continuation.resume(throwing: CocoaError(.fileReadUnknown))
+                    return
+                }
+                // Must copy data before the callback returns — the URL is temporary
+                do {
+                    let data = try Data(contentsOf: url)
+                    continuation.resume(returning: data)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Generate a thumbnail from video data using AVAssetImageGenerator
+    private static func generateVideoThumbnail(from data: Data) async -> Data? {
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mov")
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+
+        do {
+            try data.write(to: tempURL)
+            let asset = AVAsset(url: tempURL)
+            let generator = AVAssetImageGenerator(asset: asset)
+            generator.appliesPreferredTrackTransform = true
+            generator.maximumSize = CGSize(width: 400, height: 400)
+
+            let time = CMTime(seconds: 0.5, preferredTimescale: 600)
+            let cgImage = try generator.copyCGImage(at: time, actualTime: nil)
+            let uiImage = UIImage(cgImage: cgImage)
+            return uiImage.jpegData(compressionQuality: 0.7)
+        } catch {
+            return nil
         }
     }
 
