@@ -15,6 +15,8 @@ struct SharedVaultInviteView: View {
     @State private var patternState = PatternState()
     @State private var newPattern: [Int] = []
     @State private var patternStep: PatternStep = .create
+    @State private var validationResult: PatternValidationResult?
+    @State private var errorMessage: String?
 
     private var phrase: String {
         deepLinkHandler.pendingSharePhrase ?? ""
@@ -114,6 +116,7 @@ struct SharedVaultInviteView: View {
 
     private var patternSetupView: some View {
         VStack(spacing: 24) {
+            // Title and subtitle — fixed height prevents grid from shifting between steps
             VStack(spacing: 8) {
                 Image(systemName: "lock.shield.fill")
                     .font(.system(size: 40))
@@ -128,7 +131,10 @@ struct SharedVaultInviteView: View {
                     .font(.subheadline)
                     .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
+                    .frame(height: 44, alignment: .top)
             }
+
+            Spacer()
 
             PatternGridView(
                 state: patternState,
@@ -138,15 +144,77 @@ struct SharedVaultInviteView: View {
             .frame(width: 280, height: 280)
             .vaultPatternGridBackground()
 
+            Spacer()
+
+            // Validation feedback — fixed height to prevent layout shift
+            Group {
+                if let result = validationResult, patternStep == .create {
+                    validationFeedback(result)
+                } else if let error = errorMessage {
+                    HStack {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.vaultHighlight)
+                        Text(error)
+                            .font(.caption)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .vaultGlassBackground(cornerRadius: 12)
+                    .transition(.scale.combined(with: .opacity))
+                } else {
+                    Color.clear
+                }
+            }
+            .frame(height: 80)
+
             if patternStep == .confirm {
                 Button("Start Over") {
                     patternStep = .create
                     newPattern = []
                     patternState.reset()
+                    validationResult = nil
+                    errorMessage = nil
                 }
                 .font(.subheadline)
             }
         }
+    }
+
+    @ViewBuilder
+    private func validationFeedback(_ result: PatternValidationResult) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(Array(result.errors.enumerated()), id: \.offset) { _, error in
+                HStack {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.vaultHighlight)
+                    Text(error.message)
+                        .font(.caption)
+                }
+            }
+            if result.errors.isEmpty {
+                ForEach(Array(result.warnings.prefix(2).enumerated()), id: \.offset) { _, warning in
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.vaultHighlight)
+                        Text(warning.rawValue)
+                            .font(.caption)
+                    }
+                }
+            }
+            if result.errors.isEmpty {
+                let description = PatternValidator.shared.complexityDescription(for: result.metrics.complexityScore)
+                HStack {
+                    Image(systemName: "shield.fill")
+                        .foregroundStyle(result.metrics.complexityScore >= 30 ? .green : .orange)
+                    Text("Strength: \(description)")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .vaultGlassBackground(cornerRadius: 12)
     }
 
     private func errorView(_ message: String) -> some View {
@@ -187,25 +255,31 @@ struct SharedVaultInviteView: View {
     // MARK: - Actions
 
     private func handlePatternComplete(_ pattern: [Int]) {
-        guard pattern.count >= 6 else {
-            patternState.reset()
-            return
-        }
-
         switch patternStep {
         case .create:
-            newPattern = pattern
-            patternStep = .confirm
-            patternState.reset()
+            let result = PatternValidator.shared.validate(pattern, gridSize: patternState.gridSize)
+            validationResult = result
+
+            if result.isValid {
+                errorMessage = nil
+                newPattern = pattern
+                patternStep = .confirm
+                patternState.reset()
+            } else {
+                patternState.reset()
+            }
 
         case .confirm:
             if pattern == newPattern {
                 patternState.reset()
                 Task { await setupSharedVault() }
             } else {
+                errorMessage = "Patterns don't match. Try again."
                 patternState.reset()
-                patternStep = .create
-                newPattern = []
+                Task {
+                    try? await Task.sleep(nanoseconds: 2_500_000_000)
+                    await MainActor.run { errorMessage = nil }
+                }
             }
         }
     }

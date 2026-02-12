@@ -81,6 +81,31 @@ Required sections — missing any one causes Xcode to fail silently or at build 
 - Trail effect requires `Timer.publish` + `.onReceive`, NOT `TimelineView` (which resets view tree and kills in-flight animations)
 - When adding a new loader anywhere, use `PixelAnimation.loading(size: N)` — nothing else
 
+## Pattern Board Consistency (MANDATORY)
+
+All pattern grid screens MUST behave identically. There are two categories:
+
+**"Create new pattern" screens** (user draws a new pattern):
+- PatternSetupView (onboarding), ChangePatternView (createNew step), JoinVaultView (create step), SharedVaultInviteView (create step)
+- MUST use `PatternValidator.shared.validate()` for full validation (min 6 dots + 2 direction changes)
+- MUST show validation feedback below grid: errors (red X icon), warnings (yellow triangle, max 2), strength indicator (shield icon with color)
+- MUST use fixed 80pt height `Group` for feedback area (prevents grid from jumping)
+- MUST use fixed subtitle height `.frame(height: 44, alignment: .top)` (prevents grid shift from different text lengths)
+- MUST use `.hidden()` placeholder buttons to keep bottom area consistent across steps
+- When pattern is valid: proceed to confirm step. When invalid: stay on create step, show errors in feedback area.
+
+**"Confirm pattern" screens** (user re-draws to confirm):
+- PatternSetupView (confirm), ChangePatternView (confirmNew), JoinVaultView (confirm), SharedVaultInviteView (confirm)
+- Show "Patterns don't match. Try again." error with 2.5s auto-clear on mismatch
+- No validation feedback/strength — only match error
+
+**"Enter existing pattern" screens** (unlock, verify):
+- PatternLockView, ChangePatternView (verifyCurrent), RestoreFromBackupView
+- Minimal validation only (6-dot minimum)
+- No validation feedback/strength
+
+**When adding/modifying ANY pattern screen**: verify it matches the correct category above. Copy the FULL behavior — validation, feedback, errors, haptics, layout constraints — not just the data flow.
+
 ## SwiftUI Patterns
 
 - `@Observable` (iOS 17+ Observation framework), not `ObservableObject`
