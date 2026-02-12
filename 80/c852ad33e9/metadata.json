@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "80c852ad33e9",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Core/Billing/PaywallTrigger.swift",
+    "apps/ios/Vault/Resources/PrivacyInfo.xcprivacy",
+    "apps/ios/VaultLiveActivity/Info.plist"
+  ],
+  "sessions": [
+    {
+      "metadata": "/80/c852ad33e9/0/metadata.json",
+      "transcript": "/80/c852ad33e9/0/full.jsonl",
+      "context": "/80/c852ad33e9/0/context.md",
+      "content_hash": "/80/c852ad33e9/0/content_hash.txt",
+      "prompt": "/80/c852ad33e9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 680,
+    "cache_creation_tokens": 1065978,
+    "cache_read_tokens": 68904986,
+    "output_tokens": 30732,
+    "api_call_count": 605
+  }
+}
