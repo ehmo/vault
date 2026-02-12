@@ -3,8 +3,41 @@
   "checkpoint_id": "9f5bd6084a8d",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
+    ".scratch-pad.md",
+    "AGENTS.md",
+    "apps/ios/AGENTS.md",
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/App/ContentView.swift",
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Billing/PaywallTrigger.swift",
+    "apps/ios/Vault/Core/Billing/SubscriptionManager.swift",
+    "apps/ios/Vault/Core/Crypto/PatternSerializer.swift",
+    "apps/ios/Vault/Core/Security/DuressHandler.swift",
+    "apps/ios/Vault/Core/Security/SecureEnclaveManager.swift",
+    "apps/ios/Vault/Core/Sharing/BackgroundShareTransferManager.swift",
+    "apps/ios/Vault/Core/Sharing/CloudKitSharingManager.swift",
+    "apps/ios/Vault/Core/Storage/StagedImportManager.swift",
+    "apps/ios/Vault/Core/Storage/VaultStorage.swift",
+    "apps/ios/Vault/Core/Storage/iCloudBackupManager.swift",
+    "apps/ios/Vault/Extensions/ShareExtension/Info.plist",
+    "apps/ios/Vault/Features/Camera/SecureCameraView.swift",
+    "apps/ios/Vault/Features/PatternLock/PatternValidator.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/Vault/Features/Sharing/SharedVaultInviteView.swift",
+    "apps/ios/Vault/Features/VaultViewer/FilesGridView.swift",
+    "apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/PhotosGridView.swift",
+    "apps/ios/Vault/Features/VaultViewer/SecureImageViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
+    "apps/ios/Vault/Resources/Assets.xcassets/VaultLogo.imageset/Contents.json",
+    "apps/ios/Vault/Resources/PrivacyInfo.xcprivacy",
+    "apps/ios/Vault/Supporting/Info.plist",
+    "apps/ios/Vault/UI/Components/PixelAnimation.swift",
+    "apps/ios/Vault/UI/Components/StorageRingView.swift",
+    "apps/ios/VaultLiveActivity/Info.plist",
     "apps/ios/build/ExportOptionsLocal.plist"
   ],
   "sessions": [
@@ -14,13 +47,20 @@
       "context": "/9f/5bd6084a8d/0/context.md",
       "content_hash": "/9f/5bd6084a8d/0/content_hash.txt",
       "prompt": "/9f/5bd6084a8d/0/prompt.txt"
+    },
+    {
+      "metadata": "/9f/5bd6084a8d/1/metadata.json",
+      "transcript": "/9f/5bd6084a8d/1/full.jsonl",
+      "context": "/9f/5bd6084a8d/1/context.md",
+      "content_hash": "/9f/5bd6084a8d/1/content_hash.txt",
+      "prompt": "/9f/5bd6084a8d/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 23,
-    "cache_creation_tokens": 50544,
-    "cache_read_tokens": 1249112,
-    "output_tokens": 628,
-    "api_call_count": 19
+    "input_tokens": 20338,
+    "cache_creation_tokens": 509887,
+    "cache_read_tokens": 28094670,
+    "output_tokens": 12751,
+    "api_call_count": 244
   }
 }
