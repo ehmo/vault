@@ -10,14 +10,11 @@ appId: app.vaultaire.ios
 # Select all
 - tapOn:
     id: "vault_select_all"
-    optional: true
 
 # Delete selected
 - tapOn:
     id: "vault_edit_delete"
-    optional: true
 
 # Confirm deletion
 - tapOn:
     text: "Delete"
-    optional: true

@@ -6,17 +6,13 @@ appId: app.vaultaire.ios
 # Open photo
 - tapOn:
     index: 0
-    optional: true
 
 # Actions -> Delete
 - tapOn:
     id: "viewer_actions"
-    optional: true
 - tapOn:
     text: "Delete"
-    optional: true
 
 # Confirm deletion
 - tapOn:
     text: "Delete"
-    optional: true

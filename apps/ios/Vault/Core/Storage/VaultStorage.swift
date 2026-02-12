@@ -82,6 +82,17 @@ final class VaultStorage {
 
     private init() {
         initializeBlobIfNeeded()
+        cleanupStaleTempFiles()
+    }
+
+    /// Remove any .tmp index files left behind by interrupted changeVaultKey operations
+    private func cleanupStaleTempFiles() {
+        let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        if let files = try? fileManager.contentsOfDirectory(at: documents, includingPropertiesForKeys: nil) {
+            for file in files where file.lastPathComponent.hasPrefix("vault_index_") && file.pathExtension == "tmp" {
+                try? fileManager.removeItem(at: file)
+            }
+        }
     }
 
     // MARK: - Blob Initialization
@@ -739,6 +750,110 @@ final class VaultStorage {
         return encryptedFile.header.fileId
     }
 
+    /// Store multiple files in a single index load/save cycle.
+    /// Calls `onProgress` after each file is written (on the calling thread).
+    struct FileToStore {
+        let data: Data
+        let filename: String
+        let mimeType: String
+        let thumbnailData: Data?
+    }
+
+    func storeFiles(_ files: [FileToStore], with key: Data, onProgress: ((Int) -> Void)? = nil) throws -> [UUID] {
+        ensureBlobReady()
+        indexLock.lock()
+        defer { indexLock.unlock() }
+
+        var index = try loadIndex(with: key)
+        let masterKey = try getMasterKey(from: index, vaultKey: key)
+        var storedIds: [UUID] = []
+
+        for (i, file) in files.enumerated() {
+            let encryptedFile = try CryptoEngine.encryptFile(
+                data: file.data, filename: file.filename, mimeType: file.mimeType, with: masterKey
+            )
+            let fileData = encryptedFile.encryptedContent
+            let fileSize = fileData.count
+
+            // Find a blob with enough space
+            var targetBlobIndex: Int? = nil
+            if let blobs = index.blobs {
+                for (j, blob) in blobs.enumerated() {
+                    if blob.cursor + fileSize <= blob.capacity {
+                        targetBlobIndex = j
+                        break
+                    }
+                }
+            }
+
+            if targetBlobIndex == nil {
+                guard SubscriptionManager.isPremiumSnapshot else {
+                    throw VaultStorageError.expansionNotAllowed
+                }
+                guard let newBlob = createExpansionBlob() else {
+                    throw VaultStorageError.writeError
+                }
+                if index.blobs == nil { index.blobs = [] }
+                index.blobs!.append(newBlob)
+                targetBlobIndex = index.blobs!.count - 1
+            }
+
+            guard let blobIdx = targetBlobIndex, let blobs = index.blobs else {
+                throw VaultStorageError.writeError
+            }
+            let writeOffset = blobs[blobIdx].cursor
+            let targetBlobId = blobs[blobIdx].blobId
+            let targetURL = blobURL(for: targetBlobId, in: index)
+
+            guard let handle = try? FileHandle(forWritingTo: targetURL) else {
+                throw VaultStorageError.writeError
+            }
+            defer { try? handle.close() }
+
+            try handle.seek(toOffset: UInt64(writeOffset))
+            handle.write(fileData)
+
+            var encryptedThumbnail: Data? = nil
+            if let thumbnail = file.thumbnailData {
+                encryptedThumbnail = try? CryptoEngine.encrypt(thumbnail, with: masterKey)
+            }
+
+            let newCursor = writeOffset + fileSize
+            index.blobs![blobIdx].cursor = newCursor
+
+            if targetBlobId == "primary" {
+                writeGlobalCursor(newCursor)
+                index.nextOffset = newCursor
+            }
+
+            let entry = VaultIndex.VaultFileEntry(
+                fileId: encryptedFile.header.fileId,
+                offset: writeOffset,
+                size: fileSize,
+                encryptedHeaderPreview: fileData.prefix(64),
+                isDeleted: false,
+                thumbnailData: encryptedThumbnail,
+                mimeType: file.mimeType,
+                filename: file.filename,
+                blobId: targetBlobId == "primary" ? nil : targetBlobId,
+                createdAt: Date()
+            )
+            index.files.append(entry)
+            storedIds.append(encryptedFile.header.fileId)
+
+            onProgress?(i + 1)
+        }
+
+        // Save index once for all files
+        try saveIndex(index, with: key)
+
+        #if DEBUG
+        print("✅ [VaultStorage] Batch stored \(storedIds.count) files")
+        #endif
+
+        return storedIds
+    }
+
     func retrieveFile(id: UUID, with key: Data) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
         let span = SentryManager.shared.startTransaction(name: "storage.retrieve_file", operation: "storage.retrieve_file")
         ensureBlobReady()
@@ -1004,16 +1119,38 @@ final class VaultStorage {
         var newIndex = index
         newIndex.encryptedMasterKey = newEncryptedMasterKey
 
-        // 5. Save index with NEW vault key (creates new index file)
-        try saveIndex(newIndex, with: newKey)
-        
+        // 5. Write-ahead: save new index to temp file, verify, then move into place
+        let newIndexURL = indexURL(for: newKey)
+        let tempURL = newIndexURL.appendingPathExtension("tmp")
+
+        // Encode and encrypt
+        let encoded = try JSONEncoder().encode(newIndex)
+        let encrypted = try CryptoEngine.encrypt(encoded, with: newKey)
+        try encrypted.write(to: tempURL, options: [.atomic, .completeFileProtection])
+
+        // Verify: read back and decrypt to confirm integrity
+        let readBack = try Data(contentsOf: tempURL)
+        let decrypted = try CryptoEngine.decrypt(readBack, with: newKey)
+        let verified = try JSONDecoder().decode(VaultIndex.self, from: decrypted)
+        guard verified.files.count == newIndex.files.count,
+              verified.encryptedMasterKey == newEncryptedMasterKey else {
+            try? fileManager.removeItem(at: tempURL)
+            throw VaultStorageError.corruptedData
+        }
+
+        // Atomic move temp → final (replaces if exists)
+        if fileManager.fileExists(atPath: newIndexURL.path) {
+            try fileManager.removeItem(at: newIndexURL)
+        }
+        try fileManager.moveItem(at: tempURL, to: newIndexURL)
+
         #if DEBUG
-        print("💾 [VaultStorage] New index saved with new vault key")
+        print("💾 [VaultStorage] New index verified and moved into place")
         #endif
-        
-        // 6. Delete old index file
+
+        // 6. Delete old index file (safe — new index is confirmed on disk)
         try deleteVaultIndex(for: oldKey)
-        
+
         #if DEBUG
         print("🗑️ [VaultStorage] Old index deleted")
         print("✅ [VaultStorage] Vault key change complete! No files were re-encrypted.")

@@ -7,17 +7,13 @@ appId: app.vaultaire.ios
 # Toggle pattern feedback
 - tapOn:
     id: "app_pattern_feedback"
-    optional: true
 
 # Toggle analytics
 - tapOn:
     id: "app_analytics_toggle"
-    optional: true
 
 # Toggle back
 - tapOn:
     id: "app_pattern_feedback"
-    optional: true
 - tapOn:
     id: "app_analytics_toggle"
-    optional: true

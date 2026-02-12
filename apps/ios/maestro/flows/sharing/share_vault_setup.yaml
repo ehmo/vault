@@ -15,7 +15,6 @@ appId: app.vaultaire.ios
 
 - tapOn:
     id: "settings_share_vault"
-    optional: true
 
 # Configure share options (if iCloud is available)
 - tapOn:

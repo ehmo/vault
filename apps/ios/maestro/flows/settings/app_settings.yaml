@@ -7,7 +7,5 @@ appId: app.vaultaire.ios
 # Verify key app settings elements
 - assertVisible:
     id: "app_pattern_feedback"
-    optional: true
 - assertVisible:
     id: "app_analytics_toggle"
-    optional: true

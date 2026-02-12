@@ -14,16 +14,13 @@ appId: app.vaultaire.ios
 # Open join vault
 - tapOn:
     id: "unlock_join_link"
-    optional: true
 
 # Enter phrase and join
 - tapOn:
     id: "join_phrase_input"
-    optional: true
 - inputText: "test phrase for pattern validation"
 - tapOn:
     id: "join_vault_button"
-    optional: true
 
 # Skip paywall if it appears
 - tapOn:

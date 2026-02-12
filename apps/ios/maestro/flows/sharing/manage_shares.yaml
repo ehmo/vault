@@ -15,7 +15,6 @@ appId: app.vaultaire.ios
 
 - tapOn:
     id: "settings_share_vault"
-    optional: true
 
 # If shares exist, manage shares view is shown
 # If no shares, new share view is shown

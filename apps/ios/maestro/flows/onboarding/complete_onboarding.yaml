@@ -44,24 +44,24 @@ appId: app.vaultaire.ios
 - waitForAnimationToEnd:
     timeout: 1000
 
-# Confirm pattern — draw same pattern
+# Confirm pattern — draw same pattern (pattern-dependent)
 - swipe:
     start: "10%, 35%"
     end: "90%, 35%"
     duration: 1500
     optional: true
 
-# Recovery phrase screen
+# Recovery phrase screen (pattern-dependent — only reached if pattern succeeded)
 - tapOn:
     id: "recovery_saved"
     optional: true
 
-# Confirm saving recovery phrase
+# Confirm saving recovery phrase (pattern-dependent)
 - tapOn:
     text: "I've Saved It"
     optional: true
 
-# All set screen
+# All set screen (pattern-dependent)
 - tapOn:
     id: "onboarding_complete"
     optional: true

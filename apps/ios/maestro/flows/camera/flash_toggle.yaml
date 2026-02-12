@@ -8,9 +8,8 @@ appId: app.vaultaire.ios
     id: "vault_first_files"
 - tapOn:
     text: "Take Secure Photo"
-    optional: true
 
-# Flash starts on auto
+# Flash starts on auto (camera-dependent on simulator)
 - assertVisible:
     id: "camera_flash"
     optional: true

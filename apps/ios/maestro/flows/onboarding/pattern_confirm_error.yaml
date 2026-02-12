@@ -32,7 +32,7 @@ appId: app.vaultaire.ios
 - assertVisible:
     id: "pattern_clear"
 
-# Draw first pattern — horizontal swipe across top row
+# Draw first pattern -- horizontal swipe across top row
 # Best-effort: synthetic swipes may not register on PatternGridView
 - swipe:
     start: "10%, 35%"
@@ -43,7 +43,7 @@ appId: app.vaultaire.ios
 - waitForAnimationToEnd:
     timeout: 1000
 
-# If pattern was valid, confirm screen should appear
+# If pattern was valid, confirm screen should appear (pattern-dependent)
 - assertVisible:
     text: "Confirm Your Pattern"
     optional: true
@@ -61,7 +61,7 @@ appId: app.vaultaire.ios
 - waitForAnimationToEnd:
     timeout: 1000
 
-# Error message should appear with normalized style
+# Error message should appear with normalized style (pattern-dependent)
 - assertVisible:
     id: "pattern_error_message"
     optional: true
@@ -69,12 +69,12 @@ appId: app.vaultaire.ios
     text: "Patterns don't match. Try again."
     optional: true
 
-# Tap Start Over to return to create screen
+# Tap Start Over to return to create screen (pattern-dependent)
 - tapOn:
     id: "pattern_start_over"
     optional: true
 
-# Verify we're back on create screen
+# Verify we're back on create screen (pattern-dependent)
 - assertVisible:
     text: "Create Your Pattern"
     optional: true

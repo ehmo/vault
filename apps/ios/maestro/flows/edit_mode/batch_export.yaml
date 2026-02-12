@@ -10,14 +10,11 @@ appId: app.vaultaire.ios
 # Select all
 - tapOn:
     id: "vault_select_all"
-    optional: true
 
 # Export selected
 - tapOn:
     id: "vault_edit_export"
-    optional: true
 
 # Confirm export
 - tapOn:
     text: "Export"
-    optional: true

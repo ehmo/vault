@@ -15,6 +15,5 @@ appId: app.vaultaire.ios
 
 - tapOn:
     id: "settings_regen_phrase"
-    optional: true
 
 # Should show new phrase or confirmation

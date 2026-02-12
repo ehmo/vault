@@ -8,8 +8,8 @@ appId: app.vaultaire.ios
     id: "vault_first_files"
 - tapOn:
     text: "Take Secure Photo"
-    optional: true
 
+# Camera elements are optional on simulator (no real camera)
 - assertVisible:
     id: "camera_flip"
     optional: true

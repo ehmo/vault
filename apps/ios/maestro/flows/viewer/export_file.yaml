@@ -6,17 +6,13 @@ appId: app.vaultaire.ios
 # Open photo
 - tapOn:
     index: 0
-    optional: true
 
 # Actions -> Export
 - tapOn:
     id: "viewer_actions"
-    optional: true
 - tapOn:
     text: "Export"
-    optional: true
 
 # Confirm export warning
 - tapOn:
     text: "Export"
-    optional: true

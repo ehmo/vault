@@ -8,9 +8,8 @@ appId: app.vaultaire.ios
     id: "vault_first_files"
 - tapOn:
     text: "Take Secure Photo"
-    optional: true
 
-# Camera view — simulator may show black preview
+# Camera view — simulator may show black preview; camera elements optional
 - assertVisible:
     id: "camera_capture"
     optional: true
@@ -18,7 +17,7 @@ appId: app.vaultaire.ios
     id: "camera_capture"
     optional: true
 
-# Photo captured alert
+# Photo captured alert (camera-dependent)
 - tapOn:
     text: "Save to Vault"
     optional: true

@@ -14,4 +14,3 @@ appId: app.vaultaire.ios
 
 - tapOn:
     id: "settings_custom_phrase"
-    optional: true

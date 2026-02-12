@@ -10,9 +10,7 @@ appId: app.vaultaire.ios
 # Select all
 - tapOn:
     id: "vault_select_all"
-    optional: true
 
 # Exit select mode
 - tapOn:
     id: "vault_edit_done"
-    optional: true

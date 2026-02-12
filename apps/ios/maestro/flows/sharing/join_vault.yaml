@@ -11,31 +11,24 @@ appId: app.vaultaire.ios
 # From lock screen, tap join shared vault
 - tapOn:
     id: "unlock_join_link"
-    optional: true
 
 # --- Phrase Input Screen ---
 - assertVisible:
     id: "join_cancel"
-    optional: true
 
 # Verify phrase input elements
 - assertVisible:
     text: "Enter Share Phrase"
-    optional: true
 - assertVisible:
     text: "Enter the one-time share phrase you received."
-    optional: true
 - assertVisible:
     id: "join_phrase_input"
-    optional: true
 - assertVisible:
     id: "join_vault_button"
-    optional: true
 
 # Verify info card
 - assertVisible:
     text: "How it works"
-    optional: true
 
 # Join button should be disabled when phrase is empty (can't assert disabled state,
 # but we verify it exists)
@@ -43,11 +36,9 @@ appId: app.vaultaire.ios
 # Type a phrase and tap join
 - tapOn:
     id: "join_phrase_input"
-    optional: true
 - inputText: "test phrase for maestro flow"
 - tapOn:
     id: "join_vault_button"
-    optional: true
 
 # --- Pattern Setup Screen (Create) ---
 # Paywall may appear for non-premium; skip it

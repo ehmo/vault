@@ -18,4 +18,3 @@ appId: app.vaultaire.ios
     visible:
       id: "vault_add_button"
     timeout: 5000
-    optional: true
