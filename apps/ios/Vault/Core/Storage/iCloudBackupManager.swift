@@ -176,12 +176,20 @@ final class iCloudBackupManager {
     // MARK: - Restore
 
     func checkForBackup() async -> BackupMetadata? {
+        do {
+            try await waitForAvailableAccount()
+        } catch {
+            Self.logger.info("[backup] iCloud not available for backup check: \(error)")
+            return nil
+        }
+
         let recordID = CKRecord.ID(recordName: backupRecordName)
         do {
             let record = try await privateDatabase.record(for: recordID)
             guard let metadataData = record["metadata"] as? Data else { return nil }
             return try JSONDecoder().decode(BackupMetadata.self, from: metadataData)
         } catch {
+            Self.logger.info("[backup] checkForBackup failed: \(error)")
             return nil
         }
     }

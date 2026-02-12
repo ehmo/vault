@@ -641,20 +641,29 @@ struct iCloudBackupSettingsView: View {
             if isBackingUp {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 10) {
-                        if backupStage == .uploading {
-                            ProgressView(value: uploadProgress)
-                                .tint(Color.accentColor)
-                        } else {
+                        if backupStage != .uploading {
                             ProgressView()
                         }
                         Text(backupStage?.rawValue ?? "Preparing...")
                             .foregroundStyle(.vaultSecondaryText)
                     }
                     if backupStage == .uploading {
-                        Text("\(Int(uploadProgress * 100))%")
+                        HStack(spacing: 8) {
+                            ProgressView(value: uploadProgress)
+                                .tint(Color.accentColor)
+                            Text("\(Int(uploadProgress * 100))%")
+                                .font(.caption)
+                                .foregroundStyle(.vaultSecondaryText)
+                                .monospacedDigit()
+                        }
+                    }
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.vaultHighlight)
+                        Text("Keep the app open until backup completes")
                             .font(.caption)
                             .foregroundStyle(.vaultSecondaryText)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
                     }
                 }
 
@@ -663,6 +672,7 @@ struct iCloudBackupSettingsView: View {
                     backupTask = nil
                     isBackingUp = false
                     backupStage = nil
+                    UIApplication.shared.isIdleTimerDisabled = false
                 }
                 .font(.subheadline)
             } else if let date = lastBackupDate {
@@ -765,8 +775,14 @@ struct iCloudBackupSettingsView: View {
         backupStage = nil
         uploadProgress = 0
         errorMessage = nil
+        UIApplication.shared.isIdleTimerDisabled = true
 
         backupTask = Task {
+            defer {
+                Task { @MainActor in
+                    UIApplication.shared.isIdleTimerDisabled = false
+                }
+            }
             do {
                 try await backupManager.performBackup(with: key, onProgress: { stage in
                     Task { @MainActor in
