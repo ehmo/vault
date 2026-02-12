@@ -10,6 +10,7 @@
 		001000001 /* VaultApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001000000 /* VaultApp.swift */; };
 		001000003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001000002 /* ContentView.swift */; };
 		001000005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 001000004 /* Assets.xcassets */; };
+		001000007 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 001000006 /* PrivacyInfo.xcprivacy */; };
 		002000001 /* CryptoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000000 /* CryptoEngine.swift */; };
 		002000003 /* KeyDerivation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000002 /* KeyDerivation.swift */; };
 		002000005 /* PatternSerializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000004 /* PatternSerializer.swift */; };
@@ -152,6 +153,7 @@
 		001000000 /* VaultApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultApp.swift; sourceTree = "<group>"; };
 		001000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		001000004 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		001000006 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		002000000 /* CryptoEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoEngine.swift; sourceTree = "<group>"; };
 		002000002 /* KeyDerivation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyDerivation.swift; sourceTree = "<group>"; };
 		002000004 /* PatternSerializer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSerializer.swift; sourceTree = "<group>"; };
@@ -548,6 +550,7 @@
 			isa = PBXGroup;
 			children = (
 				001000004 /* Assets.xcassets */,
+				001000006 /* PrivacyInfo.xcprivacy */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -743,6 +746,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				001000005 /* Assets.xcassets in Resources */,
+				001000007 /* PrivacyInfo.xcprivacy in Resources */,
 				39EACFA32F29B42100FA7EC2 /* RECOVERY_PHRASE_SYSTEM.md in Resources */,
 				39EACF9F2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md in Resources */,
 				39EACF9D2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md in Resources */,

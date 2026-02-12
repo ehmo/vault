@@ -130,9 +130,11 @@ struct FallbackPaywallView: View {
                         .background(Color.yellow.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
                         .padding(.horizontal, 24)
                     } else {
-                        Text("Coming soon")
-                            .font(.headline)
+                        Text("Unable to load subscription options. Please check your connection and try again.")
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
                             .padding(.top, 8)
                     }
                 }
