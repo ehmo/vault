@@ -858,15 +858,34 @@ struct RestoreFromBackupView: View {
 
     private var noBackupView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "icloud.slash")
+            Image(systemName: errorMessage != nil ? "exclamationmark.icloud.fill" : "icloud.slash")
                 .font(.system(size: 48))
-                .foregroundStyle(.vaultSecondaryText)
-            Text("No Backup Found")
-                .font(.title2).fontWeight(.semibold)
-            Text("No iCloud backup was found for this account. Enable iCloud Backup and create a backup first.")
-                .foregroundStyle(.vaultSecondaryText)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
+                .foregroundStyle(errorMessage != nil ? .red : .vaultSecondaryText)
+
+            if let errorMessage {
+                Text("Backup Check Failed")
+                    .font(.title2).fontWeight(.semibold)
+                Text(errorMessage)
+                    .foregroundStyle(.vaultSecondaryText)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+
+                Button("Retry") {
+                    self.errorMessage = nil
+                    self.noBackupFound = false
+                    self.isCheckingBackup = true
+                    Task { await checkForBackup() }
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.top, 4)
+            } else {
+                Text("No Backup Found")
+                    .font(.title2).fontWeight(.semibold)
+                Text("No iCloud backup was found for this account. Enable iCloud Backup and create a backup first.")
+                    .foregroundStyle(.vaultSecondaryText)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
         }
         .padding(.top, 60)
     }
@@ -925,7 +944,7 @@ struct RestoreFromBackupView: View {
                 PatternGridView(state: patternState, showFeedback: $showFeedback) { pattern in
                     performRestore(with: pattern)
                 }
-                .frame(maxWidth: 280, maxHeight: 280)
+                .frame(width: 280, height: 280)
                 .padding()
             }
 
@@ -958,10 +977,18 @@ struct RestoreFromBackupView: View {
 
     private func checkForBackup() async {
         isCheckingBackup = true
-        let info = await backupManager.checkForBackup()
+        let result = await backupManager.checkForBackup()
         await MainActor.run {
-            backupInfo = info
-            noBackupFound = info == nil
+            switch result {
+            case .found(let info):
+                backupInfo = info
+                noBackupFound = false
+            case .notFound:
+                noBackupFound = true
+            case .error(let message):
+                noBackupFound = true
+                errorMessage = message
+            }
             isCheckingBackup = false
         }
     }

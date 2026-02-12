@@ -45,7 +45,7 @@
 	<key>UIRequiresFullScreen</key>
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
+	<true/>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 </dict>

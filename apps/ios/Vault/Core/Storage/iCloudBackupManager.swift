@@ -160,10 +160,22 @@ final class iCloudBackupManager {
                 onUploadProgress(progress)
             }
 
+            var perRecordError: Error?
+            operation.perRecordSaveBlock = { _, result in
+                if case .failure(let error) = result {
+                    Self.logger.error("[backup] Per-record save failed: \(error)")
+                    perRecordError = error
+                }
+            }
+
             operation.modifyRecordsResultBlock = { result in
                 switch result {
                 case .success:
-                    continuation.resume()
+                    if let error = perRecordError {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume()
+                    }
                 case .failure(let error):
                     continuation.resume(throwing: error)
                 }
@@ -175,22 +187,35 @@ final class iCloudBackupManager {
 
     // MARK: - Restore
 
-    func checkForBackup() async -> BackupMetadata? {
+    enum BackupCheckResult {
+        case found(BackupMetadata)
+        case notFound
+        case error(String)
+    }
+
+    func checkForBackup() async -> BackupCheckResult {
         do {
             try await waitForAvailableAccount()
         } catch {
-            Self.logger.info("[backup] iCloud not available for backup check: \(error)")
-            return nil
+            Self.logger.error("[backup] iCloud not available for backup check: \(error)")
+            return .error("iCloud is not available. Check that you're signed in to iCloud in Settings.")
         }
 
         let recordID = CKRecord.ID(recordName: backupRecordName)
         do {
             let record = try await privateDatabase.record(for: recordID)
-            guard let metadataData = record["metadata"] as? Data else { return nil }
-            return try JSONDecoder().decode(BackupMetadata.self, from: metadataData)
+            guard let metadataData = record["metadata"] as? Data else {
+                Self.logger.error("[backup] Record found but metadata field is nil or wrong type")
+                return .error("Backup record exists but metadata is missing.")
+            }
+            let metadata = try JSONDecoder().decode(BackupMetadata.self, from: metadataData)
+            return .found(metadata)
+        } catch let ckError as CKError where ckError.code == .unknownItem {
+            Self.logger.info("[backup] No backup record exists in CloudKit")
+            return .notFound
         } catch {
-            Self.logger.info("[backup] checkForBackup failed: \(error)")
-            return nil
+            Self.logger.error("[backup] checkForBackup failed: \(error)")
+            return .error("Failed to check iCloud: \(error.localizedDescription)")
         }
     }
 
@@ -221,8 +246,8 @@ final class iCloudBackupManager {
             throw iCloudError.downloadFailed
         }
 
-        // Decrypt
-        let decryptedBlob = try CryptoEngine.decrypt(encryptedBlob, with: key)
+        // Decrypt (handles both single-shot and streaming VCSE format)
+        let decryptedBlob = try CryptoEngine.decryptStaged(encryptedBlob, with: key)
 
         // Write to local storage
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]

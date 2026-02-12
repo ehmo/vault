@@ -142,7 +142,10 @@ struct JoinVaultView: View {
                     .font(.subheadline)
                     .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
+                    .frame(height: 44, alignment: .top)
             }
+
+            Spacer()
 
             PatternGridView(
                 state: patternState,
@@ -152,6 +155,8 @@ struct JoinVaultView: View {
             .frame(width: 280, height: 280)
             .vaultPatternGridBackground()
             .accessibilityIdentifier("join_pattern_grid")
+
+            Spacer()
 
             // Validation feedback — fixed height to prevent layout shift
             Group {
