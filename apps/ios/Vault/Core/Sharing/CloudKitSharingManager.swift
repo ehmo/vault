@@ -1,7 +1,6 @@
 import Foundation
 import CloudKit
 import CryptoKit
-import CommonCrypto
 import os.log
 
 enum CloudKitSharingError: Error, LocalizedError {
@@ -68,37 +67,6 @@ final class CloudKitSharingManager {
         let data = Data(normalized.utf8)
         let hash = SHA256.hash(data: data)
         return hash.prefix(16).map { String(format: "%02x", $0) }.joined()
-    }
-
-    /// Derives an encryption key from the share phrase.
-    static func deriveShareKey(from phrase: String) throws -> Data {
-        let normalized = normalizePhrase(phrase)
-        let password = Data(normalized.utf8)
-        let salt = "vault-share-v1-salt".data(using: .utf8)!
-
-        var derivedKey = Data(count: 32)
-        let result = derivedKey.withUnsafeMutableBytes { derivedKeyPtr in
-            password.withUnsafeBytes { passwordPtr in
-                salt.withUnsafeBytes { saltPtr in
-                    CCKeyDerivationPBKDF(
-                        CCPBKDFAlgorithm(kCCPBKDF2),
-                        passwordPtr.baseAddress?.assumingMemoryBound(to: Int8.self),
-                        password.count,
-                        saltPtr.baseAddress?.assumingMemoryBound(to: UInt8.self),
-                        salt.count,
-                        CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA512),
-                        UInt32(800_000),
-                        derivedKeyPtr.baseAddress?.assumingMemoryBound(to: UInt8.self),
-                        32
-                    )
-                }
-            }
-        }
-
-        guard result == kCCSuccess else {
-            throw CloudKitSharingError.encryptionFailed
-        }
-        return derivedKey
     }
 
     private static func normalizePhrase(_ phrase: String) -> String {
@@ -295,7 +263,7 @@ final class CloudKitSharingManager {
     ) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
         let transaction = SentryManager.shared.startTransaction(name: "share.download", operation: "share.download")
         let phraseVaultId = Self.vaultId(from: phrase)
-        let shareKey = try Self.deriveShareKey(from: phrase)
+        let shareKey = try KeyDerivation.deriveShareKey(from: phrase)
 
         // Fetch manifest
         let manifestRecordId = CKRecord.ID(recordName: phraseVaultId)

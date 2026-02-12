@@ -169,7 +169,7 @@ final class BackgroundShareTransferManager {
                 var phaseStart = uploadStart
 
                 let shareVaultId = CloudKitSharingManager.generateShareVaultId()
-                let shareKey = try CloudKitSharingManager.deriveShareKey(from: capturedPhrase)
+                let shareKey = try KeyDerivation.deriveShareKey(from: capturedPhrase)
                 Self.logger.info("[upload-telemetry] PBKDF2 key derivation: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - phaseStart))s")
                 phaseStart = CFAbsoluteTimeGetCurrent()
 
@@ -271,7 +271,7 @@ final class BackgroundShareTransferManager {
                 guard !Task.isCancelled else { return }
 
                 // Persist pending upload state so we can resume if backgrounded
-                let phraseVaultId = CloudKitSharingManager.vaultId(from: capturedPhrase)
+                let phraseVaultId = KeyDerivation.shareVaultId(from: capturedPhrase)
                 let chunkSize = 2 * 1024 * 1024
                 let totalChunks = (encodedData.count + chunkSize - 1) / chunkSize
                 let pendingState = PendingUploadState(
@@ -546,7 +546,7 @@ final class BackgroundShareTransferManager {
 
                 guard !Task.isCancelled else { return }
 
-                let shareKey = try CloudKitSharingManager.deriveShareKey(from: capturedPhrase)
+                let shareKey = try KeyDerivation.deriveShareKey(from: capturedPhrase)
                 let sharedVault: SharedVaultData
                 if SVDFSerializer.isSVDF(result.data) {
                     sharedVault = try SVDFSerializer.deserialize(from: result.data, shareKey: shareKey)

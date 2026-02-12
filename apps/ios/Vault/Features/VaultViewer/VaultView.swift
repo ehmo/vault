@@ -1263,13 +1263,13 @@ struct VaultView: View {
 
     private func deleteFileById(_ id: UUID) {
         guard let key = appState.currentVaultKey else { return }
-        Task {
+        Task.detached(priority: .userInitiated) {
             try? VaultStorage.shared.deleteFile(id: id, with: key)
             await MainActor.run {
-                if let idx = files.firstIndex(where: { $0.id == id }) {
-                    files.remove(at: idx)
+                if let idx = self.files.firstIndex(where: { $0.id == id }) {
+                    self.files.remove(at: idx)
                 }
-                toastMessage = .filesDeleted(1)
+                self.toastMessage = .filesDeleted(1)
             }
         }
     }
@@ -1345,8 +1345,9 @@ struct VaultView: View {
 
     private func handleCapturedImage(_ imageData: Data) {
         guard !isSharedVault, let key = appState.currentVaultKey else { return }
+        let currentMasterKey = self.masterKey
 
-        Task {
+        Task.detached(priority: .userInitiated) {
             do {
                 let filename = "IMG_\(Date().timeIntervalSince1970).jpg"
                 let thumbnail = FileUtilities.generateThumbnail(from: imageData)
@@ -1358,19 +1359,19 @@ struct VaultView: View {
                     thumbnailData: thumbnail
                 )
                 // Re-encrypt thumbnail for in-memory model (matches what's stored in index)
-                let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: self.masterKey ?? key) }
-                await MainActor.run {
-                    files.append(VaultFileItem(
+                let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: currentMasterKey ?? key) }
+                await MainActor.run { [encThumb] in
+                    self.files.append(VaultFileItem(
                         id: fileId,
                         size: imageData.count,
                         encryptedThumbnail: encThumb,
                         mimeType: "image/jpeg",
                         filename: filename
                     ))
-                    if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: files.count) {
-                        toastMessage = .milestone(milestone)
+                    if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: self.files.count) {
+                        self.toastMessage = .milestone(milestone)
                     } else {
-                        toastMessage = .fileEncrypted()
+                        self.toastMessage = .fileEncrypted()
                     }
                 }
 

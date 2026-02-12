@@ -976,22 +976,9 @@ final class VaultStorage {
         print("🔐 [VaultStorage] Master key re-encrypted with new vault key")
         #endif
         
-        // 4. Create new index with re-encrypted master key (preserve all fields)
-        var newIndex = VaultIndex(
-            files: index.files,
-            nextOffset: index.nextOffset,
-            totalSize: index.totalSize,
-            encryptedMasterKey: newEncryptedMasterKey,
-            version: index.version
-        )
-        newIndex.blobs = index.blobs
-        newIndex.activeShares = index.activeShares
-        newIndex.isSharedVault = index.isSharedVault
-        newIndex.sharedVaultId = index.sharedVaultId
-        newIndex.sharePolicy = index.sharePolicy
-        newIndex.openCount = index.openCount
-        newIndex.shareKeyData = index.shareKeyData
-        newIndex.sharedVaultVersion = index.sharedVaultVersion
+        // 4. Copy index and replace only the master key (future-proof — new fields are preserved)
+        var newIndex = index
+        newIndex.encryptedMasterKey = newEncryptedMasterKey
 
         // 5. Save index with NEW vault key (creates new index file)
         try saveIndex(newIndex, with: newKey)
