@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "9f5bd6084a8d",
+  "session_id": "7fef39f2-befb-4bb2-9e80-e4735552ec7b",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-12T05:54:43.793742Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/build/ExportOptionsLocal.plist"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 23,
+    "cache_creation_tokens": 50544,
+    "cache_read_tokens": 1249112,
+    "output_tokens": 628,
+    "api_call_count": 19
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-12T05:54:43.767958Z",
+    "agent_lines": 0,
+    "human_added": 57,
+    "human_modified": 158,
+    "human_removed": 0,
+    "total_committed": 57,
+    "agent_percentage": 0
+  }
+}

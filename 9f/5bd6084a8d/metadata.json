@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "9f5bd6084a8d",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/build/ExportOptionsLocal.plist"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9f/5bd6084a8d/0/metadata.json",
+      "transcript": "/9f/5bd6084a8d/0/full.jsonl",
+      "context": "/9f/5bd6084a8d/0/context.md",
+      "content_hash": "/9f/5bd6084a8d/0/content_hash.txt",
+      "prompt": "/9f/5bd6084a8d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 23,
+    "cache_creation_tokens": 50544,
+    "cache_read_tokens": 1249112,
+    "output_tokens": 628,
+    "api_call_count": 19
+  }
+}
