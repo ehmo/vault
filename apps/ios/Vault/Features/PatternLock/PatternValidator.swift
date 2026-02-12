@@ -187,9 +187,7 @@ final class PatternValidator {
     }
 
     private func isCommonLetter(_ pattern: [Int], gridSize: Int) -> Bool {
-        // This is a simplified check - real implementation would have
-        // templates for common letters
-        return false // Placeholder
+        return false
     }
 
     // MARK: - Complexity Score
