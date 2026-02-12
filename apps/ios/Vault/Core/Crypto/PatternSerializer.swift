@@ -93,6 +93,17 @@ struct PatternSerializer {
     }
 
     static func analyzePattern(_ pattern: [Int], gridSize: Int = 5) -> PatternMetrics {
+        guard pattern.count >= 2 else {
+            return PatternMetrics(
+                nodeCount: pattern.count,
+                directionChanges: 0,
+                startsAtCorner: false,
+                endsAtCorner: false,
+                crossesCenter: false,
+                touchesAllQuadrants: false
+            )
+        }
+
         let corners = [0, gridSize - 1, gridSize * (gridSize - 1), gridSize * gridSize - 1]
         let centerNodes = computeCenterNodes(gridSize: gridSize)
 

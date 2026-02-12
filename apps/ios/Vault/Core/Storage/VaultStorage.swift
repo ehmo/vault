@@ -46,6 +46,10 @@ final class VaultStorage {
     private let cursorMagic: UInt64 = 0x5641553100000000
 
     private let initQueue = DispatchQueue(label: "vault.blob.init")
+    /// Serializes all index read/write operations to prevent concurrent access races
+    /// between VaultView, ShareSyncManager, and BackgroundShareTransferManager.
+    /// Recursive lock allows compound operations (load+modify+save) to call loadIndex/saveIndex internally.
+    private let indexLock = NSRecursiveLock()
     private var blobReady = false
 
     private var blobURL: URL {
@@ -327,6 +331,12 @@ final class VaultStorage {
     }
 
     func loadIndex(with key: Data) throws -> VaultIndex {
+        indexLock.lock()
+        defer { indexLock.unlock() }
+        return try _loadIndex(with: key)
+    }
+
+    private func _loadIndex(with key: Data) throws -> VaultIndex {
         let span = SentryManager.shared.startTransaction(name: "storage.index_load", operation: "storage.index_load")
         defer { span.finish(status: .ok) }
 
@@ -440,6 +450,12 @@ final class VaultStorage {
     }
 
     func saveIndex(_ index: VaultIndex, with key: Data) throws {
+        indexLock.lock()
+        defer { indexLock.unlock() }
+        try _saveIndex(index, with: key)
+    }
+
+    private func _saveIndex(_ index: VaultIndex, with key: Data) throws {
         let span = SentryManager.shared.startTransaction(name: "storage.index_save", operation: "storage.index_save")
         defer { span.finish(status: .ok) }
 
@@ -587,6 +603,8 @@ final class VaultStorage {
         span.setTag(value: mimeType, key: "mimeType")
 
         ensureBlobReady()
+        indexLock.lock()
+        defer { indexLock.unlock() }
         #if DEBUG
         print("💾 [VaultStorage] storeFile called")
         print("💾 [VaultStorage] filename: \(filename), size: \(data.count) bytes")
@@ -594,7 +612,7 @@ final class VaultStorage {
         print("💾 [VaultStorage] key hash: \(key.hashValue)")
         print("💾 [VaultStorage] thumbnail provided: \(thumbnailData != nil)")
         #endif
-        
+
         var index = try loadIndex(with: key)
         
         #if DEBUG
@@ -763,6 +781,8 @@ final class VaultStorage {
 
     func deleteFile(id: UUID, with key: Data) throws {
         ensureBlobReady()
+        indexLock.lock()
+        defer { indexLock.unlock() }
         var index = try loadIndex(with: key)
 
         guard let entryIndex = index.files.firstIndex(where: { $0.fileId == id && !$0.isDeleted }) else {
@@ -804,6 +824,8 @@ final class VaultStorage {
     /// Calls `onProgress` after each file is securely overwritten (on the calling thread).
     func deleteFiles(ids: Set<UUID>, with key: Data, onProgress: ((Int) -> Void)? = nil) throws {
         ensureBlobReady()
+        indexLock.lock()
+        defer { indexLock.unlock() }
         var index = try loadIndex(with: key)
 
         // Group entries by blob to reuse file handles (nil blobId = "primary")
@@ -941,6 +963,8 @@ final class VaultStorage {
     /// Change the vault key (pattern) without re-encrypting files
     /// This is extremely fast because we only re-encrypt the master key, not the file data
     func changeVaultKey(from oldKey: Data, to newKey: Data) throws {
+        indexLock.lock()
+        defer { indexLock.unlock() }
         #if DEBUG
         print("🔑 [VaultStorage] Changing vault key (pattern change)")
         print("🔑 [VaultStorage] Old key hash: \(oldKey.hashValue)")
@@ -1132,6 +1156,8 @@ final class VaultStorage {
     /// Reclaim deleted space by copying live files to fresh blobs.
     /// Returns the updated index.
     func compactBlobs(with key: Data) throws -> VaultIndex {
+        indexLock.lock()
+        defer { indexLock.unlock() }
         var index = try loadIndex(with: key)
         let masterKey = try getMasterKey(from: index, vaultKey: key)
         _ = masterKey // Silence unused warning — masterKey needed if we re-encrypt; here we copy raw

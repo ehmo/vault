@@ -105,6 +105,11 @@
 		TS0000003 /* SVDFSerializerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000002 /* SVDFSerializerTests.swift */; };
 		TS0000005 /* ShareSyncCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000004 /* ShareSyncCacheTests.swift */; };
 		TS0000007 /* SharedVaultDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000006 /* SharedVaultDataTests.swift */; };
+		TS0000009 /* ShareLinkEncoderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000008 /* ShareLinkEncoderTests.swift */; };
+		TS000000C /* RecoveryPhraseGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS000000A /* RecoveryPhraseGeneratorTests.swift */; };
+		TS0000021 /* PatternValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000020 /* PatternValidatorTests.swift */; };
+		TS0000023 /* PatternSerializerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000022 /* PatternSerializerTests.swift */; };
+		TS0000025 /* KeyDerivationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000024 /* KeyDerivationTests.swift */; };
 		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
 		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
 		UX0000005 /* MilestoneTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000004 /* MilestoneTracker.swift */; };
@@ -240,6 +245,11 @@
 		TS0000002 /* SVDFSerializerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SVDFSerializerTests.swift; sourceTree = "<group>"; };
 		TS0000004 /* ShareSyncCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSyncCacheTests.swift; sourceTree = "<group>"; };
 		TS0000006 /* SharedVaultDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedVaultDataTests.swift; sourceTree = "<group>"; };
+		TS0000008 /* ShareLinkEncoderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareLinkEncoderTests.swift; sourceTree = "<group>"; };
+		TS000000A /* RecoveryPhraseGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryPhraseGeneratorTests.swift; sourceTree = "<group>"; };
+		TS0000020 /* PatternValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidatorTests.swift; sourceTree = "<group>"; };
+		TS0000022 /* PatternSerializerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSerializerTests.swift; sourceTree = "<group>"; };
+		TS0000024 /* KeyDerivationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyDerivationTests.swift; sourceTree = "<group>"; };
 		TS0000010 /* VaultTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
@@ -594,6 +604,11 @@
 				TS0000002 /* SVDFSerializerTests.swift */,
 				TS0000004 /* ShareSyncCacheTests.swift */,
 				TS0000006 /* SharedVaultDataTests.swift */,
+				TS0000008 /* ShareLinkEncoderTests.swift */,
+				TS000000A /* RecoveryPhraseGeneratorTests.swift */,
+				TS0000020 /* PatternValidatorTests.swift */,
+				TS0000022 /* PatternSerializerTests.swift */,
+				TS0000024 /* KeyDerivationTests.swift */,
 			);
 			path = VaultTests;
 			sourceTree = "<group>";
@@ -911,6 +926,11 @@
 				TS0000003 /* SVDFSerializerTests.swift in Sources */,
 				TS0000005 /* ShareSyncCacheTests.swift in Sources */,
 				TS0000007 /* SharedVaultDataTests.swift in Sources */,
+				TS0000009 /* ShareLinkEncoderTests.swift in Sources */,
+				TS000000C /* RecoveryPhraseGeneratorTests.swift in Sources */,
+				TS0000021 /* PatternValidatorTests.swift in Sources */,
+				TS0000023 /* PatternSerializerTests.swift in Sources */,
+				TS0000025 /* KeyDerivationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
