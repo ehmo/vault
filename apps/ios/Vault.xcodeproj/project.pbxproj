@@ -61,6 +61,7 @@
 		018000001 /* TelemetryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018000000 /* TelemetryManager.swift */; };
 		018000003 /* AnalyticsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018000002 /* AnalyticsManager.swift */; };
 		019000001 /* AnalyticsConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000000 /* AnalyticsConsentView.swift */; };
+		019000003 /* PermissionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000002 /* PermissionsView.swift */; };
 		020000001 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000 /* SubscriptionManager.swift */; };
 		020000003 /* PaywallTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000002 /* PaywallTrigger.swift */; };
 		021000001 /* ThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000000 /* ThumbnailCache.swift */; };
@@ -215,6 +216,7 @@
 		018000000 /* TelemetryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryManager.swift; sourceTree = "<group>"; };
 		018000002 /* AnalyticsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsManager.swift; sourceTree = "<group>"; };
 		019000000 /* AnalyticsConsentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsConsentView.swift; sourceTree = "<group>"; };
+		019000002 /* PermissionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsView.swift; sourceTree = "<group>"; };
 		020000000 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
 		020000002 /* PaywallTrigger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallTrigger.swift; sourceTree = "<group>"; };
 		021000000 /* ThumbnailCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailCache.swift; sourceTree = "<group>"; };
@@ -513,6 +515,7 @@
 				009000002 /* WelcomeView.swift */,
 				009000004 /* PatternSetupView.swift */,
 				019000000 /* AnalyticsConsentView.swift */,
+				019000002 /* PermissionsView.swift */,
 				39EACFA02F29B36D00FA7EC2 /* RecoveryPhraseManager.swift */,
 				39EACFA22F29B42100FA7EC2 /* RECOVERY_PHRASE_SYSTEM.md */,
 				39EACFA42F29B43C00FA7EC2 /* RECOVERY_QUICK_START.md */,
@@ -906,6 +909,7 @@
 				018000001 /* TelemetryManager.swift in Sources */,
 				018000003 /* AnalyticsManager.swift in Sources */,
 				019000001 /* AnalyticsConsentView.swift in Sources */,
+				019000003 /* PermissionsView.swift in Sources */,
 				020000001 /* SubscriptionManager.swift in Sources */,
 				020000003 /* PaywallTrigger.swift in Sources */,
 				LA0000001 /* TransferActivityAttributes.swift in Sources */,
@@ -1108,7 +1112,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = UFV835UGV6;
@@ -1149,7 +1153,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = UFV835UGV6;
@@ -1186,7 +1190,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = VaultLiveActivity/Info.plist;
@@ -1215,7 +1219,7 @@
 			buildSettings = {
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = VaultLiveActivity/Info.plist;
@@ -1245,7 +1249,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
@@ -1276,7 +1280,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
@@ -1307,7 +1311,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1324,7 +1328,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;

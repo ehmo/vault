@@ -14,11 +14,15 @@ struct OnboardingView: View {
                     onContinue: { currentStep = 1 }
                 )
             case 1:
-                AnalyticsConsentView(
-                    onContinue: { currentStep = 2 }
-                )
+                PatternSetupView(onComplete: { currentStep = 2 })
             case 2:
-                PatternSetupView(onComplete: completeOnboarding)
+                PermissionsView(
+                    onContinue: { currentStep = 3 }
+                )
+            case 3:
+                AnalyticsConsentView(
+                    onContinue: { completeOnboarding() }
+                )
             default:
                 EmptyView()
             }
