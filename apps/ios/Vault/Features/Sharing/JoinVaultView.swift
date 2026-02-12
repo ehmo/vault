@@ -153,7 +153,7 @@ struct JoinVaultView: View {
                 onPatternComplete: handlePatternComplete
             )
             .frame(width: 280, height: 280)
-            .vaultPatternGridBackground()
+            .tint(.purple)
             .accessibilityIdentifier("join_pattern_grid")
 
             Spacer()

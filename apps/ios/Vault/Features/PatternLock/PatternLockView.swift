@@ -68,7 +68,7 @@ struct PatternLockView: View {
                 showFeedback: $showFeedback,
                 onPatternComplete: handlePatternComplete
             )
-            .frame(maxWidth: 280, maxHeight: 280)
+            .frame(width: 280, height: 280)
             .disabled(isProcessing)
             .opacity(isVoiceOverActive ? 0.3 : (isProcessing ? 0.5 : 1))
             .accessibilityIdentifier("unlock_pattern_grid")

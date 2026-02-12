@@ -945,7 +945,6 @@ struct RestoreFromBackupView: View {
                     performRestore(with: pattern)
                 }
                 .frame(width: 280, height: 280)
-                .padding()
             }
 
             if let errorMessage {

@@ -476,8 +476,6 @@ struct ChangePatternView: View {
             onPatternComplete: handlePatternComplete
         )
         .frame(width: 280, height: 280)
-        .vaultPatternGridBackground()
-        .padding()
     }
 
     private var completeSection: some View {
