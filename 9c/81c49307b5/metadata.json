@@ -1,0 +1,52 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "9c81c49307b5",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".scratch-pad.md",
+    "AGENTS.md",
+    "apps/ios/AGENTS.md",
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/App/ContentView.swift",
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Billing/PaywallTrigger.swift",
+    "apps/ios/Vault/Core/Billing/SubscriptionManager.swift",
+    "apps/ios/Vault/Core/Storage/StagedImportManager.swift",
+    "apps/ios/Vault/Core/Storage/VaultStorage.swift",
+    "apps/ios/Vault/Core/Storage/iCloudBackupManager.swift",
+    "apps/ios/Vault/Extensions/ShareExtension/Info.plist",
+    "apps/ios/Vault/Features/Camera/SecureCameraView.swift",
+    "apps/ios/Vault/Features/PatternLock/PatternValidator.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/Vault/Features/Sharing/SharedVaultInviteView.swift",
+    "apps/ios/Vault/Features/VaultViewer/FilesGridView.swift",
+    "apps/ios/Vault/Features/VaultViewer/PhotosGridView.swift",
+    "apps/ios/Vault/Features/VaultViewer/SecureImageViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
+    "apps/ios/Vault/Resources/Assets.xcassets/VaultLogo.imageset/Contents.json",
+    "apps/ios/Vault/Resources/PrivacyInfo.xcprivacy",
+    "apps/ios/Vault/Supporting/Info.plist",
+    "apps/ios/Vault/UI/Components/PixelAnimation.swift",
+    "apps/ios/Vault/UI/Components/StorageRingView.swift",
+    "apps/ios/VaultLiveActivity/Info.plist"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9c/81c49307b5/0/metadata.json",
+      "transcript": "/9c/81c49307b5/0/full.jsonl",
+      "context": "/9c/81c49307b5/0/context.md",
+      "content_hash": "/9c/81c49307b5/0/content_hash.txt",
+      "prompt": "/9c/81c49307b5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 40,
+    "cache_creation_tokens": 46806,
+    "cache_read_tokens": 4570720,
+    "output_tokens": 1516,
+    "api_call_count": 36
+  }
+}
