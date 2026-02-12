@@ -104,14 +104,14 @@ final class iCloudBackupManager {
         try Task.checkCancellation()
         try await waitForAvailableAccount()
 
-        // Read and encrypt the blob with additional layer
+        // Stream-encrypt the blob in 256KB chunks to avoid loading entire file into memory
         onProgress(.readingVault)
         try Task.checkCancellation()
-        let blobData = try Data(contentsOf: blobURL)
+        let fileSize = try fileManager.attributesOfItem(atPath: blobURL.path)[.size] as? Int ?? 0
 
         onProgress(.encrypting)
         try Task.checkCancellation()
-        let encryptedBackup = try CryptoEngine.encrypt(blobData, with: key)
+        let encryptedBackup = try CryptoEngine.encryptStreaming(fileURL: blobURL, originalSize: fileSize, with: key)
 
         // Create backup metadata
         let metadata = BackupMetadata(

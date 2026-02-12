@@ -25,6 +25,11 @@
 		005000005 /* PatternValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005000004 /* PatternValidator.swift */; };
 		005000007 /* PatternNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005000006 /* PatternNode.swift */; };
 		006000001 /* VaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006000000 /* VaultView.swift */; };
+		VV0000001 /* VaultView+Grid.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000000 /* VaultView+Grid.swift */; };
+		VV0000003 /* VaultView+Toolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000002 /* VaultView+Toolbar.swift */; };
+		VV0000005 /* VaultView+FanMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000004 /* VaultView+FanMenu.swift */; };
+		VV0000007 /* VaultView+SharedVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000006 /* VaultView+SharedVault.swift */; };
+		VV0000009 /* VaultView+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000008 /* VaultView+Actions.swift */; };
 		006000005 /* SecureImageViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006000004 /* SecureImageViewer.swift */; };
 		006000007 /* SecureVideoPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006000006 /* SecureVideoPlayer.swift */; };
 		006000009 /* FileImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006000008 /* FileImporter.swift */; };
@@ -174,6 +179,11 @@
 		005000004 /* PatternValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidator.swift; sourceTree = "<group>"; };
 		005000006 /* PatternNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternNode.swift; sourceTree = "<group>"; };
 		006000000 /* VaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultView.swift; sourceTree = "<group>"; };
+		VV0000000 /* VaultView+Grid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Grid.swift"; sourceTree = "<group>"; };
+		VV0000002 /* VaultView+Toolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Toolbar.swift"; sourceTree = "<group>"; };
+		VV0000004 /* VaultView+FanMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+FanMenu.swift"; sourceTree = "<group>"; };
+		VV0000006 /* VaultView+SharedVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+SharedVault.swift"; sourceTree = "<group>"; };
+		VV0000008 /* VaultView+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Actions.swift"; sourceTree = "<group>"; };
 		006000004 /* SecureImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureImageViewer.swift; sourceTree = "<group>"; };
 		006000006 /* SecureVideoPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureVideoPlayer.swift; sourceTree = "<group>"; };
 		006000008 /* FileImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileImporter.swift; sourceTree = "<group>"; };
@@ -458,6 +468,11 @@
 			isa = PBXGroup;
 			children = (
 				006000000 /* VaultView.swift */,
+				VV0000000 /* VaultView+Grid.swift */,
+				VV0000002 /* VaultView+Toolbar.swift */,
+				VV0000004 /* VaultView+FanMenu.swift */,
+				VV0000006 /* VaultView+SharedVault.swift */,
+				VV0000008 /* VaultView+Actions.swift */,
 				021000004 /* PhotosGridView.swift */,
 				021000006 /* FilesGridView.swift */,
 				021000008 /* FullScreenPhotoViewer.swift */,
@@ -840,6 +855,11 @@
 				005000005 /* PatternValidator.swift in Sources */,
 				005000007 /* PatternNode.swift in Sources */,
 				006000001 /* VaultView.swift in Sources */,
+				VV0000001 /* VaultView+Grid.swift in Sources */,
+				VV0000003 /* VaultView+Toolbar.swift in Sources */,
+				VV0000005 /* VaultView+FanMenu.swift in Sources */,
+				VV0000007 /* VaultView+SharedVault.swift in Sources */,
+				VV0000009 /* VaultView+Actions.swift in Sources */,
 				021000001 /* ThumbnailCache.swift in Sources */,
 				021000003 /* AsyncThumbnailView.swift in Sources */,
 				022000001 /* PixelAnimation.swift in Sources */,

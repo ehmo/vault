@@ -222,8 +222,9 @@ final class SecureEnclaveManager {
         if randStatus == errSecSuccess {
             keyData = Data(keyBytes)
         } else {
-            // Fallback to zeroed key if random generation fails
-            keyData = Data(repeating: 0, count: 16)
+            // Fallback to CryptoKit entropy (never use zeroed key)
+            let fallbackKey = SymmetricKey(size: .bits128)
+            keyData = fallbackKey.withUnsafeBytes { Data($0) }
         }
 
         // Store in keychain

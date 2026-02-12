@@ -203,7 +203,11 @@ struct FullScreenPhotoViewer: View {
         guard let file = currentFile, let key = vaultKey else { return }
 
         Task {
-            try? VaultStorage.shared.deleteFile(id: file.id, with: key)
+            do {
+                try VaultStorage.shared.deleteFile(id: file.id, with: key)
+            } catch {
+                SentryManager.shared.captureError(error)
+            }
             await MainActor.run {
                 onDelete?(file.id)
                 dismiss()
