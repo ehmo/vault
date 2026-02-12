@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "e37acb2861fd",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault.xcodeproj/project.pbxproj"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e3/7acb2861fd/0/metadata.json",
+      "transcript": "/e3/7acb2861fd/0/full.jsonl",
+      "context": "/e3/7acb2861fd/0/context.md",
+      "content_hash": "/e3/7acb2861fd/0/content_hash.txt",
+      "prompt": "/e3/7acb2861fd/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 3611,
+    "cache_read_tokens": 594292,
+    "output_tokens": 545,
+    "api_call_count": 8
+  }
+}
