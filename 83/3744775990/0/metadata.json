@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "833744775990",
+  "session_id": "6a4d3933-7ead-4225-894c-aaa313d05088",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-12T02:04:17.762966Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Features/PatternLock/PatternValidator.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "a2eb1c20-f2b0-46a6-a4bd-6b24be4beb36",
+  "checkpoint_transcript_start": 7050,
+  "transcript_lines_at_start": 7050,
+  "token_usage": {
+    "input_tokens": 7,
+    "cache_creation_tokens": 2605,
+    "cache_read_tokens": 443297,
+    "output_tokens": 280,
+    "api_call_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-12T02:04:16.728128Z",
+    "agent_lines": 0,
+    "human_added": 50,
+    "human_modified": 162,
+    "human_removed": 0,
+    "total_committed": 51,
+    "agent_percentage": 0
+  }
+}

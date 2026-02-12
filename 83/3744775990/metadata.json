@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "833744775990",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Features/PatternLock/PatternValidator.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/83/3744775990/0/metadata.json",
+      "transcript": "/83/3744775990/0/full.jsonl",
+      "context": "/83/3744775990/0/context.md",
+      "content_hash": "/83/3744775990/0/content_hash.txt",
+      "prompt": "/83/3744775990/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 7,
+    "cache_creation_tokens": 2605,
+    "cache_read_tokens": 443297,
+    "output_tokens": 280,
+    "api_call_count": 5
+  }
+}
