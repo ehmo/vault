@@ -230,6 +230,33 @@ enum SVDFSerializer {
         return try decodeFileEntry(Data(entryData))
     }
 
+    /// Deserializes a complete SVDF blob into a SharedVaultData object.
+    static func deserialize(from data: Data, shareKey: Data) throws -> SharedVaultData {
+        let header = try parseHeader(from: data)
+        let manifest = try parseManifest(from: data, shareKey: shareKey)
+
+        var files: [SharedVaultData.SharedFile] = []
+        for entry in manifest where !entry.deleted {
+            let file = try extractFileEntry(from: data, at: entry.offset, size: entry.size)
+            files.append(file)
+        }
+
+        // Decrypt metadata
+        let metaStart = Int(header.metadataOffset)
+        let metaEnd = metaStart + Int(header.metadataSize)
+        guard metaEnd <= data.count else { throw SVDFError.invalidManifest }
+        let encryptedMeta = data[metaStart..<metaEnd]
+        let metaJSON = try CryptoEngine.decrypt(Data(encryptedMeta), with: shareKey)
+        let metadata = try JSONDecoder().decode(SharedVaultData.SharedVaultMetadata.self, from: metaJSON)
+
+        return SharedVaultData(
+            files: files,
+            metadata: metadata,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+    }
+
     // MARK: - File Entry Encoding
 
     /// Binary layout per file entry:
