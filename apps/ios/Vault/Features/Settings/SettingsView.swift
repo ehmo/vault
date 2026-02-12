@@ -545,6 +545,7 @@ struct iCloudBackupSettingsView: View {
     @AppStorage("lastBackupTimestamp") private var lastBackupTimestamp: Double = 0
     @State private var isBackingUp = false
     @State private var backupStage: iCloudBackupManager.BackupStage?
+    @State private var uploadProgress: Double = 0
     @State private var backupTask: Task<Void, Never>?
     @State private var showingRestore = false
     @State private var iCloudAvailable = true
@@ -638,10 +639,23 @@ struct iCloudBackupSettingsView: View {
     private var statusSection: some View {
         Section("Backup Status") {
             if isBackingUp {
-                HStack(spacing: 10) {
-                    ProgressView()
-                    Text(backupStage?.rawValue ?? "Preparing...")
-                        .foregroundStyle(.vaultSecondaryText)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 10) {
+                        if backupStage == .uploading {
+                            ProgressView(value: uploadProgress)
+                                .tint(Color.accentColor)
+                        } else {
+                            ProgressView()
+                        }
+                        Text(backupStage?.rawValue ?? "Preparing...")
+                            .foregroundStyle(.vaultSecondaryText)
+                    }
+                    if backupStage == .uploading {
+                        Text("\(Int(uploadProgress * 100))%")
+                            .font(.caption)
+                            .foregroundStyle(.vaultSecondaryText)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
                 }
 
                 Button("Cancel Backup", role: .destructive) {
@@ -749,15 +763,20 @@ struct iCloudBackupSettingsView: View {
 
         isBackingUp = true
         backupStage = nil
+        uploadProgress = 0
         errorMessage = nil
 
         backupTask = Task {
             do {
-                try await backupManager.performBackup(with: key) { stage in
+                try await backupManager.performBackup(with: key, onProgress: { stage in
                     Task { @MainActor in
                         backupStage = stage
                     }
-                }
+                }, onUploadProgress: { progress in
+                    Task { @MainActor in
+                        uploadProgress = progress
+                    }
+                })
                 await MainActor.run {
                     lastBackupTimestamp = Date().timeIntervalSince1970
                     isBackingUp = false

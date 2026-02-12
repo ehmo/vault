@@ -88,7 +88,7 @@ final class iCloudBackupManager {
         case complete = "Backup complete"
     }
 
-    func performBackup(with key: Data, onProgress: @escaping (BackupStage) -> Void) async throws {
+    func performBackup(with key: Data, onProgress: @escaping (BackupStage) -> Void, onUploadProgress: @escaping (Double) -> Void = { _ in }) async throws {
         // Get the vault blob
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let blobURL = documents.appendingPathComponent("vault_data.bin")
@@ -144,9 +144,33 @@ final class iCloudBackupManager {
         record["timestamp"] = metadata.timestamp as CKRecordValue
 
         try Task.checkCancellation()
-        try await privateDatabase.save(record)
+        try await saveWithProgress(record: record, onUploadProgress: onUploadProgress)
         onProgress(.complete)
         Self.logger.info("[backup] Backup complete (\(encryptedBackup.count / 1024)KB)")
+    }
+
+    /// Saves a record using CKModifyRecordsOperation to get per-record upload progress.
+    private func saveWithProgress(record: CKRecord, onUploadProgress: @escaping (Double) -> Void) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let operation = CKModifyRecordsOperation(recordsToSave: [record], recordIDsToDelete: nil)
+            operation.savePolicy = .changedKeys
+            operation.qualityOfService = .userInitiated
+
+            operation.perRecordProgressBlock = { _, progress in
+                onUploadProgress(progress)
+            }
+
+            operation.modifyRecordsResultBlock = { result in
+                switch result {
+                case .success:
+                    continuation.resume()
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+
+            privateDatabase.add(operation)
+        }
     }
 
     // MARK: - Restore
