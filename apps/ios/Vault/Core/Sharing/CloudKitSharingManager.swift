@@ -44,8 +44,8 @@ final class CloudKitSharingManager {
     /// progress updates since CKDatabase.save() has no byte-level callback.
     private let chunkSize = 2 * 1024 * 1024
 
-    /// Maximum concurrent CloudKit chunk uploads/saves.
-    private static let maxConcurrentChunkUploads = 4
+    /// Maximum concurrent CloudKit chunk uploads/saves/downloads.
+    private static let maxConcurrentChunkOps = 4
 
     private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "CloudKitSharing")
 
@@ -303,27 +303,12 @@ final class CloudKitSharingManager {
             policy = try JSONDecoder().decode(VaultStorage.SharePolicy.self, from: decryptedPolicy)
         }
 
-        // Download chunks in order
-        var encryptedData = Data()
-        for i in 0..<chunkCount {
-            let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(i)")
-            let chunkRecord: CKRecord
-            do {
-                chunkRecord = try await publicDatabase.record(for: chunkRecordId)
-            } catch {
-                throw CloudKitSharingError.downloadFailed(error)
-            }
-
-            guard let chunkAsset = chunkRecord["chunkData"] as? CKAsset,
-                  let chunkURL = chunkAsset.fileURL else {
-                throw CloudKitSharingError.invalidData
-            }
-
-            let chunkBytes = try Data(contentsOf: chunkURL)
-            encryptedData.append(chunkBytes)
-
-            onProgress?(i + 1, chunkCount)
-        }
+        // Download chunks in parallel (max 4 concurrent)
+        let encryptedData = try await downloadChunksParallel(
+            shareVaultId: shareVaultId,
+            chunkCount: chunkCount,
+            onProgress: onProgress
+        )
 
         let remoteVersion = manifest["version"] as? Int ?? 1
 
@@ -398,20 +383,12 @@ final class CloudKitSharingManager {
             throw CloudKitSharingError.vaultNotFound
         }
 
-        // Download chunks
-        var rawData = Data()
-        for i in 0..<chunkCount {
-            let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(i)")
-            let chunkRecord = try await publicDatabase.record(for: chunkRecordId)
-
-            guard let chunkAsset = chunkRecord["chunkData"] as? CKAsset,
-                  let chunkURL = chunkAsset.fileURL else {
-                throw CloudKitSharingError.invalidData
-            }
-
-            rawData.append(try Data(contentsOf: chunkURL))
-            onProgress?(i + 1, chunkCount)
-        }
+        // Download chunks in parallel (max 4 concurrent)
+        let rawData = try await downloadChunksParallel(
+            shareVaultId: shareVaultId,
+            chunkCount: chunkCount,
+            onProgress: onProgress
+        )
 
         // v1: outer encryption layer; v2+: no outer encryption
         if remoteVersion < 2 {
@@ -522,7 +499,7 @@ final class CloudKitSharingManager {
             var inFlight = 0
 
             for (index, data) in chunks {
-                if inFlight >= Self.maxConcurrentChunkUploads {
+                if inFlight >= Self.maxConcurrentChunkOps {
                     try await group.next()
                     completed += 1
                     inFlight -= 1
@@ -542,6 +519,69 @@ final class CloudKitSharingManager {
                 completed += 1
                 onProgress?(completed, totalChunks)
             }
+        }
+    }
+
+    /// Downloads chunk records in parallel with bounded concurrency.
+    /// Reassembles chunks in index order after all downloads complete.
+    private func downloadChunksParallel(
+        shareVaultId: String,
+        chunkCount: Int,
+        onProgress: ((Int, Int) -> Void)? = nil
+    ) async throws -> Data {
+        guard chunkCount > 0 else { return Data() }
+
+        return try await withThrowingTaskGroup(of: (Int, Data).self) { group in
+            var completed = 0
+            var inFlight = 0
+            var chunkMap = [Int: Data]()
+            chunkMap.reserveCapacity(chunkCount)
+
+            for i in 0..<chunkCount {
+                if inFlight >= Self.maxConcurrentChunkOps {
+                    let (index, data) = try await group.next()!
+                    chunkMap[index] = data
+                    completed += 1
+                    inFlight -= 1
+                    onProgress?(completed, chunkCount)
+                }
+
+                group.addTask {
+                    let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(i)")
+                    let chunkRecord: CKRecord
+                    do {
+                        chunkRecord = try await self.publicDatabase.record(for: chunkRecordId)
+                    } catch {
+                        throw CloudKitSharingError.downloadFailed(error)
+                    }
+
+                    guard let chunkAsset = chunkRecord["chunkData"] as? CKAsset,
+                          let chunkURL = chunkAsset.fileURL else {
+                        throw CloudKitSharingError.invalidData
+                    }
+
+                    let chunkBytes = try Data(contentsOf: chunkURL)
+                    return (i, chunkBytes)
+                }
+                inFlight += 1
+            }
+
+            // Drain remaining in-flight downloads
+            for try await (index, data) in group {
+                chunkMap[index] = data
+                completed += 1
+                onProgress?(completed, chunkCount)
+            }
+
+            // Reassemble in order
+            var result = Data()
+            for i in 0..<chunkCount {
+                guard let chunk = chunkMap[i] else {
+                    throw CloudKitSharingError.invalidData
+                }
+                result.append(chunk)
+            }
+            return result
         }
     }
 
@@ -669,9 +709,7 @@ final class CloudKitSharingManager {
             }
         } catch {
             // Non-fatal: chunks may not exist yet
-            #if DEBUG
-            print("⚠️ [CloudKit] Failed to delete chunks: \(error)")
-            #endif
+            Self.logger.warning("Failed to delete chunks: \(error.localizedDescription, privacy: .public)")
         }
     }
 

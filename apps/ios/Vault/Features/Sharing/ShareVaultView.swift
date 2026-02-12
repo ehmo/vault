@@ -1,6 +1,9 @@
 import SwiftUI
 import CloudKit
 import UIKit
+import os.log
+
+private let shareVaultLogger = Logger(subsystem: "app.vaultaire.ios", category: "ShareVault")
 
 struct ShareVaultView: View {
     @Environment(AppState.self) private var appState
@@ -576,9 +579,7 @@ struct ShareVaultView: View {
             index.activeShares?.removeAll { $0.id == share.id }
             try VaultStorage.shared.saveIndex(index, with: key)
         } catch {
-            #if DEBUG
-            print("[ShareVault] Failed to update index after revoke: \(error)")
-            #endif
+            shareVaultLogger.error("Failed to update index after revoke: \(error.localizedDescription, privacy: .public)")
         }
 
         // Delete from CloudKit in background (fire-and-forget)

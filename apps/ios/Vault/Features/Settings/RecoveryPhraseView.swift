@@ -1,5 +1,8 @@
 import SwiftUI
 import CryptoKit
+import os.log
+
+private let recoveryPhraseViewLogger = Logger(subsystem: "app.vaultaire.ios", category: "RecoveryPhraseView")
 
 struct RecoveryPhraseView: View {
     @Environment(\.dismiss) private var dismiss
@@ -92,9 +95,7 @@ struct RecoveryPhraseView: View {
                         phrase = loadedPhrase
                     }
                 } else {
-                    #if DEBUG
-                    print("[RecoveryPhraseView] No recovery phrase found - generating one now")
-                    #endif
+                    recoveryPhraseViewLogger.info("No recovery phrase found, generating one")
 
                     let newPhrase = RecoveryPhraseGenerator.shared.generatePhrase()
 
@@ -110,9 +111,7 @@ struct RecoveryPhraseView: View {
                     }
                 }
             } catch {
-                #if DEBUG
-                print("[RecoveryPhraseView] Error loading phrase: \(error)")
-                #endif
+                recoveryPhraseViewLogger.error("Error loading phrase: \(error.localizedDescription, privacy: .public)")
                 await MainActor.run {
                     errorMessage = "Failed to load recovery phrase: \(error.localizedDescription)"
                 }

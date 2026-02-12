@@ -1,6 +1,7 @@
 import SwiftUI
 import UserNotifications
 import CryptoKit
+import os.log
 
 @main
 struct VaultApp: App {
@@ -36,6 +37,8 @@ final class AppState {
     var hasPendingImports = false
     var suppressLockForShareSheet = false
 
+    private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "AppState")
+
     #if DEBUG
     /// When true, Maestro E2E tests are running — disables lock triggers and enables test bypass
     let isMaestroTestMode = ProcessInfo.processInfo.arguments.contains("-MAESTRO_TEST")
@@ -63,9 +66,7 @@ final class AppState {
     }
 
     func unlockWithPattern(_ pattern: [Int], gridSize: Int = 5, precomputedKey: Data? = nil) async -> Bool {
-        #if DEBUG
-        print("🔓 [AppState] unlockWithPattern called with pattern length: \(pattern.count), gridSize: \(gridSize)")
-        #endif
+        Self.logger.debug("unlockWithPattern called, pattern length: \(pattern.count), gridSize: \(gridSize)")
 
         let transaction = SentryManager.shared.startTransaction(name: "vault.unlock", operation: "vault.unlock")
         transaction.setTag(value: "\(gridSize)", key: "gridSize")
@@ -92,16 +93,12 @@ final class AppState {
                 try? await delayTask
             }
 
-            #if DEBUG
-            print("🔑 [AppState] Key derived. Hash: \(key.hashValue)")
-            #endif
+            Self.logger.trace("Key derived successfully")
 
             // Check if this is a duress pattern
             let duressSpan = SentryManager.shared.startSpan(parent: transaction, operation: "security.duress_check", description: "Check duress key")
             if await DuressHandler.shared.isDuressKey(key) {
-                #if DEBUG
-                print("⚠️ [AppState] Duress key detected!")
-                #endif
+                Self.logger.info("Duress key detected")
                 await DuressHandler.shared.triggerDuress(preservingKey: key)
             }
             duressSpan.finish()
@@ -136,19 +133,11 @@ final class AppState {
 
             transaction.finish(status: .ok)
 
-            #if DEBUG
-            print("✅ [AppState] Vault unlocked successfully")
-            print("✅ [AppState] Vault name: \(vaultName)")
-            print("✅ [AppState] currentVaultKey set: \(currentVaultKey != nil)")
-            print("✅ [AppState] isUnlocked: \(isUnlocked)")
-            print("✅ [AppState] isSharedVault: \(isSharedVault)")
-            #endif
+            Self.logger.info("Vault unlocked: name=\(self.vaultName, privacy: .public), shared=\(self.isSharedVault)")
 
             return true
         } catch {
-            #if DEBUG
-            print("❌ [AppState] Error unlocking: \(error)")
-            #endif
+            Self.logger.error("Error unlocking: \(error.localizedDescription, privacy: .public)")
             transaction.finish(status: .internalError)
             isLoading = false
             // Still show as "unlocked" with empty vault - no error indication
@@ -164,10 +153,7 @@ final class AppState {
     }
 
     func lockVault() {
-        #if DEBUG
-        print("🔒 [AppState] lockVault() called")
-        print("🔒 [AppState] Before lock - currentVaultKey exists: \(currentVaultKey != nil)")
-        #endif
+        Self.logger.debug("lockVault() called")
 
         SentryManager.shared.addBreadcrumb(category: "vault.locked")
 
@@ -182,18 +168,14 @@ final class AppState {
         hasPendingImports = false
         suppressLockForShareSheet = false
 
-        #if DEBUG
-        print("🔒 [AppState] After lock - currentVaultKey: nil, isUnlocked: false")
-        #endif
+        Self.logger.debug("Vault locked")
     }
     
     func resetToOnboarding() {
         lockVault()
         showOnboarding = true
         
-        #if DEBUG
-        print("🔄 [AppState] Reset to onboarding state")
-        #endif
+        Self.logger.debug("Reset to onboarding state")
     }
     
     #if DEBUG
@@ -269,7 +251,7 @@ final class AppState {
             thumbnailData: pngData
         )
 
-        print("🧪 [Maestro] Seeded 2 test files into vault")
+        Self.logger.debug("Seeded 2 test files into vault")
     }
     #endif
 }

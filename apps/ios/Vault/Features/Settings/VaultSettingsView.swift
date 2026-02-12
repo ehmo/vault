@@ -1,4 +1,7 @@
 import SwiftUI
+import os.log
+
+private let vaultSettingsLogger = Logger(subsystem: "app.vaultaire.ios", category: "VaultSettings")
 
 struct VaultSettingsView: View {
     @Environment(AppState.self) private var appState
@@ -221,7 +224,11 @@ struct VaultSettingsView: View {
         guard let key = appState.currentVaultKey else { return }
         SentryManager.shared.addBreadcrumb(category: "settings.duressToggled")
         Task {
-            try? await DuressHandler.shared.setAsDuressVault(key: key)
+            do {
+                try await DuressHandler.shared.setAsDuressVault(key: key)
+            } catch {
+                SentryManager.shared.captureError(error)
+            }
         }
     }
 
@@ -256,9 +263,7 @@ struct VaultSettingsView: View {
 
             try VaultStorage.shared.deleteVaultIndex(for: key)
         } catch {
-            #if DEBUG
-            print("❌ [VaultSettings] Delete vault error: \(error)")
-            #endif
+            vaultSettingsLogger.error("Delete vault error: \(error.localizedDescription, privacy: .public)")
         }
 
         // Clean up recovery data and duress status
@@ -278,18 +283,14 @@ struct VaultSettingsView: View {
         SentryManager.shared.addBreadcrumb(category: "settings.phraseRegenerated")
         Task {
             do {
-                let newPhrase = try await RecoveryPhraseManager.shared.regenerateRecoveryPhrase(for: key)
-                #if DEBUG
-                print("✅ [VaultSettings] Recovery phrase regenerated: \(newPhrase)")
-                #endif
+                _ = try await RecoveryPhraseManager.shared.regenerateRecoveryPhrase(for: key)
+                vaultSettingsLogger.debug("Recovery phrase regenerated")
                 // Show the new phrase
                 await MainActor.run {
                     showingRegeneratedPhrase = true
                 }
             } catch {
-                #if DEBUG
-                print("❌ [VaultSettings] Failed to regenerate: \(error)")
-                #endif
+                vaultSettingsLogger.error("Failed to regenerate phrase: \(error.localizedDescription, privacy: .public)")
             }
         }
     }
@@ -318,9 +319,7 @@ struct VaultSettingsView: View {
                     activeShareCount = shareCount
                 }
             } catch {
-                #if DEBUG
-                print("❌ [VaultSettings] Failed to load vault statistics: \(error)")
-                #endif
+                vaultSettingsLogger.error("Failed to load vault statistics: \(error.localizedDescription, privacy: .public)")
                 await MainActor.run {
                     fileCount = 0
                     storageUsed = 0
@@ -603,9 +602,7 @@ struct ChangePatternView: View {
     // MARK: - Actions
 
     private func handlePatternComplete(_ pattern: [Int]) {
-        #if DEBUG
-        print("🔄 [ChangePattern] Pattern completed in \(step) step")
-        #endif
+        vaultSettingsLogger.debug("Pattern completed in \(String(describing: step), privacy: .public) step")
         
         switch step {
         case .verifyCurrent:
@@ -647,18 +644,14 @@ struct ChangePatternView: View {
                 await MainActor.run {
                     if enteredKey == currentKey {
                         // Pattern verified - move to next step
-                        #if DEBUG
-                        print("✅ [ChangePattern] Current pattern verified")
-                        #endif
+                        vaultSettingsLogger.debug("Current pattern verified")
                         currentPattern = pattern
                         step = .createNew
                         patternState.reset()
                         errorMessage = nil
                     } else {
                         // Pattern doesn't match
-                        #if DEBUG
-                        print("❌ [ChangePattern] Current pattern incorrect")
-                        #endif
+                        vaultSettingsLogger.debug("Current pattern incorrect")
                         errorMessage = "Incorrect pattern. Please try again."
                         patternState.reset()
                     }
@@ -695,15 +688,11 @@ struct ChangePatternView: View {
                     
                     await MainActor.run {
                         if vaultExists {
-                            #if DEBUG
-                            print("❌ [ChangePattern] Pattern already used by another vault")
-                            #endif
+                            vaultSettingsLogger.info("Pattern already used by another vault")
                             errorMessage = "This pattern is already used by another vault. Please choose a different pattern."
                             patternState.reset()
                         } else {
-                            #if DEBUG
-                            print("✅ [ChangePattern] New pattern valid and unique")
-                            #endif
+                            vaultSettingsLogger.debug("New pattern valid and unique")
                             newPattern = pattern
                             step = .confirmNew
                             patternState.reset()
@@ -719,9 +708,7 @@ struct ChangePatternView: View {
                     }
                 }
             } else {
-                #if DEBUG
-                print("❌ [ChangePattern] New pattern invalid")
-                #endif
+                vaultSettingsLogger.debug("New pattern invalid")
                 await MainActor.run {
                     patternState.reset()
                     isProcessing = false
@@ -739,14 +726,10 @@ struct ChangePatternView: View {
         }
 
         if pattern == newPattern {
-            #if DEBUG
-            print("✅ [ChangePattern] Patterns match - updating vault")
-            #endif
+            vaultSettingsLogger.debug("Patterns match, updating vault")
             updateVaultPattern(pattern)
         } else {
-            #if DEBUG
-            print("❌ [ChangePattern] Patterns don't match")
-            #endif
+            vaultSettingsLogger.debug("Patterns don't match")
             errorMessage = "Patterns don't match. Please try again."
             patternState.reset()
         }
@@ -765,23 +748,17 @@ struct ChangePatternView: View {
                 // 1. Derive new key from new pattern
                 let newKey = try await KeyDerivation.deriveKey(from: newPattern, gridSize: patternState.gridSize)
                 
-                #if DEBUG
-                print("🔑 [ChangePattern] New key derived")
-                #endif
+                vaultSettingsLogger.trace("New key derived")
                 
                 // 2. Change vault key (instant operation - only re-encrypts master key)
                 try VaultStorage.shared.changeVaultKey(from: oldKey, to: newKey)
                 
-                #if DEBUG
-                print("✅ [ChangePattern] Vault key changed instantly!")
-                #endif
+                vaultSettingsLogger.debug("Vault key changed")
                 
                 // 3. Generate a new recovery phrase
                 let recoveryPhrase = RecoveryPhraseGenerator.shared.generatePhrase()
                 
-                #if DEBUG
-                print("📝 [ChangePattern] New recovery phrase generated: \(recoveryPhrase)")
-                #endif
+                vaultSettingsLogger.trace("New recovery phrase generated")
                 
                 // 4. Save the new recovery phrase with the new key
                 try await RecoveryPhraseManager.shared.saveRecoveryPhrase(
@@ -791,16 +768,12 @@ struct ChangePatternView: View {
                     patternKey: newKey
                 )
                 
-                #if DEBUG
-                print("💾 [ChangePattern] Recovery phrase saved with new key")
-                #endif
+                vaultSettingsLogger.debug("Recovery phrase saved with new key")
                 
                 // 5. Delete old recovery data
                 try await RecoveryPhraseManager.shared.deleteRecoveryData(for: oldKey)
                 
-                #if DEBUG
-                print("🗑️ [ChangePattern] Old recovery data deleted")
-                #endif
+                vaultSettingsLogger.debug("Old recovery data deleted")
                 
                 SentryManager.shared.addBreadcrumb(category: "settings.patternChanged")
 
@@ -812,14 +785,10 @@ struct ChangePatternView: View {
                     isProcessing = false
                     errorMessage = nil
 
-                    #if DEBUG
-                    print("✅ [ChangePattern] Pattern change complete! New recovery phrase shown to user.")
-                    #endif
+                    vaultSettingsLogger.info("Pattern change complete")
                 }
             } catch {
-                #if DEBUG
-                print("❌ [ChangePattern] Error updating pattern: \(error)")
-                #endif
+                vaultSettingsLogger.error("Error updating pattern: \(error.localizedDescription, privacy: .public)")
                 await MainActor.run {
                     errorMessage = "Failed to update pattern: \(error.localizedDescription)"
                     patternState.reset()

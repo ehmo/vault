@@ -1,4 +1,7 @@
 import SwiftUI
+import os.log
+
+private let logger = Logger(subsystem: "app.vaultaire.ios", category: "ContentView")
 
 struct ContentView: View {
     @Environment(AppState.self) private var appState
@@ -73,8 +76,8 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.userDidTakeScreenshotNotification)) { _ in
             #if DEBUG
             if appState.isMaestroTestMode { return }
-            print("📸 [ContentView] Screenshot notification received!")
             #endif
+            logger.info("Screenshot detected, locking vault")
             SentryManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "screenshot"])
             appState.screenshotDetected = true
             Task {
@@ -89,9 +92,7 @@ struct ContentView: View {
             #endif
             guard let screen = notification.object as? UIScreen else { return }
             if screen.isCaptured {
-                #if DEBUG
-                print("🎥 [ContentView] Screen recording detected!")
-                #endif
+                logger.info("Screen recording detected, locking vault")
                 SentryManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "recording"])
                 appState.lockVault()
             }
@@ -102,9 +103,7 @@ struct ContentView: View {
             if appState.isMaestroTestMode { return }
             #endif
             if appState.suppressLockForShareSheet { return }
-            #if DEBUG
-            print("⏸️ [ContentView] App resigning active — locking vault")
-            #endif
+            logger.debug("App resigning active, locking vault")
             SentryManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "background"])
             appState.lockVault()
         }
@@ -112,7 +111,7 @@ struct ContentView: View {
         // Simulator: Cmd+S doesn't post userDidTakeScreenshotNotification.
         // Shake device (Ctrl+Cmd+Z in simulator) to simulate a screenshot for testing.
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.deviceDidShakeNotification)) { _ in
-            print("📸 [ContentView] DEBUG: Simulated screenshot via shake!")
+            logger.debug("Simulated screenshot via shake")
             appState.screenshotDetected = true
             Task {
                 try? await Task.sleep(nanoseconds: 100_000_000)

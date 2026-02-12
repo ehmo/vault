@@ -1,9 +1,12 @@
 import Foundation
+import os.log
 
 /// Handles duress pattern functionality.
 /// When the duress pattern is entered, all other vaults are silently destroyed.
 actor DuressHandler {
     static let shared = DuressHandler()
+
+    private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "Duress")
 
     private let secureEnclave = SecureEnclaveManager.shared
     private let storage = VaultStorage.shared
@@ -45,9 +48,7 @@ actor DuressHandler {
     /// The duress vault remains fully functional to appear legitimate.
     /// After triggering, the vault is no longer marked as the duress vault.
     func triggerDuress(preservingKey duressKey: Data) async {
-        #if DEBUG
-        print("🚨 [DuressHandler] Triggering duress mode - preserving duress vault, destroying all others")
-        #endif
+        Self.logger.info("Triggering duress mode")
         
         // Strategy: The duress vault's encrypted index and blob data are stored per-key.
         // We need to:
@@ -62,28 +63,20 @@ actor DuressHandler {
         
         // 1. Load and backup the duress vault's index data before destruction
         guard let duressIndex = try? storage.loadIndex(with: duressKey) else {
-            #if DEBUG
-            print("❌ [DuressHandler] Could not load duress vault index - cannot preserve data")
-            #endif
+            Self.logger.error("Could not load duress vault index")
             await destroyAllNonDuressData(duressKey: nil)
             return
         }
         
-        #if DEBUG
-        print("💾 [DuressHandler] Duress vault index backed up: \(duressIndex.files.count) files")
-        #endif
+        Self.logger.debug("Duress vault index backed up: \(duressIndex.files.count) files")
         
         // 2. Destroy all recovery phrase data EXCEPT for the duress vault
         // Actually, destroy ALL recovery data - we'll regenerate for duress vault only
         do {
             try RecoveryPhraseManager.shared.destroyAllRecoveryData()
-            #if DEBUG
-            print("🗑️ [DuressHandler] All recovery data destroyed")
-            #endif
+            Self.logger.debug("All recovery data destroyed")
         } catch {
-            #if DEBUG
-            print("❌ [DuressHandler] Error destroying recovery data: \(error)")
-            #endif
+            Self.logger.error("Error destroying recovery data: \(error.localizedDescription, privacy: .public)")
         }
         
         // 3. The blob file contains data for ALL vaults
@@ -95,9 +88,7 @@ actor DuressHandler {
         // Instead, just delete all index files except the duress vault's index
         storage.destroyAllIndexesExcept(duressKey)
         
-        #if DEBUG
-        print("🗑️ [DuressHandler] All vault indexes destroyed except duress vault")
-        #endif
+        Self.logger.debug("All vault indexes destroyed except duress vault")
         
         // 5. Regenerate recovery phrase for duress vault only
         let newPhrase = RecoveryPhraseGenerator.shared.generatePhrase()
@@ -113,26 +104,21 @@ actor DuressHandler {
             // This allows the user to continue using this vault normally after duress is triggered
             clearDuressVault()
             
-            #if DEBUG
-            print("✅ [DuressHandler] Duress mode complete - duress vault preserved with \(duressIndex.files.count) files")
-            print("📝 [DuressHandler] New recovery phrase for duress vault: \(newPhrase)")
-            print("🚨 [DuressHandler] All other vaults have been destroyed")
-            print("🔓 [DuressHandler] Duress designation cleared - vault can now be used normally")
-            #endif
+            Self.logger.info("Duress mode complete, \(duressIndex.files.count) files preserved, designation cleared")
         } catch {
-            #if DEBUG
-            print("❌ [DuressHandler] Error creating new recovery phrase: \(error)")
-            #endif
+            Self.logger.error("Error creating new recovery phrase: \(error.localizedDescription, privacy: .public)")
         }
     }
 
     private func destroyAllNonDuressData(duressKey: Data?) async {
-        #if DEBUG
-        print("🚨 [DuressHandler] Destroying all vault data")
-        #endif
+        Self.logger.info("Destroying all vault data")
         
-        // Destroy all recovery data
-        try? RecoveryPhraseManager.shared.destroyAllRecoveryData()
+        // Destroy all recovery data (continue wipe even if this fails)
+        do {
+            try RecoveryPhraseManager.shared.destroyAllRecoveryData()
+        } catch {
+            // Wipe must proceed regardless — log for debugging
+        }
         
         // If we have a duress key, preserve its index
         if let key = duressKey {

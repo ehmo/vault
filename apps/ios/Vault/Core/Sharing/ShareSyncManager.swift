@@ -1,4 +1,7 @@
 import Foundation
+import os.log
+
+private let shareSyncLogger = Logger(subsystem: "app.vaultaire.ios", category: "ShareSync")
 
 /// Manages background sync of vault data to all active share recipients.
 /// Debounces file changes (30s) and uploads to all share vault IDs.
@@ -105,9 +108,7 @@ final class ShareSyncManager {
                         )
                     }.value
                 } catch {
-                    #if DEBUG
-                    print("⚠️ [ShareSync] Failed to build vault data for share \(capturedShareId): \(error)")
-                    #endif
+                    shareSyncLogger.warning("Failed to build vault data for share \(capturedShareId, privacy: .public): \(error.localizedDescription, privacy: .public)")
                     continue
                 }
 
@@ -133,9 +134,7 @@ final class ShareSyncManager {
                 successCount += 1
                 shareUpdates.append((id: share.id, syncSequence: updatedState.syncSequence))
             } catch {
-                #if DEBUG
-                print("⚠️ [ShareSync] Failed to sync share \(share.id): \(error)")
-                #endif
+                shareSyncLogger.warning("Failed to sync share \(share.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
             }
         }
 
@@ -153,9 +152,7 @@ final class ShareSyncManager {
                 }
                 try VaultStorage.shared.saveIndex(updatedIndex, with: vaultKey)
             } catch {
-                #if DEBUG
-                print("⚠️ [ShareSync] Failed to update share records: \(error)")
-                #endif
+                shareSyncLogger.warning("Failed to update share records: \(error.localizedDescription, privacy: .public)")
             }
         }
 
@@ -256,9 +253,7 @@ final class ShareSyncManager {
                 ))
             } catch {
                 skippedFiles += 1
-                #if DEBUG
-                print("⚠️ [ShareSync] Skipping corrupted file \(entry.fileId): \(error)")
-                #endif
+                shareSyncLogger.warning("Skipping corrupted file \(entry.fileId, privacy: .public): \(error.localizedDescription, privacy: .public)")
             }
         }
 

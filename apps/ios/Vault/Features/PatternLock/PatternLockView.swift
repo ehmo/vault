@@ -1,5 +1,8 @@
 import SwiftUI
 import UIKit
+import os.log
+
+private let patternLockLogger = Logger(subsystem: "app.vaultaire.ios", category: "PatternLock")
 
 struct PatternLockView: View {
     @Environment(AppState.self) private var appState
@@ -138,23 +141,16 @@ struct PatternLockView: View {
     }
 
     private func handlePatternComplete(_ pattern: [Int]) {
-        #if DEBUG
-        print("🎯 [PatternLock] Pattern completed: \(pattern) (count: \(pattern.count))")
-        print("🎯 [PatternLock] Grid size: 5x5")
-        #endif
+        patternLockLogger.debug("Pattern completed, count=\(pattern.count)")
         
         guard !isProcessing else {
-            #if DEBUG
-            print("⚠️ [PatternLock] Already processing, ignoring pattern")
-            #endif
+            patternLockLogger.debug("Already processing, ignoring pattern")
             return
         }
         
         // Require minimum pattern length to prevent accidental taps
         guard pattern.count >= 6 else {
-            #if DEBUG
-            print("❌ [PatternLock] Pattern too short (\(pattern.count) nodes), minimum 6 required")
-            #endif
+            patternLockLogger.debug("Pattern too short: \(pattern.count) nodes, minimum 6 required")
             
             // Show error message to user
             errorMessage = "Pattern must connect at least 6 dots"
@@ -180,9 +176,7 @@ struct PatternLockView: View {
         // Clear any previous error
         showError = false
         
-        #if DEBUG
-        print("✅ [PatternLock] Pattern accepted, processing unlock...")
-        #endif
+        patternLockLogger.debug("Pattern accepted, processing unlock")
         
         isProcessing = true
 
@@ -298,9 +292,7 @@ struct RecoveryPhraseInputView: View {
                 // Use the recovery manager to recover the vault
                 let patternKey = try await RecoveryPhraseManager.shared.recoverVault(using: phrase)
                 
-                #if DEBUG
-                print("✅ [Recovery] Vault recovered successfully")
-                #endif
+                patternLockLogger.info("Vault recovered successfully")
                 
                 // Use the recovered pattern key to unlock the vault
                 await MainActor.run {
@@ -308,21 +300,15 @@ struct RecoveryPhraseInputView: View {
                     appState.isUnlocked = true
                     dismiss()
                     
-                    #if DEBUG
-                    print("🔓 [Recovery] Vault unlocked with recovery phrase")
-                    #endif
+                    patternLockLogger.debug("Vault unlocked with recovery phrase")
                 }
             } catch RecoveryError.invalidPhrase {
-                #if DEBUG
-                print("❌ [Recovery] Invalid recovery phrase")
-                #endif
+                patternLockLogger.info("Invalid recovery phrase")
                 await MainActor.run {
                     showRecoveryError("Incorrect recovery phrase. Please check and try again.")
                 }
             } catch {
-                #if DEBUG
-                print("❌ [Recovery] Recovery failed: \(error)")
-                #endif
+                patternLockLogger.error("Recovery failed: \(error.localizedDescription, privacy: .public)")
                 await MainActor.run {
                     showRecoveryError("Recovery failed: \(error.localizedDescription)")
                 }

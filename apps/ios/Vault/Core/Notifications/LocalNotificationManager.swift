@@ -1,12 +1,15 @@
 import Foundation
 import UIKit
 import UserNotifications
+import os.log
 
 /// Manages local notifications for background share transfers.
 /// All messages are privacy-safe: no vault name, no file details.
 @MainActor
 final class LocalNotificationManager {
     static let shared = LocalNotificationManager()
+
+    private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "Notifications")
 
     private let center = UNUserNotificationCenter.current()
     private var permissionGranted = false
@@ -21,9 +24,7 @@ final class LocalNotificationManager {
         do {
             permissionGranted = try await center.requestAuthorization(options: [.alert, .sound])
         } catch {
-            #if DEBUG
-            print("⚠️ [Notifications] Permission request failed: \(error)")
-            #endif
+            Self.logger.warning("Permission request failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -87,9 +88,7 @@ final class LocalNotificationManager {
             do {
                 try await center.add(request)
             } catch {
-                #if DEBUG
-                print("⚠️ [Notifications] Failed to send \(id): \(error)")
-                #endif
+                Self.logger.warning("Failed to send \(id, privacy: .public): \(error.localizedDescription, privacy: .public)")
             }
         }
     }

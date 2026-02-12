@@ -1,8 +1,11 @@
 import Foundation
 import UserNotifications
+import os.log
 
 /// Processes staged imports from the share extension into the main vault storage.
 /// Called after vault unlock when pending imports exist for the matching fingerprint.
+private let importIngestorLogger = Logger(subsystem: "app.vaultaire.ios", category: "ImportIngestor")
+
 enum ImportIngestor {
 
     struct ImportResult {
@@ -102,9 +105,7 @@ enum ImportIngestor {
                 imported += 1
             } catch {
                 failed += 1
-                #if DEBUG
-                print("❌ [ImportIngestor] Failed to import file \(file.fileId): \(error)")
-                #endif
+                importIngestorLogger.error("Failed to import file \(file.fileId, privacy: .public): \(error.localizedDescription, privacy: .public)")
             }
         }
 

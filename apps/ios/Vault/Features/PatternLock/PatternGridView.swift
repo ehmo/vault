@@ -1,5 +1,8 @@
 import SwiftUI
 import UIKit
+import os.log
+
+private let patternGridLogger = Logger(subsystem: "app.vaultaire.ios", category: "PatternGrid")
 
 struct PatternGridView: View {
     var state: PatternState
@@ -99,24 +102,15 @@ struct PatternGridView: View {
     private func dragGesture(in size: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                #if DEBUG
-                print("🔵 Drag changed - location: \(value.location)")
-                #endif
-
                 if !state.isDrawing {
                     state.isDrawing = true
                     state.selectedNodes = []
-                    #if DEBUG
-                    print("🟢 Started drawing")
-                    #endif
+                    patternGridLogger.trace("Started drawing")
                 }
 
                 state.currentPoint = value.location
 
                 if let nodeId = state.nodeAt(point: value.location, in: size, nodeRadius: nodeRadius) {
-                    #if DEBUG
-                    print("🟡 Found node: \(nodeId)")
-                    #endif
                     let previousCount = state.selectedNodes.count
                     state.addNode(nodeId)
                     if state.selectedNodes.count > previousCount {
@@ -125,9 +119,7 @@ struct PatternGridView: View {
                 }
             }
             .onEnded { _ in
-                #if DEBUG
-                print("🔴 Drag ended - selected nodes: \(state.selectedNodes)")
-                #endif
+                patternGridLogger.trace("Drag ended, \(state.selectedNodes.count) nodes selected")
 
                 state.isDrawing = false
                 state.currentPoint = nil

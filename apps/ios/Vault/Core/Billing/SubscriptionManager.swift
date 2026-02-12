@@ -1,11 +1,14 @@
 import Foundation
 import RevenueCat
 import RevenueCatUI
+import os.log
 
 @MainActor
 @Observable
 final class SubscriptionManager: NSObject {
     static let shared = SubscriptionManager()
+
+    private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "Subscription")
 
     private(set) var isPremium = false
     private(set) var isConfigured = false
@@ -62,9 +65,7 @@ final class SubscriptionManager: NSObject {
             let info = try await Purchases.shared.customerInfo()
             updateFromCustomerInfo(info)
         } catch {
-            #if DEBUG
-            print("❌ [SubscriptionManager] Failed to fetch customer info: \(error)")
-            #endif
+            Self.logger.error("Failed to fetch customer info: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -74,9 +75,7 @@ final class SubscriptionManager: NSObject {
             hasOfferings = offerings.current != nil
         } catch {
             hasOfferings = false
-            #if DEBUG
-            print("❌ [SubscriptionManager] Failed to fetch offerings: \(error)")
-            #endif
+            Self.logger.error("Failed to fetch offerings: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -139,12 +138,7 @@ final class SubscriptionManager: NSObject {
         UserDefaults(suiteName: VaultCoreConstants.appGroupIdentifier)?
             .set(isPremium, forKey: VaultCoreConstants.isPremiumKey)
 
-        #if DEBUG
-        print("💰 [SubscriptionManager] isPremium: \(isPremium)")
-        print("💰 [SubscriptionManager] Active entitlements: \(info.entitlements.active.keys.joined(separator: ", "))")
-        print("💰 [SubscriptionManager] All entitlements: \(info.entitlements.all.keys.joined(separator: ", "))")
-        print("💰 [SubscriptionManager] Non-subscription transactions: \(info.nonSubscriptions.count)")
-        #endif
+        Self.logger.debug("isPremium=\(self.isPremium), active entitlements=\(info.entitlements.active.keys.joined(separator: ", "), privacy: .public)")
     }
 }
 

@@ -1,12 +1,15 @@
 import Foundation
 import CryptoKit
 import Security
+import os.log
 
 /// Manages recovery phrases for all vaults in a privacy-preserving way.
 /// Stores all recovery data in a single encrypted blob in Keychain to prevent vault enumeration.
 final class RecoveryPhraseManager {
     static let shared = RecoveryPhraseManager()
-    
+
+    private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "RecoveryManager")
+
     private let keychainService = "com.vault.recovery"
     private let keychainAccount = "recovery_data"
     
@@ -37,9 +40,7 @@ final class RecoveryPhraseManager {
         gridSize: Int,
         patternKey: Data
     ) async throws {
-        #if DEBUG
-        print("💾 [RecoveryManager] Saving recovery phrase for vault")
-        #endif
+        Self.logger.debug("Saving recovery phrase for vault")
         
         // Load existing database
         var database = try await loadDatabase()
@@ -71,9 +72,7 @@ final class RecoveryPhraseManager {
         // Save database
         try await saveDatabase(database)
         
-        #if DEBUG
-        print("✅ [RecoveryManager] Recovery phrase saved. Total vaults: \(database.vaults.count)")
-        #endif
+        Self.logger.debug("Recovery phrase saved, total vaults: \(database.vaults.count)")
     }
     
     // MARK: - Load Recovery Phrase
@@ -86,9 +85,7 @@ final class RecoveryPhraseManager {
         let keyHashString = keyHash.compactMap { String(format: "%02x", $0) }.joined()
         
         guard let info = database.vaults.first(where: { $0.vaultKeyHash == keyHashString }) else {
-            #if DEBUG
-            print("⚠️ [RecoveryManager] No recovery phrase found for this vault")
-            #endif
+            Self.logger.debug("No recovery phrase found for this vault")
             return nil
         }
         
@@ -99,23 +96,17 @@ final class RecoveryPhraseManager {
     
     /// Attempts to recover a vault using a recovery phrase
     func recoverVault(using phrase: String) async throws -> Data {
-        #if DEBUG
-        print("🔑 [RecoveryManager] Attempting vault recovery with phrase")
-        #endif
+        Self.logger.debug("Attempting vault recovery with phrase")
         
         let database = try await loadDatabase()
         
         // Find vault with matching phrase
         guard let info = database.vaults.first(where: { $0.phrase.lowercased() == phrase.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) }) else {
-            #if DEBUG
-            print("❌ [RecoveryManager] No vault found with this phrase")
-            #endif
+            Self.logger.info("No vault found with this phrase")
             throw RecoveryError.invalidPhrase
         }
         
-        #if DEBUG
-        print("✅ [RecoveryManager] Vault found! Returning pattern key")
-        #endif
+        Self.logger.debug("Vault found, returning pattern key")
         
         return info.patternKey
     }
@@ -124,9 +115,7 @@ final class RecoveryPhraseManager {
     
     /// Regenerates the recovery phrase for a vault (keeping the same vault key)
     func regenerateRecoveryPhrase(for vaultKey: Data, customPhrase: String? = nil) async throws -> String {
-        #if DEBUG
-        print("🔄 [RecoveryManager] Regenerating recovery phrase")
-        #endif
+        Self.logger.debug("Regenerating recovery phrase")
         
         var database = try await loadDatabase()
         
@@ -169,9 +158,7 @@ final class RecoveryPhraseManager {
         
         try await saveDatabase(database)
         
-        #if DEBUG
-        print("✅ [RecoveryManager] Recovery phrase regenerated")
-        #endif
+        Self.logger.debug("Recovery phrase regenerated")
         
         return newPhrase
     }
@@ -189,9 +176,7 @@ final class RecoveryPhraseManager {
         
         try await saveDatabase(database)
         
-        #if DEBUG
-        print("🗑️ [RecoveryManager] Recovery data deleted. Remaining vaults: \(database.vaults.count)")
-        #endif
+        Self.logger.debug("Recovery data deleted, remaining vaults: \(database.vaults.count)")
     }
     
     // MARK: - Database Management
@@ -332,9 +317,7 @@ final class RecoveryPhraseManager {
     
     /// Completely destroys all recovery data (cannot be undone)
     func destroyAllRecoveryData() throws {
-        #if DEBUG
-        print("💣 [RecoveryManager] DESTROYING ALL RECOVERY DATA")
-        #endif
+        Self.logger.info("Destroying all recovery data")
         
         // Delete recovery database
         let deleteQuery: [String: Any] = [
@@ -352,9 +335,7 @@ final class RecoveryPhraseManager {
         ]
         SecItemDelete(masterKeyQuery as CFDictionary)
         
-        #if DEBUG
-        print("✅ [RecoveryManager] All recovery data destroyed")
-        #endif
+        Self.logger.info("All recovery data destroyed")
     }
 }
 

@@ -1,8 +1,10 @@
 import Foundation
+import os.log
 
 @MainActor
 @Observable
 final class DeepLinkHandler {
+    private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "DeepLink")
     var pendingSharePhrase: String?
 
     @discardableResult
@@ -11,9 +13,7 @@ final class DeepLinkHandler {
             return false
         }
 
-        #if DEBUG
-        print("[DeepLink] Received share link, phrase length: \(phrase.count)")
-        #endif
+        Self.logger.info("Received share link, phrase length: \(phrase.count)")
 
         pendingSharePhrase = phrase
         return true

@@ -1,6 +1,7 @@
 import SwiftUI
 import CloudKit
 import RevenueCatUI
+import os.log
 
 // MARK: - App Settings Destination
 
@@ -9,6 +10,8 @@ enum AppSettingsDestination: Hashable {
     case iCloudBackup
     case restoreBackup
 }
+
+private let settingsLogger = Logger(subsystem: "app.vaultaire.ios", category: "Settings")
 
 // MARK: - App Settings View
 
@@ -318,9 +321,7 @@ struct AppSettingsView: View {
     
     /// Performs a complete reset of all app data - DEBUG ONLY
     private func debugFullReset() async {
-        #if DEBUG
-        print("🧹 [Debug] Starting full reset...")
-        #endif
+        settingsLogger.info("Starting full debug reset")
         
         // 1. Clear vault files and storage
         await clearVaultStorage()
@@ -343,9 +344,7 @@ struct AppSettingsView: View {
             appState.resetToOnboarding()
         }
         
-        #if DEBUG
-        print("✅ [Debug] Full reset complete!")
-        #endif
+        settingsLogger.info("Full debug reset complete")
     }
     
     private func clearVaultStorage() async {
@@ -356,17 +355,13 @@ struct AppSettingsView: View {
         
         try? fileManager.removeItem(at: vaultURL)
         
-        #if DEBUG
-        print("🧹 [Debug] Vault storage cleared")
-        #endif
+        settingsLogger.debug("Vault storage cleared")
     }
     
     private func clearRecoveryMappings() {
         UserDefaults.standard.removeObject(forKey: "recovery_mapping")
         
-        #if DEBUG
-        print("🧹 [Debug] Recovery mappings cleared")
-        #endif
+        settingsLogger.debug("Recovery mappings cleared")
     }
     
     private func clearUserDefaults() {
@@ -374,9 +369,7 @@ struct AppSettingsView: View {
         UserDefaults.standard.removePersistentDomain(forName: domain)
         UserDefaults.standard.synchronize()
         
-        #if DEBUG
-        print("🧹 [Debug] UserDefaults cleared")
-        #endif
+        settingsLogger.debug("UserDefaults cleared")
     }
     
     private func clearKeychain() {
@@ -394,9 +387,7 @@ struct AppSettingsView: View {
             SecItemDelete(spec as CFDictionary)
         }
         
-        #if DEBUG
-        print("🧹 [Debug] Keychain cleared")
-        #endif
+        settingsLogger.debug("Keychain cleared")
     }
     
     private func clearTemporaryFiles() {
@@ -410,9 +401,7 @@ struct AppSettingsView: View {
             }
         }
         
-        #if DEBUG
-        print("🧹 [Debug] Temporary files cleared")
-        #endif
+        settingsLogger.debug("Temporary files cleared")
     }
     #endif
 }

@@ -1,13 +1,16 @@
 import Foundation
 import Security
 import CryptoKit
+import os.log
 
 /// Manages random letter assignments for grid nodes.
 /// Letters are randomly assigned once and persist in the keychain.
 /// They are reset when the app is deleted/reinstalled (keychain is cleared).
 final class GridLetterManager {
     static let shared = GridLetterManager()
-    
+
+    private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "GridLetters")
+
     private let letterAssignmentTag = "app.vaultaire.ios.grid.letters"
     private let gridSize = 5 // 5x5 grid
     private let totalNodes = 25 // 5x5 = 25 nodes
@@ -58,18 +61,7 @@ final class GridLetterManager {
             letters.append(randomLetter)
         }
         
-        #if DEBUG
-        print("🔤 [GridLetterManager] Generated new random letter assignments:")
-        for row in 0..<gridSize {
-            var rowString = ""
-            for col in 0..<gridSize {
-                let index = row * gridSize + col
-                rowString.append(letters[index])
-                rowString.append(" ")
-            }
-            print("   \(rowString)")
-        }
-        #endif
+        Self.logger.debug("Generated new random letter assignments")
         
         return letters
     }
@@ -96,9 +88,7 @@ final class GridLetterManager {
         
         let letters = Array(string)
         
-        #if DEBUG
-        print("🔤 [GridLetterManager] Retrieved existing letter assignments from keychain")
-        #endif
+        Self.logger.debug("Retrieved existing letter assignments from keychain")
         
         return letters
     }
@@ -122,9 +112,7 @@ final class GridLetterManager {
             throw NSError(domain: "GridLetterManager", code: 3, userInfo: nil)
         }
         
-        #if DEBUG
-        print("🔤 [GridLetterManager] Stored letter assignments in keychain")
-        #endif
+        Self.logger.debug("Stored letter assignments in keychain")
     }
     
     /// Clears all letter assignments (used during nuclear wipe).
@@ -136,8 +124,6 @@ final class GridLetterManager {
         ]
         SecItemDelete(query as CFDictionary)
         
-        #if DEBUG
-        print("🔤 [GridLetterManager] Cleared all letter assignments")
-        #endif
+        Self.logger.debug("Cleared all letter assignments")
     }
 }

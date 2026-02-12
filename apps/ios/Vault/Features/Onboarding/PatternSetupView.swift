@@ -1,5 +1,8 @@
 import SwiftUI
 import UIKit
+import os.log
+
+private let patternSetupLogger = Logger(subsystem: "app.vaultaire.ios", category: "PatternSetup")
 
 struct PatternSetupView: View {
     let onComplete: () -> Void
@@ -294,20 +297,14 @@ struct PatternSetupView: View {
     // MARK: - Actions
 
     private func handlePatternComplete(_ pattern: [Int]) {
-        #if DEBUG
-        print("🎨 [PatternSetup] Pattern completed in \(step) step: \(pattern) (count: \(pattern.count))")
-        #endif
+        patternSetupLogger.debug("Pattern completed in \(String(describing: step), privacy: .public) step, count: \(pattern.count)")
         
         switch step {
         case .create:
             let result = PatternValidator.shared.validate(pattern, gridSize: patternState.gridSize)
             validationResult = result
 
-            #if DEBUG
-            print("🎨 [PatternSetup] Validation result - isValid: \(result.isValid)")
-            print("🎨 [PatternSetup] Errors: \(result.errors)")
-            print("🎨 [PatternSetup] Warnings: \(result.warnings)")
-            #endif
+            patternSetupLogger.debug("Validation: isValid=\(result.isValid), errors=\(result.errors.count), warnings=\(result.warnings.count)")
 
             if result.isValid {
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -316,32 +313,20 @@ struct PatternSetupView: View {
                 step = .confirm
                 patternState.reset()
 
-                #if DEBUG
-                print("✅ [PatternSetup] Pattern valid, moving to confirm step")
-                print("✅ [PatternSetup] First pattern saved: \(firstPattern)")
-                #endif
+                patternSetupLogger.debug("Pattern valid, moving to confirm step")
             } else {
-                #if DEBUG
-                print("❌ [PatternSetup] Pattern invalid, resetting")
-                #endif
+                patternSetupLogger.debug("Pattern invalid, resetting")
                 patternState.reset()
             }
 
         case .confirm:
-            #if DEBUG
-            print("🎨 [PatternSetup] Confirming pattern")
-            print("🎨 [PatternSetup] First pattern: \(firstPattern)")
-            print("🎨 [PatternSetup] Confirm pattern: \(pattern)")
-            print("🎨 [PatternSetup] Patterns match: \(pattern == firstPattern)")
-            #endif
+            patternSetupLogger.debug("Confirming pattern, match=\(pattern == firstPattern)")
             
             if pattern == firstPattern {
                 // Patterns match - save and continue
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
                 errorMessage = nil
-                #if DEBUG
-                print("✅ [PatternSetup] Patterns match! Saving...")
-                #endif
+                patternSetupLogger.debug("Patterns match, saving")
                 // Generate the phrase now, before saving
                 if !useCustomPhrase {
                     generatedPhrase = RecoveryPhraseGenerator.shared.generatePhrase()
@@ -350,9 +335,7 @@ struct PatternSetupView: View {
             } else {
                 // Patterns don't match - show error and reset
                 UINotificationFeedbackGenerator().notificationOccurred(.error)
-                #if DEBUG
-                print("❌ [PatternSetup] Patterns don't match! Resetting...")
-                #endif
+                patternSetupLogger.debug("Patterns don't match, resetting")
                 errorMessage = "Patterns don't match. Try again."
                 patternState.reset()
                 Task {
@@ -367,24 +350,18 @@ struct PatternSetupView: View {
     }
 
     private func savePattern(_ pattern: [Int]) {
-        #if DEBUG
-        print("🔐 [PatternSetup] Saving pattern with gridSize: \(patternState.gridSize)")
-        #endif
+        patternSetupLogger.debug("Saving pattern, gridSize=\(patternState.gridSize)")
         
         Task {
             do {
                 // Derive key from pattern with the current grid size
                 let key = try await KeyDerivation.deriveKey(from: pattern, gridSize: patternState.gridSize)
                 
-                #if DEBUG
-                print("🔑 [PatternSetup] Key derived successfully. Key hash: \(key.hashValue)")
-                #endif
+                patternSetupLogger.trace("Key derived successfully")
                 
                 // Check if a vault already exists with this pattern
                 if VaultStorage.shared.vaultExists(for: key) {
-                    #if DEBUG
-                    print("⚠️ [PatternSetup] Vault already exists for this pattern!")
-                    #endif
+                    patternSetupLogger.info("Vault already exists for this pattern")
                     
                     await MainActor.run {
                         // Reset to create step with error message
@@ -418,9 +395,7 @@ struct PatternSetupView: View {
                 )
                 try VaultStorage.shared.saveIndex(emptyIndex, with: key)
                 
-                #if DEBUG
-                print("💾 [PatternSetup] Empty vault index saved")
-                #endif
+                patternSetupLogger.debug("Empty vault index saved")
                 
                 // Determine which phrase to use
                 let finalPhrase = useCustomPhrase ? customPhrase.trimmingCharacters(in: .whitespacesAndNewlines) : generatedPhrase
@@ -433,9 +408,7 @@ struct PatternSetupView: View {
                     patternKey: key
                 )
                 
-                #if DEBUG
-                print("✅ [PatternSetup] Recovery phrase saved via RecoveryPhraseManager")
-                #endif
+                patternSetupLogger.debug("Recovery phrase saved")
                 
                 SentryManager.shared.addBreadcrumb(category: "onboarding.complete", data: ["gridSize": patternState.gridSize])
 
@@ -446,18 +419,13 @@ struct PatternSetupView: View {
                     let letters = GridLetterManager.shared.vaultName(for: pattern)
                     appState.updateVaultName(letters.isEmpty ? "Vault" : "Vault \(letters)")
 
-                    #if DEBUG
-                    print("🔓 [PatternSetup] Vault unlocked. currentVaultKey set: \(appState.currentVaultKey != nil)")
-                    print("🔓 [PatternSetup] isUnlocked: \(appState.isUnlocked)")
-                    #endif
+                    patternSetupLogger.debug("Vault unlocked after pattern setup")
 
                     // Move to recovery step AFTER everything is saved
                     step = .recovery
                 }
             } catch {
-                #if DEBUG
-                print("❌ [PatternSetup] Error saving pattern: \(error)")
-                #endif
+                patternSetupLogger.error("Error saving pattern: \(error.localizedDescription, privacy: .public)")
                 // TODO: Show error to user
             }
         }
@@ -478,9 +446,7 @@ struct PatternSetupView: View {
                     step = .complete
                 }
             } catch {
-                #if DEBUG
-                print("❌ [PatternSetup] Failed to save custom phrase: \(error)")
-                #endif
+                patternSetupLogger.error("Failed to save custom phrase: \(error.localizedDescription, privacy: .public)")
             }
         }
     }
