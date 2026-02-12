@@ -391,33 +391,38 @@ struct ChangePatternView: View {
                 }
                 .padding(.horizontal)
 
-                // Error message
-                if let error = errorMessage {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.vaultHighlight)
-                        Text(error)
-                            .font(.subheadline)
-                    }
-                    .padding()
-                    .vaultGlassTintedBackground(tint: Color.vaultHighlight, cornerRadius: 12)
-                    .padding(.horizontal)
-                }
-
-                Spacer()
-
                 // Content based on step
-                if step == .complete {
-                    completeSection
-                } else {
+                switch step {
+                case .verifyCurrent, .createNew, .confirmNew:
+                    Spacer()
                     patternInputSection
-                }
+                    Spacer()
 
-                Spacer()
+                    // Validation feedback / error — fixed height to prevent layout shift
+                    Group {
+                        if let result = validationResult, step == .createNew {
+                            validationFeedback(result)
+                        } else if let error = errorMessage {
+                            HStack {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.vaultHighlight)
+                                Text(error)
+                                    .font(.caption)
+                            }
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .vaultGlassBackground(cornerRadius: 12)
+                            .transition(.scale.combined(with: .opacity))
+                        } else {
+                            Color.clear
+                        }
+                    }
+                    .frame(height: 80)
 
-                // Validation feedback
-                if let result = validationResult, step == .createNew {
-                    validationFeedback(result)
+                case .complete:
+                    Spacer()
+                    completeSection
+                    Spacer()
                 }
 
                 // Bottom buttons
@@ -514,6 +519,8 @@ struct ChangePatternView: View {
                         .font(.caption)
                         .foregroundStyle(.vaultSecondaryText)
                 }
+
+                PhraseActionButtons(phrase: newRecoveryPhrase)
             }
             .padding()
             .background(Color.accentColor.opacity(0.1))
