@@ -351,7 +351,6 @@ struct ChangePatternView: View {
     @State private var step: ChangeStep = .verifyCurrent
     @State private var currentPattern: [Int] = []
     @State private var newPattern: [Int] = []
-    @State private var validationResult: PatternValidationResult?
     @State private var errorMessage: String?
     @State private var isProcessing = false
     @State private var newRecoveryPhrase: String = ""
@@ -399,11 +398,9 @@ struct ChangePatternView: View {
                     patternInputSection
                     Spacer()
 
-                    // Validation feedback / error — fixed height to prevent layout shift
+                    // Error message — fixed height to prevent layout shift
                     Group {
-                        if let result = validationResult, step == .createNew {
-                            validationFeedback(result)
-                        } else if let error = errorMessage {
+                        if let error = errorMessage {
                             HStack {
                                 Image(systemName: "xmark.circle.fill")
                                     .foregroundStyle(.vaultHighlight)
@@ -528,49 +525,6 @@ struct ChangePatternView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
-    
-    @ViewBuilder
-    private func validationFeedback(_ result: PatternValidationResult) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Errors
-            ForEach(Array(result.errors.enumerated()), id: \.offset) { _, error in
-                HStack {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.vaultHighlight)
-                    Text(error.message)
-                        .font(.caption)
-                }
-            }
-
-            // Warnings (only if no errors)
-            if result.errors.isEmpty {
-                ForEach(Array(result.warnings.prefix(2).enumerated()), id: \.offset) { _, warning in
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.vaultHighlight)
-                        Text(warning.rawValue)
-                            .font(.caption)
-                    }
-                }
-            }
-
-            // Complexity score
-            if result.errors.isEmpty {
-                let description = PatternValidator.shared.complexityDescription(for: result.metrics.complexityScore)
-                HStack {
-                    Image(systemName: "shield.fill")
-                        .foregroundStyle(result.metrics.complexityScore >= 30 ? .green : .orange)
-                    Text("Strength: \(description)")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                }
-            }
-        }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .vaultGlassBackground(cornerRadius: 12)
-    }
-
     private var bottomButtons: some View {
         // Fixed height so grid position stays consistent across steps
         VStack(spacing: 12) {
@@ -587,7 +541,6 @@ struct ChangePatternView: View {
                     currentPattern = []
                     newPattern = []
                     patternState.reset()
-                    validationResult = nil
                     errorMessage = nil
                 }
                 .hidden()
@@ -604,7 +557,6 @@ struct ChangePatternView: View {
                     currentPattern = []
                     newPattern = []
                     patternState.reset()
-                    validationResult = nil
                     errorMessage = nil
                 }
                 .disabled(isProcessing)
@@ -621,7 +573,6 @@ struct ChangePatternView: View {
                     currentPattern = []
                     newPattern = []
                     patternState.reset()
-                    validationResult = nil
                     errorMessage = nil
                 }
                 .disabled(isProcessing)
@@ -718,10 +669,6 @@ struct ChangePatternView: View {
         Task {
             // First, validate the pattern structure
             let result = PatternValidator.shared.validate(pattern, gridSize: patternState.gridSize)
-            
-            await MainActor.run {
-                validationResult = result
-            }
             
             if result.isValid {
                 // Check if this pattern already exists as another vault
