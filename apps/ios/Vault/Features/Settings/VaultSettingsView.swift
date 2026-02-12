@@ -378,7 +378,7 @@ struct ChangePatternView: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Step \(stepIndex + 1) of 3")
 
-                // Title and subtitle
+                // Title and subtitle — fixed height prevents grid from shifting between steps
                 VStack(spacing: 8) {
                     Text(stepTitle)
                         .font(.title2)
@@ -388,6 +388,7 @@ struct ChangePatternView: View {
                         .font(.subheadline)
                         .foregroundStyle(.vaultSecondaryText)
                         .multilineTextAlignment(.center)
+                        .frame(height: 44, alignment: .top)
                 }
                 .padding(.horizontal)
 
@@ -571,28 +572,50 @@ struct ChangePatternView: View {
     }
 
     private var bottomButtons: some View {
+        // Fixed height so grid position stays consistent across steps
         VStack(spacing: 12) {
             switch step {
-            case .verifyCurrent, .createNew:
+            case .verifyCurrent:
                 Button("Clear") {
                     patternState.reset()
                     errorMessage = nil
                 }
                 .disabled(patternState.selectedNodes.isEmpty || isProcessing)
-                
-                if step == .createNew {
-                    Button("Start Over") {
-                        step = .verifyCurrent
-                        currentPattern = []
-                        newPattern = []
-                        patternState.reset()
-                        validationResult = nil
-                        errorMessage = nil
-                    }
-                    .disabled(isProcessing)
+
+                Button("Start Over") {
+                    step = .verifyCurrent
+                    currentPattern = []
+                    newPattern = []
+                    patternState.reset()
+                    validationResult = nil
+                    errorMessage = nil
                 }
-                
+                .hidden()
+
+            case .createNew:
+                Button("Clear") {
+                    patternState.reset()
+                    errorMessage = nil
+                }
+                .disabled(patternState.selectedNodes.isEmpty || isProcessing)
+
+                Button("Start Over") {
+                    step = .verifyCurrent
+                    currentPattern = []
+                    newPattern = []
+                    patternState.reset()
+                    validationResult = nil
+                    errorMessage = nil
+                }
+                .disabled(isProcessing)
+
             case .confirmNew:
+                Button("Clear") {
+                    patternState.reset()
+                    errorMessage = nil
+                }
+                .hidden()
+
                 Button("Start Over") {
                     step = .verifyCurrent
                     currentPattern = []
