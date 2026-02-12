@@ -133,3 +133,10 @@ All pattern grid screens MUST behave identically. There are two categories:
 - **Maestro**: No `wait` (use `waitForAnimationToEnd`), no `clearInput` (use `eraseText`), no `../` in `addMedia` paths, `clearKeychain` triggers system dialog, `clearState` resets UserDefaults
 - **Link sharing**: URL fragments (#) never reach server. Base58 (Bitcoin alphabet) excludes ambiguous chars. `fullScreenCover` with computed Binding for deep-link sheets.
 - **Test target**: `@testable import Vault` with `TEST_HOST` pattern, TS prefix IDs. `xcrun simctl list devices available` before test runs.
+- **Streaming encryption**: `CryptoEngine.encryptStreaming(fileURL:originalSize:with:)` reads via FileHandle in 256KB chunks — use for any file >10MB to avoid peak memory spikes
+- **Crypto fallback safety**: Never use `Data(repeating: 0, count: N)` as crypto key fallback — use `SymmetricKey(size:)` for proper entropy
+- **try? on security paths**: `try?` on duress vault setup, file deletion, or recovery data operations hides critical failures. Use `do/catch` + Sentry for anything where silent failure = false sense of security
+- **VaultView extensions**: Decomposed into +Grid, +Toolbar, +FanMenu, +SharedVault, +Actions. Keep body in main file, extracted views/methods in extensions.
+- **Parallel chunk downloads**: `downloadChunksParallel` uses bounded TaskGroup (max 4), order-preserving reassembly via `[Int: Data]` dictionary
+- **Structured logging**: Subsystem `"app.vaultaire.ios"`, category = class name. `Self.logger` for actors/classes, file-level `let` for `@MainActor` classes with `nonisolated` methods. Levels: trace (sensitive), debug (routine), info (notable), warning (non-fatal), error (failures)
+- **TestFlight CLI upload**: Requires App Store Connect API key (.p8). Without it, export IPA locally + use Xcode Organizer to upload.
