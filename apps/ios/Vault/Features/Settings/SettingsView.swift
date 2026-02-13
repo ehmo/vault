@@ -646,14 +646,6 @@ struct iCloudBackupSettingsView: View {
                                 .monospacedDigit()
                         }
                     }
-                    HStack(spacing: 6) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.vaultHighlight)
-                        Text("Keep the app open until backup completes")
-                            .font(.caption)
-                            .foregroundStyle(.vaultSecondaryText)
-                    }
                 }
 
                 Button("Cancel Backup", role: .destructive) {

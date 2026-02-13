@@ -66,7 +66,14 @@ struct ContentView: View {
                 .environment(SubscriptionManager.shared)
         }
         .onChange(of: appState.isUnlocked) { _, isUnlocked in
-            guard isUnlocked, !reduceMotion else { return }
+            guard isUnlocked else { return }
+
+            // Trigger silent background backup if enabled and overdue
+            if let key = appState.currentVaultKey {
+                iCloudBackupManager.shared.performBackupIfNeeded(with: key)
+            }
+
+            guard !reduceMotion else { return }
             showUnlockTransition = true
             withAnimation(.easeOut(duration: 0.9)) {
                 showUnlockTransition = false

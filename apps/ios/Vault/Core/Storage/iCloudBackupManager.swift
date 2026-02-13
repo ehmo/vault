@@ -185,6 +185,57 @@ final class iCloudBackupManager {
         }
     }
 
+    // MARK: - Auto Background Backup
+
+    /// 24-hour interval between automatic backups.
+    private static let autoBackupInterval: TimeInterval = 24 * 60 * 60
+
+    /// Silently performs a backup if enabled and overdue (24h since last).
+    /// Captures the vault key by value and wraps work in a background task
+    /// so it survives the app being backgrounded. Fire-and-forget — no UI.
+    func performBackupIfNeeded(with key: Data) {
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: "iCloudBackupEnabled") else { return }
+
+        let lastTimestamp = defaults.double(forKey: "lastBackupTimestamp")
+        if lastTimestamp > 0 {
+            let nextDue = Date(timeIntervalSince1970: lastTimestamp)
+                .addingTimeInterval(Self.autoBackupInterval)
+            guard Date() >= nextDue else {
+                Self.logger.info("[auto-backup] Not due yet, skipping")
+                return
+            }
+        }
+
+        Self.logger.info("[auto-backup] Starting background backup")
+
+        // Capture key by value before vault locks
+        let capturedKey = key
+
+        let bgTaskId = UIApplication.shared.beginBackgroundTask {
+            Self.logger.warning("[auto-backup] Background time expired")
+        }
+
+        Task.detached(priority: .utility) {
+            defer {
+                Task { @MainActor in
+                    if bgTaskId != .invalid {
+                        UIApplication.shared.endBackgroundTask(bgTaskId)
+                    }
+                }
+            }
+            do {
+                try await self.performBackup(with: capturedKey, onProgress: { _ in }, onUploadProgress: { _ in })
+                await MainActor.run {
+                    UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastBackupTimestamp")
+                }
+                Self.logger.info("[auto-backup] Backup completed successfully")
+            } catch {
+                Self.logger.error("[auto-backup] Backup failed: \(error)")
+            }
+        }
+    }
+
     // MARK: - Restore
 
     enum BackupCheckResult {
