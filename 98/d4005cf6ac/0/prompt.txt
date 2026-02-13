@@ -1,0 +1,1861 @@
+Implement the following plan:
+
+# Custom Paywall: Version A (Compare, Then Choose)
+
+## Context
+Current paywall uses RevenueCatUI's default `PaywallView()` with a single $9.99 lifetime product. Need to redesign with 3 tiers (Monthly $1.99, Yearly $9.99, Lifetime $29.99), a benefits comparison table, and 7-day free trial on yearly — all in Vaultaire's design language.
+
+## Part 1: RevenueCat Product Setup (via MCP)
+
+IDs: project=`proje830cc0f`, app=`appce2e06d8c7`, offering=`ofrng46cfc1171b`, entitlement=`entl06e93eaa7b`
+
+1. Create product `monthly_pro` (type: `subscription`, store_identifier: `monthly_pro`)
+2. Create product `yearly_pro` (type: `subscription`, store_identifier: `yearly_pro`)
+3. Create package `$rc_monthly` in offering, position 1
+4. Create package `$rc_annual` in offering, position 2
+5. Attach monthly_pro + yearly_pro to packages
+6. Attach monthly_pro + yearly_pro to "Vaultaire Unlimited" entitlement
+
+Note: ASC subscription products must also be created in App Store Connect (separate step — product IDs `monthly_pro`, `yearly_pro` in a subscription group). The 7-day free trial is configured as an introductory offer in ASC on the yearly subscription.
+
+## Part 2: New Custom Paywall View
+
+**New file:** `apps/ios/Vault/Core/Billing/VaultairePaywallView.swift`
+
+### Layout (top to bottom, in ScrollView)
+1. **Close button** (X, top-right)
+2. **Header**: shield.checkered icon (56pt) + "Unlock Vaultaire" (largeTitle.bold) + "Full privacy, your terms." subtitle
+3. **Benefits table** (glass card): FREE vs PRO columns
+   - Photos per vault: 100 / ∞
+   - Videos per vault: 10 / ∞
+   - Vaults: 5 / ∞
+   - Duress vault: — / ✓
+   - Vault sharing: — / ✓
+   - iCloud backup: — / ✓
+   - Pattern encryption: ✓ / ✓
+   - Plausible deniability: ✓ / ✓
+4. **Plan selector** (3 tappable cards, yearly pre-selected):
+   - Monthly: `$1.99/month`
+   - Yearly: `~~$19.99~~ $9.99/year` + "SAVE 50%" badge + "$0.83/mo"  — purple border when selected
+   - Lifetime: `$29.99 once` + "BEST VALUE" badge + "Forever"
+5. **Trial callout**: `✓ 7-day free trial` (shown when yearly selected and trial eligible)
+6. **CTA button**: Dynamic text — "Start Free Trial" / "Subscribe" / "Purchase for $29.99"
+7. **Footer**: "No commitment · Cancel anytime" + "Restore Purchases · Terms · Privacy"
+
+### Data flow
+- `.task` on appear: `Purchases.shared.offerings()` → get current offering → extract `$rc_monthly`, `$rc_annual`, `$rc_lifetime` packages
+- Display localized prices from `package.storeProduct.localizedPriceString`
+- Check `storeProduct.introductoryDiscount?.paymentMode == .freeTrial` for trial eligibility
+- Purchase: `Purchases.shared.purchase(package:)` → `subscriptionManager.updateFromCustomerInfo`
+- Restore: `Purchases.shared.restorePurchases()` → `subscriptionManager.updateFromCustomerInfo`
+
+### Styling
+- `Color.vaultBackground` full background
+- `.vaultGlassBackground()` for table card and plan cards
+- Selected plan card: `.overlay(RoundedRectangle.stroke(Color.accentColor, lineWidth: 2))`
+- CTA: `.vaultProminentButtonStyle()` full-width
+- Badges: small capsule with `.accentColor` background, white text
+- Checkmarks: `.accentColor`, dashes: `.vaultSecondaryText`
+- Dark mode support via existing color assets
+
+## Part 3: Integration Changes
+
+### `PaywallTrigger.swift`
+- Replace `PaywallView()` with `VaultairePaywallView(onDismiss: { showPaywall = false })`
+- Remove `onPurchaseCompleted`/`onRestoreCompleted` RC callbacks (handled internally now)
+- Keep `FallbackPaywallView` for when offerings unavailable
+- Can remove `import RevenueCatUI` from this file
+
+### `AnalyticsConsentView.swift`
+- Replace inline `PaywallView()` with `VaultairePaywallView(onDismiss: onContinue)`
+- Keep "Skip" button below
+- Can remove `import RevenueCatUI`
+
+### `SubscriptionManager.swift`
+- Update `entitlementID` from `"lifetime"` to `"Vaultaire Unlimited"` to match RC lookup_key
+- No other changes needed — `updateFromCustomerInfo` already has the active-entitlement fallback
+
+## Files Modified
+- `apps/ios/Vault/Core/Billing/VaultairePaywallView.swift` — **NEW**
+- `apps/ios/Vault/Core/Billing/PaywallTrigger.swift` — use custom paywall
+- `apps/ios/Vault/Features/Onboarding/AnalyticsConsentView.swift` — use custom paywall
+- `apps/ios/Vault/Core/Billing/SubscriptionManager.swift` — fix entitlement ID
+
+## Verification
+1. Build succeeds with no warnings
+2. Paywall sheet shows comparison table + 3 plan cards + trial callout
+3. Yearly pre-selected, CTA shows "Start Free Trial"
+4. Switching plans updates CTA text and selection border
+5. Onboarding paywall matches sheet paywall
+6. RevenueCat products created and attached to entitlement + packages
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+The first onboarding screen is scrollable for whatever reason (see image). It should be static
+
+---
+
+[Image: source: /Users/nan/Downloads/IMG_1960.PNG]
+
+---
+
+Push to testflight
+
+---
+
+The background screen also jumps when I use recovery phrase and tap into the text area. Make sure that this is fixed across the board
+
+---
+
+When setting up custom phrase in the vault, the design changes from the empty state (image 10) to text area being in focus (image 11) pushing everything up. The keyboard also hides the button (image 12) which is unreachable. We need to fix this. We should also add button at the right corner to the opposite side of cancel so user can just accept it there.
+
+---
+
+[Image: source: /Users/nan/Downloads/IMG_1964.PNG]
+
+[Image: source: /Users/nan/Downloads/IMG_1965.PNG]
+
+[Image: source: /Users/nan/Downloads/IMG_1966.PNG]
+
+---
+
+The "regenerate recovery phrase" screen in a vault looks very different (image 13) from the design we are using in the onboarding (image 14) and elsewhere. It's important that the design is equal across the board
+
+---
+
+[Image: source: /Users/nan/Downloads/IMG_1967.PNG]
+
+[Image: source: /Users/nan/Downloads/Screenshot 2026-02-12 at 11.03.21 PM.png]
+
+---
+
+The paywall screen is too long resulting in scrolling. We should remove the x button in the corner and also the vault icon to push everything up.
+
+Change the title to Unlock Vaultaire Pro and push everything up. Above of the subscribe button, add button that enables free 7 day trial. When enabled change the subscribe button "Try for 7 days".
+
+Move the save 58% and best value above the price on the right side.
+
+I assume the skip is for testing
+
+---
+
+[Image: source: /Users/nan/Downloads/IMG_1962.PNG]
+
+[Image: source: /Users/nan/Downloads/IMG_1963.PNG]
+
+---
+
+Push to testflight. Then figure out how to make this paywall in revenuecat instead of manually building it
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial Request - Custom Paywall Implementation Plan**
+   The user provided a detailed plan for implementing a custom paywall with 3 tiers (Monthly $1.99, Yearly $9.99, Lifetime $29.99), benefits comparison table, and 7-day free trial. The plan had 3 parts: RevenueCat product setup, new custom paywall view, and integration changes.
+
+2. **RevenueCat Product Setup (Part 1)**
+   - Listed existing products: one `lifetime` product (one_time type) and one `$rc_lifetime` package
+   - Created `monthly_pro` product (subscription, P1M) → `proddd8806a8a9`
+   - Created `yearly_pro` product (subscription, P1Y) → `prod943cb4ebeb`
+   - Created `$rc_monthly` package (position 1) → `pkgefb91ec9321`
+   - Created `$rc_annual` package (position 2) → `pkgee25e8697c9`
+   - Attached products to packages and to "Vaultaire Unlimited" entitlement (`entl06e93eaa7b`)
+   - Error: First product creation failed because test store products require a `title` parameter. Fixed by adding title and duration.
+
+3. **Custom Paywall View (Part 2)**
+   - Created `VaultairePaywallView.swift` with header, benefits table, plan selector, trial callout, CTA button, footer
+   - Added to pbxproj with IDs `020000004` and `020000005`
+
+4. **Integration Changes (Part 3)**
+   - Modified `PaywallTrigger.swift`: Replaced `PaywallView()` with `VaultairePaywallView`, removed `RevenueCatUI` import
+   - Modified `AnalyticsConsentView.swift`: Same replacement, removed `RevenueCatUI` import
+   - Modified `SubscriptionManager.swift`: Changed `entitlementID` from `"lifetime"` to `"Vaultaire Unlimited"`, removed `RevenueCatUI` import
+   - Cleaned up unused `RevenueCatUI` imports from `OnboardingView.swift`
+   - Error: Tried to remove `RevenueCatUI` from `SettingsView.swift` but it uses `CustomerCenterView` from that module. Had to restore the import.
+
+5. **Build 20 deployed to TestFlight**
+
+6. **User Request: Fix scrollable WelcomeView**
+   - User reported the first onboarding screen was scrollable when it should be static
+   - Fixed by replacing `ScrollView` with `VStack` using `Spacer()` top and bottom
+   - Committed and pushed
+
+7. **User Request: Fix background jumping with keyboard**
+   - User reported background view jumping when tapping into text areas (recovery phrase)
+   - Root cause: SwiftUI's keyboard avoidance pushes presenting views behind sheets
+   - Fix: Added `.ignoresSafeArea(.keyboard)` to all presenting views:
+     - `VaultSettingsView.swift`
+     - `VaultView.swift`
+     - `SettingsView.swift`
+     - `ContentView.swift`
+   - PatternLockView already had the fix from a previous commit (7206ac3)
+
+8. **User Request: Fix CustomRecoveryPhraseInputView keyboard issues**
+   - Issues: Content pushed up when keyboard appears, button hidden behind keyboard
+   - User also requested a Save button in toolbar opposite Cancel
+   - Fix: Wrapped input in ScrollView, added toolbar Save button (trailing position), removed bottom button
+   - Committed and pushed
+
+9. **User Request: Align RecoveryPhraseView with onboarding design**
+   - User noted the vault settings recovery phrase screen looked different from onboarding
+   - Redesigned to match: title+subtitle header (instead of warning banner), matching guideline icons (pencil, lock, person.slash), centered Spacer layout
+   - Committed and pushed
+
+10. **User Request: Paywall redesign**
+    - Remove X button and shield icon (too long, causes scrolling)
+    - Change title to "Unlock Vaultaire Pro"
+    - Move badges (SAVE 58%, BEST VALUE) above price on right side
+    - Add free trial toggle button above CTA
+    - When trial enabled, CTA shows "Try for 7 days"
+    - Removed NavigationStack wrapper entirely
+    - Committed and pushed
+
+11. **User Request: Push to TestFlight + Research RevenueCat paywalls**
+    - Bumped build to 21
+    - Archive succeeded
+    - Export with `destination: upload` failed due to keychain credentials issue
+    - Exported IPA locally (without `destination: upload` in plist), then uploaded via `asc builds upload` CLI
+    - Build 21 uploaded successfully
+    - Launched background research agent for RevenueCat paywall system
+    - Research completed with comprehensive findings about RevenueCat's dashboard-based paywall builder
+
+Let me now compile all the details for the summary.
+
+Summary:
+1. Primary Request and Intent:
+   The user requested implementation of a custom paywall ("Version A: Compare, Then Choose") for their Vaultaire iOS app, replacing RevenueCat's default `PaywallView()` with a custom design featuring 3 pricing tiers (Monthly $1.99, Yearly $9.99, Lifetime $29.99), a FREE vs PRO benefits comparison table, and 7-day free trial support. This involved RevenueCat product setup via MCP, creating a new SwiftUI view, and integration changes across multiple files. After initial implementation, the user provided iterative UI feedback through screenshots leading to several rounds of refinement. The user also requested research into whether RevenueCat's built-in paywall system could replace the custom implementation.
+
+2. Key Technical Concepts:
+   - RevenueCat SDK integration (Products, Packages, Offerings, Entitlements)
+   - RevenueCat MCP tools for product/package management
+   - Custom SwiftUI paywall with `Purchases.shared.offerings()` and `Purchases.shared.purchase(package:)`
+   - SwiftUI keyboard avoidance: `.ignoresSafeArea(.keyboard)` on presenting views to prevent background jumping when sheets contain text inputs
+   - SwiftUI layout: `ScrollView` vs static `VStack` with `Spacer()` for fixed layouts
+   - Xcode project file (pbxproj) manual editing with ID conventions (020000xxx prefix for Billing group)
+   - TestFlight deployment pipeline: archive → export → upload via `asc builds upload` CLI
+   - RevenueCat dashboard-based Paywall Builder (server-driven UI, components, A/B testing)
+   - App Store Connect authentication: `asc` CLI with keychain-stored credentials vs `xcrun altool`
+
+3. Files and Code Sections:
+
+   - **`apps/ios/Vault/Core/Billing/VaultairePaywallView.swift`** (NEW - created then rewritten)
+     - The custom paywall view — core deliverable of this session
+     - Final version removes NavigationStack/toolbar X button, uses compact layout without shield icon
+     - Title: "Unlock Vaultaire Pro", badges moved to right-side VStack above price
+     - Includes trial toggle checkbox that changes CTA to "Try for 7 days"
+     - Full final code is ~370 lines with ScrollView, header, benefits table, plan selector, trial toggle, CTA, footer
+     - Key state: `@State private var selectedPlan: PlanType = .monthly`, `@State private var trialEnabled = false`
+     - Data flow: `.task { await loadOfferings() }` → `Purchases.shared.offerings()` → extract packages by identifier
+
+   - **`apps/ios/Vault/Core/Billing/PaywallTrigger.swift`**
+     - Replaced `PaywallView()` + RC callbacks with `VaultairePaywallView(onDismiss:)`
+     - Removed `import RevenueCatUI`
+     - `PremiumGateModifier` now shows `VaultairePaywallView(onDismiss: { showPaywall = false })` when offerings available, `FallbackPaywallView` otherwise
+
+   - **`apps/ios/Vault/Core/Billing/SubscriptionManager.swift`**
+     - Changed `static let entitlementID = "lifetime"` → `"Vaultaire Unlimited"` to match RC lookup_key
+     - Removed unused `import RevenueCatUI`
+
+   - **`apps/ios/Vault/Features/Onboarding/AnalyticsConsentView.swift`**
+     - Replaced `PaywallView()` + RC callbacks with `VaultairePaywallView(onDismiss: onContinue)`
+     - Removed `import RevenueCatUI`
+     - Kept Skip button below paywall
+
+   - **`apps/ios/Vault/Features/Onboarding/WelcomeView.swift`**
+     - Fixed scrolling issue: replaced `ScrollView` wrapper with static `VStack` using `Spacer()` top and bottom
+     - Content now vertically centered with button pinned near bottom
+
+   - **`apps/ios/Vault/Features/Settings/VaultSettingsView.swift`**
+     - Added `.ignoresSafeArea(.keyboard)` after last sheet modifier
+     - Rewrote `CustomRecoveryPhraseInputView`: wrapped `inputView` in `ScrollView`, added toolbar Save button (`.confirmationAction` placement), removed bottom "Set Custom Phrase" button
+     ```swift
+     .toolbar {
+         ToolbarItem(placement: .cancellationAction) {
+             Button("Cancel") { dismiss() }
+         }
+         if !showSuccess {
+             ToolbarItem(placement: .confirmationAction) {
+                 if isProcessing {
+                     ProgressView()
+                 } else {
+                     Button("Save") { saveCustomPhrase() }
+                         .disabled(!(validation?.isAcceptable ?? false))
+                         .fontWeight(.semibold)
+                 }
+             }
+         }
+     }
+     ```
+
+   - **`apps/ios/Vault/Features/Settings/RecoveryPhraseView.swift`**
+     - Redesigned to match onboarding recovery phrase screen
+     - Replaced warning banner with title+subtitle header ("Recovery Phrase" + "Save this phrase...")
+     - Changed guideline icons to match onboarding: pencil, lock, person.slash
+     - Used centered Spacer layout with button at bottom (padding .horizontal 40, .bottom 40)
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView.swift`**
+     - Added `.ignoresSafeArea(.keyboard)` after settings sheet modifier
+
+   - **`apps/ios/Vault/Features/Settings/SettingsView.swift`**
+     - Added `.ignoresSafeArea(.keyboard)` after customer center sheet
+     - Kept `import RevenueCatUI` (needed for `CustomerCenterView`)
+
+   - **`apps/ios/Vault/App/ContentView.swift`**
+     - Added `.ignoresSafeArea(.keyboard)` after fullScreenCover for SharedVaultInviteView
+
+   - **`apps/ios/Vault/Features/Onboarding/OnboardingView.swift`**
+     - Removed unused `import RevenueCatUI`
+
+   - **`apps/ios/Vault.xcodeproj/project.pbxproj`**
+     - Added VaultairePaywallView.swift with IDs `020000004`/`020000005`
+     - Build number bumped from 19 → 20 → 21
+
+4. Errors and Fixes:
+   - **RevenueCat product creation failed**: "Test Store products must have a user-facing title". Fixed by adding `title` and `duration` parameters.
+   - **Removed `RevenueCatUI` from SettingsView.swift causing build failure**: `CustomerCenterView` is from RevenueCatUI. Fixed by restoring the import.
+   - **Simulator name not found**: "iPhone 16 Pro" not available. Fixed by using UUID `57965726-931A-462A-A262-3A3DAFA7CDDF` for "iPhone 17 Pro".
+   - **exportArchive failed with credentials error**: "Failed to Use Accounts" / "missing Xcode-Username". Fixed by exporting IPA locally (without `destination: upload` in plist) then uploading via `asc builds upload --ipa ... --app 6758529311`.
+   - **xcrun altool auth failure**: ASC_KEY_ID/ASC_ISSUER_ID env vars were empty. Used `asc builds upload` CLI instead which has proper keychain auth.
+   - **Process substitution with xcodebuild**: `<(cat <<'EOF'...)` failed with permission error. Fixed by writing plist to `/tmp/ExportOptionsLocal.plist` first.
+   - **User feedback on paywall being too long**: Removed X button and shield icon, changed title, compacted spacing.
+   - **User feedback on keyboard pushing content**: Added `.ignoresSafeArea(.keyboard)` across all views with sheet presentations.
+   - **User feedback on custom phrase button unreachable**: Added toolbar Save button, wrapped in ScrollView.
+   - **User feedback on inconsistent recovery phrase design**: Redesigned to match onboarding style.
+
+5. Problem Solving:
+   - Solved paywall scrolling by removing NavigationStack, icon, and reducing spacing
+   - Solved keyboard background jumping by applying `.ignoresSafeArea(.keyboard)` to all 4 presenting views (VaultSettingsView, VaultView, SettingsView, ContentView) plus PatternLockView already had it
+   - Solved custom phrase keyboard usability by switching from VStack+Spacer to ScrollView and adding toolbar button
+   - Solved TestFlight upload auth by switching from `xcodebuild -exportArchive` with `destination: upload` to local IPA export + `asc builds upload`
+
+6. All User Messages:
+   - "Implement the following plan: # Custom Paywall: Version A (Compare, Then Choose) [detailed plan with 3 parts]"
+   - "The first onboarding screen is scrollable for whatever reason (see image). It should be static [screenshot]"
+   - "Push to testflight"
+   - "The background screen also jumps when I use recovery phrase and tap into the text area. Make sure that this is fixed across the board"
+   - "When setting up custom phrase in the vault, the design changes from the empty state (image 10) to text area being in focus (image 11) pushing everything up. The keyboard also hides the button (image 12) which is unreachable. We need to fix this. We should also add button at the right corner to the opposite side of cancel so user can just accept it there. [3 screenshots]"
+   - "The 'regenerate recovery phrase' screen in a vault looks very different (image 13) from the design we are using in the onboarding (image 14) and elsewhere. It's important that the design is equal across the board [2 screenshots]"
+   - "The paywall screen is too long resulting in scrolling. We should remove the x button in the corner and also the vault icon to push everything up. Change the title to Unlock Vaultaire Pro and push everything up. Above of the subscribe button, add button that enables free 7 day trial. When enabled change the subscribe button 'Try for 7 days'. Move the save 58% and best value above the price on the right side. I assume the skip is for testing [2 screenshots]"
+   - "Push to testflight. Then figure out how to make this paywall in revenuecat instead of manually building it"
+
+7. Pending Tasks:
+   - **RevenueCat paywall research results need to be presented to the user** — the background agent completed comprehensive research but the results haven't been summarized/shared yet
+   - **ASC subscription products need creation in App Store Connect** — `monthly_pro` and `yearly_pro` products need to be created in ASC with a subscription group, and the 7-day free trial configured as an introductory offer on the yearly plan
+   - **Session close protocol** — `bd sync`, scratch pad update, and final push not yet done
+
+8. Current Work:
+   Build 21 was successfully uploaded to TestFlight. A background research agent completed comprehensive research on RevenueCat's built-in paywall system (Paywall Builder). The research found that ~85-90% of the current custom design could be replicated using RevenueCat's dashboard editor, with main limitations being no true glass morphism materials, different trial toggle behavior (switch vs checkbox), and less flexible conditional CTA text. Key advantages of switching would be remote updates without app releases, A/B testing, exit offers, and localization support.
+
+   The research results have not yet been presented to the user.
+
+9. Optional Next Step:
+   Present the RevenueCat paywall research findings to the user. The user explicitly asked to "figure out how to make this paywall in revenuecat instead of manually building it." The research agent completed with a comprehensive analysis including component-by-component feasibility assessment, but the results haven't been shared yet. After presenting findings, the session close protocol (bd sync, scratch pad update, git push) should be completed.
+
+**RevenueCat IDs for reference:**
+- Project: `proje830cc0f`
+- App: `appce2e06d8c7`
+- Offering: `ofrng46cfc1171b`
+- Entitlement: `entl06e93eaa7b` (lookup_key: "Vaultaire Unlimited")
+- Products: `proddd8806a8a9` (monthly_pro), `prod943cb4ebeb` (yearly_pro), `prod3592ddaf7c` (lifetime)
+- Packages: `pkgefb91ec9321` ($rc_monthly), `pkgee25e8697c9` ($rc_annual), `pkge9ae002542d` ($rc_lifetime)
+
+**Git commits this session:**
+1. `f127f21` - Add custom paywall with 3-tier pricing and benefits comparison
+2. `42f0772` - Fix WelcomeView scrolling — use static VStack layout
+3. `9477808` - Bump build to 20 for TestFlight
+4. `c9bb96d` - Fix background view jumping when keyboard appears across all views
+5. `269032a` - Fix custom phrase view keyboard layout and add Save toolbar button
+6. `58ff558` - Align RecoveryPhraseView design with onboarding recovery screen
+7. `26c8673` - Redesign paywall: compact layout, trial toggle, badge repositioning
+8. `0abdf74` - Bump build to 21 for TestFlight — paywall redesign + UI fixes
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+<task-notification>
+<task-id>a1228b2</task-id>
+<status>completed</status>
+<summary>Agent "Research RevenueCat paywalls" completed</summary>
+<result>Now I have a comprehensive picture. Let me compile the research findings.
+
+---
+
+## RevenueCat Paywalls (RevenueCatUI) -- Research Findings
+
+### 1. How RevenueCat Paywalls Work
+
+Yes, you can configure the **entire paywall UI from the RevenueCat dashboard**. The system works via server-driven UI:
+
+- You design your paywall in a **WYSIWYG visual editor** (Figma-like interface) on the RevenueCat dashboard
+- The paywall definition is delivered to the SDK at runtime -- no app updates or code changes needed
+- Each **Offering** can have its own unique **Paywall** attached to it
+- You can create unlimited Offerings and Paywalls for A/B testing via RevenueCat Experiments
+- Paywalls render **natively** (not WebViews), so they are fast and consistent with platform conventions
+- A paywall has two states: **Inactive** (draft, not served to users) and **Published** (live)
+
+The architecture is: **Dashboard Editor** --> **JSON definition** --> **SDK renders natively** on device.
+
+### 2. Available Components and Customization Options
+
+The paywall editor provides a rich component library. Here is the full list of components:
+
+**Basic Components:**
+| Component | Description |
+|-----------|-------------|
+| **Text** | Custom strings with sizing, formatting, alignment, colors, gradients, and variable interpolation |
+| **Image** | Uploaded images with fit/fill modes, masks (rectangle, circle, concave, convex), overlays |
+| **Video** | MP4/MOV upload, autoplay, loop, mute, playback controls, progressive loading |
+| **Icon** | Icons from the Tabler library (filled and outlined variants) |
+
+**Layout Components:**
+| Component | Description |
+|-----------|-------------|
+| **Stack** | Container for grouping child components with axis, alignment, distribution, and spacing control |
+| **Footer** | Fixed-position footer at the bottom with drop shadow |
+| **Carousel** | Swipeable pages with page spacing, peek, loop, auto-advance |
+| **Tabs** | Tabbed interface for organizing content (e.g., Basic vs Pro tiers, or Monthly vs Annual) |
+
+**Interactive Components:**
+| Component | Description |
+|-----------|-------------|
+| **Package** | Selectable package card with two states: Default and Selected (unique styling per state) |
+| **Purchase Button** | Triggers purchase for the selected package; pill or rectangle shape |
+| **Button** | Custom actions: restore purchases, navigate back, open URL (privacy/terms), open custom sheet, redeem offer code |
+| **Switch** | Toggle between two option sets (e.g., with/without free trial, with/without family sharing) |
+| **Countdown** | Live countdown timer to a specific date/time with customizable display |
+
+**Pre-styled Components:**
+| Component | Description |
+|-----------|-------------|
+| **Feature List** | Pre-styled feature/benefit display (fundamentally a customizable stack) |
+| **Social Proof** | Pre-styled testimonial components |
+| **Awards** | Pre-styled award callout components |
+| **Timeline** | Connected vertical items simulating a timeline |
+| **Express Checkout** | Apple Pay / Google Pay quick-purchase buttons (web paywalls only) |
+
+**Can you build a comparison table?** Yes. You would use a combination of **Stacks**, **Text** components, and **Icon** components to build a FREE vs PRO feature comparison. The **Feature List** pre-styled component also gives you a head start. You have full control over layout axis, alignment, distribution, and spacing.
+
+**Can you build multiple plan cards with badges?** Yes. The **Package** component supports:
+- Two visual states (Default and Selected) with independent styling
+- **Badge** properties with two styles: **Nested** (inside the border) or **Overlaid** (centered on the border)
+- Badge axis, margin, text styling, border, and drop shadow are all configurable
+
+**Can you build a trial toggle?** Yes. The **Switch** component is designed exactly for this use case. It toggles between two sets of packages (e.g., `monthly_no_trial` / `annual_no_trial` vs `monthly_with_trial` / `annual_with_trial`). Each state can have completely different child content and styling.
+
+### 3. SwiftUI Integration
+
+The integration is minimal. There are several presentation options:
+
+**Option A: Simple sheet with `PaywallView()`**
+```swift
+import RevenueCatUI
+
+struct MyView: View {
+    @State var showPaywall = false
+    
+    var body: some View {
+        ContentView()
+            .sheet(isPresented: $showPaywall) {
+                PaywallView()
+            }
+    }
+}
+```
+
+**Option B: Conditional presentation by entitlement**
+```swift
+ContentView()
+    .presentPaywallIfNeeded(
+        requiredEntitlementIdentifier: "pro",
+        purchaseCompleted: { customerInfo in },
+        restoreCompleted: { customerInfo in }
+    )
+```
+
+**Option C: Custom logic for when to show**
+```swift
+ContentView()
+    .presentPaywallIfNeeded { customerInfo in
+        return !customerInfo.entitlements.active.keys.contains("pro")
+    } purchaseCompleted: { _ in } restoreCompleted: { _ in }
+```
+
+**Option D: Specific offering**
+```swift
+PaywallView(offering: myOffering)
+```
+
+**Additional modifiers:**
+- `.customPaywallVariables(["player_name": .string("John")])` -- pass dynamic text variables
+- `.onPurchaseInitiated { package, resume in ... }` -- intercept purchases (e.g., for authentication)
+- `.onOfferCodeRedemptionInitiated { resume in ... }` -- intercept offer code redemption
+- Locale override: `Purchases.shared.overridePreferredUILocale("es-ES")`
+
+**Exit Offers:** You can configure an alternative paywall that automatically shows when users dismiss without purchasing (requires iOS SDK 5.52.0+). This is configured entirely in the dashboard.
+
+**iPad note:** `presentPaywallIfNeeded` shows iPhone-sized modals on iPad. For full-screen iPad display, use `PaywallView` directly.
+
+### 4. Custom Fonts and Colors from the Dashboard
+
+**Custom Fonts -- YES:**
+- You can **upload custom font files** directly to the RevenueCat dashboard (must be < 5MB, recommend < 2MB)
+- Alternatively, you can reference **fonts already installed in your app** -- the dashboard lets you map font family names to your app's bundled fonts
+- The dashboard editor provides a **live preview** of custom fonts as of mid-2025
+- Font weights are determined by the uploaded font files
+- Caveat: Custom fonts do **not** transfer when duplicating a paywall to another project
+
+**Custom Colors -- YES:**
+- The **Branding** tab in the editor lets you save reusable colors
+- Every component supports custom background colors (solid or gradient with opacity)
+- Text supports color and gradient fills (linear and radial)
+- Borders, shadows, and badges all have independent color controls
+- Light mode and dark mode can be previewed and configured separately
+
+### 5. Template Options
+
+RevenueCat offers a **growing library of pre-built templates** (27+ visible on their feature page as of late 2025). Key details:
+
+- Templates are fully customizable starting points -- not locked layouts
+- As of November 2025, templates can be **filtered by**: purchase method, tier, or package type
+- You can also **start from scratch** with a blank canvas
+- You can **import from Figma** using the RevenueCat Figma plugin
+- The template library "is larger than ever and will continue to grow rapidly"
+
+RevenueCat does not publicly enumerate template names in their docs, but they cover common patterns: hero image + feature list, pricing grid, minimal, multi-tier comparison, social proof focused, etc.
+
+### 6. Limitations Compared to a Fully Custom SwiftUI Paywall
+
+**Limitations:**
+1. **Platform support gaps**: No watchOS, tvOS, or visionOS support
+2. **Minimum iOS 15.0** required (your project likely already meets this)
+3. **Component library is finite**: You are limited to the predefined components (Text, Image, Stack, Package, Button, etc.). You cannot embed arbitrary SwiftUI views, custom animations, or third-party UI libraries
+4. **No custom SwiftUI animations**: The component system does not support custom SwiftUI transitions, `.matchedGeometryEffect`, or spring animations that you might use in a hand-built paywall
+5. **No arbitrary code execution in the paywall**: Logic like your current `trialToggle` that conditionally shows based on `selectedPlan == .yearly && isTrialEligible` must be handled through RevenueCat's Switch component and package configuration patterns -- it works, but is less flexible than arbitrary Swift code
+6. **iPad presentation quirks**: `presentPaywallIfNeeded` renders as iPhone-size modal on iPad
+7. **Badge rendering bugs**: Community reports of intermittent badge rendering issues on iOS (as of early 2025)
+8. **No `displayCloseButton` parameter**: Close buttons must be added as paywall components in the editor; the old code-side parameter no longer works
+9. **SDK size increase**: Adding RevenueCatUI adds to your binary size (you already have RevenueCat, so the marginal increase is just the UI rendering layer)
+10. **Font duplication limitation**: Custom fonts do not carry over when duplicating paywalls across projects
+
+**Advantages over custom SwiftUI:**
+1. **Remote updates**: Change pricing, copy, layout, colors, badges without an app update
+2. **A/B testing built in**: Run experiments on different paywall designs through the dashboard
+3. **Exit offers**: Automatically show alternative offers when users dismiss -- no code needed
+4. **Targeting**: Show different paywalls by country, platform, app version, or custom segments
+5. **Cross-platform**: Same paywall definition renders on iOS and Android
+6. **Speed**: Publish a paywall in minutes vs. coding, testing, and shipping an update
+7. **Localization**: Built-in multi-language support from the dashboard
+
+### Can You Replicate Your Current Vaultaire Design?
+
+Looking at your current `VaultairePaywallView.swift` at `/Users/nan/Work/ai/vault/apps/ios/Vault/Core/Billing/VaultairePaywallView.swift`, here is an element-by-element feasibility assessment:
+
+| Your Current Element | RevenueCat Component | Feasible? |
+|---------------------|---------------------|-----------|
+| "Unlock Vaultaire Pro" title + subtitle | **Text** components in a **Stack** | Yes |
+| FREE vs PRO 8-row comparison table | **Stack** with nested **Text** + **Icon** components (or **Feature List** as starting point) | Yes, but requires manual layout of columns using stacks. No built-in "table" component -- you build it from stacks and text. |
+| 3 plan cards (monthly, yearly, lifetime) | **Package** components with **Badge** properties | Yes -- each Package supports Default/Selected states and badge overlays |
+| "SAVE 58%" / "BEST VALUE" badges | **Badge** property on Package components (nested or overlaid style) | Yes |
+| Free trial toggle | **Switch** component with separate package sets | Yes -- but works differently. Instead of a checkbox toggle, it is a platform-native switch that swaps between trial and non-trial package sets. You would need separate packages like `annual_with_trial` and `annual_no_trial`. |
+| Dynamic CTA button text | **Purchase Button** with text **variables** | Partially. Text variables can show package price/period dynamically, but conditional logic like "Try for 7 days" vs "Subscribe" vs "Purchase for $29.99" may require using the Switch component or intro offer eligibility variables. |
+| Footer (restore/terms/privacy) | **Button** components with restore/navigate actions + **Footer** component | Yes -- Button component supports Restore Purchases action and URL navigation (in-app browser, external, or deep link) |
+| `.vaultGlassBackground()` glass morphism styling | Background color/gradient with opacity | Partially. You can set semi-transparent backgrounds and blur-like effects through gradients and opacity, but true SwiftUI `.ultraThinMaterial` glass effects are not available. |
+| Custom accent color theming | **Branding** saved colors | Yes |
+
+**Bottom line:** You can replicate roughly 85-90% of your current design. The main things you would lose are: (1) true glass morphism materials, (2) the exact checkbox-style trial toggle behavior (replaced by a platform switch), and (3) fully custom conditional CTA text logic. What you gain is remote configurability, A/B testing, exit offers, localization, and cross-platform support.
+
+### Sources
+
+- [Paywalls Overview](https://www.revenuecat.com/docs/tools/paywalls)
+- [Creating Paywalls](https://www.revenuecat.com/docs/tools/paywalls/creating-paywalls)
+- [Displaying Paywalls (SwiftUI)](https://www.revenuecat.com/docs/tools/paywalls/displaying-paywalls)
+- [Components Reference](https://www.revenuecat.com/docs/tools/paywalls/creating-paywalls/components)
+- [Component Properties](https://www.revenuecat.com/docs/tools/paywalls/creating-paywalls/component-properties)
+- [RevenueCat Paywalls Feature Page](https://www.revenuecat.com/feature/paywalls/)
+- [Installing RevenueCatUI](https://www.revenuecat.com/docs/tools/paywalls/installation)
+- [Custom Fonts in Paywalls (Changelog)](https://www.revenuecat.com/release/custom-fonts-in-paywalls-2025-02-18)
+- [Custom Font Previews (Changelog)](https://www.revenuecat.com/release/custom-font-previews-2025-06-06)
+- [Filter Paywall Templates (Changelog)](https://www.revenuecat.com/release/filter-paywall-templates-2025-11-14)
+- [RevenueCat Paywalls v2 Blog Post](https://www.revenuecat.com/blog/growth/revenuecat-paywalls-v2/)
+- [Hard Paywalls Guide](https://www.revenuecat.com/docs/playbooks/guides/hard-paywall)
+- [Paywall Gallery](https://www.revenuecat.com/paywallgallery/)
+- [StoreKit Views Guide](https://www.revenuecat.com/blog/engineering/storekit-views-guide-paywall-swift-ui/)</result>
+<usage>total_tokens: 44513
+tool_uses: 21
+duration_ms: 289724</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-nan-Work-ai-vault/tasks/a1228b2.output
+
+---
+
+Switch
+
+---
+
+Can you design the paywall?
+
+---
+
+Revenue cat uses figma pluging (https://www.figma.com/community/plugin/1571207414894772119/revenuecat) to import the paywall design. Generate figma compatible design of the paywall we just produced so I can import it
+
+---
+
+This would be quite a lot of work. Instead, I can use this plugin https://www.figma.REDACTED to import a html version into figma
+
+---
+
+I want to remove revenuecat as I can't get it working. Instead I want to use storekit 2 api for it. Revert back to the original paywall, remove everything about revenuecat from the project and look for a skill /axiom-in-app-purchases to help you with the process. Create a guide for me if I need to do anything manually in the app store
+
+---
+
+Base directory for this skill: /Users/nan/.claude/skills/axiom-in-app-purchases
+
+# StoreKit 2 In-App Purchase Implementation
+
+**Purpose**: Guide robust, testable in-app purchase implementation
+**StoreKit Version**: StoreKit 2
+**iOS Version**: iOS 15+ (iOS 18.4+ for latest features)
+**Xcode**: Xcode 13+ (Xcode 16+ recommended)
+**Context**: WWDC 2025-241, 2025-249, 2023-10013, 2021-10114
+
+## When to Use This Skill
+
+✅ **Use this skill when**:
+- Implementing any in-app purchase functionality (new or existing)
+- Adding consumable products (coins, hints, boosts)
+- Adding non-consumable products (premium features, level packs)
+- Adding auto-renewable subscriptions (monthly/annual plans)
+- Debugging purchase failures, missing transactions, or restore issues
+- Setting up StoreKit testing configuration
+- Implementing subscription status tracking
+- Adding promotional offers or introductory offers
+- Server-side receipt validation
+- Family Sharing support
+
+❌ **Do NOT use this skill for**:
+- StoreKit 1 (legacy API) - this skill focuses on StoreKit 2
+- App Store Connect product configuration (separate documentation)
+- Pricing strategy or business model decisions
+
+---
+
+## ⚠️ Already Wrote Code Before Creating .storekit Config?
+
+If you wrote purchase code before creating `.storekit` configuration, you have three options:
+
+### Option A: Delete and Start Over (Strongly Recommended)
+
+Delete all IAP code and follow the testing-first workflow below. This reinforces correct habits and ensures you experience the full benefit of .storekit-first development.
+
+**Why this is best**:
+- Validates that you understand the workflow
+- Catches product ID issues you might have missed
+- Builds muscle memory for future IAP implementations
+- Takes only 15-30 minutes for experienced developers
+
+### Option B: Create .storekit Config Now (Acceptable with Caution)
+
+Create the `.storekit` file now with your existing product IDs. Test everything works locally. Document in your PR that you tested in sandbox first.
+
+**Trade-offs**:
+- ✅ Keeps working code
+- ✅ Adds local testing capability
+- ❌ Misses product ID validation benefit
+- ❌ Reinforces testing-after pattern
+- ❌ Requires extra vigilance in code review
+
+**If choosing this path**: Create .storekit immediately, verify locally, and commit a note explaining the approach.
+
+### Option C: Skip .storekit Entirely (Not Recommended)
+
+Commit without `.storekit` configuration, test only in sandbox.
+
+**Why this is problematic**:
+- Teammates can't test purchases locally
+- No validation of product IDs before runtime
+- Harder iteration (requires App Store Connect)
+- Missing documentation of product structure
+
+**Bottom line**: Choose Option A if possible, Option B if pragmatic, never Option C.
+
+---
+
+## Core Philosophy: Testing-First Workflow
+
+> **Best Practice**: Create and test StoreKit configuration BEFORE writing production purchase code.
+
+### Why .storekit-First Matters
+
+The recommended workflow is to create `.storekit` configuration before writing any purchase code. This isn't arbitrary - it provides concrete benefits:
+
+**Immediate product ID validation**:
+- Typos caught in Xcode, not at runtime
+- Product configuration visible in project
+- No App Store Connect dependency for testing
+
+**Faster iteration**:
+- Test purchases in simulator instantly
+- No network requests during development
+- Accelerated subscription renewal for testing
+
+**Team benefits**:
+- Anyone can test purchase flows locally
+- Product catalog documented in code
+- Code review includes purchase testing
+
+**Common objections addressed**:
+
+❓ **"I already tested in sandbox"** - Sandbox testing is valuable but comes later. Local testing with .storekit is faster and enables true TDD.
+
+❓ **"My code works"** - Working code is great! Adding .storekit makes it easier for teammates to verify and maintain.
+
+❓ **"I've done this before"** - Experience is valuable. The .storekit-first workflow makes experienced developers even more productive.
+
+❓ **"Time pressure"** - Creating .storekit takes 10-15 minutes. The time saved in iteration pays back immediately.
+
+### The Recommended Workflow
+
+```
+StoreKit Config → Local Testing → Production Code → Unit Tests → Sandbox Testing
+      ↓               ↓                ↓               ↓              ↓
+   .storekit      Test purchases   StoreManager    Mock store    Integration test
+```
+
+**Why this order helps**:
+1. **StoreKit Config First**: Defines products without App Store Connect dependency
+2. **Local Testing**: Validates product IDs and purchase flows immediately
+3. **Production Code**: Implements against validated product configuration
+4. **Unit Tests**: Verifies business logic with mocked store responses
+5. **Sandbox Testing**: Final validation in App Store environment
+
+**Benefits of following this workflow**:
+- Product IDs validated before writing code
+- Faster development iteration
+- Easier team collaboration
+- Better test coverage
+
+---
+
+## Mandatory Checklist
+
+Before marking IAP implementation complete, **ALL** items must be verified:
+
+### Phase 1: Testing Foundation
+- [ ] Created `.storekit` configuration file with all products
+- [ ] Verified each product type renders correctly in StoreKit preview
+- [ ] Tested successful purchase flow for each product in Xcode
+- [ ] Tested purchase failure scenarios (insufficient funds, cancelled)
+- [ ] Tested restore purchases flow
+- [ ] For subscriptions: tested renewal, expiration, and upgrade/downgrade
+
+### Phase 2: Architecture
+- [ ] Centralized StoreManager class exists (single source of truth)
+- [ ] StoreManager is ObservableObject (SwiftUI) or uses NotificationCenter
+- [ ] Transaction observer listens for updates via `Transaction.updates`
+- [ ] All transaction verification uses `VerificationResult`
+- [ ] All transactions call `.finish()` after entitlement granted
+- [ ] Product loading happens at app launch or before displaying store
+
+### Phase 3: Purchase Flow
+- [ ] Purchase uses new `purchase(confirmIn:options:)` with UI context (iOS 18.2+)
+- [ ] Purchase handles all `PurchaseResult` cases (success, userCancelled, pending)
+- [ ] Purchase verifies transaction signature before granting entitlement
+- [ ] Purchase stores transaction receipt/identifier for support
+- [ ] appAccountToken set for all purchases (if using server backend)
+
+### Phase 4: Subscription Management (if applicable)
+- [ ] Subscription status tracked via `Product.SubscriptionInfo.Status`
+- [ ] Current entitlements checked via `Transaction.currentEntitlements(for:)`
+- [ ] Renewal info accessed for expiration, renewal date, offer status
+- [ ] Subscription views use ProductView or SubscriptionStoreView
+- [ ] Win-back offers implemented for expired subscriptions
+- [ ] Grace period and billing retry states handled
+
+### Phase 5: Restore & Sync
+- [ ] Restore purchases implemented (required by App Store Review)
+- [ ] Restore uses `Transaction.currentEntitlements` or `Transaction.all`
+- [ ] Family Sharing transactions identified (if supported)
+- [ ] Server sync implemented (if using backend)
+- [ ] Cross-device entitlement sync tested
+
+### Phase 6: Error Handling
+- [ ] Network errors handled gracefully (retries, user messaging)
+- [ ] Invalid product IDs detected and logged
+- [ ] Purchase failures show user-friendly error messages
+- [ ] Transaction verification failures logged and reported
+- [ ] Refund notifications handled (via App Store Server Notifications)
+
+### Phase 7: Testing & Validation
+- [ ] Unit tests verify purchase logic with mocked Product/Transaction
+- [ ] Unit tests verify subscription status determination
+- [ ] Integration tests with StoreKit configuration pass
+- [ ] Sandbox testing with real Apple ID completed
+- [ ] TestFlight testing completed before production release
+
+---
+
+## Step 1: Create StoreKit Configuration (FIRST!)
+
+**DO THIS BEFORE WRITING ANY PURCHASE CODE.**
+
+### Create Configuration File
+
+1. **Xcode → File → New → File → StoreKit Configuration File**
+2. **Save as**: `Products.storekit` (or your app name)
+3. **Add to target**: ✅ (include in app bundle for testing)
+
+### Add Products
+
+Click "+" and add each product type:
+
+#### Consumable
+```
+Product ID: com.yourapp.coins_100
+Reference Name: 100 Coins
+Price: .99
+```
+
+#### Non-Consumable
+```
+Product ID: com.yourapp.premium
+Reference Name: Premium Upgrade
+Price: .99
+```
+
+#### Auto-Renewable Subscription
+```
+Product ID: com.yourapp.pro_monthly
+Reference Name: Pro Monthly
+Price: .99/month
+Subscription Group ID: pro_tier
+```
+
+### Test Immediately
+
+1. **Run app in simulator**
+2. **Scheme → Edit Scheme → Run → Options**
+3. **StoreKit Configuration**: Select `Products.storekit`
+4. **Verify**: Products load, purchases complete, transactions appear
+
+---
+
+## Step 2: Implement StoreManager Architecture
+
+### Required Pattern: Centralized StoreManager
+
+**All purchase logic must go through a single StoreManager.** No scattered `Product.purchase()` calls throughout app.
+
+```swift
+import StoreKit
+
+@MainActor
+final class StoreManager: ObservableObject {
+    // Published state for UI
+    @Published private(set) var products: [Product] = []
+    @Published private(set) var purchasedProductIDs: Set<String> = []
+
+    // Product IDs from StoreKit configuration
+    private let productIDs = [
+        "com.yourapp.coins_100",
+        "com.yourapp.premium",
+        "com.yourapp.pro_monthly"
+    ]
+
+    private var transactionListener: Task<Void, Never>?
+
+    init() {
+        // Start transaction listener immediately
+        transactionListener = listenForTransactions()
+
+        Task {
+            await loadProducts()
+            await updatePurchasedProducts()
+        }
+    }
+
+    deinit {
+        transactionListener?.cancel()
+    }
+}
+```
+
+**Why @MainActor**: Published properties must update on main thread for UI binding.
+
+### Load Products (At Launch)
+
+```swift
+extension StoreManager {
+    func loadProducts() async {
+        do {
+            // Load products from App Store
+            let loadedProducts = try await Product.products(for: productIDs)
+
+            // Update published property on main thread
+            self.products = loadedProducts
+
+        } catch {
+            print("Failed to load products: \(error)")
+            // Show error to user
+        }
+    }
+}
+```
+
+**Call from**: `App.init()` or first view's `.task` modifier
+
+### Listen for Transactions (REQUIRED)
+
+```swift
+extension StoreManager {
+    func listenForTransactions() -> Task<Void, Never> {
+        Task.detached { [weak self] in
+            // Listen for ALL transaction updates
+            for await verificationResult in Transaction.updates {
+                await self?.handleTransaction(verificationResult)
+            }
+        }
+    }
+
+    @MainActor
+    private func handleTransaction(_ result: VerificationResult<Transaction>) async {
+        // Verify transaction signature
+        guard let transaction = try? result.payloadValue else {
+            print("Transaction verification failed")
+            return
+        }
+
+        // Grant entitlement to user
+        await grantEntitlement(for: transaction)
+
+        // CRITICAL: Always finish transaction
+        await transaction.finish()
+
+        // Update purchased products
+        await updatePurchasedProducts()
+    }
+}
+```
+
+**Why detached**: Transaction listener runs independently of view lifecycle
+
+---
+
+## Step 3: Implement Purchase Flow
+
+### Purchase with UI Context (iOS 18.2+)
+
+```swift
+extension StoreManager {
+    func purchase(_ product: Product, confirmIn scene: UIWindowScene) async throws -> Bool {
+        // Perform purchase with UI context for payment sheet
+        let result = try await product.purchase(confirmIn: scene)
+
+        switch result {
+        case .success(let verificationResult):
+            // Verify the transaction
+            guard let transaction = try? verificationResult.payloadValue else {
+                print("Transaction verification failed")
+                return false
+            }
+
+            // Grant entitlement
+            await grantEntitlement(for: transaction)
+
+            // CRITICAL: Finish transaction
+            await transaction.finish()
+
+            // Update state
+            await updatePurchasedProducts()
+
+            return true
+
+        case .userCancelled:
+            // User tapped "Cancel" in payment sheet
+            return false
+
+        case .pending:
+            // Purchase requires action (Ask to Buy, payment issue)
+            // Will be delivered via Transaction.updates when approved
+            return false
+
+        @unknown default:
+            return false
+        }
+    }
+}
+```
+
+### SwiftUI Purchase (Using Environment)
+
+```swift
+struct ProductRow: View {
+    let product: Product
+    @Environment(\.purchase) private var purchase
+
+    var body: some View {
+        Button("Buy \(product.displayPrice)") {
+            Task {
+                do {
+                    let result = try await purchase(product)
+                    // Handle result
+                } catch {
+                    print("Purchase failed: \(error)")
+                }
+            }
+        }
+    }
+}
+```
+
+### Set appAccountToken (If Using Backend)
+
+```swift
+func purchase(
+    _ product: Product,
+    confirmIn scene: UIWindowScene,
+    accountToken: UUID
+) async throws -> Bool {
+    // Purchase with appAccountToken for server-side association
+    let result = try await product.purchase(
+        confirmIn: scene,
+        options: [
+            .appAccountToken(accountToken)
+        ]
+    )
+
+    // ... handle result
+}
+```
+
+**When to use**: When your backend needs to associate purchases with user accounts
+
+---
+
+## Step 4: Verify Transactions (MANDATORY)
+
+### Always Use VerificationResult
+
+```swift
+func handleTransaction(_ result: VerificationResult<Transaction>) async {
+    switch result {
+    case .verified(let transaction):
+        // ✅ Transaction signed by App Store
+        await grantEntitlement(for: transaction)
+        await transaction.finish()
+
+    case .unverified(let transaction, let error):
+        // ❌ Transaction signature invalid
+        print("Unverified transaction: \(error)")
+        // DO NOT grant entitlement
+        // DO finish transaction to clear from queue
+        await transaction.finish()
+    }
+}
+```
+
+**Why verify**: Prevents granting entitlements for:
+- Fraudulent receipts
+- Jailbroken device receipts
+- Man-in-the-middle attacks
+
+### Check Transaction Fields
+
+```swift
+func grantEntitlement(for transaction: Transaction) async {
+    // Check transaction hasn't been revoked
+    guard transaction.revocationDate == nil else {
+        print("Transaction was refunded")
+        await revokeEntitlement(for: transaction.productID)
+        return
+    }
+
+    // Grant based on product type
+    switch transaction.productType {
+    case .consumable:
+        await addConsumable(productID: transaction.productID)
+
+    case .nonConsumable:
+        await unlockFeature(productID: transaction.productID)
+
+    case .autoRenewable:
+        await activateSubscription(productID: transaction.productID)
+
+    default:
+        break
+    }
+}
+```
+
+---
+
+## Step 5: Track Current Entitlements
+
+### Check What User Owns
+
+```swift
+extension StoreManager {
+    func updatePurchasedProducts() async {
+        var purchased: Set<String> = []
+
+        // Iterate through all current entitlements
+        for await result in Transaction.currentEntitlements {
+            guard let transaction = try? result.payloadValue else {
+                continue
+            }
+
+            // Only include active entitlements (not revoked)
+            if transaction.revocationDate == nil {
+                purchased.insert(transaction.productID)
+            }
+        }
+
+        self.purchasedProductIDs = purchased
+    }
+}
+```
+
+### Check Specific Product
+
+```swift
+func isEntitled(to productID: String) async -> Bool {
+    // Check current entitlements for specific product
+    for await result in Transaction.currentEntitlements(for: productID) {
+        if let transaction = try? result.payloadValue,
+           transaction.revocationDate == nil {
+            return true
+        }
+    }
+
+    return false
+}
+```
+
+---
+
+## Step 6: Implement Subscription Management
+
+### Track Subscription Status
+
+```swift
+extension StoreManager {
+    func checkSubscriptionStatus(for groupID: String) async -> Product.SubscriptionInfo.Status? {
+        // Get subscription statuses for group
+        guard let result = try? await Product.SubscriptionInfo.status(for: groupID),
+              let status = result.first else {
+            return nil
+        }
+
+        return status.state
+    }
+}
+```
+
+### Handle Subscription States
+
+```swift
+func updateSubscriptionUI(for status: Product.SubscriptionInfo.Status) {
+    switch status.state {
+    case .subscribed:
+        // User has active subscription
+        showSubscribedContent()
+
+    case .expired:
+        // Subscription expired - show win-back offer
+        showResubscribeOffer()
+
+    case .inGracePeriod:
+        // Billing issue - show payment update prompt
+        showUpdatePaymentPrompt()
+
+    case .inBillingRetryPeriod:
+        // Apple retrying payment - maintain access
+        showBillingRetryMessage()
+
+    case .revoked:
+        // Family Sharing access removed
+        removeAccess()
+
+    @unknown default:
+        break
+    }
+}
+```
+
+### Use StoreKit Views (iOS 17+)
+
+```swift
+struct SubscriptionView: View {
+    var body: some View {
+        SubscriptionStoreView(groupID: "pro_tier") {
+            // Marketing content
+            VStack {
+                Image("premium-icon")
+                Text("Unlock all features")
+            }
+        }
+        .subscriptionStoreControlStyle(.prominentPicker)
+    }
+}
+```
+
+---
+
+## Step 7: Implement Restore Purchases (REQUIRED)
+
+### Restore Flow
+
+```swift
+extension StoreManager {
+    func restorePurchases() async {
+        // Sync all transactions from App Store
+        try? await AppStore.sync()
+
+        // Update current entitlements
+        await updatePurchasedProducts()
+    }
+}
+```
+
+### UI Button
+
+```swift
+struct SettingsView: View {
+    @StateObject private var store = StoreManager()
+
+    var body: some View {
+        Button("Restore Purchases") {
+            Task {
+                await store.restorePurchases()
+            }
+        }
+    }
+}
+```
+
+**App Store Requirement**: Apps with IAP must provide restore functionality for non-consumables and subscriptions.
+
+---
+
+## Step 8: Handle Refunds
+
+### Listen for Refund Notifications
+
+```swift
+extension StoreManager {
+    func listenForTransactions() -> Task<Void, Never> {
+        Task.detached { [weak self] in
+            for await verificationResult in Transaction.updates {
+                await self?.handleTransaction(verificationResult)
+            }
+        }
+    }
+
+    @MainActor
+    private func handleTransaction(_ result: VerificationResult<Transaction>) async {
+        guard let transaction = try? result.payloadValue else {
+            return
+        }
+
+        // Check if transaction was refunded
+        if let revocationDate = transaction.revocationDate {
+            print("Transaction refunded on \(revocationDate)")
+            await revokeEntitlement(for: transaction.productID)
+        } else {
+            await grantEntitlement(for: transaction)
+        }
+
+        await transaction.finish()
+    }
+}
+```
+
+---
+
+## Step 9: Unit Testing
+
+### Mock Store Responses
+
+```swift
+protocol StoreProtocol {
+    func products(for ids: [String]) async throws -> [Product]
+    func purchase(_ product: Product) async throws -> PurchaseResult
+}
+
+// Production
+final class StoreManager: StoreProtocol {
+    func products(for ids: [String]) async throws -> [Product] {
+        try await Product.products(for: ids)
+    }
+}
+
+// Testing
+final class MockStore: StoreProtocol {
+    var mockProducts: [Product] = []
+    var mockPurchaseResult: PurchaseResult?
+
+    func products(for ids: [String]) async throws -> [Product] {
+        mockProducts
+    }
+
+    func purchase(_ product: Product) async throws -> PurchaseResult {
+        mockPurchaseResult ?? .userCancelled
+    }
+}
+```
+
+### Test Purchase Logic
+
+```swift
+@Test func testSuccessfulPurchase() async {
+    let mockStore = MockStore()
+    let manager = StoreManager(store: mockStore)
+
+    // Given: Mock successful purchase
+    mockStore.mockPurchaseResult = .success(.verified(mockTransaction))
+
+    // When: Purchase product
+    let result = await manager.purchase(mockProduct)
+
+    // Then: Entitlement granted
+    #expect(result == true)
+    #expect(manager.purchasedProductIDs.contains("com.app.premium"))
+}
+
+@Test func testCancelledPurchase() async {
+    let mockStore = MockStore()
+    let manager = StoreManager(store: mockStore)
+
+    // Given: User cancels
+    mockStore.mockPurchaseResult = .userCancelled
+
+    // When: Purchase product
+    let result = await manager.purchase(mockProduct)
+
+    // Then: No entitlement granted
+    #expect(result == false)
+    #expect(manager.purchasedProductIDs.isEmpty)
+}
+```
+
+---
+
+## Common Anti-Patterns (NEVER DO THIS)
+
+### ❌ No StoreKit Configuration
+
+```swift
+// ❌ WRONG: Writing purchase code without .storekit file
+let products = try await Product.products(for: productIDs)
+// Can't test this without App Store Connect setup!
+```
+
+✅ **Correct**: Create `.storekit` file FIRST, test in Xcode, THEN implement.
+
+### ❌ Code Before .storekit Config
+
+```swift
+// ❌ Less ideal: Write code, test in sandbox, add .storekit later
+let products = try await Product.products(for: productIDs)
+let result = try await product.purchase(confirmIn: scene)
+// "I tested this in sandbox, it works! I'll add .storekit config later."
+```
+
+✅ **Recommended**: Create `.storekit` config first, then write code.
+
+**If you're in this situation**: See "Already Wrote Code Before Creating .storekit Config?" section above for your options (A, B, or C).
+
+**Why .storekit-first is better**:
+- Product ID typos caught in Xcode, not at runtime
+- Faster iteration without network requests
+- Teammates can test locally
+- Documents product structure in code
+
+**Sandbox testing is valuable** - it validates against real App Store infrastructure. But starting with .storekit makes sandbox testing easier because you've already validated product IDs locally.
+
+### ❌ Scattered Purchase Calls
+
+```swift
+// ❌ WRONG: Purchase calls scattered throughout app
+Button("Buy") {
+    try await product.purchase()  // In view 1
+}
+
+Button("Subscribe") {
+    try await subscriptionProduct.purchase()  // In view 2
+}
+```
+
+✅ **Correct**: All purchases through centralized StoreManager.
+
+### ❌ Forgetting to Finish Transactions
+
+```swift
+// ❌ WRONG: Never calling finish()
+func handleTransaction(_ transaction: Transaction) {
+    grantEntitlement(for: transaction)
+    // Missing: await transaction.finish()
+}
+```
+
+✅ **Correct**: ALWAYS call `transaction.finish()` after granting entitlement.
+
+### ❌ Not Verifying Transactions
+
+```swift
+// ❌ WRONG: Using unverified transaction
+for await transaction in Transaction.all {
+    grantEntitlement(for: transaction)  // Unsafe!
+}
+```
+
+✅ **Correct**: Always check `VerificationResult` before granting.
+
+### ❌ Ignoring Transaction Listener
+
+```swift
+// ❌ WRONG: Only handling purchases in purchase() method
+func purchase() {
+    let result = try await product.purchase()
+    // What about pending purchases, family sharing, restore?
+}
+```
+
+✅ **Correct**: Listen to `Transaction.updates` for ALL transaction sources.
+
+### ❌ Not Implementing Restore
+
+```swift
+// ❌ WRONG: No restore button
+// App Store will REJECT your app!
+```
+
+✅ **Correct**: Provide visible "Restore Purchases" button in settings.
+
+---
+
+## Validation
+
+Before marking IAP implementation complete, verify:
+
+### Code Inspection
+
+Run these searches to verify compliance:
+
+```bash
+# Check StoreKit configuration exists
+find . -name "*.storekit"
+
+# Check transaction.finish() is called
+rg "transaction\.finish\(\)" --type swift
+
+# Check VerificationResult usage
+rg "VerificationResult" --type swift
+
+# Check Transaction.updates listener
+rg "Transaction\.updates" --type swift
+
+# Check restore implementation
+rg "AppStore\.sync|Transaction\.all" --type swift
+```
+
+### Functional Testing
+
+- [ ] Can purchase each product type in StoreKit configuration
+- [ ] Can cancel purchase and state remains consistent
+- [ ] Can restore purchases and regain access
+- [ ] Subscription renewal/expiration works as expected
+- [ ] Refunded transactions revoke access
+- [ ] Family Sharing transactions identified (if supported)
+
+### Sandbox Testing
+
+- [ ] Real Apple ID sandbox purchases complete
+- [ ] TestFlight beta testers confirm purchase flows work
+- [ ] Server-side validation works (if using backend)
+
+---
+
+## Resources
+
+**WWDC**: 2025-241, 2025-249, 2023-10013, 2021-10114
+
+**Docs**: /storekit, /appstoreserverapi
+
+**Skills**: axiom-storekit-ref
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Context Recovery from Previous Session**: The conversation starts with a summary of a previous session that involved:
+   - Implementing a custom paywall (VaultairePaywallView) with 3 tiers (Monthly $1.99, Yearly $9.99, Lifetime $29.99)
+   - Setting up RevenueCat products via MCP
+   - Multiple UI iterations on the paywall, welcome view, keyboard issues, recovery phrase design
+   - Build 21 deployed to TestFlight
+   - Background research on RevenueCat's built-in Paywall Builder
+
+2. **RevenueCat Paywall Research Results Presented**: The assistant presented comprehensive findings about RevenueCat's dashboard-based Paywall Builder, covering component capabilities, SwiftUI integration, limitations, and a component-by-component feasibility assessment (85-90% replicable). Asked user whether to switch.
+
+3. **User said "Switch"**: User decided to switch to RevenueCat's dashboard paywall.
+
+4. **Switch to RC PaywallView Implementation**:
+   - Modified `PaywallTrigger.swift`: Added `import RevenueCatUI`, replaced `VaultairePaywallView` with `PaywallView()` + purchase/restore callbacks
+   - Modified `AnalyticsConsentView.swift`: Added `import RevenueCatUI`, replaced `VaultairePaywallView` with `PaywallView()` + callbacks
+   - Deleted `VaultairePaywallView.swift`
+   - Removed all 4 pbxproj references for the deleted file
+   - Build succeeded (Build 21 level)
+
+5. **User asked "Can you design the paywall?"**: Assistant searched for RC MCP tools, found `mcp_RC_create_paywall` only takes project_id and offering_id (no design parameters). Created paywall entry `pwe2f75fddc0414af6` but noted actual design must be done in RC dashboard WYSIWYG editor.
+
+6. **User mentioned Figma plugin**: User wanted to use RC's Figma plugin to import design. Assistant researched the plugin requirements (auto layout, special naming: Package, Purchase Button, Footer, Button(action=...), etc.). Created detailed spec at `docs/paywall-figma-spec.md`.
+
+7. **User asked for HTML version**: User pointed to HTML-to-Design Figma plugin. Assistant created `docs/paywall-figma.html` — a standalone HTML file matching the paywall design with flexbox layout (maps to Figma auto layout), dark theme, all plan cards, benefits table, CTA button, footer.
+
+8. **Major Direction Change - Remove RevenueCat entirely**: User said "I want to remove revenuecat as I can't get it working. Instead I want to use storekit 2 api for it. Revert back to the original paywall, remove everything about revenuecat from the project and look for a skill /axiom-in-app-purchases to help you with the process. Create a guide for me if I need to do anything manually in the app store"
+
+9. **Loaded axiom-in-app-purchases skill**: Comprehensive StoreKit 2 guide covering testing-first workflow, StoreManager architecture, purchase flow, transaction verification, subscription management, restore purchases, refund handling, unit testing.
+
+10. **Mapped RevenueCat usage**: Found RC imports in 5 files:
+    - `AnalyticsConsentView.swift` (RevenueCatUI)
+    - `PaywallTrigger.swift` (RevenueCat, RevenueCatUI)
+    - `SubscriptionManager.swift` (RevenueCat)
+    - `SettingsView.swift` (RevenueCatUI)
+    - Also `VaultApp.swift` (RC configure call)
+    
+    pbxproj had: 2 build files, 2 framework refs, 2 package product deps, 1 remote package ref, 1 package reference
+
+11. **Created task list** (Tasks #36-#40):
+    - #36: Restore VaultairePaywallView from git
+    - #37: Rewrite SubscriptionManager with StoreKit 2
+    - #38: Update all dependent files to remove RevenueCat
+    - #39: Remove RevenueCat SPM dependency from pbxproj
+    - #40: Create StoreKit configuration and ASC guide
+
+12. **Restored VaultairePaywallView from git commit 26c8673** and rewrote it for StoreKit 2:
+    - Changed `import RevenueCat` → `import StoreKit`
+    - Changed `Package?` → `Product?` (monthlyProduct, yearlyProduct, lifetimeProduct)
+    - Changed `package.storeProduct.localizedPriceString` → `product.displayPrice`
+    - Changed `loadOfferings()` → `loadProducts()` using `subscriptionManager.loadProducts()` and `subscriptionManager.product(for:)`
+    - Trial eligibility: `yearly.subscription?.introductoryOffer?.paymentMode == .freeTrial`
+    - Purchase: `subscriptionManager.purchase(product)` returns Bool
+    - Restore: `subscriptionManager.restorePurchases()`
+
+13. **Rewrote SubscriptionManager** completely:
+    - Removed `import RevenueCat`, added `import StoreKit`
+    - Removed `configure(apiKey:)` method
+    - Added `products: [Product]`, `purchasedProductIDs: Set<String>`
+    - Added `loadProducts()` using `Product.products(for:)`
+    - Added `listenForTransactions()` using `Transaction.updates`
+    - Added `purchase(_ product: Product)` using `product.purchase()`
+    - Added `restorePurchases()` using `AppStore.sync()` + `Transaction.currentEntitlements`
+    - Added `updatePurchasedProducts()` iterating `Transaction.currentEntitlements`
+    - Kept testing override, isPremiumSnapshot, limit checks
+    - Product IDs: `["monthly_pro", "yearly_pro", "lifetime"]`
+    - Subscription group: `"vaultaire_pro"`
+
+14. **Updated PaywallTrigger.swift**: Removed all RC imports, changed `subscriptionManager.hasOfferings` to `subscriptionManager.hasProducts`
+
+15. **Updated AnalyticsConsentView.swift**: 
+    - Removed `import RevenueCatUI`
+    - Restored `VaultairePaywallView(onDismiss: onContinue)`
+    - Removed `isConfigured` conditional (always show paywall)
+    - Removed `@Environment(SubscriptionManager.self)` (no longer needed)
+
+16. **Updated SettingsView.swift**: 
+    - Changed `import RevenueCatUI` → `import StoreKit`
+    - Replaced `CustomerCenterView()` sheet with `.manageSubscriptionsSheet(isPresented:)` modifier
+
+17. **Updated VaultApp.swift**: Removed the entire RC initialization block:
+    ```swift
+    #if DEBUG
+    SubscriptionManager.shared.configure(apiKey: "test_...")
+    #else
+    SubscriptionManager.shared.configure(apiKey: "appl_...")
+    #endif
+    ```
+
+18. **Cleaned pbxproj**: 
+    - Removed 2 PBXBuildFile entries for RevenueCat/RevenueCatUI
+    - Removed 2 framework references
+    - Removed 2 package product dependencies
+    - Removed package reference from packageReferences
+    - Removed XCRemoteSwiftPackageReference section
+    - Removed 2 XCSwiftPackageProductDependency entries
+    - Re-added VaultairePaywallView.swift (PBXBuildFile 020000005, PBXFileReference 020000004, Billing group, Sources build phase)
+
+19. **Build attempt**: Failed with one error:
+    - `deinit` on `@MainActor` class can't reference isolated property `transactionListener`
+    - Fixed by changing to `nonisolated deinit` with comment that Task is auto-cancelled
+
+20. **Pending**: Need to rebuild after the deinit fix, create StoreKit config file, create ASC guide, complete session close protocol.
+
+Key RevenueCat IDs (from earlier session, now being removed):
+- Project: `proje830cc0f`
+- App: `appce2e06d8c7`
+- Offering: `ofrng46cfc1171b`
+- Entitlement: `entl06e93eaa7b`
+- Paywall: `pwe2f75fddc0414af6`
+- Products: `proddd8806a8a9` (monthly_pro), `prod943cb4ebeb` (yearly_pro), `prod3592ddaf7c` (lifetime)
+
+StoreKit 2 Product IDs being used:
+- `monthly_pro`
+- `yearly_pro`
+- `lifetime`
+- Subscription group: `vaultaire_pro`
+
+Summary:
+1. Primary Request and Intent:
+   The user's primary request in this session is to **completely remove RevenueCat from the iOS Vault project and replace it with StoreKit 2**. Specifically:
+   - Remove all RevenueCat SDK dependencies (RevenueCat and RevenueCatUI SPM packages)
+   - Revert to the custom `VaultairePaywallView` (which had been deleted when switching to RC's PaywallView)
+   - Rewrite `SubscriptionManager` to use StoreKit 2 APIs instead of RevenueCat
+   - Update all dependent files to remove RC imports and usage
+   - Use the `/axiom-in-app-purchases` skill for guidance
+   - Create a guide for manual App Store Connect product setup
+
+   Earlier in the session (before this major direction change), the user had:
+   - Reviewed RevenueCat Paywall Builder research results and chose to "Switch" to RC's dashboard paywall
+   - Asked to design the paywall in RC (limited by MCP tool capabilities)
+   - Asked for Figma-compatible design (HTML version created for HTML-to-Design plugin)
+   - Then decided to abandon RevenueCat entirely due to inability to get it working
+
+2. Key Technical Concepts:
+   - **StoreKit 2**: `Product.products(for:)`, `product.purchase()`, `Transaction.updates`, `Transaction.currentEntitlements`, `AppStore.sync()`, `Product.subscription?.introductoryOffer`
+   - **@MainActor isolation**: `nonisolated deinit` required because `deinit` on `@MainActor` class cannot access isolated properties
+   - **Task.detached**: Used for `Transaction.updates` listener to run independently of view lifecycle
+   - **VerificationResult<Transaction>**: Must verify transaction payloads before granting entitlements
+   - **Transaction.finish()**: Must always be called after processing transactions
+   - **`.manageSubscriptionsSheet(isPresented:)`**: StoreKit 2 replacement for RevenueCat's `CustomerCenterView`
+   - **Xcode pbxproj editing**: Removing SPM dependencies requires changes in 6 sections (PBXBuildFile, PBXFileReference, PBXFrameworksBuildPhase, PBXNativeTarget packageProductDependencies, PBXProject packageReferences, XCRemoteSwiftPackageReference, XCSwiftPackageProductDependency)
+
+3. Files and Code Sections:
+
+   - **`apps/ios/Vault/Core/Billing/SubscriptionManager.swift`** — Complete rewrite from RevenueCat to StoreKit 2
+     - This is the central purchase management class, single source of truth for premium status
+     - Removed `import RevenueCat`, `configure(apiKey:)`, `PurchasesDelegate`, `CustomerInfo`
+     - Added StoreKit 2: `Product.products(for:)`, `Transaction.updates` listener, `Transaction.currentEntitlements`, `AppStore.sync()`
+     - Product IDs: `["monthly_pro", "yearly_pro", "lifetime"]`, subscription group: `"vaultaire_pro"`
+     ```swift
+     import Foundation
+     import StoreKit
+     import os.log
+
+     @MainActor
+     @Observable
+     final class SubscriptionManager {
+         static let shared = SubscriptionManager()
+         private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "Subscription")
+
+         private(set) var isPremium = false
+         private(set) var products: [Product] = []
+         private(set) var purchasedProductIDs: Set<String> = []
+
+         static let productIDs = ["monthly_pro", "yearly_pro", "lifetime"]
+         static let subscriptionGroupID = "vaultaire_pro"
+         static let maxFreeVaults = 5
+         static let maxFreeSharedVaults = 10
+         static let maxFreeFilesPerVault = 100
+
+         private var transactionListener: Task<Void, Never>?
+
+         private init() {
+             transactionListener = listenForTransactions()
+             if UserDefaults.standard.bool(forKey: Self.premiumOverrideKey) {
+                 isPremium = true
+                 Self.isPremiumSnapshot = true
+             }
+             Task {
+                 await loadProducts()
+                 await updatePurchasedProducts()
+             }
+         }
+
+         nonisolated deinit {
+             // Task is automatically cancelled when reference is dropped
+         }
+
+         func loadProducts() async {
+             do {
+                 let loaded = try await Product.products(for: Self.productIDs)
+                 products = loaded.sorted { a, b in
+                     Self.productIDs.firstIndex(of: a.id) ?? 0 < Self.productIDs.firstIndex(of: b.id) ?? 0
+                 }
+             } catch { /* logged */ }
+         }
+
+         var hasProducts: Bool { !products.isEmpty }
+
+         func product(for id: String) -> Product? {
+             products.first { $0.id == id }
+         }
+
+         private func listenForTransactions() -> Task<Void, Never> {
+             Task.detached { [weak self] in
+                 for await result in Transaction.updates {
+                     await self?.handleVerified(result)
+                 }
+             }
+         }
+
+         func purchase(_ product: Product) async throws -> Bool {
+             let result = try await product.purchase()
+             switch result {
+             case .success(let verification):
+                 guard let transaction = try? verification.payloadValue else { return false }
+                 purchasedProductIDs.insert(transaction.productID)
+                 await transaction.finish()
+                 refreshPremiumStatus()
+                 return true
+             case .userCancelled: return false
+             case .pending: return false
+             @unknown default: return false
+             }
+         }
+
+         func restorePurchases() async throws {
+             try await AppStore.sync()
+             await updatePurchasedProducts()
+         }
+
+         func updatePurchasedProducts() async {
+             var purchased: Set<String> = []
+             for await result in Transaction.currentEntitlements {
+                 if let transaction = try? result.payloadValue,
+                    transaction.revocationDate == nil {
+                     purchased.insert(transaction.productID)
+                 }
+             }
+             purchasedProductIDs = purchased
+             refreshPremiumStatus()
+         }
+         // ... limit checks, premium override, isPremiumSnapshot unchanged
+     }
+     ```
+
+   - **`apps/ios/Vault/Core/Billing/VaultairePaywallView.swift`** — Restored from git commit 26c8673, rewritten for StoreKit 2
+     - Custom paywall with benefits table, 3 plan cards, trial toggle, CTA button
+     - Changed `Package?` → `Product?`, `package.storeProduct.localizedPriceString` → `product.displayPrice`
+     - Trial check: `yearly.subscription?.introductoryOffer?.paymentMode == .freeTrial`
+     - Purchase: `subscriptionManager.purchase(product)` returns Bool
+     - Products loaded via `subscriptionManager.product(for: "monthly_pro")` etc.
+
+   - **`apps/ios/Vault/Core/Billing/PaywallTrigger.swift`** — Removed all RC imports
+     - Changed `subscriptionManager.hasOfferings` → `subscriptionManager.hasProducts`
+     - Uses `VaultairePaywallView(onDismiss:)` again
+     - Kept `FallbackPaywallView` for when products unavailable
+
+   - **`apps/ios/Vault/Features/Onboarding/AnalyticsConsentView.swift`** — Cleaned up
+     - Removed `import RevenueCatUI`
+     - Removed `@Environment(SubscriptionManager.self)` (was only for `isConfigured` check)
+     - Removed `isConfigured` conditional, always shows paywall after consent
+     - Uses `VaultairePaywallView(onDismiss: onContinue)` with Skip button below
+
+   - **`apps/ios/Vault/Features/Settings/SettingsView.swift`** — RC → StoreKit
+     - Changed `import RevenueCatUI` → `import StoreKit`
+     - Replaced `.sheet(isPresented: $showingCustomerCenter) { CustomerCenterView() }` with `.manageSubscriptionsSheet(isPresented: $showingCustomerCenter)`
+
+   - **`apps/ios/Vault/App/VaultApp.swift`** — Removed RC initialization
+     - Deleted the `#if DEBUG / #else` block with `SubscriptionManager.shared.configure(apiKey:)` calls
+     - StoreKit 2 doesn't need explicit configuration (auto-initializes)
+
+   - **`apps/ios/Vault.xcodeproj/project.pbxproj`** — Extensive cleanup
+     - Removed: PBXBuildFile entries `B1C2D3E4F5A6B7C8D9E0F1A2` (RevenueCat) and `D3E4F5A6B7C8D9E0F1A2B3C4` (RevenueCatUI)
+     - Removed from Frameworks build phase
+     - Removed from packageProductDependencies
+     - Removed from packageReferences: `F5A6B7C8D9E0F1A2B3C4D5E6`
+     - Removed XCRemoteSwiftPackageReference for `purchases-ios-spm.git`
+     - Removed XCSwiftPackageProductDependency entries `C2D3E4F5A6B7C8D9E0F1A2B3` and `E4F5A6B7C8D9E0F1A2B3C4D5`
+     - Re-added VaultairePaywallView.swift with IDs `020000004` (file ref) and `020000005` (build file)
+
+   - **`docs/paywall-figma-spec.md`** — Created (Figma layer structure spec for RC plugin, may be obsolete now)
+   - **`docs/paywall-figma.html`** — Created (HTML paywall mockup for HTML-to-Design Figma import, may be obsolete now)
+
+4. Errors and Fixes:
+   - **`deinit` on `@MainActor` class can't reference isolated property**:
+     - Error: `main actor-isolated property 'transactionListener' can not be referenced from a nonisolated context` in `SubscriptionManager.deinit`
+     - Fix: Changed `deinit { transactionListener?.cancel() }` to `nonisolated deinit { // Task is automatically cancelled when reference is dropped }`
+     - Status: Fix applied, **rebuild not yet attempted**
+
+   - **SourceKit false positives**: Throughout the session, SourceKit reported many errors like "Cannot find 'SubscriptionManager' in scope", "Type 'Color' has no member 'vaultBackground'" etc. These are transient SourceKit indexing issues — the symbols exist in other project files and resolve during actual xcodebuild.
+
+5. Problem Solving:
+   - **RevenueCat → StoreKit 2 migration**: Systematically identified all 5 Swift files with RC imports, the pbxproj with 6 RC reference sections, and the VaultApp RC initialization. Rewrote each file to use StoreKit 2 equivalents.
+   - **@MainActor deinit isolation**: Swift's actor isolation rules prevent `deinit` from accessing `@MainActor` properties. Solved by making deinit nonisolated and relying on automatic Task cancellation.
+   - **CustomerCenterView replacement**: RC's `CustomerCenterView` has no direct StoreKit 2 equivalent view. Replaced with `.manageSubscriptionsSheet(isPresented:)` modifier which opens the system subscription management UI.
+   - **Build not yet verified after deinit fix** — needs rebuild to confirm clean compilation.
+
+6. All User Messages:
+   - (Empty message — just hit enter to continue conversation)
+   - "Switch" — chose to switch to RevenueCat's dashboard paywall
+   - "Can you design the paywall?" — asked to design paywall in RC dashboard
+   - "Revenue cat uses figma pluging (https://www.figma.com/community/plugin/1571207414894772119/revenuecat) to import the paywall design. Generate figma compatible design of the paywall we just produced so I can import it"
+   - "This would be quite a lot of work. Instead, I can use this plugin https://www.figma.REDACTED to import a html version into figma"
+   - "I want to remove revenuecat as I can't get it working. Instead I want to use storekit 2 api for it. Revert back to the original paywall, remove everything about revenuecat from the project and look for a skill /axiom-in-app-purchases to help you with the process. Create a guide for me if I need to do anything manually in the app store"
+
+7. Pending Tasks (from task tracker):
+   - **Task #39** [in_progress]: Remove RevenueCat SPM dependency from pbxproj — code changes done, needs build verification
+   - **Task #40** [pending]: Create StoreKit configuration (.storekit file) and App Store Connect guide
+   - **Session close protocol**: git status, git add, bd sync, git commit, git push not yet done
+   - **Build verification**: Need to rebuild after the `nonisolated deinit` fix to confirm clean compilation
+   - **Potential cleanup**: `docs/paywall-figma-spec.md` and `docs/paywall-figma.html` may be obsolete now that RC is removed
+
+8. Current Work:
+   Actively migrating from RevenueCat to StoreKit 2. All code changes have been made across 6 files (SubscriptionManager, VaultairePaywallView, PaywallTrigger, AnalyticsConsentView, SettingsView, VaultApp) and the pbxproj. The first build attempt failed with one error — `deinit` actor isolation on `SubscriptionManager`. This was fixed by changing to `nonisolated deinit`. The fix has been applied but **a rebuild has not yet been attempted** to verify the fix works.
+
+   The last edit made was:
+   ```swift
+   // Changed from:
+   deinit {
+       transactionListener?.cancel()
+   }
+   // To:
+   nonisolated deinit {
+       // Task is automatically cancelled when reference is dropped
+   }
+   ```
+
+9. Optional Next Step:
+   **Rebuild the project** to verify the `nonisolated deinit` fix resolves the compilation error, then proceed to Task #40: create the `.storekit` configuration file for local testing and the App Store Connect guide. The user explicitly requested: "Create a guide for me if I need to do anything manually in the app store". After those are done, run the session close protocol (git commit and push).
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+Don't use yearly but annual. Change it everywhere
+
+---
+
+I believe I done it all. Can you verify?
+
+---
+
+I meant I added everything in the store. Can you verify that the app and paywall works correctly?
+
+---
+
+I would like to restructure the onboarding screens and make small changes.
+
+User should be able to go back in the process from any screen. So add progress bar at the top and back arrow to the left corner so they can come back (see the area in the red rectangle in the image 17 [obviously make sure that you update it to the current app color scheme])
+
+After that we should show the notification permissions. Then allow analytics. Then paywall. Then setup the new vault. Once done, we need to straight up open the new vault.
+
+---
+
+[Image: source: /Users/nan/Downloads/IMG_1956 copy.PNG]
+
+---
+
+[Request interrupted by user for tool use]

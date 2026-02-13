@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "98d4005cf6ac",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/ios/Products.storekit",
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/App/ContentView.swift",
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Billing/PaywallTrigger.swift",
+    "apps/ios/Vault/Core/Billing/SubscriptionManager.swift",
+    "apps/ios/Vault/Core/Billing/VaultairePaywallView.swift",
+    "apps/ios/Vault/Features/Onboarding/AnalyticsConsentView.swift",
+    "apps/ios/Vault/Features/Onboarding/OnboardingView.swift",
+    "apps/ios/Vault/Features/Onboarding/WelcomeView.swift",
+    "apps/ios/Vault/Features/Settings/RecoveryPhraseView.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
+    "docs/app-store-connect-iap-setup.md",
+    "docs/paywall-figma-spec.md",
+    "docs/paywall-figma.html"
+  ],
+  "sessions": [
+    {
+      "metadata": "/98/d4005cf6ac/0/metadata.json",
+      "transcript": "/98/d4005cf6ac/0/full.jsonl",
+      "context": "/98/d4005cf6ac/0/context.md",
+      "content_hash": "/98/d4005cf6ac/0/content_hash.txt",
+      "prompt": "/98/d4005cf6ac/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 57,
+    "cache_creation_tokens": 43453,
+    "cache_read_tokens": 5688973,
+    "output_tokens": 3002,
+    "api_call_count": 51
+  }
+}
