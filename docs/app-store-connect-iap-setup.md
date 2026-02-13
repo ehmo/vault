@@ -23,23 +23,23 @@ Inside the `vaultaire_pro` group, create two subscriptions:
 | Price | $1.99 (Tier 2) |
 | Subscription Group Level | Level 1 |
 
-### Yearly Pro
+### Annual Pro
 
 | Field | Value |
 |-------|-------|
-| Reference Name | Vaultaire Pro Yearly |
+| Reference Name | Vaultaire Pro Annual |
 | Product ID | `yearly_pro` |
 | Duration | 1 Year |
 | Price | $9.99 (Tier 10) |
 | Subscription Group Level | Level 1 |
 
-#### Add Free Trial to Yearly
+#### Add Free Trial to Annual
 
 1. In the `yearly_pro` subscription, go to **Subscription Prices > Introductory Offers**
 2. Click **Create Introductory Offer**
 3. Type: **Free Trial**
 4. Duration: **1 Week**
-5. This makes the yearly plan show "7-day free trial" in the paywall
+5. This makes the annual plan show "7-day free trial" in the paywall
 
 ## 3. Create Non-Consumable Product (Lifetime)
 
@@ -60,7 +60,7 @@ For each product, add at minimum an **English (U.S.)** localization:
 | Product | Display Name | Description |
 |---------|-------------|-------------|
 | monthly_pro | Vaultaire Pro Monthly | Monthly access to all Vaultaire Pro features |
-| yearly_pro | Vaultaire Pro Yearly | Yearly access with 7-day free trial |
+| yearly_pro | Vaultaire Pro Annual | Annual access with 7-day free trial |
 | lifetime | Vaultaire Pro Lifetime | Lifetime access to all Vaultaire Pro features |
 
 ## 5. Review Screenshot

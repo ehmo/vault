@@ -62,14 +62,14 @@
           },
           "localizations" : [
             {
-              "description" : "Yearly access to all Vaultaire Pro features with 7-day free trial",
-              "displayName" : "Vaultaire Pro Yearly",
+              "description" : "Annual access to all Vaultaire Pro features with 7-day free trial",
+              "displayName" : "Vaultaire Pro Annual",
               "locale" : "en_US"
             }
           ],
           "productID" : "yearly_pro",
           "recurringSubscriptionPeriod" : "P1Y",
-          "referenceName" : "Vaultaire Pro Yearly",
+          "referenceName" : "Vaultaire Pro Annual",
           "subscriptionGroupID" : "vaultaire_pro",
           "type" : "RecurringSubscription",
           "winbackOffers" : [

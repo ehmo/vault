@@ -8,7 +8,7 @@ struct VaultairePaywallView: View {
 
     @State private var selectedPlan: PlanType = .monthly
     @State private var monthlyProduct: Product?
-    @State private var yearlyProduct: Product?
+    @State private var annualProduct: Product?
     @State private var lifetimeProduct: Product?
     @State private var isTrialEligible = false
     @State private var trialEnabled = false
@@ -16,7 +16,7 @@ struct VaultairePaywallView: View {
     @State private var errorMessage: String?
 
     enum PlanType: String, CaseIterable {
-        case monthly, yearly, lifetime
+        case monthly, annual, lifetime
     }
 
     var body: some View {
@@ -126,9 +126,9 @@ struct VaultairePaywallView: View {
             )
 
             planCard(
-                type: .yearly,
-                title: "Yearly",
-                price: yearlyProduct?.displayPrice ?? "$9.99",
+                type: .annual,
+                title: "Annual",
+                price: annualProduct?.displayPrice ?? "$9.99",
                 period: "/year",
                 badge: "SAVE 58%",
                 detail: "$0.83/mo"
@@ -158,7 +158,7 @@ struct VaultairePaywallView: View {
         return Button {
             withAnimation(.easeInOut(duration: 0.2)) {
                 selectedPlan = type
-                if type != .yearly {
+                if type != .annual {
                     trialEnabled = false
                 }
             }
@@ -207,7 +207,7 @@ struct VaultairePaywallView: View {
 
     @ViewBuilder
     private var trialToggle: some View {
-        if selectedPlan == .yearly && isTrialEligible {
+        if selectedPlan == .annual && isTrialEligible {
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     trialEnabled.toggle()
@@ -261,13 +261,13 @@ struct VaultairePaywallView: View {
     }
 
     private var ctaText: String {
-        if selectedPlan == .yearly && trialEnabled {
+        if selectedPlan == .annual && trialEnabled {
             return "Try for 7 days"
         }
         switch selectedPlan {
         case .monthly:
             return "Subscribe"
-        case .yearly:
+        case .annual:
             return "Subscribe"
         case .lifetime:
             let price = lifetimeProduct?.displayPrice ?? "$29.99"
@@ -302,7 +302,7 @@ struct VaultairePaywallView: View {
     private var selectedProduct: Product? {
         switch selectedPlan {
         case .monthly: return monthlyProduct
-        case .yearly: return yearlyProduct
+        case .annual: return annualProduct
         case .lifetime: return lifetimeProduct
         }
     }
@@ -332,12 +332,12 @@ struct VaultairePaywallView: View {
         await subscriptionManager.loadProducts()
 
         monthlyProduct = subscriptionManager.product(for: "monthly_pro")
-        yearlyProduct = subscriptionManager.product(for: "yearly_pro")
+        annualProduct = subscriptionManager.product(for: "yearly_pro")
         lifetimeProduct = subscriptionManager.product(for: "lifetime")
 
-        // Check trial eligibility on yearly product
-        if let yearly = yearlyProduct,
-           let sub = yearly.subscription,
+        // Check trial eligibility on annual product
+        if let annual = annualProduct,
+           let sub = annual.subscription,
            let intro = sub.introductoryOffer,
            intro.paymentMode == .freeTrial {
             isTrialEligible = true
