@@ -369,6 +369,7 @@ struct VaultView: View {
             }
             .presentationDetents([.large])
         }
+        .ignoresSafeArea(.keyboard)
         .alert("Vault Unavailable", isPresented: $showSelfDestructAlert) {
             Button("OK") {
                 selfDestruct()

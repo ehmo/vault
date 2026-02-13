@@ -169,6 +169,7 @@ struct VaultSettingsView: View {
             CustomRecoveryPhraseInputView()
                 .interactiveDismissDisabled()
         }
+        .ignoresSafeArea(.keyboard)
         .alert("Delete Vault?", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {

@@ -296,6 +296,7 @@ struct AppSettingsView: View {
         .sheet(isPresented: $showingCustomerCenter) {
             CustomerCenterView()
         }
+        .ignoresSafeArea(.keyboard)
     }
 
     private func performNuclearWipe() {

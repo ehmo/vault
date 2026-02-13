@@ -65,6 +65,7 @@ struct ContentView: View {
                 .environment(deepLinkHandler)
                 .environment(SubscriptionManager.shared)
         }
+        .ignoresSafeArea(.keyboard)
         .onChange(of: appState.isUnlocked) { _, isUnlocked in
             guard isUnlocked else { return }
 
