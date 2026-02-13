@@ -6,11 +6,12 @@ struct VaultairePaywallView: View {
 
     @Environment(SubscriptionManager.self) private var subscriptionManager
 
-    @State private var selectedPlan: PlanType = .yearly
+    @State private var selectedPlan: PlanType = .monthly
     @State private var monthlyPackage: Package?
     @State private var yearlyPackage: Package?
     @State private var lifetimePackage: Package?
     @State private var isTrialEligible = false
+    @State private var trialEnabled = false
     @State private var isPurchasing = false
     @State private var errorMessage: String?
 
@@ -19,52 +20,37 @@ struct VaultairePaywallView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 28) {
-                    headerSection
-                    benefitsTable
-                    planSelector
-                    trialCallout
-                    ctaButton
-                    footerSection
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 32)
+        ScrollView {
+            VStack(spacing: 20) {
+                headerSection
+                benefitsTable
+                planSelector
+                trialToggle
+                ctaButton
+                footerSection
             }
-            .background(Color.vaultBackground.ignoresSafeArea())
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: onDismiss) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                            .font(.title3)
-                    }
-                }
-            }
-            .task {
-                await loadOfferings()
-            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 32)
+        }
+        .background(Color.vaultBackground.ignoresSafeArea())
+        .task {
+            await loadOfferings()
         }
     }
 
     // MARK: - Header
 
     private var headerSection: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "shield.checkered")
-                .font(.system(size: 56))
-                .foregroundStyle(Color.accentColor)
-
-            Text("Unlock Vaultaire")
-                .font(.largeTitle.bold())
+        VStack(spacing: 8) {
+            Text("Unlock Vaultaire Pro")
+                .font(.title.bold())
                 .foregroundStyle(.vaultText)
 
             Text("Full privacy, your terms.")
                 .font(.subheadline)
                 .foregroundStyle(.vaultSecondaryText)
         }
-        .padding(.top, 24)
     }
 
     // MARK: - Benefits Table
@@ -130,7 +116,7 @@ struct VaultairePaywallView: View {
     // MARK: - Plan Selector
 
     private var planSelector: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             planCard(
                 type: .monthly,
                 title: "Monthly",
@@ -173,24 +159,17 @@ struct VaultairePaywallView: View {
         return Button {
             withAnimation(.easeInOut(duration: 0.2)) {
                 selectedPlan = type
+                // Reset trial toggle when switching away from yearly
+                if type != .yearly {
+                    trialEnabled = false
+                }
             }
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        Text(title)
-                            .font(.headline)
-                            .foregroundStyle(.vaultText)
-
-                        if let badge {
-                            Text(badge)
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(Color.accentColor, in: Capsule())
-                        }
-                    }
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(.vaultText)
 
                     if let detail {
                         Text(detail)
@@ -201,9 +180,20 @@ struct VaultairePaywallView: View {
 
                 Spacer()
 
-                Text("\(price)\(period)")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.vaultText)
+                VStack(alignment: .trailing, spacing: 4) {
+                    if let badge {
+                        Text(badge)
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.accentColor, in: Capsule())
+                    }
+
+                    Text("\(price)\(period)")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.vaultText)
+                }
             }
             .padding(16)
             .vaultGlassBackground()
@@ -215,19 +205,28 @@ struct VaultairePaywallView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Trial Callout
+    // MARK: - Trial Toggle
 
     @ViewBuilder
-    private var trialCallout: some View {
+    private var trialToggle: some View {
         if selectedPlan == .yearly && isTrialEligible {
-            HStack(spacing: 6) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.accentColor)
-                    .font(.subheadline)
-                Text("7-day free trial")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.vaultText)
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    trialEnabled.toggle()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: trialEnabled ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(trialEnabled ? Color.accentColor : .vaultSecondaryText)
+                        .font(.body)
+                    Text("Enable free 7-day trial")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.vaultText)
+                    Spacer()
+                }
             }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 4)
             .transition(.opacity)
         }
     }
@@ -264,11 +263,14 @@ struct VaultairePaywallView: View {
     }
 
     private var ctaText: String {
+        if selectedPlan == .yearly && trialEnabled {
+            return "Try for 7 days"
+        }
         switch selectedPlan {
         case .monthly:
             return "Subscribe"
         case .yearly:
-            return isTrialEligible ? "Start Free Trial" : "Subscribe"
+            return "Subscribe"
         case .lifetime:
             let price = lifetimePackage?.storeProduct.localizedPriceString ?? "$29.99"
             return "Purchase for \(price)"
