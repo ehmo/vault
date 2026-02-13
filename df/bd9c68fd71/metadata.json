@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "dfbd9c68fd71",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "apps/ios/Products.storekit",
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Billing/PaywallTrigger.swift",
+    "apps/ios/Vault/Core/Billing/SubscriptionManager.swift",
+    "apps/ios/Vault/Core/Billing/VaultairePaywallView.swift",
+    "apps/ios/Vault/Features/Onboarding/AnalyticsConsentView.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift",
+    "docs/app-store-connect-iap-setup.md",
+    "docs/paywall-figma-spec.md",
+    "docs/paywall-figma.html"
+  ],
+  "sessions": [
+    {
+      "metadata": "/df/bd9c68fd71/0/metadata.json",
+      "transcript": "/df/bd9c68fd71/0/full.jsonl",
+      "context": "/df/bd9c68fd71/0/context.md",
+      "content_hash": "/df/bd9c68fd71/0/content_hash.txt",
+      "prompt": "/df/bd9c68fd71/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 344,
+    "cache_creation_tokens": 223844,
+    "cache_read_tokens": 8723269,
+    "output_tokens": 7846,
+    "api_call_count": 77
+  }
+}
