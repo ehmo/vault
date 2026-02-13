@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "16d3e7e9f787",
+  "session_id": "f120f8ee-c070-4f9b-ab0a-6cb9dbb899e3",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-13T07:17:35.494121Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/App/ContentView.swift",
+    "apps/ios/Vault/Core/Billing/PaywallTrigger.swift",
+    "apps/ios/Vault/Core/Billing/SubscriptionManager.swift",
+    "apps/ios/Vault/Core/Billing/VaultairePaywallView.swift",
+    "apps/ios/Vault/Features/Onboarding/AnalyticsConsentView.swift",
+    "apps/ios/Vault/Features/Onboarding/OnboardingView.swift",
+    "apps/ios/Vault/Features/Onboarding/WelcomeView.swift",
+    "apps/ios/Vault/Features/Settings/RecoveryPhraseView.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "40169920-a137-4e8d-9211-9bac95ed985e",
+  "checkpoint_transcript_start": 1297,
+  "transcript_lines_at_start": 1297,
+  "token_usage": {
+    "input_tokens": 25,
+    "cache_creation_tokens": 44588,
+    "cache_read_tokens": 2864560,
+    "output_tokens": 587,
+    "api_call_count": 19
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-13T07:17:35.19475Z",
+    "agent_lines": 0,
+    "human_added": 13030,
+    "human_modified": 9,
+    "human_removed": 0,
+    "total_committed": 13038,
+    "agent_percentage": 0
+  }
+}
