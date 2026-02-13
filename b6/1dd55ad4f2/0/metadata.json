@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "b61dd55ad4f2",
+  "session_id": "f120f8ee-c070-4f9b-ab0a-6cb9dbb899e3",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-13T07:05:53.644969Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Features/Settings/RecoveryPhraseView.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "ab67abd4-a42e-47cd-ba01-938079d0146a",
+  "checkpoint_transcript_start": 1175,
+  "transcript_lines_at_start": 1175,
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 9286,
+    "cache_read_tokens": 860856,
+    "output_tokens": 41,
+    "api_call_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-13T07:05:53.448486Z",
+    "agent_lines": 17,
+    "human_added": 13030,
+    "human_modified": 9,
+    "human_removed": 0,
+    "total_committed": 13056,
+    "agent_percentage": 0.13020833333333331
+  }
+}
