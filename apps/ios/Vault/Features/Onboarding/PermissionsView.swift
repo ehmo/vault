@@ -119,19 +119,17 @@ struct PermissionsView: View {
     // MARK: - Permission Requests
 
     private func checkCurrentStatuses() async {
-        // Notifications
-        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        async let notifSettings = UNUserNotificationCenter.current().notificationSettings()
+        let cameraAuth = AVCaptureDevice.authorizationStatus(for: .video)
+
+        let settings = await notifSettings
         await MainActor.run {
             switch settings.authorizationStatus {
             case .authorized, .provisional: notificationStatus = .granted
             case .denied: notificationStatus = .denied
             default: notificationStatus = .notDetermined
             }
-        }
 
-        // Camera
-        let cameraAuth = AVCaptureDevice.authorizationStatus(for: .video)
-        await MainActor.run {
             switch cameraAuth {
             case .authorized: cameraStatus = .granted
             case .denied, .restricted: cameraStatus = .denied

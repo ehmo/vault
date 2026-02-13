@@ -57,6 +57,8 @@
 		018000003 /* AnalyticsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018000002 /* AnalyticsManager.swift */; };
 		019000001 /* AnalyticsConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000000 /* AnalyticsConsentView.swift */; };
 		019000003 /* PermissionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000002 /* PermissionsView.swift */; };
+		019000005 /* PaywallStepView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000004 /* PaywallStepView.swift */; };
+		019000007 /* ThankYouView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000006 /* ThankYouView.swift */; };
 		020000001 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000 /* SubscriptionManager.swift */; };
 		020000003 /* PaywallTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000002 /* PaywallTrigger.swift */; };
 		020000005 /* VaultairePaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000004 /* VaultairePaywallView.swift */; };
@@ -110,6 +112,7 @@
 		TS0000021 /* PatternValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000020 /* PatternValidatorTests.swift */; };
 		TS0000023 /* PatternSerializerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000022 /* PatternSerializerTests.swift */; };
 		TS0000025 /* KeyDerivationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000024 /* KeyDerivationTests.swift */; };
+		TS0000027 /* OnboardingStepTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000026 /* OnboardingStepTests.swift */; };
 		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
 		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
 		UX0000005 /* MilestoneTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000004 /* MilestoneTracker.swift */; };
@@ -211,6 +214,8 @@
 		018000002 /* AnalyticsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsManager.swift; sourceTree = "<group>"; };
 		019000000 /* AnalyticsConsentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsConsentView.swift; sourceTree = "<group>"; };
 		019000002 /* PermissionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsView.swift; sourceTree = "<group>"; };
+		019000004 /* PaywallStepView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallStepView.swift; sourceTree = "<group>"; };
+		019000006 /* ThankYouView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThankYouView.swift; sourceTree = "<group>"; };
 		020000000 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
 		020000002 /* PaywallTrigger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallTrigger.swift; sourceTree = "<group>"; };
 		020000004 /* VaultairePaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultairePaywallView.swift; sourceTree = "<group>"; };
@@ -260,6 +265,7 @@
 		TS0000020 /* PatternValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidatorTests.swift; sourceTree = "<group>"; };
 		TS0000022 /* PatternSerializerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSerializerTests.swift; sourceTree = "<group>"; };
 		TS0000024 /* KeyDerivationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyDerivationTests.swift; sourceTree = "<group>"; };
+		TS0000026 /* OnboardingStepTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingStepTests.swift; sourceTree = "<group>"; };
 		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
 		UX0000004 /* MilestoneTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneTracker.swift; sourceTree = "<group>"; };
@@ -516,6 +522,8 @@
 				009000004 /* PatternSetupView.swift */,
 				019000000 /* AnalyticsConsentView.swift */,
 				019000002 /* PermissionsView.swift */,
+				019000004 /* PaywallStepView.swift */,
+				019000006 /* ThankYouView.swift */,
 				39EACFA02F29B36D00FA7EC2 /* RecoveryPhraseManager.swift */,
 				39EACFA22F29B42100FA7EC2 /* RECOVERY_PHRASE_SYSTEM.md */,
 				39EACFA42F29B43C00FA7EC2 /* RECOVERY_QUICK_START.md */,
@@ -631,6 +639,7 @@
 				TS0000020 /* PatternValidatorTests.swift */,
 				TS0000022 /* PatternSerializerTests.swift */,
 				TS0000024 /* KeyDerivationTests.swift */,
+				TS0000026 /* OnboardingStepTests.swift */,
 			);
 			path = VaultTests;
 			sourceTree = "<group>";
@@ -908,6 +917,8 @@
 				018000003 /* AnalyticsManager.swift in Sources */,
 				019000001 /* AnalyticsConsentView.swift in Sources */,
 				019000003 /* PermissionsView.swift in Sources */,
+				019000005 /* PaywallStepView.swift in Sources */,
+				019000007 /* ThankYouView.swift in Sources */,
 				020000001 /* SubscriptionManager.swift in Sources */,
 				020000003 /* PaywallTrigger.swift in Sources */,
 				020000005 /* VaultairePaywallView.swift in Sources */,
@@ -958,6 +969,7 @@
 				TS0000021 /* PatternValidatorTests.swift in Sources */,
 				TS0000023 /* PatternSerializerTests.swift in Sources */,
 				TS0000025 /* KeyDerivationTests.swift in Sources */,
+				TS0000027 /* OnboardingStepTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

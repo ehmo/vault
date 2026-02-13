@@ -1,6 +1,6 @@
 appId: app.vaultaire.ios
 ---
-# Test pattern setup screen (navigate through onboarding first)
+# Test Thank You screen appears after paywall and leads to pattern setup
 - launchApp:
     clearState: true
 
@@ -12,6 +12,7 @@ appId: app.vaultaire.ios
     text: "Not Now"
     optional: true
 
+# Navigate through onboarding to Thank You
 - tapOn:
     id: "welcome_continue"
 - tapOn:
@@ -21,9 +22,16 @@ appId: app.vaultaire.ios
 - tapOn:
     id: "paywall_skip"
     optional: true
-- tapOn:
+
+# Verify Thank You screen content
+- assertVisible: "Thank You for Trusting Us"
+- assertVisible: "Now let's set up your first vault"
+- assertVisible:
     id: "thankyou_continue"
 
-# Pattern setup screen should be visible
+# Tap Continue — should transition to pattern setup (no progress bar)
+- tapOn:
+    id: "thankyou_continue"
 - assertVisible:
     id: "pattern_grid"
+- assertVisible: "Create Your Pattern"

@@ -34,6 +34,10 @@ appId: app.vaultaire.ios
     id: "paywall_skip"
     optional: true
 
+# Thank You screen
+- tapOn:
+    id: "thankyou_continue"
+
 # Pattern setup — attempt to draw a 6-dot pattern
 # Grid is 5x5 in a ~280x280 area. Swipe across top row to register dots.
 - assertVisible:

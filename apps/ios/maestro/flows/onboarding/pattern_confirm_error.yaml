@@ -26,6 +26,8 @@ appId: app.vaultaire.ios
 - tapOn:
     id: "paywall_skip"
     optional: true
+- tapOn:
+    id: "thankyou_continue"
 
 # Verify pattern setup create screen
 - assertVisible: "Create Your Pattern"

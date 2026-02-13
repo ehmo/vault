@@ -1,0 +1,51 @@
+appId: app.vaultaire.ios
+---
+# Test back navigation through onboarding screens
+- launchApp:
+    clearState: true
+
+# Dismiss system alerts
+- tapOn:
+    text: "Not Now"
+    optional: true
+- tapOn:
+    text: "Not Now"
+    optional: true
+
+# Welcome screen — back button should be hidden
+- assertVisible: "Welcome to Vaultaire"
+- tapOn:
+    id: "welcome_continue"
+
+# Permissions screen — back returns to Welcome
+- assertVisible: "Enable Permissions"
+- tapOn:
+    id: "onboarding_back"
+- assertVisible: "Welcome to Vaultaire"
+
+# Go forward again
+- tapOn:
+    id: "welcome_continue"
+
+# Go to Analytics
+- tapOn:
+    id: "permissions_continue"
+- assertVisible: "Help Improve Vaultaire"
+
+# Back to Permissions
+- tapOn:
+    id: "onboarding_back"
+- assertVisible: "Enable Permissions"
+
+# Forward to Analytics again
+- tapOn:
+    id: "permissions_continue"
+
+# Go to Paywall
+- tapOn:
+    id: "analytics_decline"
+
+# Back to Analytics
+- tapOn:
+    id: "onboarding_back"
+- assertVisible: "Help Improve Vaultaire"

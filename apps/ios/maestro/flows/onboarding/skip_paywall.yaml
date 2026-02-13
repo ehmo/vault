@@ -23,3 +23,6 @@ appId: app.vaultaire.ios
 - tapOn:
     id: "paywall_skip"
     optional: true
+
+# Thank You screen should appear
+- assertVisible: "Thank You for Trusting Us"

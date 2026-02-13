@@ -1,66 +1,99 @@
 import SwiftUI
 
+enum OnboardingStep: Int, CaseIterable {
+    case welcome
+    case permissions
+    case analytics
+    case paywall
+    case thankYou
+
+    var progressFraction: CGFloat {
+        CGFloat(rawValue + 1) / CGFloat(Self.allCases.count)
+    }
+
+    func next() -> OnboardingStep? {
+        OnboardingStep(rawValue: rawValue + 1)
+    }
+
+    func previous() -> OnboardingStep? {
+        OnboardingStep(rawValue: rawValue - 1)
+    }
+}
+
 struct OnboardingView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var currentStep = 0
-
-    private let totalSteps = 5
+    @State private var currentStep: OnboardingStep = .welcome
+    @State private var showPatternSetup = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Progress bar + back arrow
-            HStack(spacing: 4) {
-                Button { currentStep -= 1 } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.vaultText)
-                }
-                .opacity(currentStep > 0 ? 1 : 0)
-                .disabled(currentStep == 0)
-                .accessibilityIdentifier("onboarding_back")
-
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Color.vaultSecondaryText.opacity(0.2))
-                        Capsule().fill(Color.accentColor)
-                            .frame(width: geo.size.width * CGFloat(currentStep + 1) / CGFloat(totalSteps))
+        if showPatternSetup {
+            PatternSetupView(onComplete: { completeOnboarding() })
+        } else {
+            VStack(spacing: 0) {
+                // Progress bar + back arrow
+                HStack(spacing: 4) {
+                    Button {
+                        if let prev = currentStep.previous() {
+                            withAnimation(animation) { currentStep = prev }
+                        }
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.vaultText)
                     }
-                    .frame(height: 4)
-                }
-                .frame(height: 4)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
+                    .opacity(currentStep != .welcome ? 1 : 0)
+                    .disabled(currentStep == .welcome)
+                    .accessibilityIdentifier("onboarding_back")
 
-            // Step content
-            switch currentStep {
-            case 0:
-                WelcomeView(onContinue: { currentStep = 1 })
-            case 1:
-                PermissionsView(onContinue: { currentStep = 2 })
-            case 2:
-                AnalyticsConsentView(onContinue: { currentStep = 3 })
-            case 3:
-                VStack(spacing: 0) {
-                    VaultairePaywallView(onDismiss: { currentStep = 4 })
-
-                    Button(action: { currentStep = 4 }) {
-                        Text("Skip")
-                            .font(.subheadline)
-                            .foregroundStyle(.vaultSecondaryText)
-                    }
-                    .accessibilityIdentifier("paywall_skip")
-                    .padding(.bottom, 24)
+                    Capsule()
+                        .fill(Color.vaultSecondaryText.opacity(0.2))
+                        .frame(height: 4)
+                        .overlay(alignment: .leading) {
+                            Capsule()
+                                .fill(Color.accentColor)
+                                .frame(
+                                    width: nil,
+                                    height: 4
+                                )
+                                .frame(
+                                    maxWidth: .infinity,
+                                    alignment: .leading
+                                )
+                                .scaleEffect(x: currentStep.progressFraction, y: 1, anchor: .leading)
+                        }
                 }
-            case 4:
-                PatternSetupView(onComplete: { completeOnboarding() })
-            default:
-                EmptyView()
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+
+                // Step content
+                switch currentStep {
+                case .welcome:
+                    WelcomeView(onContinue: { advance() })
+                case .permissions:
+                    PermissionsView(onContinue: { advance() })
+                case .analytics:
+                    AnalyticsConsentView(onContinue: { advance() })
+                case .paywall:
+                    PaywallStepView(onContinue: { advance() })
+                case .thankYou:
+                    ThankYouView(onContinue: {
+                        withAnimation(animation) { showPatternSetup = true }
+                    })
+                }
             }
         }
-        .animation(reduceMotion ? nil : .easeInOut, value: currentStep)
+    }
+
+    private var animation: Animation? {
+        reduceMotion ? nil : .easeInOut
+    }
+
+    private func advance() {
+        if let next = currentStep.next() {
+            withAnimation(animation) { currentStep = next }
+        }
     }
 
     private func completeOnboarding() {

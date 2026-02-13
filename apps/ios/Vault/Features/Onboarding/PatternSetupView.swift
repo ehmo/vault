@@ -12,7 +12,7 @@ struct PatternSetupView: View {
     @State private var step: SetupStep = .create
     @State private var firstPattern: [Int] = []
     @State private var validationResult: PatternValidationResult?
-    @State private var showRecoveryOption = false
+    @State private var isSaving = false
     @State private var generatedPhrase = ""
     @State private var useCustomPhrase = false
     @State private var customPhrase = ""
@@ -93,6 +93,14 @@ struct PatternSetupView: View {
             bottomButtons
         }
         .padding()
+        .overlay {
+            if isSaving {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .overlay { ProgressView().tint(.white) }
+            }
+        }
+        .allowsHitTesting(!isSaving)
     }
 
     // MARK: - Computed Properties
@@ -319,7 +327,8 @@ struct PatternSetupView: View {
 
     private func savePattern(_ pattern: [Int]) {
         patternSetupLogger.debug("Saving pattern, gridSize=\(patternState.gridSize)")
-        
+        isSaving = true
+
         Task {
             do {
                 // Derive key from pattern with the current grid size
@@ -382,6 +391,7 @@ struct PatternSetupView: View {
 
                 // Unlock the vault with the new key
                 await MainActor.run {
+                    isSaving = false
                     appState.currentVaultKey = key
                     appState.isUnlocked = true
                     let letters = GridLetterManager.shared.vaultName(for: pattern)
@@ -394,13 +404,20 @@ struct PatternSetupView: View {
                 }
             } catch {
                 patternSetupLogger.error("Error saving pattern: \(error.localizedDescription, privacy: .public)")
-                // TODO: Show error to user
+                await MainActor.run {
+                    isSaving = false
+                    errorMessage = "Failed to save pattern. Please try again."
+                    step = .create
+                    patternState.reset()
+                    firstPattern = []
+                }
             }
         }
     }
     
     private func saveCustomRecoveryPhrase() {
         guard let key = appState.currentVaultKey else { return }
+        isSaving = true
 
         Task {
             do {
@@ -411,10 +428,15 @@ struct PatternSetupView: View {
                     patternKey: key
                 )
                 await MainActor.run {
+                    isSaving = false
                     onComplete()
                 }
             } catch {
                 patternSetupLogger.error("Failed to save custom phrase: \(error.localizedDescription, privacy: .public)")
+                await MainActor.run {
+                    isSaving = false
+                    errorMessage = "Failed to save recovery phrase. Please try again."
+                }
             }
         }
     }
@@ -425,12 +447,6 @@ struct PatternSetupView: View {
             return
         }
         customPhraseValidation = RecoveryPhraseGenerator.shared.validatePhrase(phrase)
-    }
-    
-    private struct RecoveryData: Codable {
-        let pattern: [Int]
-        let gridSize: Int
-        let patternKey: Data
     }
 }
 
