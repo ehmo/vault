@@ -15,7 +15,21 @@ struct RecoveryPhraseView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                // Error or warning banner
+                Spacer()
+
+                // Header — matches onboarding style
+                VStack(spacing: 12) {
+                    Text("Recovery Phrase")
+                        .font(.title)
+                        .fontWeight(.bold)
+
+                    Text("Save this phrase to recover your vault if you forget the pattern")
+                        .font(.subheadline)
+                        .foregroundStyle(.vaultSecondaryText)
+                        .multilineTextAlignment(.center)
+                }
+
+                // Error banner (only on error)
                 if let errorMessage = errorMessage {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
@@ -27,36 +41,28 @@ struct RecoveryPhraseView: View {
                     .padding()
                     .background(Color.vaultHighlight.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
-                } else {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.vaultHighlight)
-                        Text("Keep this phrase secret and secure")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                    }
-                    .padding()
-                    .background(Color.vaultHighlight.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal)
                 }
 
                 // Phrase display
                 if !phrase.isEmpty {
                     PhraseDisplayCard(phrase: phrase)
+                        .padding(.horizontal)
 
                     PhraseActionButtons(phrase: phrase)
+                        .padding(.horizontal)
                 }
 
-                Spacer()
-
-                // Instructions
+                // Instructions — matches onboarding
                 VStack(alignment: .leading, spacing: 12) {
-                    Label("Write it down and store safely", systemImage: "pencil.and.list.clipboard")
-                    Label("Never share it with anyone", systemImage: "person.2.slash")
-                    Label("Use it to recover this vault if you forget the pattern", systemImage: "arrow.triangle.2.circlepath")
+                    Label("Write this down", systemImage: "pencil")
+                    Label("Store it somewhere safe", systemImage: "lock")
+                    Label("Never share it with anyone", systemImage: "person.slash")
                 }
                 .font(.subheadline)
                 .foregroundStyle(.vaultSecondaryText)
+
+                Spacer()
 
                 // "I've saved it" button with confirmation
                 Button(action: { showSaveConfirmation = true }) {
@@ -66,6 +72,8 @@ struct RecoveryPhraseView: View {
                         .padding()
                 }
                 .vaultProminentButtonStyle()
+                .padding(.horizontal, 40)
+                .padding(.bottom, 40)
                 .alert("Are you sure?", isPresented: $showSaveConfirmation) {
                     Button("Cancel", role: .cancel) { }
                     Button("Yes, I've saved it") { dismiss() }
@@ -73,7 +81,6 @@ struct RecoveryPhraseView: View {
                     Text("This recovery phrase will NEVER be shown again. Make sure you've written it down and stored it safely.")
                 }
             }
-            .padding()
             .navigationTitle("Recovery Phrase")
             .navigationBarTitleDisplayMode(.inline)
         }
