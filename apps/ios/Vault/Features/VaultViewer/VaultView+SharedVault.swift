@@ -254,6 +254,14 @@ extension VaultView {
         // Delete all files and the vault index
         do {
             let index = try VaultStorage.shared.loadIndex(with: key)
+
+            // Signal consumed to sender before deleting local data
+            if let vaultId = index.sharedVaultId {
+                Task {
+                    try? await CloudKitSharingManager.shared.markShareConsumed(shareVaultId: vaultId)
+                }
+            }
+
             for file in index.files where !file.isDeleted {
                 try? VaultStorage.shared.deleteFile(id: file.fileId, with: key)
             }

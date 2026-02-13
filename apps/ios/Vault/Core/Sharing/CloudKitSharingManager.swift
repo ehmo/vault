@@ -696,6 +696,42 @@ final class CloudKitSharingManager {
         return pow(2.0, Double(attempt)) // 1, 2, 4 seconds
     }
 
+    // MARK: - Consumed
+
+    /// Marks a share as consumed by the recipient (e.g. after policy-triggered self-destruct).
+    /// Sets `consumed = true` on the CloudKit manifest, mirroring how `revokeShare` sets `revoked`.
+    func markShareConsumed(shareVaultId: String) async throws {
+        let predicate = NSPredicate(format: "shareVaultId == %@", shareVaultId)
+        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
+        let results = try await publicDatabase.records(matching: query)
+
+        for (_, result) in results.matchResults {
+            if let record = try? result.get() {
+                record["consumed"] = true
+                try await publicDatabase.save(record)
+            }
+        }
+    }
+
+    /// Checks whether a share has been consumed by its recipient.
+    func isShareConsumed(shareVaultId: String) async -> Bool {
+        let predicate = NSPredicate(format: "shareVaultId == %@", shareVaultId)
+        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
+
+        do {
+            let results = try await publicDatabase.records(matching: query)
+            for (_, result) in results.matchResults {
+                if let record = try? result.get(),
+                   let consumed = record["consumed"] as? Bool, consumed {
+                    return true
+                }
+            }
+        } catch {
+            Self.logger.warning("Failed to check consumed status for \(shareVaultId, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        }
+        return false
+    }
+
     // MARK: - Helpers
 
     private func deleteChunks(for shareVaultId: String) async throws {

@@ -82,9 +82,16 @@ final class ShareSyncManager {
         var successCount = 0
         var missingKeyCount = 0
         var shareUpdates: [(id: String, syncSequence: Int)] = []
+        var consumedShareIds: Set<String> = []
 
         for (i, share) in activeShares.enumerated() {
             do {
+                // Check if recipient has consumed this share
+                if await CloudKitSharingManager.shared.isShareConsumed(shareVaultId: share.id) {
+                    consumedShareIds.insert(share.id)
+                    shareSyncLogger.info("Share \(share.id, privacy: .public) consumed by recipient, skipping sync")
+                    continue
+                }
                 // Use the stored phrase-derived share key
                 guard let shareKey = share.shareKeyData else {
                     missingKeyCount += 1
@@ -139,6 +146,18 @@ final class ShareSyncManager {
         }
 
         syncProgress = nil
+
+        // Remove consumed shares from the index
+        if !consumedShareIds.isEmpty {
+            do {
+                var updatedIndex = try VaultStorage.shared.loadIndex(with: vaultKey)
+                updatedIndex.activeShares?.removeAll { consumedShareIds.contains($0.id) }
+                try VaultStorage.shared.saveIndex(updatedIndex, with: vaultKey)
+                shareSyncLogger.info("Removed \(consumedShareIds.count) consumed shares from index")
+            } catch {
+                shareSyncLogger.warning("Failed to remove consumed shares: \(error.localizedDescription, privacy: .public)")
+            }
+        }
 
         // Batch-update share records in a single index load/save
         if !shareUpdates.isEmpty {

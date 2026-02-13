@@ -137,11 +137,24 @@ struct ShareVaultView: View {
         uploadStatus = transferStatus
 
         do {
-            let index = try VaultStorage.shared.loadIndex(with: key)
+            var index = try VaultStorage.shared.loadIndex(with: key)
             estimatedUploadSize = index.files.filter { !$0.isDeleted }.reduce(0) { $0 + $1.size }
-            if let shares = index.activeShares, !shares.isEmpty {
+            if var shares = index.activeShares, !shares.isEmpty {
+                // Check for consumed shares and remove them
+                var consumedIds: Set<String> = []
+                for share in shares {
+                    if await CloudKitSharingManager.shared.isShareConsumed(shareVaultId: share.id) {
+                        consumedIds.insert(share.id)
+                    }
+                }
+                if !consumedIds.isEmpty {
+                    shares.removeAll { consumedIds.contains($0.id) }
+                    index.activeShares = shares.isEmpty ? nil : shares
+                    try VaultStorage.shared.saveIndex(index, with: key)
+                }
+
                 activeShares = shares
-                mode = .manageShares
+                mode = shares.isEmpty ? .newShare : .manageShares
             } else {
                 mode = .newShare
             }
