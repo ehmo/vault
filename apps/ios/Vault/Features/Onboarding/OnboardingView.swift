@@ -1,5 +1,4 @@
 import SwiftUI
-import RevenueCatUI
 
 struct OnboardingView: View {
     @Environment(AppState.self) private var appState

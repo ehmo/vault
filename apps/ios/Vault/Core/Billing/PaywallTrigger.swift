@@ -1,6 +1,5 @@
 import SwiftUI
 import RevenueCat
-import RevenueCatUI
 
 enum PremiumFeature: String {
     case unlimitedVaults
@@ -30,15 +29,7 @@ struct PremiumGateModifier: ViewModifier {
         content
             .sheet(isPresented: $showPaywall) {
                 if subscriptionManager.hasOfferings {
-                    PaywallView()
-                        .onPurchaseCompleted { info in
-                            subscriptionManager.updateFromCustomerInfo(info)
-                            showPaywall = false
-                        }
-                        .onRestoreCompleted { info in
-                            subscriptionManager.updateFromCustomerInfo(info)
-                            showPaywall = false
-                        }
+                    VaultairePaywallView(onDismiss: { showPaywall = false })
                 } else {
                     FallbackPaywallView(showPaywall: $showPaywall)
                 }

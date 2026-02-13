@@ -64,6 +64,7 @@
 		019000003 /* PermissionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000002 /* PermissionsView.swift */; };
 		020000001 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000 /* SubscriptionManager.swift */; };
 		020000003 /* PaywallTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000002 /* PaywallTrigger.swift */; };
+		020000005 /* VaultairePaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000004 /* VaultairePaywallView.swift */; };
 		021000001 /* ThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000000 /* ThumbnailCache.swift */; };
 		021000003 /* AsyncThumbnailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000002 /* AsyncThumbnailView.swift */; };
 		021000005 /* PhotosGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000004 /* PhotosGridView.swift */; };
@@ -219,6 +220,7 @@
 		019000002 /* PermissionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsView.swift; sourceTree = "<group>"; };
 		020000000 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
 		020000002 /* PaywallTrigger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallTrigger.swift; sourceTree = "<group>"; };
+		020000004 /* VaultairePaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultairePaywallView.swift; sourceTree = "<group>"; };
 		021000000 /* ThumbnailCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailCache.swift; sourceTree = "<group>"; };
 		021000002 /* AsyncThumbnailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncThumbnailView.swift; sourceTree = "<group>"; };
 		021000004 /* PhotosGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosGridView.swift; sourceTree = "<group>"; };
@@ -430,6 +432,7 @@
 			children = (
 				020000000 /* SubscriptionManager.swift */,
 				020000002 /* PaywallTrigger.swift */,
+				020000004 /* VaultairePaywallView.swift */,
 			);
 			path = Billing;
 			sourceTree = "<group>";
@@ -912,6 +915,7 @@
 				019000003 /* PermissionsView.swift in Sources */,
 				020000001 /* SubscriptionManager.swift in Sources */,
 				020000003 /* PaywallTrigger.swift in Sources */,
+				020000005 /* VaultairePaywallView.swift in Sources */,
 				LA0000001 /* TransferActivityAttributes.swift in Sources */,
 				SE0000013 /* VaultCoreConstants.swift in Sources */,
 				SE0000015 /* StagedImportManager.swift in Sources */,

@@ -1,6 +1,5 @@
 import Foundation
 import RevenueCat
-import RevenueCatUI
 import os.log
 
 @MainActor
@@ -15,7 +14,7 @@ final class SubscriptionManager: NSObject {
     private(set) var hasOfferings = false
     private(set) var customerInfo: CustomerInfo?
 
-    static let entitlementID = "lifetime"
+    static let entitlementID = "Vaultaire Unlimited"
     static let maxFreeVaults = 5
     static let maxFreeSharedVaults = 10
     static let maxFreeFilesPerVault = 100

@@ -1,5 +1,4 @@
 import SwiftUI
-import RevenueCatUI
 
 struct AnalyticsConsentView: View {
     let onContinue: () -> Void
@@ -12,15 +11,7 @@ struct AnalyticsConsentView: View {
             // Paywall phase — skip if RevenueCat not configured (no production key)
             if subscriptionManager.isConfigured {
                 VStack(spacing: 0) {
-                    PaywallView()
-                        .onPurchaseCompleted { info in
-                            subscriptionManager.updateFromCustomerInfo(info)
-                            onContinue()
-                        }
-                        .onRestoreCompleted { info in
-                            subscriptionManager.updateFromCustomerInfo(info)
-                            onContinue()
-                        }
+                    VaultairePaywallView(onDismiss: onContinue)
 
                     Button(action: onContinue) {
                         Text("Skip")
