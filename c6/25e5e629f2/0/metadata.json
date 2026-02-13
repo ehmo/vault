@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "c625e5e629f2",
+  "session_id": "2d071f3f-25c1-4027-b39a-4a786b5a6005",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-13T23:22:30.813824Z",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "files_touched": [
+    ".scratch-pad.md",
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Features/Onboarding/AnalyticsConsentView.swift",
+    "apps/ios/Vault/Features/Onboarding/OnboardingView.swift",
+    "apps/ios/Vault/Features/Onboarding/PatternSetupView.swift",
+    "apps/ios/Vault/Features/Onboarding/PaywallStepView.swift",
+    "apps/ios/Vault/Features/Onboarding/PermissionsView.swift",
+    "apps/ios/Vault/Features/Onboarding/ThankYouView.swift",
+    "apps/ios/VaultTests/OnboardingStepTests.swift",
+    "apps/ios/maestro/flows/onboarding/analytics_consent.yaml",
+    "apps/ios/maestro/flows/onboarding/back_navigation.yaml",
+    "apps/ios/maestro/flows/onboarding/complete_onboarding.yaml",
+    "apps/ios/maestro/flows/onboarding/pattern_confirm_error.yaml",
+    "apps/ios/maestro/flows/onboarding/pattern_setup.yaml",
+    "apps/ios/maestro/flows/onboarding/skip_paywall.yaml",
+    "apps/ios/maestro/flows/onboarding/thankyou_screen.yaml"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 198,
+    "cache_creation_tokens": 655485,
+    "cache_read_tokens": 16175804,
+    "output_tokens": 14656,
+    "api_call_count": 176
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-13T23:22:30.549286Z",
+    "agent_lines": 425,
+    "human_added": 0,
+    "human_modified": 4,
+    "human_removed": 44,
+    "total_committed": 429,
+    "agent_percentage": 99.06759906759906
+  }
+}
