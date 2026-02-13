@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "5370af72028a",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/53/70af72028a/0/metadata.json",
+      "transcript": "/53/70af72028a/0/full.jsonl",
+      "context": "/53/70af72028a/0/context.md",
+      "content_hash": "/53/70af72028a/0/content_hash.txt",
+      "prompt": "/53/70af72028a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 11,
+    "cache_creation_tokens": 14269,
+    "cache_read_tokens": 1194715,
+    "output_tokens": 91,
+    "api_call_count": 9
+  }
+}
