@@ -137,6 +137,7 @@ struct PatternLockView: View {
         .sheet(isPresented: $showJoinSharedVault) {
             JoinVaultView()
         }
+        .ignoresSafeArea(.keyboard)
         .premiumPaywall(isPresented: $showingPaywall)
     }
 
