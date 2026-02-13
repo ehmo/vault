@@ -1,0 +1,105 @@
+Implement the following plan:
+
+# Custom Paywall: Version A (Compare, Then Choose)
+
+## Context
+Current paywall uses RevenueCatUI's default `PaywallView()` with a single $9.99 lifetime product. Need to redesign with 3 tiers (Monthly $1.99, Yearly $9.99, Lifetime $29.99), a benefits comparison table, and 7-day free trial on yearly — all in Vaultaire's design language.
+
+## Part 1: RevenueCat Product Setup (via MCP)
+
+IDs: project=`proje830cc0f`, app=`appce2e06d8c7`, offering=`ofrng46cfc1171b`, entitlement=`entl06e93eaa7b`
+
+1. Create product `monthly_pro` (type: `subscription`, store_identifier: `monthly_pro`)
+2. Create product `yearly_pro` (type: `subscription`, store_identifier: `yearly_pro`)
+3. Create package `$rc_monthly` in offering, position 1
+4. Create package `$rc_annual` in offering, position 2
+5. Attach monthly_pro + yearly_pro to packages
+6. Attach monthly_pro + yearly_pro to "Vaultaire Unlimited" entitlement
+
+Note: ASC subscription products must also be created in App Store Connect (separate step — product IDs `monthly_pro`, `yearly_pro` in a subscription group). The 7-day free trial is configured as an introductory offer in ASC on the yearly subscription.
+
+## Part 2: New Custom Paywall View
+
+**New file:** `apps/ios/Vault/Core/Billing/VaultairePaywallView.swift`
+
+### Layout (top to bottom, in ScrollView)
+1. **Close button** (X, top-right)
+2. **Header**: shield.checkered icon (56pt) + "Unlock Vaultaire" (largeTitle.bold) + "Full privacy, your terms." subtitle
+3. **Benefits table** (glass card): FREE vs PRO columns
+   - Photos per vault: 100 / ∞
+   - Videos per vault: 10 / ∞
+   - Vaults: 5 / ∞
+   - Duress vault: — / ✓
+   - Vault sharing: — / ✓
+   - iCloud backup: — / ✓
+   - Pattern encryption: ✓ / ✓
+   - Plausible deniability: ✓ / ✓
+4. **Plan selector** (3 tappable cards, yearly pre-selected):
+   - Monthly: `$1.99/month`
+   - Yearly: `~~$19.99~~ $9.99/year` + "SAVE 50%" badge + "$0.83/mo"  — purple border when selected
+   - Lifetime: `$29.99 once` + "BEST VALUE" badge + "Forever"
+5. **Trial callout**: `✓ 7-day free trial` (shown when yearly selected and trial eligible)
+6. **CTA button**: Dynamic text — "Start Free Trial" / "Subscribe" / "Purchase for $29.99"
+7. **Footer**: "No commitment · Cancel anytime" + "Restore Purchases · Terms · Privacy"
+
+### Data flow
+- `.task` on appear: `Purchases.shared.offerings()` → get current offering → extract `$rc_monthly`, `$rc_annual`, `$rc_lifetime` packages
+- Display localized prices from `package.storeProduct.localizedPriceString`
+- Check `storeProduct.introductoryDiscount?.paymentMode == .freeTrial` for trial eligibility
+- Purchase: `Purchases.shared.purchase(package:)` → `subscriptionManager.updateFromCustomerInfo`
+- Restore: `Purchases.shared.restorePurchases()` → `subscriptionManager.updateFromCustomerInfo`
+
+### Styling
+- `Color.vaultBackground` full background
+- `.vaultGlassBackground()` for table card and plan cards
+- Selected plan card: `.overlay(RoundedRectangle.stroke(Color.accentColor, lineWidth: 2))`
+- CTA: `.vaultProminentButtonStyle()` full-width
+- Badges: small capsule with `.accentColor` background, white text
+- Checkmarks: `.accentColor`, dashes: `.vaultSecondaryText`
+- Dark mode support via existing color assets
+
+## Part 3: Integration Changes
+
+### `PaywallTrigger.swift`
+- Replace `PaywallView()` with `VaultairePaywallView(onDismiss: { showPaywall = false })`
+- Remove `onPurchaseCompleted`/`onRestoreCompleted` RC callbacks (handled internally now)
+- Keep `FallbackPaywallView` for when offerings unavailable
+- Can remove `import RevenueCatUI` from this file
+
+### `AnalyticsConsentView.swift`
+- Replace inline `PaywallView()` with `VaultairePaywallView(onDismiss: onContinue)`
+- Keep "Skip" button below
+- Can remove `import RevenueCatUI`
+
+### `SubscriptionManager.swift`
+- Update `entitlementID` from `"lifetime"` to `"Vaultaire Unlimited"` to match RC lookup_key
+- No other changes needed — `updateFromCustomerInfo` already has the active-entitlement fallback
+
+## Files Modified
+- `apps/ios/Vault/Core/Billing/VaultairePaywallView.swift` — **NEW**
+- `apps/ios/Vault/Core/Billing/PaywallTrigger.swift` — use custom paywall
+- `apps/ios/Vault/Features/Onboarding/AnalyticsConsentView.swift` — use custom paywall
+- `apps/ios/Vault/Core/Billing/SubscriptionManager.swift` — fix entitlement ID
+
+## Verification
+1. Build succeeds with no warnings
+2. Paywall sheet shows comparison table + 3 plan cards + trial callout
+3. Yearly pre-selected, CTA shows "Start Free Trial"
+4. Switching plans updates CTA text and selection border
+5. Onboarding paywall matches sheet paywall
+6. RevenueCat products created and attached to entitlement + packages
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+The first onboarding screen is scrollable for whatever reason (see image). It should be static
+
+---
+
+[Image: source: /Users/nan/Downloads/IMG_1960.PNG]
+
+---
+
+Push to testflight
