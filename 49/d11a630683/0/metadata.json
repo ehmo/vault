@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "49d11a630683",
+  "session_id": "f120f8ee-c070-4f9b-ab0a-6cb9dbb899e3",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-13T06:45:41.522871Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Core/Billing/PaywallTrigger.swift",
+    "apps/ios/Vault/Core/Billing/SubscriptionManager.swift",
+    "apps/ios/Vault/Core/Billing/VaultairePaywallView.swift",
+    "apps/ios/Vault/Features/Onboarding/AnalyticsConsentView.swift",
+    "apps/ios/Vault/Features/Onboarding/OnboardingView.swift",
+    "apps/ios/Vault/Features/Onboarding/WelcomeView.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 55,
+    "cache_creation_tokens": 82071,
+    "cache_read_tokens": 4132594,
+    "output_tokens": 901,
+    "api_call_count": 47
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-13T06:45:41.400976Z",
+    "agent_lines": 62,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 62,
+    "agent_percentage": 100
+  }
+}
