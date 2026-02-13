@@ -15,6 +15,10 @@ appId: app.vaultaire.ios
 - tapOn:
     id: "welcome_continue"
 
+# Permissions screen — skip past
+- tapOn:
+    id: "permissions_continue"
+
 # Verify consent options
 - assertVisible: "Help Improve Vaultaire"
 - assertVisible:

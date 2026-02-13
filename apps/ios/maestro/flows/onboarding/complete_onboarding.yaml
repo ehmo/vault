@@ -20,6 +20,10 @@ appId: app.vaultaire.ios
 - tapOn:
     id: "welcome_continue"
 
+# Permissions — skip past
+- tapOn:
+    id: "permissions_continue"
+
 # Analytics consent
 - assertVisible: "Help Improve Vaultaire"
 - tapOn:
@@ -57,11 +61,7 @@ appId: app.vaultaire.ios
     optional: true
 
 # Confirm saving recovery phrase (pattern-dependent)
+# After confirmation, onboarding completes automatically — no "All set" screen
 - tapOn:
     text: "I've Saved It"
-    optional: true
-
-# All set screen (pattern-dependent)
-- tapOn:
-    id: "onboarding_complete"
     optional: true

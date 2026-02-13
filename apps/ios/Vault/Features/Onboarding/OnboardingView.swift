@@ -5,23 +5,57 @@ struct OnboardingView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var currentStep = 0
 
+    private let totalSteps = 5
+
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
+            // Progress bar + back arrow
+            HStack(spacing: 4) {
+                Button { currentStep -= 1 } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.vaultText)
+                }
+                .opacity(currentStep > 0 ? 1 : 0)
+                .disabled(currentStep == 0)
+                .accessibilityIdentifier("onboarding_back")
+
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.vaultSecondaryText.opacity(0.2))
+                        Capsule().fill(Color.accentColor)
+                            .frame(width: geo.size.width * CGFloat(currentStep + 1) / CGFloat(totalSteps))
+                    }
+                    .frame(height: 4)
+                }
+                .frame(height: 4)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+
+            // Step content
             switch currentStep {
             case 0:
-                WelcomeView(
-                    onContinue: { currentStep = 1 }
-                )
+                WelcomeView(onContinue: { currentStep = 1 })
             case 1:
-                PatternSetupView(onComplete: { currentStep = 2 })
+                PermissionsView(onContinue: { currentStep = 2 })
             case 2:
-                PermissionsView(
-                    onContinue: { currentStep = 3 }
-                )
+                AnalyticsConsentView(onContinue: { currentStep = 3 })
             case 3:
-                AnalyticsConsentView(
-                    onContinue: { completeOnboarding() }
-                )
+                VStack(spacing: 0) {
+                    VaultairePaywallView(onDismiss: { currentStep = 4 })
+
+                    Button(action: { currentStep = 4 }) {
+                        Text("Skip")
+                            .font(.subheadline)
+                            .foregroundStyle(.vaultSecondaryText)
+                    }
+                    .accessibilityIdentifier("paywall_skip")
+                    .padding(.bottom, 24)
+                }
+            case 4:
+                PatternSetupView(onComplete: { completeOnboarding() })
             default:
                 EmptyView()
             }

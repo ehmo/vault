@@ -24,7 +24,6 @@ struct PatternSetupView: View {
         case create
         case confirm
         case recovery
-        case complete
     }
 
     var body: some View {
@@ -88,11 +87,6 @@ struct PatternSetupView: View {
                 Spacer()
                 recoverySection
                 Spacer()
-
-            case .complete:
-                Spacer()
-                completeSection
-                Spacer()
             }
 
             // Bottom buttons
@@ -107,7 +101,7 @@ struct PatternSetupView: View {
         switch step {
         case .create: return 0
         case .confirm: return 1
-        case .recovery, .complete: return 2
+        case .recovery: return 2
         }
     }
 
@@ -116,7 +110,6 @@ struct PatternSetupView: View {
         case .create: return "Create Your Pattern"
         case .confirm: return "Confirm Your Pattern"
         case .recovery: return "Recovery Phrase"
-        case .complete: return "All Set!"
         }
     }
 
@@ -125,7 +118,6 @@ struct PatternSetupView: View {
         case .create: return "Connect at least 6 dots on the 5×5 grid with 2+ direction changes"
         case .confirm: return "Draw the same pattern to confirm"
         case .recovery: return "Save this phrase to recover your vault if you forget the pattern"
-        case .complete: return "Your vault is ready to use"
         }
     }
 
@@ -220,19 +212,6 @@ struct PatternSetupView: View {
         .padding(.horizontal)
     }
 
-    private var completeSection: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.green)
-
-            Text("Your vault is ready!")
-                .font(.title2)
-                .fontWeight(.medium)
-        }
-    }
-
-
     private var bottomButtons: some View {
         VStack(spacing: 12) {
             switch step {
@@ -273,22 +252,12 @@ struct PatternSetupView: View {
                                 saveCustomRecoveryPhrase()
                             }
                         } else {
-                            step = .complete
+                            onComplete()
                         }
                     }
                 } message: {
                     Text("This recovery phrase will NEVER be shown again. Make sure you've written it down and stored it safely.")
                 }
-
-            case .complete:
-                Button(action: onComplete) {
-                    Text("Open Vaultaire")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                }
-                .vaultProminentButtonStyle()
-                .accessibilityIdentifier("onboarding_complete")
             }
         }
     }
@@ -442,7 +411,7 @@ struct PatternSetupView: View {
                     patternKey: key
                 )
                 await MainActor.run {
-                    step = .complete
+                    onComplete()
                 }
             } catch {
                 patternSetupLogger.error("Failed to save custom phrase: \(error.localizedDescription, privacy: .public)")

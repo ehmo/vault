@@ -25,11 +25,6 @@
 		005000005 /* PatternValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005000004 /* PatternValidator.swift */; };
 		005000007 /* PatternNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005000006 /* PatternNode.swift */; };
 		006000001 /* VaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006000000 /* VaultView.swift */; };
-		VV0000001 /* VaultView+Grid.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000000 /* VaultView+Grid.swift */; };
-		VV0000003 /* VaultView+Toolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000002 /* VaultView+Toolbar.swift */; };
-		VV0000005 /* VaultView+FanMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000004 /* VaultView+FanMenu.swift */; };
-		VV0000007 /* VaultView+SharedVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000006 /* VaultView+SharedVault.swift */; };
-		VV0000009 /* VaultView+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000008 /* VaultView+Actions.swift */; };
 		006000005 /* SecureImageViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006000004 /* SecureImageViewer.swift */; };
 		006000007 /* SecureVideoPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006000006 /* SecureVideoPlayer.swift */; };
 		006000009 /* FileImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006000008 /* FileImporter.swift */; };
@@ -64,7 +59,7 @@
 		019000003 /* PermissionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000002 /* PermissionsView.swift */; };
 		020000001 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000 /* SubscriptionManager.swift */; };
 		020000003 /* PaywallTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000002 /* PaywallTrigger.swift */; };
-
+		020000005 /* VaultairePaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000004 /* VaultairePaywallView.swift */; };
 		021000001 /* ThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000000 /* ThumbnailCache.swift */; };
 		021000003 /* AsyncThumbnailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000002 /* AsyncThumbnailView.swift */; };
 		021000005 /* PhotosGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000004 /* PhotosGridView.swift */; };
@@ -84,7 +79,6 @@
 		39EACFAD2F2AC5C500FA7EC2 /* GridLetterManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39EACFAC2F2AC5C500FA7EC2 /* GridLetterManager.swift */; };
 		6D5554047A7544D7954CEF9B /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = E8320F0CD52C4885B07B350E /* Sentry */; };
 		A1B2C3D4E5F64789A1B2C3D4 /* TelemetryDeck in Frameworks */ = {isa = PBXBuildFile; productRef = F1E2D3C4B5A647890123ABCD /* TelemetryDeck */; };
-		020000005 /* VaultairePaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000004 /* VaultairePaywallView.swift */; };
 		LA0000001 /* TransferActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = LA0000000 /* TransferActivityAttributes.swift */; };
 		LA0000003 /* TransferActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = LA0000000 /* TransferActivityAttributes.swift */; };
 		LA0000005 /* VaultLiveActivityBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = LA0000004 /* VaultLiveActivityBundle.swift */; };
@@ -120,6 +114,11 @@
 		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
 		UX0000005 /* MilestoneTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000004 /* MilestoneTracker.swift */; };
 		UX0000007 /* PatternValidationFeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000006 /* PatternValidationFeedbackView.swift */; };
+		VV0000001 /* VaultView+Grid.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000000 /* VaultView+Grid.swift */; };
+		VV0000003 /* VaultView+Toolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000002 /* VaultView+Toolbar.swift */; };
+		VV0000005 /* VaultView+FanMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000004 /* VaultView+FanMenu.swift */; };
+		VV0000007 /* VaultView+SharedVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000006 /* VaultView+SharedVault.swift */; };
+		VV0000009 /* VaultView+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000008 /* VaultView+Actions.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -180,11 +179,6 @@
 		005000004 /* PatternValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidator.swift; sourceTree = "<group>"; };
 		005000006 /* PatternNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternNode.swift; sourceTree = "<group>"; };
 		006000000 /* VaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultView.swift; sourceTree = "<group>"; };
-		VV0000000 /* VaultView+Grid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Grid.swift"; sourceTree = "<group>"; };
-		VV0000002 /* VaultView+Toolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Toolbar.swift"; sourceTree = "<group>"; };
-		VV0000004 /* VaultView+FanMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+FanMenu.swift"; sourceTree = "<group>"; };
-		VV0000006 /* VaultView+SharedVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+SharedVault.swift"; sourceTree = "<group>"; };
-		VV0000008 /* VaultView+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Actions.swift"; sourceTree = "<group>"; };
 		006000004 /* SecureImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureImageViewer.swift; sourceTree = "<group>"; };
 		006000006 /* SecureVideoPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureVideoPlayer.swift; sourceTree = "<group>"; };
 		006000008 /* FileImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileImporter.swift; sourceTree = "<group>"; };
@@ -229,6 +223,7 @@
 		022000002 /* VaultSyncIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultSyncIndicator.swift; sourceTree = "<group>"; };
 		022000004 /* PhraseActionButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseActionButtons.swift; sourceTree = "<group>"; };
 		088000000000 /* Vault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Vault.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		392ACAC62F3FB9140059878A /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Products.storekit; sourceTree = "<group>"; };
 		39EACF9C2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = NAVIGATION_REDESIGN.md; sourceTree = "<group>"; };
 		39EACF9E2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEBUG_RESET_FEATURE.md; sourceTree = "<group>"; };
 		39EACFA02F29B36D00FA7EC2 /* RecoveryPhraseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryPhraseManager.swift; sourceTree = "<group>"; };
@@ -261,14 +256,19 @@
 		TS0000006 /* SharedVaultDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedVaultDataTests.swift; sourceTree = "<group>"; };
 		TS0000008 /* ShareLinkEncoderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareLinkEncoderTests.swift; sourceTree = "<group>"; };
 		TS000000A /* RecoveryPhraseGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryPhraseGeneratorTests.swift; sourceTree = "<group>"; };
+		TS0000010 /* VaultTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		TS0000020 /* PatternValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidatorTests.swift; sourceTree = "<group>"; };
 		TS0000022 /* PatternSerializerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSerializerTests.swift; sourceTree = "<group>"; };
 		TS0000024 /* KeyDerivationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyDerivationTests.swift; sourceTree = "<group>"; };
-		TS0000010 /* VaultTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
 		UX0000004 /* MilestoneTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneTracker.swift; sourceTree = "<group>"; };
 		UX0000006 /* PatternValidationFeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidationFeedbackView.swift; sourceTree = "<group>"; };
+		VV0000000 /* VaultView+Grid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Grid.swift"; sourceTree = "<group>"; };
+		VV0000002 /* VaultView+Toolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Toolbar.swift"; sourceTree = "<group>"; };
+		VV0000004 /* VaultView+FanMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+FanMenu.swift"; sourceTree = "<group>"; };
+		VV0000006 /* VaultView+SharedVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+SharedVault.swift"; sourceTree = "<group>"; };
+		VV0000008 /* VaultView+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Actions.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -589,6 +589,7 @@
 		089000000000 = {
 			isa = PBXGroup;
 			children = (
+				392ACAC62F3FB9140059878A /* Products.storekit */,
 				0100000001 /* Vault */,
 				LA00000070 /* VaultLiveActivity */,
 				SE0000070 /* Vault/Extensions/ShareExtension */,
@@ -1110,7 +1111,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 21;
+				CURRENT_PROJECT_VERSION = 22;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = UFV835UGV6;
@@ -1151,7 +1152,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 21;
+				CURRENT_PROJECT_VERSION = 22;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = UFV835UGV6;
@@ -1188,7 +1189,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 21;
+				CURRENT_PROJECT_VERSION = 22;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = VaultLiveActivity/Info.plist;
@@ -1217,7 +1218,7 @@
 			buildSettings = {
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 21;
+				CURRENT_PROJECT_VERSION = 22;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = VaultLiveActivity/Info.plist;
@@ -1247,7 +1248,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 21;
+				CURRENT_PROJECT_VERSION = 22;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
@@ -1278,7 +1279,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 21;
+				CURRENT_PROJECT_VERSION = 22;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
@@ -1309,7 +1310,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 21;
+				CURRENT_PROJECT_VERSION = 22;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1326,7 +1327,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 21;
+				CURRENT_PROJECT_VERSION = 22;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
