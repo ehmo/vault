@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "257d32f8b226",
+  "session_id": "f120f8ee-c070-4f9b-ab0a-6cb9dbb899e3",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-13T07:09:44.17523Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Core/Billing/VaultairePaywallView.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "b0c9a53a-4d96-43bd-9272-a475f3053212",
+  "checkpoint_transcript_start": 1236,
+  "transcript_lines_at_start": 1236,
+  "token_usage": {
+    "input_tokens": 7,
+    "cache_creation_tokens": 12201,
+    "cache_read_tokens": 771766,
+    "output_tokens": 41,
+    "api_call_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-13T07:09:43.938127Z",
+    "agent_lines": 55,
+    "human_added": 13030,
+    "human_modified": 9,
+    "human_removed": 0,
+    "total_committed": 13094,
+    "agent_percentage": 0.4200397128455781
+  }
+}

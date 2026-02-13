@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "257d32f8b226",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Core/Billing/VaultairePaywallView.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/25/7d32f8b226/0/metadata.json",
+      "transcript": "/25/7d32f8b226/0/full.jsonl",
+      "context": "/25/7d32f8b226/0/context.md",
+      "content_hash": "/25/7d32f8b226/0/content_hash.txt",
+      "prompt": "/25/7d32f8b226/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 7,
+    "cache_creation_tokens": 12201,
+    "cache_read_tokens": 771766,
+    "output_tokens": 41,
+    "api_call_count": 5
+  }
+}
