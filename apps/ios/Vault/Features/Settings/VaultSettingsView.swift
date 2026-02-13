@@ -826,111 +826,110 @@ struct CustomRecoveryPhraseInputView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
+                if !showSuccess {
+                    ToolbarItem(placement: .confirmationAction) {
+                        if isProcessing {
+                            ProgressView()
+                        } else {
+                            Button("Save") { saveCustomPhrase() }
+                                .disabled(!(validation?.isAcceptable ?? false))
+                                .fontWeight(.semibold)
+                        }
+                    }
+                }
             }
         }
     }
-    
-    private var inputView: some View {
-        VStack(spacing: 24) {
-            VStack(spacing: 12) {
-                Image(systemName: "pencil.circle.fill")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.tint)
-                
-                Text("Set Your Custom Phrase")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text("Enter a memorable sentence that you'll use to recover this vault. It should be unique and difficult to guess.")
-                    .font(.subheadline)
-                    .foregroundStyle(.vaultSecondaryText)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.horizontal)
-            
-            // Phrase input
-            ZStack(alignment: .topLeading) {
-                TextEditor(text: $customPhrase)
-                    .autocorrectionDisabled()
-                    .onChange(of: customPhrase) { _, newValue in
-                        validatePhrase(newValue)
-                    }
 
-                if customPhrase.isEmpty {
-                    Text("Type a memorable phrase with 6-9 words...")
-                        .foregroundStyle(.vaultSecondaryText.opacity(0.6))
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 8)
-                        .allowsHitTesting(false)
-                }
-            }
-            .frame(height: 120)
-            .padding(8)
-            .background(Color.vaultSurface)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.vaultSecondaryText.opacity(0.3), lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .padding(.horizontal)
-            
-            // Validation feedback
-            if let validation = validation {
-                HStack(spacing: 8) {
-                    Image(systemName: validation.isAcceptable ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundStyle(validation.isAcceptable ? .green : .orange)
-                    Text(validation.message)
+    private var inputView: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                VStack(spacing: 12) {
+                    Image(systemName: "pencil.circle.fill")
+                        .font(.system(size: 48))
+                        .foregroundStyle(.tint)
+
+                    Text("Set Your Custom Phrase")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+
+                    Text("Enter a memorable sentence that you'll use to recover this vault. It should be unique and difficult to guess.")
                         .font(.subheadline)
+                        .foregroundStyle(.vaultSecondaryText)
+                        .multilineTextAlignment(.center)
                 }
+                .padding(.horizontal)
+
+                // Phrase input
+                ZStack(alignment: .topLeading) {
+                    TextEditor(text: $customPhrase)
+                        .autocorrectionDisabled()
+                        .onChange(of: customPhrase) { _, newValue in
+                            validatePhrase(newValue)
+                        }
+
+                    if customPhrase.isEmpty {
+                        Text("Type a memorable phrase with 6-9 words...")
+                            .foregroundStyle(.vaultSecondaryText.opacity(0.6))
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 8)
+                            .allowsHitTesting(false)
+                    }
+                }
+                .frame(height: 120)
+                .padding(8)
+                .background(Color.vaultSurface)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.vaultSecondaryText.opacity(0.3), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal)
+
+                // Validation feedback
+                if let validation = validation {
+                    HStack(spacing: 8) {
+                        Image(systemName: validation.isAcceptable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .foregroundStyle(validation.isAcceptable ? .green : .orange)
+                        Text(validation.message)
+                            .font(.subheadline)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(validation.isAcceptable ? Color.green.opacity(0.1) : Color.vaultHighlight.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal)
+                }
+
+                // Error message
+                if let error = errorMessage {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .foregroundStyle(.vaultHighlight)
+                        Text(error)
+                            .font(.subheadline)
+                    }
+                    .padding()
+                    .background(Color.vaultHighlight.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal)
+                }
+
+                // Guidelines
+                VStack(alignment: .leading, spacing: 12) {
+                    Label("Use at least 6-9 words", systemImage: "text.word.spacing")
+                    Label("Mix common and uncommon words", systemImage: "shuffle")
+                    Label("Make it memorable but unique", systemImage: "brain.head.profile")
+                }
+                .font(.subheadline)
+                .foregroundStyle(.vaultSecondaryText)
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(validation.isAcceptable ? Color.green.opacity(0.1) : Color.vaultHighlight.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .vaultGlassBackground(cornerRadius: 12)
                 .padding(.horizontal)
             }
-            
-            // Error message
-            if let error = errorMessage {
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.circle.fill")
-                        .foregroundStyle(.vaultHighlight)
-                    Text(error)
-                        .font(.subheadline)
-                }
-                .padding()
-                .background(Color.vaultHighlight.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .padding(.horizontal)
-            }
-            
-            Spacer()
-            
-            // Guidelines
-            VStack(alignment: .leading, spacing: 12) {
-                Label("Use at least 6-9 words", systemImage: "text.word.spacing")
-                Label("Mix common and uncommon words", systemImage: "shuffle")
-                Label("Make it memorable but unique", systemImage: "brain.head.profile")
-            }
-            .font(.subheadline)
-            .foregroundStyle(.vaultSecondaryText)
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .vaultGlassBackground(cornerRadius: 12)
-            .padding(.horizontal)
-
-            // Save button
-            Button(action: saveCustomPhrase) {
-                if isProcessing {
-                    ProgressView()
-                } else {
-                    Text("Set Custom Phrase")
-                }
-            }
-            .vaultProminentButtonStyle()
-            .disabled(!(validation?.isAcceptable ?? false) || isProcessing)
-            .padding()
+            .padding(.vertical)
         }
-        .padding(.vertical)
     }
     
     private var successView: some View {
