@@ -1,0 +1,58 @@
+Implement the following plan:
+
+# Auto Background iCloud Backup
+
+## Context
+Backups only trigger when the user visits the iCloud Backup settings screen and must stay on that screen until complete. This is because:
+1. The auto-backup check lives in `iCloudBackupSettingsView.onAppear`
+2. No background execution protection exists — backgrounding kills the backup
+3. The vault key is wiped on `willResignActiveNotification`
+
+## Approach
+Trigger backup silently after vault unlock. Use `beginBackgroundTask` + captured key so it survives backgrounding. Follow the existing `BackgroundShareTransferManager` pattern exactly.
+
+## Changes
+
+### 1. `iCloudBackupManager.swift` — Add silent background backup method
+- New method `performBackupIfNeeded(with key: Data)` that:
+  - Checks `iCloudBackupEnabled` AppStorage and 24h interval
+  - Captures key by value
+  - Wraps work in `UIApplication.shared.beginBackgroundTask`
+  - Runs backup via existing `performBackup(with:onProgress:onUploadProgress:)`
+  - Updates `lastBackupTimestamp` on success
+  - Sends local notification on failure (silent on success)
+  - No UI interaction — fully fire-and-forget
+
+### 2. `ContentView.swift` — Trigger after unlock
+- In the existing `.onReceive(UIApplication.didBecomeActiveNotification)` or as a new `.onChange(of: appState.isUnlocked)`:
+  - When `isUnlocked` becomes true and `currentVaultKey` is available
+  - Call `iCloudBackupManager.shared.performBackupIfNeeded(with: key)`
+
+### 3. `iCloudBackupSettingsView` — Remove "keep app open" warning
+- Remove the "Keep the app open until backup completes" HStack
+- The manual "Backup Now" button continues to work with progress UI
+
+## Files
+- `apps/ios/Vault/Core/Storage/iCloudBackupManager.swift` — new method
+- `apps/ios/Vault/App/ContentView.swift` — trigger after unlock
+- `apps/ios/Vault/Features/Settings/SettingsView.swift` — remove warning
+
+## Reference
+- `BackgroundShareTransferManager.swift` lines 109-127 — `beginBackgroundTask` pattern
+- `BackgroundShareTransferManager.swift` line 148 — key capture pattern
+
+## Verification
+1. Build succeeds
+2. Enable backup, lock vault, re-unlock → backup runs without visiting settings
+3. Background app during backup → backup completes (check via Console.app logs)
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+There is a strange bug. On the join shared vault screen, if user taps into the text area, the background screen jumps up (see in the back).
+
+---
+
+[Image: source: /Users/nan/Downloads/IMG_1949.PNG]

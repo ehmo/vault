@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "5c040349f3d3",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/ios/Vault/App/ContentView.swift",
+    "apps/ios/Vault/Core/Storage/iCloudBackupManager.swift",
+    "apps/ios/Vault/Features/PatternLock/PatternLockView.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/5c/040349f3d3/0/metadata.json",
+      "transcript": "/5c/040349f3d3/0/full.jsonl",
+      "context": "/5c/040349f3d3/0/context.md",
+      "content_hash": "/5c/040349f3d3/0/content_hash.txt",
+      "prompt": "/5c/040349f3d3/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 37,
+    "cache_creation_tokens": 54380,
+    "cache_read_tokens": 2171232,
+    "output_tokens": 819,
+    "api_call_count": 33
+  }
+}
