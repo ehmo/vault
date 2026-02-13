@@ -3,26 +3,21 @@ import SwiftUI
 struct AnalyticsConsentView: View {
     let onContinue: () -> Void
 
-    @Environment(SubscriptionManager.self) private var subscriptionManager
     @State private var consentChosen = false
 
     var body: some View {
         if consentChosen {
-            // Paywall phase — skip if RevenueCat not configured (no production key)
-            if subscriptionManager.isConfigured {
-                VStack(spacing: 0) {
-                    VaultairePaywallView(onDismiss: onContinue)
+            // Paywall phase
+            VStack(spacing: 0) {
+                VaultairePaywallView(onDismiss: onContinue)
 
-                    Button(action: onContinue) {
-                        Text("Skip")
-                            .font(.subheadline)
-                            .foregroundStyle(.vaultSecondaryText)
-                    }
-                    .accessibilityIdentifier("paywall_skip")
-                    .padding(.bottom, 24)
+                Button(action: onContinue) {
+                    Text("Skip")
+                        .font(.subheadline)
+                        .foregroundStyle(.vaultSecondaryText)
                 }
-            } else {
-                Color.clear.onAppear { onContinue() }
+                .accessibilityIdentifier("paywall_skip")
+                .padding(.bottom, 24)
             }
         } else {
             // Consent phase

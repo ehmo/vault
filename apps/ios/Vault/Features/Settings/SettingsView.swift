@@ -1,6 +1,6 @@
 import SwiftUI
 import CloudKit
-import RevenueCatUI
+import StoreKit
 import os.log
 
 // MARK: - App Settings Destination
@@ -293,9 +293,7 @@ struct AppSettingsView: View {
             Text("This will delete all files shared via the share extension that haven't been imported yet.")
         }
         .premiumPaywall(isPresented: $showingPaywall)
-        .sheet(isPresented: $showingCustomerCenter) {
-            CustomerCenterView()
-        }
+        .manageSubscriptionsSheet(isPresented: $showingCustomerCenter)
         .ignoresSafeArea(.keyboard)
     }
 

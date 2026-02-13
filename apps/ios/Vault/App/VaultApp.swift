@@ -266,13 +266,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // Initialize analytics (Sentry + TelemetryDeck) if user opted in
         AnalyticsManager.shared.startIfEnabled()
 
-        // Initialize RevenueCat
-        #if DEBUG
-        SubscriptionManager.shared.configure(apiKey: "test_GqDBKuyzTuNOClYgpyIUbvSEtTu")
-        #else
-        SubscriptionManager.shared.configure(apiKey: "appl_RHwamtdCBAsxHNQBRDVaKMNLMaB")
-        #endif
-
         UNUserNotificationCenter.current().delegate = self
 
         // Eagerly init VaultStorage so blob existence check (and potential background

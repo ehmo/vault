@@ -1,0 +1,153 @@
+{
+  "identifier" : "F1A2B3C4-D5E6-F7A8-B9C0-D1E2F3A4B5C6",
+  "type" : "local",
+  "metadata" : {
+    "version" : 3
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "vaultaire_pro",
+      "localizations" : [
+        {
+          "description" : "Vaultaire Pro subscription plans",
+          "displayName" : "Vaultaire Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "vaultaire_pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "1.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "A1B2C3D4-E5F6-A7B8-C9D0-E1F2A3B4C5D6",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Monthly access to all Vaultaire Pro features",
+              "displayName" : "Vaultaire Pro Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "monthly_pro",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Vaultaire Pro Monthly",
+          "subscriptionGroupID" : "vaultaire_pro",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "B2C3D4E5-F6A7-B8C9-D0E1-F2A3B4C5D6E7",
+          "introductoryOffer" : {
+            "internalID" : "C3D4E5F6-A7B8-C9D0-E1F2-A3B4C5D6E7F8",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Yearly access to all Vaultaire Pro features with 7-day free trial",
+              "displayName" : "Vaultaire Pro Yearly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "yearly_pro",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Vaultaire Pro Yearly",
+          "subscriptionGroupID" : "vaultaire_pro",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "products" : [
+    {
+      "displayPrice" : "29.99",
+      "familyShareable" : false,
+      "internalID" : "D4E5F6A7-B8C9-D0E1-F2A3-B4C5D6E7F8A9",
+      "localizations" : [
+        {
+          "description" : "Lifetime access to all Vaultaire Pro features",
+          "displayName" : "Vaultaire Pro Lifetime",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "lifetime",
+      "referenceName" : "Vaultaire Pro Lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6758529311",
+    "_developerTeamID" : "PLACEHOLDER",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      }
+    ]
+  }
+}

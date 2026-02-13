@@ -1,5 +1,4 @@
 import SwiftUI
-import RevenueCat
 
 enum PremiumFeature: String {
     case unlimitedVaults
@@ -28,7 +27,7 @@ struct PremiumGateModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .sheet(isPresented: $showPaywall) {
-                if subscriptionManager.hasOfferings {
+                if subscriptionManager.hasProducts {
                     VaultairePaywallView(onDismiss: { showPaywall = false })
                 } else {
                     FallbackPaywallView(showPaywall: $showPaywall)
@@ -39,7 +38,7 @@ struct PremiumGateModifier: ViewModifier {
 
 // MARK: - Fallback Paywall
 
-/// Shown when RevenueCat offerings aren't available (configuration error, network issues, etc.)
+/// Shown when StoreKit products aren't available (configuration error, network issues, etc.)
 struct FallbackPaywallView: View {
     @Environment(SubscriptionManager.self) private var subscriptionManager
     @Binding var showPaywall: Bool
@@ -57,7 +56,6 @@ struct FallbackPaywallView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 32) {
-                    // Header
                     VStack(spacing: 12) {
                         Image(systemName: "shield.checkered")
                             .font(.system(size: 56))
@@ -73,7 +71,6 @@ struct FallbackPaywallView: View {
                     }
                     .padding(.top, 24)
 
-                    // Features
                     VStack(spacing: 16) {
                         ForEach(features, id: \.title) { feature in
                             HStack(spacing: 16) {
@@ -97,7 +94,6 @@ struct FallbackPaywallView: View {
                         }
                     }
 
-                    // Sandbox testing note
                     if SubscriptionManager.isSandbox {
                         VStack(spacing: 8) {
                             Text("Testing Mode")

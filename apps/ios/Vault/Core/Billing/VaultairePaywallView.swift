@@ -1,5 +1,5 @@
 import SwiftUI
-import RevenueCat
+import StoreKit
 
 struct VaultairePaywallView: View {
     let onDismiss: () -> Void
@@ -7,9 +7,9 @@ struct VaultairePaywallView: View {
     @Environment(SubscriptionManager.self) private var subscriptionManager
 
     @State private var selectedPlan: PlanType = .monthly
-    @State private var monthlyPackage: Package?
-    @State private var yearlyPackage: Package?
-    @State private var lifetimePackage: Package?
+    @State private var monthlyProduct: Product?
+    @State private var yearlyProduct: Product?
+    @State private var lifetimeProduct: Product?
     @State private var isTrialEligible = false
     @State private var trialEnabled = false
     @State private var isPurchasing = false
@@ -35,7 +35,7 @@ struct VaultairePaywallView: View {
         }
         .background(Color.vaultBackground.ignoresSafeArea())
         .task {
-            await loadOfferings()
+            await loadProducts()
         }
     }
 
@@ -57,7 +57,6 @@ struct VaultairePaywallView: View {
 
     private var benefitsTable: some View {
         VStack(spacing: 0) {
-            // Header row
             HStack {
                 Text("Feature")
                     .font(.caption.weight(.semibold))
@@ -98,12 +97,12 @@ struct VaultairePaywallView: View {
     @ViewBuilder
     private func benefitCell(_ value: String) -> some View {
         switch value {
-        case "✓":
+        case "\u{2713}":
             Image(systemName: "checkmark")
                 .font(.caption.weight(.bold))
                 .foregroundStyle(Color.accentColor)
-        case "—":
-            Text("—")
+        case "\u{2014}":
+            Text("\u{2014}")
                 .font(.subheadline)
                 .foregroundStyle(.vaultSecondaryText)
         default:
@@ -120,7 +119,7 @@ struct VaultairePaywallView: View {
             planCard(
                 type: .monthly,
                 title: "Monthly",
-                price: monthlyPackage?.storeProduct.localizedPriceString ?? "$1.99",
+                price: monthlyProduct?.displayPrice ?? "$1.99",
                 period: "/month",
                 badge: nil,
                 detail: nil
@@ -129,7 +128,7 @@ struct VaultairePaywallView: View {
             planCard(
                 type: .yearly,
                 title: "Yearly",
-                price: yearlyPackage?.storeProduct.localizedPriceString ?? "$9.99",
+                price: yearlyProduct?.displayPrice ?? "$9.99",
                 period: "/year",
                 badge: "SAVE 58%",
                 detail: "$0.83/mo"
@@ -138,7 +137,7 @@ struct VaultairePaywallView: View {
             planCard(
                 type: .lifetime,
                 title: "Lifetime",
-                price: lifetimePackage?.storeProduct.localizedPriceString ?? "$29.99",
+                price: lifetimeProduct?.displayPrice ?? "$29.99",
                 period: " once",
                 badge: "BEST VALUE",
                 detail: "Forever"
@@ -159,7 +158,6 @@ struct VaultairePaywallView: View {
         return Button {
             withAnimation(.easeInOut(duration: 0.2)) {
                 selectedPlan = type
-                // Reset trial toggle when switching away from yearly
                 if type != .yearly {
                     trialEnabled = false
                 }
@@ -258,7 +256,7 @@ struct VaultairePaywallView: View {
                 .padding()
             }
             .vaultProminentButtonStyle()
-            .disabled(isPurchasing || selectedPackage == nil)
+            .disabled(isPurchasing || selectedProduct == nil)
         }
     }
 
@@ -272,7 +270,7 @@ struct VaultairePaywallView: View {
         case .yearly:
             return "Subscribe"
         case .lifetime:
-            let price = lifetimePackage?.storeProduct.localizedPriceString ?? "$29.99"
+            let price = lifetimeProduct?.displayPrice ?? "$29.99"
             return "Purchase for \(price)"
         }
     }
@@ -281,7 +279,7 @@ struct VaultairePaywallView: View {
 
     private var footerSection: some View {
         VStack(spacing: 8) {
-            Text("No commitment · Cancel anytime")
+            Text("No commitment \u{00B7} Cancel anytime")
                 .font(.caption)
                 .foregroundStyle(.vaultSecondaryText)
 
@@ -289,9 +287,9 @@ struct VaultairePaywallView: View {
                 Button("Restore Purchases") {
                     Task { await restore() }
                 }
-                Text("·").foregroundStyle(.vaultSecondaryText)
+                Text("\u{00B7}").foregroundStyle(.vaultSecondaryText)
                 Link("Terms", destination: URL(string: "https://vaultaire.app/terms")!)
-                Text("·").foregroundStyle(.vaultSecondaryText)
+                Text("\u{00B7}").foregroundStyle(.vaultSecondaryText)
                 Link("Privacy", destination: URL(string: "https://vaultaire.app/privacy")!)
             }
             .font(.caption)
@@ -301,11 +299,11 @@ struct VaultairePaywallView: View {
 
     // MARK: - Data
 
-    private var selectedPackage: Package? {
+    private var selectedProduct: Product? {
         switch selectedPlan {
-        case .monthly: return monthlyPackage
-        case .yearly: return yearlyPackage
-        case .lifetime: return lifetimePackage
+        case .monthly: return monthlyProduct
+        case .yearly: return yearlyProduct
+        case .lifetime: return lifetimeProduct
         }
     }
 
@@ -317,48 +315,43 @@ struct VaultairePaywallView: View {
 
     private var benefits: [BenefitRow] {
         [
-            BenefitRow(label: "Photos per vault", free: "100", pro: "∞"),
-            BenefitRow(label: "Videos per vault", free: "10", pro: "∞"),
-            BenefitRow(label: "Vaults", free: "5", pro: "∞"),
-            BenefitRow(label: "Duress vault", free: "—", pro: "✓"),
-            BenefitRow(label: "Vault sharing", free: "—", pro: "✓"),
-            BenefitRow(label: "iCloud backup", free: "—", pro: "✓"),
-            BenefitRow(label: "Pattern encryption", free: "✓", pro: "✓"),
-            BenefitRow(label: "Plausible deniability", free: "✓", pro: "✓"),
+            BenefitRow(label: "Photos per vault", free: "100", pro: "\u{221E}"),
+            BenefitRow(label: "Videos per vault", free: "10", pro: "\u{221E}"),
+            BenefitRow(label: "Vaults", free: "5", pro: "\u{221E}"),
+            BenefitRow(label: "Duress vault", free: "\u{2014}", pro: "\u{2713}"),
+            BenefitRow(label: "Vault sharing", free: "\u{2014}", pro: "\u{2713}"),
+            BenefitRow(label: "iCloud backup", free: "\u{2014}", pro: "\u{2713}"),
+            BenefitRow(label: "Pattern encryption", free: "\u{2713}", pro: "\u{2713}"),
+            BenefitRow(label: "Plausible deniability", free: "\u{2713}", pro: "\u{2713}"),
         ]
     }
 
     // MARK: - Actions
 
-    private func loadOfferings() async {
-        do {
-            let offerings = try await Purchases.shared.offerings()
-            guard let current = offerings.current else { return }
+    private func loadProducts() async {
+        await subscriptionManager.loadProducts()
 
-            monthlyPackage = current.package(identifier: "$rc_monthly")
-            yearlyPackage = current.package(identifier: "$rc_annual")
-            lifetimePackage = current.package(identifier: "$rc_lifetime")
+        monthlyProduct = subscriptionManager.product(for: "monthly_pro")
+        yearlyProduct = subscriptionManager.product(for: "yearly_pro")
+        lifetimeProduct = subscriptionManager.product(for: "lifetime")
 
-            // Check trial eligibility on yearly product
-            if let yearly = yearlyPackage,
-               let intro = yearly.storeProduct.introductoryDiscount,
-               intro.paymentMode == .freeTrial {
-                isTrialEligible = true
-            }
-        } catch {
-            // Packages will show fallback prices from labels
+        // Check trial eligibility on yearly product
+        if let yearly = yearlyProduct,
+           let sub = yearly.subscription,
+           let intro = sub.introductoryOffer,
+           intro.paymentMode == .freeTrial {
+            isTrialEligible = true
         }
     }
 
     private func purchase() async {
-        guard let package = selectedPackage else { return }
+        guard let product = selectedProduct else { return }
         isPurchasing = true
         errorMessage = nil
 
         do {
-            let result = try await Purchases.shared.purchase(package: package)
-            if !result.userCancelled {
-                subscriptionManager.updateFromCustomerInfo(result.customerInfo)
+            let success = try await subscriptionManager.purchase(product)
+            if success {
                 onDismiss()
             }
         } catch {
@@ -373,8 +366,7 @@ struct VaultairePaywallView: View {
         errorMessage = nil
 
         do {
-            let info = try await Purchases.shared.restorePurchases()
-            subscriptionManager.updateFromCustomerInfo(info)
+            try await subscriptionManager.restorePurchases()
             if subscriptionManager.isPremium {
                 onDismiss()
             } else {
