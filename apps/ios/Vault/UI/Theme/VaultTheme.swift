@@ -10,6 +10,12 @@ import SwiftUI
 //   Highlight:        #e45858  (coral red)
 //   Button text:      #fffffe  (white on accent)
 //
+// Design tokens (dark mode, tuned for readability):
+//   Background:       #20233c  (lifted from near-black for easier scanning)
+//   Surface / Card:   #323444  (clear separation from background)
+//   Secondary Text:   same hue, stronger opacity for legibility
+//   Accent / Link:    #6e5cf9  (slightly brighter than light-mode accent)
+//
 // Colors are defined as asset catalog color sets and auto-generated
 // by Xcode as Color.vaultBackground, .vaultSurface, .vaultText,
 // .vaultSecondaryText, .vaultHighlight.
