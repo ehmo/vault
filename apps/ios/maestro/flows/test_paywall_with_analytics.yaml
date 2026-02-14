@@ -1,0 +1,65 @@
+appId: app.vaultaire.ios
+---
+# Test paywall buttons AFTER enabling analytics (the reported problematic path)
+- launchApp:
+    clearState: true
+    clearKeychain: false
+
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# Dismiss Apple Account Verification if present
+- tapOn:
+    text: "Not Now"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Welcome step
+- tapOn:
+    text: "Protect Your First Vault"
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Permissions step
+- tapOn:
+    text: "Continue"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Analytics step - ENABLE analytics (triggers Sentry + TelemetryDeck init)
+- tapOn:
+    text: "Enable Analytics"
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Now on paywall step - test immediately after analytics init
+- assertVisible: "Unlock Vaultaire Pro"
+- assertVisible: "Subscribe"
+
+# Rapid-fire tapping immediately (no extra waits — stress test during analytics init)
+- tapOn: "Lifetime"
+- waitForAnimationToEnd:
+    timeout: 1000
+- assertVisible:
+    text: "Purchase for \\$29.99"
+
+- tapOn: "Monthly"
+- waitForAnimationToEnd:
+    timeout: 1000
+- assertVisible: "Subscribe"
+
+- tapOn: "Annual"
+- tapOn: "Lifetime"
+- tapOn: "Monthly"
+- tapOn: "Lifetime"
+- waitForAnimationToEnd:
+    timeout: 1000
+- assertVisible:
+    text: "Purchase for \\$29.99"
+
+- tapOn: "Monthly"
+- waitForAnimationToEnd:
+    timeout: 1000
+- assertVisible: "Subscribe"

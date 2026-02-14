@@ -1,0 +1,92 @@
+appId: app.vaultaire.ios
+---
+- launchApp:
+    clearState: true
+    clearKeychain: false
+
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# Dismiss Apple Account Verification if present
+- tapOn:
+    text: "Not Now"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Welcome step
+- tapOn:
+    text: "Protect Your First Vault"
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Permissions step
+- tapOn:
+    text: "Continue"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Analytics step - skip to avoid blocking
+- tapOn:
+    text: "No Thanks"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Now on paywall step
+- assertVisible: "Unlock Vaultaire Pro"
+
+# Default is Monthly - CTA should say "Subscribe"
+- assertVisible: "Subscribe"
+
+# Test 1: Tap Lifetime - CTA changes to "Purchase for"
+- tapOn: "Lifetime"
+- waitForAnimationToEnd:
+    timeout: 1000
+- assertVisible:
+    text: "Purchase for \\$29.99"
+
+# Test 2: Tap Monthly - CTA changes back to "Subscribe"
+- tapOn: "Monthly"
+- waitForAnimationToEnd:
+    timeout: 1000
+- assertNotVisible:
+    text: "Purchase for \\$29.99"
+- assertVisible: "Subscribe"
+
+# Test 3: Tap Annual
+- tapOn: "Annual"
+- waitForAnimationToEnd:
+    timeout: 1000
+- assertVisible: "Subscribe"
+
+# Test 4: Switch back to Lifetime
+- tapOn: "Lifetime"
+- waitForAnimationToEnd:
+    timeout: 1000
+- assertVisible:
+    text: "Purchase for \\$29.99"
+
+# Test 5: Rapid switching without waits
+- tapOn: "Monthly"
+- tapOn: "Lifetime"
+- waitForAnimationToEnd:
+    timeout: 1000
+- assertVisible:
+    text: "Purchase for \\$29.99"
+
+# Test 6: Rapid 3-way switch without waits
+- tapOn: "Monthly"
+- tapOn: "Annual"
+- tapOn: "Lifetime"
+- waitForAnimationToEnd:
+    timeout: 1000
+- assertVisible:
+    text: "Purchase for \\$29.99"
+
+# Test 7: End on Monthly
+- tapOn: "Monthly"
+- waitForAnimationToEnd:
+    timeout: 1000
+- assertVisible: "Subscribe"

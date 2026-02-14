@@ -7,13 +7,23 @@ struct VaultairePaywallView: View {
     @Environment(SubscriptionManager.self) private var subscriptionManager
 
     @State private var selectedPlan: PlanType = .monthly
-    @State private var monthlyProduct: Product?
-    @State private var annualProduct: Product?
-    @State private var lifetimeProduct: Product?
-    @State private var isTrialEligible = false
     @State private var trialEnabled = false
     @State private var isPurchasing = false
     @State private var errorMessage: String?
+
+    // Read products directly from SubscriptionManager (@Observable).
+    // No .task needed — view updates reactively when products load from init.
+    private var monthlyProduct: Product? { subscriptionManager.product(for: "monthly_pro") }
+    private var annualProduct: Product? { subscriptionManager.product(for: "yearly_pro") }
+    private var lifetimeProduct: Product? { subscriptionManager.product(for: "lifetime") }
+
+    private var isTrialEligible: Bool {
+        guard let annual = annualProduct,
+              let sub = annual.subscription,
+              let intro = sub.introductoryOffer,
+              intro.paymentMode == .freeTrial else { return false }
+        return true
+    }
 
     enum PlanType: String, CaseIterable {
         case monthly, annual, lifetime
@@ -34,9 +44,6 @@ struct VaultairePaywallView: View {
             .padding(.bottom, 32)
         }
         .background(Color.vaultBackground.ignoresSafeArea())
-        .task {
-            await loadProducts()
-        }
     }
 
     // MARK: - Header
@@ -155,52 +162,55 @@ struct VaultairePaywallView: View {
     ) -> some View {
         let isSelected = selectedPlan == type
 
-        return Button {
+        // Use onTapGesture instead of Button to avoid gesture conflict with
+        // ScrollView — Button's internal LongPress→Tap sequence loses taps to
+        // the scroll recognizer when the user's finger moves even slightly.
+        return HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.vaultText)
+
+                if let detail {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.vaultSecondaryText)
+                }
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 4) {
+                if let badge {
+                    Text(badge)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.accentColor, in: Capsule())
+                }
+
+                Text("\(price)\(period)")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.vaultText)
+            }
+        }
+        .padding(16)
+        .vaultGlassBackground()
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
             withAnimation(.easeInOut(duration: 0.2)) {
                 selectedPlan = type
                 if type != .annual {
                     trialEnabled = false
                 }
             }
-        } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(.headline)
-                        .foregroundStyle(.vaultText)
-
-                    if let detail {
-                        Text(detail)
-                            .font(.caption)
-                            .foregroundStyle(.vaultSecondaryText)
-                    }
-                }
-
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 4) {
-                    if let badge {
-                        Text(badge)
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.accentColor, in: Capsule())
-                    }
-
-                    Text("\(price)\(period)")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.vaultText)
-                }
-            }
-            .padding(16)
-            .vaultGlassBackground()
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
-            )
         }
-        .buttonStyle(.plain)
+        .accessibilityAddTraits(.isButton)
     }
 
     // MARK: - Trial Toggle
@@ -208,23 +218,23 @@ struct VaultairePaywallView: View {
     @ViewBuilder
     private var trialToggle: some View {
         if selectedPlan == .annual && isTrialEligible {
-            Button {
+            HStack(spacing: 8) {
+                Image(systemName: trialEnabled ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(trialEnabled ? Color.accentColor : .vaultSecondaryText)
+                    .font(.body)
+                Text("Enable free 7-day trial")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.vaultText)
+                Spacer()
+            }
+            .padding(.horizontal, 4)
+            .contentShape(Rectangle())
+            .onTapGesture {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     trialEnabled.toggle()
                 }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: trialEnabled ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(trialEnabled ? Color.accentColor : .vaultSecondaryText)
-                        .font(.body)
-                    Text("Enable free 7-day trial")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.vaultText)
-                    Spacer()
-                }
             }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 4)
+            .accessibilityAddTraits(.isButton)
             .transition(.opacity)
         }
     }
@@ -327,22 +337,6 @@ struct VaultairePaywallView: View {
     }
 
     // MARK: - Actions
-
-    private func loadProducts() async {
-        await subscriptionManager.loadProducts()
-
-        monthlyProduct = subscriptionManager.product(for: "monthly_pro")
-        annualProduct = subscriptionManager.product(for: "yearly_pro")
-        lifetimeProduct = subscriptionManager.product(for: "lifetime")
-
-        // Check trial eligibility on annual product
-        if let annual = annualProduct,
-           let sub = annual.subscription,
-           let intro = sub.introductoryOffer,
-           intro.paymentMode == .freeTrial {
-            isTrialEligible = true
-        }
-    }
 
     private func purchase() async {
         guard let product = selectedProduct else { return }
