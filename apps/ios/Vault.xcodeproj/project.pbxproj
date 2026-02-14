@@ -113,6 +113,9 @@
 		TS0000023 /* PatternSerializerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000022 /* PatternSerializerTests.swift */; };
 		TS0000025 /* KeyDerivationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000024 /* KeyDerivationTests.swift */; };
 		TS0000027 /* OnboardingStepTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000026 /* OnboardingStepTests.swift */; };
+		TS0000029 /* VaultStorageIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000028 /* VaultStorageIntegrationTests.swift */; };
+		TS000002B /* PatternSetupCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS000002A /* PatternSetupCoordinatorTests.swift */; };
+		019000009 /* PatternSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000008 /* PatternSetupCoordinator.swift */; };
 		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
 		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
 		UX0000005 /* MilestoneTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000004 /* MilestoneTracker.swift */; };
@@ -266,6 +269,9 @@
 		TS0000022 /* PatternSerializerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSerializerTests.swift; sourceTree = "<group>"; };
 		TS0000024 /* KeyDerivationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyDerivationTests.swift; sourceTree = "<group>"; };
 		TS0000026 /* OnboardingStepTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingStepTests.swift; sourceTree = "<group>"; };
+		TS0000028 /* VaultStorageIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultStorageIntegrationTests.swift; sourceTree = "<group>"; };
+		TS000002A /* PatternSetupCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinatorTests.swift; sourceTree = "<group>"; };
+		019000008 /* PatternSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinator.swift; sourceTree = "<group>"; };
 		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
 		UX0000004 /* MilestoneTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneTracker.swift; sourceTree = "<group>"; };
@@ -520,6 +526,7 @@
 				009000000 /* OnboardingView.swift */,
 				009000002 /* WelcomeView.swift */,
 				009000004 /* PatternSetupView.swift */,
+				019000008 /* PatternSetupCoordinator.swift */,
 				019000000 /* AnalyticsConsentView.swift */,
 				019000002 /* PermissionsView.swift */,
 				019000004 /* PaywallStepView.swift */,
@@ -640,6 +647,8 @@
 				TS0000022 /* PatternSerializerTests.swift */,
 				TS0000024 /* KeyDerivationTests.swift */,
 				TS0000026 /* OnboardingStepTests.swift */,
+				TS0000028 /* VaultStorageIntegrationTests.swift */,
+				TS000002A /* PatternSetupCoordinatorTests.swift */,
 			);
 			path = VaultTests;
 			sourceTree = "<group>";
@@ -893,6 +902,7 @@
 				009000001 /* OnboardingView.swift in Sources */,
 				009000003 /* WelcomeView.swift in Sources */,
 				009000005 /* PatternSetupView.swift in Sources */,
+				019000009 /* PatternSetupCoordinator.swift in Sources */,
 				010000001 /* LoadingView.swift in Sources */,
 				0100000044 /* VaultTheme.swift in Sources */,
 				010000003 /* SecureTextField.swift in Sources */,
@@ -970,6 +980,8 @@
 				TS0000023 /* PatternSerializerTests.swift in Sources */,
 				TS0000025 /* KeyDerivationTests.swift in Sources */,
 				TS0000027 /* OnboardingStepTests.swift in Sources */,
+				TS0000029 /* VaultStorageIntegrationTests.swift in Sources */,
+				TS000002B /* PatternSetupCoordinatorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

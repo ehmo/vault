@@ -19,6 +19,7 @@ struct PatternSetupView: View {
     @State private var customPhraseValidation: RecoveryPhraseGenerator.PhraseValidation?
     @State private var showSaveConfirmation = false
     @State private var errorMessage: String?
+    @State private var coordinator = PatternSetupCoordinator()
 
     enum SetupStep {
         case create
@@ -330,81 +331,44 @@ struct PatternSetupView: View {
         isSaving = true
 
         Task {
-            do {
-                // Derive key from pattern with the current grid size
-                let key = try await KeyDerivation.deriveKey(from: pattern, gridSize: patternState.gridSize)
-                
-                patternSetupLogger.trace("Key derived successfully")
-                
-                // Check if a vault already exists with this pattern
-                if VaultStorage.shared.vaultExists(for: key) {
-                    patternSetupLogger.info("Vault already exists for this pattern")
-                    
-                    await MainActor.run {
-                        // Reset to create step with error message
-                        step = .create
-                        patternState.reset()
-                        firstPattern = []
-                        
-                        // Show validation error for duplicate pattern
-                        validationResult = PatternValidationResult(
-                            isValid: false,
-                            errors: [.custom("This pattern is already used by another vault. Please choose a different pattern.")],
-                            warnings: [],
-                            metrics: PatternSerializer.PatternMetrics(
-                                nodeCount: pattern.count,
-                                directionChanges: 0,
-                                startsAtCorner: (Set(pattern).count != 0),
-                                endsAtCorner: false,
-                                crossesCenter: false,
-                                touchesAllQuadrants: false
-                            )
-                        )
-                    }
-                    return
-                }
+            let phrase = useCustomPhrase ? customPhrase.trimmingCharacters(in: .whitespacesAndNewlines) : generatedPhrase
+            let result = await coordinator.savePattern(pattern, gridSize: patternState.gridSize, phrase: phrase)
 
-                // Initialize empty vault index for this key
-                let emptyIndex = VaultStorage.VaultIndex(
-                    files: [],
-                    nextOffset: 0,
-                    totalSize: 500 * 1024 * 1024
-                )
-                try VaultStorage.shared.saveIndex(emptyIndex, with: key)
-                
-                patternSetupLogger.debug("Empty vault index saved")
-                
-                // Determine which phrase to use
-                let finalPhrase = useCustomPhrase ? customPhrase.trimmingCharacters(in: .whitespacesAndNewlines) : generatedPhrase
-                
-                // Save recovery data using the new manager
-                try await RecoveryPhraseManager.shared.saveRecoveryPhrase(
-                    phrase: finalPhrase,
-                    pattern: pattern,
-                    gridSize: patternState.gridSize,
-                    patternKey: key
-                )
-                
-                patternSetupLogger.debug("Recovery phrase saved")
-                
-                SentryManager.shared.addBreadcrumb(category: "onboarding.complete", data: ["gridSize": patternState.gridSize])
+            await MainActor.run {
+                switch result {
+                case .success(let key):
+                    patternSetupLogger.debug("Pattern saved successfully")
+                    SentryManager.shared.addBreadcrumb(category: "onboarding.complete", data: ["gridSize": patternState.gridSize])
 
-                // Unlock the vault with the new key
-                await MainActor.run {
                     isSaving = false
                     appState.currentVaultKey = key
                     appState.isUnlocked = true
                     let letters = GridLetterManager.shared.vaultName(for: pattern)
                     appState.updateVaultName(letters.isEmpty ? "Vault" : "Vault \(letters)")
-
-                    patternSetupLogger.debug("Vault unlocked after pattern setup")
-
-                    // Move to recovery step AFTER everything is saved
                     step = .recovery
-                }
-            } catch {
-                patternSetupLogger.error("Error saving pattern: \(error.localizedDescription, privacy: .public)")
-                await MainActor.run {
+
+                case .duplicatePattern:
+                    patternSetupLogger.info("Vault already exists for this pattern")
+                    isSaving = false
+                    step = .create
+                    patternState.reset()
+                    firstPattern = []
+                    validationResult = PatternValidationResult(
+                        isValid: false,
+                        errors: [.custom("This pattern is already used by another vault. Please choose a different pattern.")],
+                        warnings: [],
+                        metrics: PatternSerializer.PatternMetrics(
+                            nodeCount: pattern.count,
+                            directionChanges: 0,
+                            startsAtCorner: (Set(pattern).count != 0),
+                            endsAtCorner: false,
+                            crossesCenter: false,
+                            touchesAllQuadrants: false
+                        )
+                    )
+
+                case .error(let message):
+                    patternSetupLogger.error("Error saving pattern: \(message, privacy: .public)")
                     isSaving = false
                     errorMessage = "Failed to save pattern. Please try again."
                     step = .create
@@ -420,21 +384,18 @@ struct PatternSetupView: View {
         isSaving = true
 
         Task {
-            do {
-                try await RecoveryPhraseManager.shared.saveRecoveryPhrase(
-                    phrase: customPhrase.trimmingCharacters(in: .whitespacesAndNewlines),
-                    pattern: firstPattern,
-                    gridSize: patternState.gridSize,
-                    patternKey: key
-                )
-                await MainActor.run {
-                    isSaving = false
+            let phrase = customPhrase.trimmingCharacters(in: .whitespacesAndNewlines)
+            let result = await coordinator.saveCustomPhrase(phrase, pattern: firstPattern, gridSize: patternState.gridSize, key: key)
+
+            await MainActor.run {
+                isSaving = false
+                switch result {
+                case .success:
                     onComplete()
-                }
-            } catch {
-                patternSetupLogger.error("Failed to save custom phrase: \(error.localizedDescription, privacy: .public)")
-                await MainActor.run {
-                    isSaving = false
+                case .duplicatePattern:
+                    break // Not possible for custom phrase path
+                case .error(let message):
+                    patternSetupLogger.error("Failed to save custom phrase: \(message, privacy: .public)")
                     errorMessage = "Failed to save recovery phrase. Please try again."
                 }
             }
