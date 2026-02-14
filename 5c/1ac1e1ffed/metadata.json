@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "5c1ac1e1ffed",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".scratch-pad.md",
+    "apps/ios/Vault/Core/Crypto/CryptoEngine.swift",
+    "apps/ios/Vault/Core/Storage/VaultStorage.swift",
+    "apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/PhotosGridView.swift",
+    "apps/ios/Vault/Features/VaultViewer/SecureVideoPlayer.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Actions.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/5c/1ac1e1ffed/0/metadata.json",
+      "transcript": "/5c/1ac1e1ffed/0/full.jsonl",
+      "context": "/5c/1ac1e1ffed/0/context.md",
+      "content_hash": "/5c/1ac1e1ffed/0/content_hash.txt",
+      "prompt": "/5c/1ac1e1ffed/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1972,
+    "cache_creation_tokens": 235713,
+    "cache_read_tokens": 11263062,
+    "output_tokens": 21981,
+    "api_call_count": 88
+  }
+}

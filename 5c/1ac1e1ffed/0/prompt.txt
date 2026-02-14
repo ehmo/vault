@@ -1,0 +1,293 @@
+Implement the following plan:
+
+# Video Performance: Import Speed, Duration Badge, Playback, Bug Fix
+
+## Context
+Three user-reported issues + one discovered critical bug:
+1. **Import speed** — 500MB video import is extremely slow (entire file loaded into memory + single-shot AES-GCM encryption)
+2. **No video duration badge** — gallery grid doesn't distinguish photos from videos
+3. **Playback speed** — 500MB video takes too long to load (read entire encrypted blob into memory → decrypt entire thing → write to temp)
+4. **Critical bug** — FullScreenPhotoViewer only handles images; videos show infinite spinner (SecureVideoPlayer exists but is never used)
+
+## Change 1: Fix Videos in FullScreenPhotoViewer (Critical Bug)
+
+**Root cause**: `loadFullImage()` checks `header.mimeType.hasPrefix("image/")` — videos silently fail, leaving permanent spinner.
+
+**Files**:
+- `apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift`
+- `apps/ios/Vault/Features/VaultViewer/VaultView.swift` (pass masterKey)
+
+**Changes**:
+- Add `let masterKey: Data?` parameter to FullScreenPhotoViewer
+- In `loadFullImage(for:)`: detect video mimeType → decrypt thumbnail from `file.encryptedThumbnail` using masterKey (fast, ~30KB) instead of loading full file
+- In `photoPage(file:)`: for videos, overlay play button on thumbnail → on tap, present SecureVideoPlayer via `@State private var showingVideoPlayer: VaultFileItem?`
+- VaultView: pass `masterKey: masterKey` to FullScreenPhotoViewer at the `.fullScreenCover` call site
+
+## Change 2: Video Duration Badge
+
+**Files**:
+- `apps/ios/Vault/Core/Storage/VaultStorage.swift` — add `duration: TimeInterval?` to VaultFileEntry
+- `apps/ios/Vault/Features/VaultViewer/VaultView.swift` — add `duration` to VaultFileItem + LightweightFileEntry mapping
+- `apps/ios/Vault/Features/VaultViewer/VaultView+Actions.swift` — capture duration during import
+- `apps/ios/Vault/Features/VaultViewer/PhotosGridView.swift` — duration badge overlay
+
+**VaultFileEntry** (line 300): Add `let duration: TimeInterval?` with `nil` default in both initializers. Auto-synthesized Codable handles missing keys for optionals → backward compatible.
+
+**LightweightFileEntry** (line 1025): Add `let duration: TimeInterval?`. Update `listFilesLightweight` mapping.
+
+**VaultFileItem** (line 421): Add `let duration: TimeInterval?` with default `nil`.
+
+**Duration capture**: In `generateVideoThumbnail(from:)`, the `AVAsset` is already created — capture `asset.load(.duration)` and return `(thumbnail: Data?, duration: TimeInterval?)`. Update callers in `performPhotoImport`.
+
+**storeFile**: Add `duration: TimeInterval? = nil` parameter. Pass to VaultFileEntry constructor.
+
+**PhotosGridView.cellView**: Add `bottomTrailing` overlay (when not editing) showing duration badge for video mimeTypes:
+```swift
+if !isEditing, let duration = file.duration, (file.mimeType ?? "").hasPrefix("video/") {
+    Text(formatDuration(duration))
+        .font(.caption2.weight(.semibold))
+        .foregroundStyle(.white)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 4))
+        .padding(4)
+}
+```
+
+## Change 3: URL-Based Video Import (Memory Efficiency)
+
+**Problem**: `loadVideoData()` calls `Data(contentsOf: url)` loading entire video into RAM. Then `storeFile(data:...)` does single-shot encryption, holding raw+encrypted simultaneously (~1GB for 500MB video).
+
+**Files**:
+- `apps/ios/Vault/Core/Crypto/CryptoEngine.swift` — new `encryptFileFromURL`, update `decryptFile`
+- `apps/ios/Vault/Core/Storage/VaultStorage.swift` — new `storeFileFromURL`
+- `apps/ios/Vault/Features/VaultViewer/VaultView+Actions.swift` — use URL-based path for videos
+
+**CryptoEngine.encryptFileFromURL**: New method that creates EncryptedFile header (tiny), encrypts content via `encryptForStaging(fileURL:...)` (reads file in 256KB chunks, uses VCSE for files >1MB). Returns same EncryptedFile struct. Peak memory: ~500MB encrypted output (vs ~1GB current).
+
+**CryptoEngine.decryptFile** (line 212): Change `let content = try decrypt(encryptedContent, with: key)` → `let content = try decryptStaged(encryptedContent, with: key)`. This auto-detects VCSE vs single-shot → backward compatible with all existing files.
+
+**VaultStorage.storeFileFromURL**: New method mirroring `storeFile` but takes `URL` + metadata instead of `Data`. Calls `CryptoEngine.encryptFileFromURL`. Same blob write logic. Accepts `duration: TimeInterval?` too.
+
+**VaultView+Actions.performPhotoImport** video path:
+- Instead of `Self.loadVideoData(from: provider)` (loads to Data), use `provider.loadFileRepresentation` to get temp URL
+- Copy to our temp directory (provider URL is ephemeral)
+- Generate thumbnail + capture duration from temp URL
+- Call `VaultStorage.shared.storeFileFromURL(tempURL, ...)` — never loads raw video into memory
+- Same for `performFileImport` when mimeType is video
+
+## Change 4: Video Playback Speed
+
+**Problem**: SecureVideoPlayer.loadVideo() calls `retrieveFile(id:with:)` which reads entire encrypted entry into memory, decrypts entire thing to Data, then writes Data to temp file. For 500MB: ~1GB peak memory, 7-11 seconds blocking.
+
+**Files**:
+- `apps/ios/Vault/Core/Crypto/CryptoEngine.swift` — new `decryptFileToTempURL`
+- `apps/ios/Vault/Core/Storage/VaultStorage.swift` — new `retrieveFileToTempURL`
+- `apps/ios/Vault/Features/VaultViewer/SecureVideoPlayer.swift` — use new method
+
+**CryptoEngine.decryptFileToTempURL(data:with:tempURL:)**: Parses header, then for content:
+- If VCSE: stream-decrypt 256KB chunks, append each to temp file handle → peak memory ~512KB
+- If single-shot: decrypt in one pass, write to temp file → peak memory ~500MB (same as today, but avoids holding raw Data after write)
+Returns header.
+
+**VaultStorage.retrieveFileToTempURL(id:with:)**: Reads encrypted blob entry, calls `CryptoEngine.decryptFileToTempURL`, returns `(header, tempURL)`. For future optimization: could read blob in streaming fashion too (defer to later).
+
+**SecureVideoPlayer.loadVideo()**: Replace `retrieveFile` → `retrieveFileToTempURL`. No more manual temp file write — it's done during decryption. Immediately create AVPlayer from returned URL.
+
+## Files Modified Summary
+| File | Change |
+|------|--------|
+| `CryptoEngine.swift` | `encryptFileFromURL`, `decryptFileToTempURL`, update `decryptFile` to use `decryptStaged` |
+| `VaultStorage.swift` | `duration` in VaultFileEntry/LightweightFileEntry, `storeFileFromURL`, `retrieveFileToTempURL` |
+| `VaultView.swift` | `duration` in VaultFileItem, pass `masterKey` to FullScreenPhotoViewer |
+| `VaultView+Actions.swift` | URL-based video import, capture duration, return `(thumbnail, duration)` from video metadata |
+| `FullScreenPhotoViewer.swift` | Add `masterKey`, handle video thumbnails + play button + present SecureVideoPlayer |
+| `SecureVideoPlayer.swift` | Use `retrieveFileToTempURL` instead of `retrieveFile` |
+| `PhotosGridView.swift` | Duration badge overlay for video cells |
+
+## Verification
+1. Build succeeds with no warnings
+2. Import a photo — works as before (no regression)
+3. Import a large video — faster, lower memory (test with 500MB+ video)
+4. Gallery grid shows duration badge on video thumbnails
+5. Tap video in gallery → FullScreenPhotoViewer shows thumbnail + play button
+6. Tap play → SecureVideoPlayer opens and plays video
+7. Swipe between photos and videos in FullScreenPhotoViewer works
+8. Old vaults with existing files still load correctly (backward compatible decryption)
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me analyze the conversation chronologically:
+
+1. The user provided a detailed implementation plan for "Video Performance: Import Speed, Duration Badge, Playback, Bug Fix" with 4 changes across 7 files.
+
+2. The assistant read the scratch pad and all key files (CryptoEngine.swift, VaultStorage.swift, VaultView.swift, VaultView+Actions.swift, FullScreenPhotoViewer.swift, SecureVideoPlayer.swift, PhotosGridView.swift) plus supporting files (VaultCoreConstants.swift).
+
+3. Tasks were created (#58-#65) to track progress.
+
+4. Implementation was done in order:
+   - Task #58: CryptoEngine.swift - Added encryptFileFromURL, decryptFileToTempURL, decryptStreamingToFile, updated decryptFile to use decryptStaged
+   - Task #59: VaultStorage.swift - Added duration to VaultFileEntry (both inits), LightweightFileEntry, storeFile param, storeFileFromURL method, retrieveFileToTempURL method, updated deleteFile/deleteFiles/compactBlobs to preserve duration
+   - Task #60: VaultView.swift - Added duration to VaultFileItem, passed masterKey to FullScreenPhotoViewer
+   - Task #61: VaultView+Actions.swift - Added loadVideoURL, generateVideoMetadata, restructured performPhotoImport video path, updated performFileImport for videos
+   - Task #62: FullScreenPhotoViewer.swift - Added masterKey param, video thumbnail decryption, play button overlay, SecureVideoPlayer presentation
+   - Task #63: SecureVideoPlayer.swift - Replaced retrieveFile with retrieveFileToTempURL
+   - Task #64: PhotosGridView.swift - Added duration badge overlay with formatDuration helper
+   - Task #65: Build succeeded first attempt, committed and pushed
+
+5. No errors encountered during build. SourceKit false positives were noted and ignored per Error Tracker.
+
+6. The session close protocol was followed: git status, git add, bd sync, git commit, bd sync, git push. All completed successfully.
+
+7. Scratch pad was updated with Session 21 learnings.
+
+8. All tasks are completed. The work is fully done and pushed.
+
+Summary:
+1. Primary Request and Intent:
+   The user requested implementation of a detailed plan titled "Video Performance: Import Speed, Duration Badge, Playback, Bug Fix" covering 4 changes across 7 files in the Vaultaire iOS app:
+   - **Change 1 (Critical Bug)**: Fix FullScreenPhotoViewer infinite spinner for videos — it only handled images, videos silently failed
+   - **Change 2**: Add video duration badge to gallery grid cells to distinguish photos from videos
+   - **Change 3**: URL-based video import for memory efficiency — avoid loading entire 500MB video into RAM
+   - **Change 4**: Faster video playback via stream-decryption directly to temp file instead of loading entire encrypted blob into memory
+
+2. Key Technical Concepts:
+   - **VCSE (Vault Core Streaming Encryption)**: Chunked AES-GCM format with 256KB chunks for files >1MB, identified by magic bytes `0x56435345`
+   - **3-tier file model**: VaultFileItem → LightweightFileEntry → VaultFileEntry — metadata changes must propagate through all three
+   - **Stream-decrypt to file**: `decryptStreamingToFile` writes each decrypted 256KB chunk to a FileHandle, keeping peak memory at ~512KB vs ~1GB
+   - **URL-based encryption**: `encryptFileFromURL` reads via FileHandle through `encryptForStaging`, avoiding loading raw video into memory
+   - **Backward-compatible Codable**: Adding `let duration: TimeInterval?` with `nil` default — auto-synthesized decoder treats missing keys as nil
+   - **PHPicker file representation**: `loadFileRepresentation` provides ephemeral URLs that must be copied before callback returns
+   - **AVAsset async property loading**: `asset.load(.duration)` returns CMTime, converted via `CMTimeGetSeconds` with `isFinite` guard
+   - **Master key architecture**: Files encrypted with master key (not vault key), thumbnails also encrypted with master key
+
+3. Files and Code Sections:
+   - **`apps/ios/Vault/Core/Crypto/CryptoEngine.swift`** (+99 lines)
+     - Foundation for URL-based encryption and stream decryption
+     - Changed `decryptFile` line 237 from `decrypt` to `decryptStaged` for backward-compatible handling of both single-shot and VCSE content
+     - Added `encryptFileFromURL`:
+       ```swift
+       static func encryptFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: Data) throws -> EncryptedFile {
+           let fileSize = try FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int ?? 0
+           let header = EncryptedFileHeader(fileId: UUID(), originalFilename: filename, mimeType: mimeType, originalSize: UInt64(fileSize), createdAt: Date())
+           let encryptedHeader = try encrypt(header.serialize(), with: key)
+           let encryptedContent = try encryptForStaging(fileURL, with: key)
+           var combined = Data()
+           var headerSize = UInt32(encryptedHeader.count)
+           combined.append(Data(bytes: &headerSize, count: 4))
+           combined.append(encryptedHeader)
+           combined.append(encryptedContent)
+           return EncryptedFile(header: header, encryptedContent: combined)
+       }
+       ```
+     - Added `decryptFileToTempURL` — parses header, detects VCSE vs single-shot, decrypts content to file
+     - Added `decryptStreamingToFile` — private helper that stream-decrypts VCSE chunks to FileHandle
+
+   - **`apps/ios/Vault/Core/Storage/VaultStorage.swift`** (+143 lines)
+     - Core storage layer changes for duration tracking and URL-based operations
+     - Added `let duration: TimeInterval?` to `VaultFileEntry` struct with `nil` default in both initializers (legacy 5-param and full init)
+     - Added `let duration: TimeInterval?` to `LightweightFileEntry`
+     - Updated `listFilesLightweight` mapping to include `duration: entry.duration`
+     - Added `duration: TimeInterval? = nil` parameter to `storeFile` method, passed to VaultFileEntry construction
+     - Updated `deleteFile`, `deleteFiles`, `compactBlobs` to preserve `duration: entry.duration` when reconstructing entries
+     - Added `storeFileFromURL` — mirrors `storeFile` but takes URL, uses `CryptoEngine.encryptFileFromURL`
+     - Added `retrieveFileToTempURL`:
+       ```swift
+       func retrieveFileToTempURL(id: UUID, with key: Data) throws -> (header: CryptoEngine.EncryptedFileHeader, tempURL: URL) {
+           ensureBlobReady()
+           let index = try loadIndex(with: key)
+           let masterKey = try getMasterKey(from: index, vaultKey: key)
+           guard let entry = index.files.first(where: { $0.fileId == id && !$0.isDeleted }) else { throw VaultStorageError.fileNotFound }
+           // ... read encrypted blob, decrypt to temp file
+           let header = try CryptoEngine.decryptFileToTempURL(data: encryptedData, with: masterKey, tempURL: tempURL)
+           return (header, tempURL)
+       }
+       ```
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView.swift`** (+5/-1 lines)
+     - Added `let duration: TimeInterval?` to `VaultFileItem` struct with `nil` default in init
+     - Added `masterKey: masterKey` to FullScreenPhotoViewer at `.fullScreenCover` call site
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView+Actions.swift`** (+213/-114 lines)
+     - Largest change — restructured video import paths
+     - Updated `loadFiles` mapping to include `duration: entry.duration`
+     - Replaced `loadVideoData` (loaded entire video into RAM) with `loadVideoURL` (copies to temp dir, returns URL):
+       ```swift
+       static func loadVideoURL(from provider: NSItemProvider) async throws -> URL {
+           try await withCheckedThrowingContinuation { continuation in
+               provider.loadFileRepresentation(forTypeIdentifier: UTType.movie.identifier) { url, error in
+                   // Copy to temp directory — provider URL is ephemeral
+                   let destURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension(url.pathExtension.isEmpty ? "mov" : url.pathExtension)
+                   try FileManager.default.copyItem(at: url, to: destURL)
+                   continuation.resume(returning: destURL)
+               }
+           }
+       }
+       ```
+     - Replaced `generateVideoThumbnail(from: Data) -> Data?` with `generateVideoMetadata(from: URL) -> (thumbnail: Data?, duration: TimeInterval?)` using `asset.load(.duration)`
+     - Restructured `performPhotoImport` — video path now uses `loadVideoURL` → `generateVideoMetadata` → `storeFileFromURL`, never loads raw video into memory
+     - Updated `performFileImport` — video mimeTypes now use `storeFileFromURL` with `generateVideoMetadata` for duration capture
+
+   - **`apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift`** (+72 lines, rewritten)
+     - Critical bug fix — was the root cause of infinite spinner for videos
+     - Added `let masterKey: Data?` parameter and `@State private var showingVideoPlayer: VaultFileItem?`
+     - Updated `loadFullImage` to detect video mimeType and decrypt thumbnail from `file.encryptedThumbnail` using masterKey (fast ~30KB) instead of loading full file
+     - Updated `photoPage` to overlay play button on video thumbnails, presenting `SecureVideoPlayer` via `.fullScreenCover`
+     - Added `import AVKit` for video player support
+
+   - **`apps/ios/Vault/Features/VaultViewer/SecureVideoPlayer.swift`** (+11/-11 lines)
+     - Simplified `loadVideo()` — replaced `retrieveFile` + manual temp file write with single `retrieveFileToTempURL` call
+
+   - **`apps/ios/Vault/Features/VaultViewer/PhotosGridView.swift`** (+24 lines)
+     - Added duration badge overlay at `bottomLeading` (avoids collision with edit mode selection circle at `bottomTrailing`)
+     - Added `formatDuration` helper (handles hours:minutes:seconds and minutes:seconds formats)
+
+   - **`.scratch-pad.md`** — Updated with Session 21 learnings
+
+4. Errors and fixes:
+   - **SourceKit false positives**: Multiple "Cannot find X in scope" diagnostics appeared during editing (e.g., `Cannot find 'SentryManager' in scope`, `Cannot find 'CryptoEngine' in scope`). These are cross-file SourceKit diagnostics that don't represent real build errors. Per the Error Tracker, xcodebuild results are trusted over editor diagnostics. No action needed — build succeeded.
+   - **Simulator name mismatch**: `iPhone 16 Pro` not found. Fixed by using the UUID-based destination `id=57965726-931A-462A-A262-3A3DAFA7CDDF` for `iPhone 17 Pro` (per Error Tracker guidance).
+   - **No actual build errors**: First-attempt build success with 0 warnings in project code.
+
+5. Problem Solving:
+   - **Video infinite spinner in FullScreenPhotoViewer**: Root cause was `loadFullImage` checking `header.mimeType.hasPrefix("image/")` — videos silently failed the guard. Fixed by detecting video mimeType and decrypting the lightweight thumbnail from the file entry instead of loading the full encrypted file.
+   - **Memory-efficient video import**: Replaced `Data(contentsOf: url)` (loads entire video into RAM) with `loadVideoURL` (copies file to temp dir) + `storeFileFromURL` (encrypts from URL via FileHandle). Peak memory reduced from raw+encrypted (~1GB for 500MB video) to just encrypted output (~500MB).
+   - **Memory-efficient video playback**: Replaced `retrieveFile` (reads entire encrypted blob → decrypts to Data → writes to temp file, ~1GB peak) with `retrieveFileToTempURL` (stream-decrypts VCSE chunks directly to file, ~512KB peak for chunked content).
+   - **Backward compatibility**: Using `decryptStaged` in `decryptFile` ensures old single-shot encrypted files and new VCSE-encrypted files are both handled transparently.
+
+6. All user messages:
+   - "Implement the following plan: # Video Performance: Import Speed, Duration Badge, Playback, Bug Fix [detailed plan with 4 changes, file-by-file specifications, verification criteria]"
+
+7. Pending Tasks:
+   - All tasks (#58-#65) are completed. No pending tasks remain.
+   - The session close protocol was fully executed: git status → git add → bd sync → git commit → bd sync → git push (confirmed `main -> main` push to `github.com:ehmo/vault.git`).
+
+8. Current Work:
+   All work is complete and pushed. The final commit `0cd748b` titled "Video performance: URL import, duration badge, playback, viewer fix" contains all 7 file changes (+453/-114 lines). The scratch pad was updated with Session 21 learnings. The session close protocol was fully executed.
+
+9. Optional Next Step:
+   No next steps required — all 4 changes from the plan are implemented, built successfully, committed, and pushed. The user may want to:
+   - Test with a real 500MB+ video to verify memory improvements
+   - Deploy a new TestFlight build with these changes
+   - Verify backward compatibility with existing vaults containing pre-VCSE encrypted files
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+Should we consider the blobs to be smaller? Maybe 50MB? The 500MB limit right now causes issues when uploaded to icloud as it's a very large file. Would we benefit from keeping the files smaller?
+
+---
+
+Yes
+
+---
+
+[Request interrupted by user for tool use]

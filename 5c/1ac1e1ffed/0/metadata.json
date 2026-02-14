@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "5c1ac1e1ffed",
+  "session_id": "69273601-79b8-4f95-9eeb-6df9d92d9254",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-14T06:07:04.566365Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".scratch-pad.md",
+    "apps/ios/Vault/Core/Crypto/CryptoEngine.swift",
+    "apps/ios/Vault/Core/Storage/VaultStorage.swift",
+    "apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/PhotosGridView.swift",
+    "apps/ios/Vault/Features/VaultViewer/SecureVideoPlayer.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Actions.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 1972,
+    "cache_creation_tokens": 235713,
+    "cache_read_tokens": 11263062,
+    "output_tokens": 21981,
+    "api_call_count": 88
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-14T06:07:04.272019Z",
+    "agent_lines": 0,
+    "human_added": 545,
+    "human_modified": 59,
+    "human_removed": 0,
+    "total_committed": 573,
+    "agent_percentage": 0
+  }
+}
