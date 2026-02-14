@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=393">
+<title>Vaultaire Pro Paywall</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #1C1C1E;
+    color: #FFFFFF;
+    width: 393px;
+    min-height: 852px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px 20px 32px;
+    gap: 20px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #FFFFFF;
+  }
+  .header p {
+    font-size: 15px;
+    font-weight: 400;
+    color: #8E8E93;
+  }
+
+  /* Benefits Table */
+  .benefits-table {
+    display: flex;
+    flex-direction: column;
+    background: rgba(44, 44, 46, 0.8);
+    border: 1px solid rgba(58, 58, 60, 0.4);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .table-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    gap: 0;
+  }
+  .table-header .label {
+    flex: 1;
+    font-size: 11px;
+    font-weight: 600;
+    color: #8E8E93;
+  }
+  .table-header .col-free,
+  .table-header .col-pro {
+    width: 56px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .table-header .col-free { color: #8E8E93; }
+  .table-header .col-pro { color: #8B5CF6; }
+
+  .divider {
+    height: 1px;
+    background: rgba(58, 58, 60, 0.3);
+  }
+
+  .benefit-row {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+  }
+  .benefit-row .label {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 400;
+    color: #FFFFFF;
+  }
+  .benefit-row .col {
+    width: 56px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .col .check {
+    color: #8B5CF6;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .col .dash {
+    color: #8E8E93;
+    font-size: 15px;
+  }
+  .col .value {
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  /* Plan Cards */
+  .plans {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .plan-card {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    background: rgba(44, 44, 46, 0.8);
+    border: 1px solid rgba(58, 58, 60, 0.4);
+    border-radius: 12px;
+  }
+  .plan-card.selected {
+    border: 2px solid #8B5CF6;
+  }
+
+  .plan-left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+  }
+  .plan-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #FFFFFF;
+  }
+  .plan-detail {
+    font-size: 11px;
+    font-weight: 400;
+    color: #8E8E93;
+  }
+
+  .plan-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+  .badge {
+    display: flex;
+    align-items: center;
+    padding: 3px 8px;
+    background: #8B5CF6;
+    border-radius: 100px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #FFFFFF;
+  }
+  .plan-price {
+    font-size: 15px;
+    font-weight: 600;
+    color: #FFFFFF;
+  }
+
+  /* Purchase Button */
+  .purchase-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: #8B5CF6;
+    border-radius: 12px;
+    width: 100%;
+  }
+  .purchase-button span {
+    font-size: 17px;
+    font-weight: 700;
+    color: #FFFFFF;
+  }
+
+  /* Footer */
+  .footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .footer .tagline {
+    font-size: 11px;
+    font-weight: 400;
+    color: #8E8E93;
+  }
+  .footer-links {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .footer-links span {
+    font-size: 11px;
+    font-weight: 400;
+    color: #8E8E93;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <h1>Unlock Vaultaire Pro</h1>
+    <p>Full privacy, your terms.</p>
+  </div>
+
+  <!-- Benefits Table -->
+  <div class="benefits-table">
+    <div class="table-header">
+      <span class="label">Feature</span>
+      <span class="col-free">FREE</span>
+      <span class="col-pro">PRO</span>
+    </div>
+    <div class="divider"></div>
+    <div class="benefit-row">
+      <span class="label">Photos per vault</span>
+      <div class="col"><span class="value">100</span></div>
+      <div class="col"><span class="value">&infin;</span></div>
+    </div>
+    <div class="benefit-row">
+      <span class="label">Videos per vault</span>
+      <div class="col"><span class="value">10</span></div>
+      <div class="col"><span class="value">&infin;</span></div>
+    </div>
+    <div class="benefit-row">
+      <span class="label">Vaults</span>
+      <div class="col"><span class="value">5</span></div>
+      <div class="col"><span class="value">&infin;</span></div>
+    </div>
+    <div class="benefit-row">
+      <span class="label">Duress vault</span>
+      <div class="col"><span class="dash">&mdash;</span></div>
+      <div class="col"><span class="check">&check;</span></div>
+    </div>
+    <div class="benefit-row">
+      <span class="label">Vault sharing</span>
+      <div class="col"><span class="dash">&mdash;</span></div>
+      <div class="col"><span class="check">&check;</span></div>
+    </div>
+    <div class="benefit-row">
+      <span class="label">iCloud backup</span>
+      <div class="col"><span class="dash">&mdash;</span></div>
+      <div class="col"><span class="check">&check;</span></div>
+    </div>
+    <div class="benefit-row">
+      <span class="label">Pattern encryption</span>
+      <div class="col"><span class="check">&check;</span></div>
+      <div class="col"><span class="check">&check;</span></div>
+    </div>
+    <div class="benefit-row">
+      <span class="label">Plausible deniability</span>
+      <div class="col"><span class="check">&check;</span></div>
+      <div class="col"><span class="check">&check;</span></div>
+    </div>
+  </div>
+
+  <!-- Plan Cards -->
+  <div class="plans">
+    <!-- Monthly -->
+    <div class="plan-card">
+      <div class="plan-left">
+        <span class="plan-title">Monthly</span>
+      </div>
+      <div class="plan-right">
+        <span class="plan-price">$1.99/month</span>
+      </div>
+    </div>
+
+    <!-- Yearly (selected) -->
+    <div class="plan-card selected">
+      <div class="plan-left">
+        <span class="plan-title">Yearly</span>
+        <span class="plan-detail">$0.83/mo</span>
+      </div>
+      <div class="plan-right">
+        <span class="badge">SAVE 58%</span>
+        <span class="plan-price">$9.99/year</span>
+      </div>
+    </div>
+
+    <!-- Lifetime -->
+    <div class="plan-card">
+      <div class="plan-left">
+        <span class="plan-title">Lifetime</span>
+        <span class="plan-detail">Forever</span>
+      </div>
+      <div class="plan-right">
+        <span class="badge">BEST VALUE</span>
+        <span class="plan-price">$29.99 once</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Purchase Button -->
+  <div class="purchase-button">
+    <span>Subscribe</span>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <span class="tagline">No commitment &middot; Cancel anytime</span>
+    <div class="footer-links">
+      <span>Restore Purchases</span>
+      <span>&middot;</span>
+      <span>Terms</span>
+      <span>&middot;</span>
+      <span>Privacy</span>
+    </div>
+  </div>
+
+</body>
+</html>

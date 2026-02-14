@@ -62,6 +62,13 @@
             ReferencedContainer = "container:Vault.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <LocationScenarioReference
+         identifier = "San Francisco, CA, USA"
+         referenceType = "1">
+      </LocationScenarioReference>
+      <StoreKitConfigurationFileReference
+         identifier = "../../Products.storekit">
+      </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
