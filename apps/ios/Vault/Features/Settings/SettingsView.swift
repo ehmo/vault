@@ -106,6 +106,20 @@ struct AppSettingsView: View {
 
             // Security & Privacy (merged)
             Section {
+                Picker(
+                    "Appearance",
+                    selection: Binding(
+                        get: { appState.appearanceMode },
+                        set: { appState.setAppearanceMode($0) }
+                    )
+                ) {
+                    ForEach(AppAppearanceMode.allCases, id: \.rawValue) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("app_appearance_picker")
+
                 Toggle("Show pattern feedback", isOn: $showFeedback)
                     .accessibilityIdentifier("app_pattern_feedback")
 
@@ -1034,4 +1048,3 @@ struct RestoreFromBackupView: View {
     .environment(AppState())
     .environment(SubscriptionManager.shared)
 }
-

@@ -1,0 +1,12 @@
+appId: app.vaultaire.ios
+---
+# Switch appearance modes from App Settings
+- runFlow: ../helpers/launch_test_mode.yaml
+- runFlow: ../helpers/navigate_to_app_settings.yaml
+
+- assertVisible:
+    id: "app_appearance_picker"
+
+- tapOn: "Light"
+- tapOn: "Dark"
+- tapOn: "System"

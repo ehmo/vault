@@ -1,0 +1,19 @@
+appId: app.vaultaire.ios
+---
+# Dismiss photo viewer by swiping down (native-style gesture)
+- runFlow: ../helpers/launch_with_files.yaml
+
+# Open first photo
+- tapOn:
+    point: "20%, 34%"
+- assertVisible:
+    id: "viewer_done"
+
+# Drag down to dismiss back to gallery
+- swipe:
+    direction: "DOWN"
+    duration: 500
+
+# Gallery controls visible again
+- assertVisible:
+    id: "vault_search_field"

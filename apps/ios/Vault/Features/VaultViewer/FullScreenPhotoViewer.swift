@@ -18,6 +18,7 @@ struct FullScreenPhotoViewer: View {
     @State private var showingDeleteConfirmation = false
     @State private var shareURL: URL?
     @State private var showingVideoPlayer: VaultFileItem?
+    @State private var verticalDismissOffset: CGFloat = 0
 
     init(files: [VaultFileItem], vaultKey: Data?, masterKey: Data? = nil, initialIndex: Int,
          onDelete: ((UUID) -> Void)? = nil, allowDownloads: Bool = true) {
@@ -35,10 +36,17 @@ struct FullScreenPhotoViewer: View {
         return files[currentIndex]
     }
 
+    private var backgroundOpacity: Double {
+        let progress = min(max(verticalDismissOffset / 300, 0), 1)
+        return max(0.45, 1 - Double(progress) * 0.55)
+    }
+
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.black.ignoresSafeArea()
+                Color.black
+                    .opacity(backgroundOpacity)
+                    .ignoresSafeArea()
 
                 ScrollView(.horizontal) {
                     LazyHStack(spacing: 0) {
@@ -71,6 +79,7 @@ struct FullScreenPhotoViewer: View {
                     preloadAdjacent(around: newIndex)
                     evictDistant(from: newIndex)
                 }
+                .offset(y: verticalDismissOffset)
                 // Top bar overlay
                 VStack {
                     HStack {
@@ -94,7 +103,9 @@ struct FullScreenPhotoViewer: View {
                     .padding(.vertical, 12)
                     Spacer()
                 }
+                .offset(y: verticalDismissOffset)
             }
+            .simultaneousGesture(dragToDismissGesture)
         }
         .task {
             preloadAdjacent(around: initialIndex)
@@ -130,6 +141,32 @@ struct FullScreenPhotoViewer: View {
         .fullScreenCover(item: $showingVideoPlayer) { file in
             SecureVideoPlayer(file: file, vaultKey: vaultKey)
         }
+    }
+
+    private var dragToDismissGesture: some Gesture {
+        DragGesture(minimumDistance: 16)
+            .onChanged { value in
+                let horizontal = abs(value.translation.width)
+                let vertical = value.translation.height
+                guard vertical > 0 else { return }
+                guard abs(vertical) > horizontal * 1.15 else { return }
+                verticalDismissOffset = vertical
+            }
+            .onEnded { value in
+                let horizontal = abs(value.translation.width)
+                let vertical = value.translation.height
+                let predictedVertical = value.predictedEndTranslation.height
+                let shouldDismiss = vertical > 90 && abs(vertical) > horizontal * 1.15
+                    || predictedVertical > 160
+
+                if shouldDismiss {
+                    dismiss()
+                } else {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
+                        verticalDismissOffset = 0
+                    }
+                }
+            }
     }
 
     // MARK: - Page Content

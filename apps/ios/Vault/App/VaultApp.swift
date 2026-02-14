@@ -3,6 +3,28 @@ import UserNotifications
 import CryptoKit
 import os.log
 
+enum AppAppearanceMode: String, CaseIterable {
+    case system
+    case light
+    case dark
+
+    var title: String {
+        switch self {
+        case .system: "System"
+        case .light: "Light"
+        case .dark: "Dark"
+        }
+    }
+
+    var preferredColorScheme: ColorScheme? {
+        switch self {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+}
+
 @main
 struct VaultApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -15,6 +37,7 @@ struct VaultApp: App {
                 .environment(appState)
                 .environment(deepLinkHandler)
                 .environment(SubscriptionManager.shared)
+                .preferredColorScheme(appState.appearanceMode.preferredColorScheme)
                 .onOpenURL { url in
                     deepLinkHandler.handle(url)
                 }
@@ -36,8 +59,10 @@ final class AppState {
     var pendingImportCount = 0
     var hasPendingImports = false
     var suppressLockForShareSheet = false
+    private(set) var appearanceMode: AppAppearanceMode
 
     private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "AppState")
+    private static let appearanceModeKey = "appAppearanceMode"
 
     #if DEBUG
     /// When true, Maestro E2E tests are running — disables lock triggers and enables test bypass
@@ -45,7 +70,13 @@ final class AppState {
     #endif
 
     init() {
+        appearanceMode = Self.loadAppearanceMode()
         checkFirstLaunch()
+    }
+
+    private static func loadAppearanceMode() -> AppAppearanceMode {
+        let stored = UserDefaults.standard.string(forKey: appearanceModeKey)
+        return AppAppearanceMode(rawValue: stored ?? "") ?? .system
     }
 
     private func checkFirstLaunch() {
@@ -63,6 +94,11 @@ final class AppState {
     func completeOnboarding() {
         UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
         showOnboarding = false
+    }
+
+    func setAppearanceMode(_ mode: AppAppearanceMode) {
+        appearanceMode = mode
+        UserDefaults.standard.set(mode.rawValue, forKey: Self.appearanceModeKey)
     }
 
     func unlockWithPattern(_ pattern: [Int], gridSize: Int = 5, precomputedKey: Data? = nil) async -> Bool {
@@ -287,4 +323,3 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         completionHandler([.banner, .sound])
     }
 }
-
