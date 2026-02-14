@@ -1,0 +1,342 @@
+Implement the following plan:
+
+# Implement VAULT-4fm + VAULT-d3u: Storage Tests + Error Path Tests
+
+## Context
+Two open beads issues need implementation:
+- **VAULT-4fm**: VaultStorage has zero integration tests. Need round-trip coverage for core storage operations.
+- **VAULT-d3u**: PatternSetupView error paths (key derivation failure, save failure, duplicate pattern) now show alerts but are untestable because the view calls singletons directly.
+
+## Task 1: VaultStorage Integration Tests (VAULT-4fm)
+
+**Approach**: Use `VaultStorage.shared` with unique random keys per test. Clean up via `deleteVaultIndex(for:)` in `tearDown`. No production code changes.
+
+**New file**: `apps/ios/VaultTests/VaultStorageIntegrationTests.swift`
+
+**Tests** (~10):
+1. `testSaveAndLoadIndexRoundTrip` — save index, load it back, verify fields match
+2. `testVaultExistsReturnsTrueAfterSave` — save index, check `vaultExists` → true
+3. `testVaultExistsReturnsFalseForUnknownKey` — random key → false
+4. `testDeleteVaultIndex` — save, delete, verify `vaultExists` → false
+5. `testStoreAndRetrieveFile` — store small file, retrieve by UUID, verify content
+6. `testStoreAndListFiles` — store 3 files, `listFiles` → count 3, IDs match
+7. `testDeleteFile` — store, delete, list → empty
+8. `testRetrieveDeletedFileThrows` — store, delete, retrieve → throws
+9. `testChangeVaultKey` — store files under keyA, change to keyB, verify accessible under keyB
+10. `testIndexCodableRoundTrip` — encode VaultIndex to JSON, decode, verify (pure, no I/O)
+
+**Setup/tearDown**: Generate `testKey = CryptoEngine.generateRandomBytes(count: 32)!` in setUp. Delete index in tearDown. For changeVaultKey test, clean up both keys.
+
+## Task 2: PatternSetupCoordinator + Tests (VAULT-d3u)
+
+**Approach**: Extract save logic from PatternSetupView into a `PatternSetupCoordinator` struct with closure-based dependency injection. Defaults point to real singletons. View delegates to coordinator. No protocols, no ViewModel, no environment changes — minimal footprint.
+
+**New production file**: `apps/ios/Vault/Features/Onboarding/PatternSetupCoordinator.swift`
+
+```swift
+struct PatternSetupCoordinator {
+    var deriveKey: ([Int], Int) async throws -> Data = { pattern, gridSize in
+        try await KeyDerivation.deriveKey(from: pattern, gridSize: gridSize)
+    }
+    var vaultExists: (Data) -> Bool = { VaultStorage.shared.vaultExists(for: $0) }
+    var saveIndex: (VaultStorage.VaultIndex, Data) throws -> Void = { try VaultStorage.shared.saveIndex($0, with: $1) }
+    var saveRecoveryPhrase: (String, [Int], Int, Data) async throws -> Void = { phrase, pattern, gridSize, key in
+        try await RecoveryPhraseManager.shared.saveRecoveryPhrase(phrase: phrase, pattern: pattern, gridSize: gridSize, patternKey: key)
+    }
+
+    enum Result { case success(key: Data), duplicatePattern, error(String) }
+
+    func savePattern(_ pattern: [Int], gridSize: Int, phrase: String) async -> Result { ... }
+    func saveCustomPhrase(_ phrase: String, pattern: [Int], gridSize: Int, key: Data) async -> Result { ... }
+}
+```
+
+**PatternSetupView changes**: Add `@State private var coordinator = PatternSetupCoordinator()`. Replace body of `savePattern(_:)` and `saveCustomRecoveryPhrase()` with coordinator calls, keeping all UI state updates in the view.
+
+**New test file**: `apps/ios/VaultTests/PatternSetupCoordinatorTests.swift`
+
+**Tests** (~6):
+1. `testSuccessReturnsKey` — all closures succeed → `.success(key:)`
+2. `testDuplicatePatternDetected` — `vaultExists` returns true → `.duplicatePattern`
+3. `testKeyDerivationFailure` — `deriveKey` throws → `.error`
+4. `testIndexSaveFailure` — `saveIndex` throws → `.error`
+5. `testRecoveryPhraseSaveFailure` — `saveRecoveryPhrase` throws → `.error`
+6. `testCustomPhraseSaveFailure` — for `saveCustomPhrase` path
+
+## Files Modified
+- `apps/ios/VaultTests/VaultStorageIntegrationTests.swift` — **NEW**
+- `apps/ios/Vault/Features/Onboarding/PatternSetupCoordinator.swift` — **NEW**
+- `apps/ios/Vault/Features/Onboarding/PatternSetupView.swift` — delegate to coordinator
+- `apps/ios/VaultTests/PatternSetupCoordinatorTests.swift` — **NEW**
+- `apps/ios/Vault.xcodeproj/project.pbxproj` — add 3 new files
+
+## pbxproj IDs
+| ID | Type | File |
+|----|------|------|
+| `TS0000028` | PBXFileReference | VaultStorageIntegrationTests.swift |
+| `TS0000029` | PBXBuildFile | VaultStorageIntegrationTests.swift |
+| `TS000002A` | PBXFileReference | PatternSetupCoordinatorTests.swift |
+| `TS000002B` | PBXBuildFile | PatternSetupCoordinatorTests.swift |
+| `019000008` | PBXFileReference | PatternSetupCoordinator.swift |
+| `019000009` | PBXBuildFile | PatternSetupCoordinator.swift |
+
+## Verification
+1. Build succeeds
+2. All existing 149 tests still pass
+3. VaultStorageIntegrationTests pass (~10 tests)
+4. PatternSetupCoordinatorTests pass (~6 tests)
+5. All 8 Maestro flows still pass (PatternSetupView behavior unchanged)
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Great. Push it to testflight
+
+---
+
+Ok, I want to start designing the website for this app. I got cloudflare account and domains ready. I got both vaultaire.app and vaultaire.com but only one should be used. I want you to set up cloudflare for them correctly and work on the design of the website so I can publish the app. Let's start with the setup. The website should be static, use cloudflare cdn, use htmx and tailwind, be obviously of the same style as the app.
+
+We also have other requirement, like privacy policy, terms of use, etc.
+
+We need to work on the marketing together. Use AskUserQuestion tool to ask me questions about the process. For now let's focus on the setup before we jump in into the design and marketing part, but feel free to explore as much of it as you can
+
+---
+
+It's done
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me go through the conversation chronologically:
+
+1. **First user request**: Implement a plan for VAULT-4fm (VaultStorage integration tests) and VAULT-d3u (PatternSetupView error path tests). The plan was detailed with specific files, test cases, and approach.
+
+2. **My approach for Task 1 (VaultStorage Integration Tests)**:
+   - Read VaultStorage.swift to understand the API
+   - Created VaultStorageIntegrationTests.swift with 10 tests
+   - Used random keys per test, cleanup via deleteVaultIndex in tearDown
+   - Hit one error: `EncryptedFileHeader` has `originalFilename` not `filename`
+
+3. **My approach for Task 2 (PatternSetupCoordinator)**:
+   - Read PatternSetupView.swift to understand the save logic
+   - Created PatternSetupCoordinator.swift with closure-based DI
+   - Modified PatternSetupView.swift to delegate to coordinator
+   - Created PatternSetupCoordinatorTests.swift with 6 tests
+
+4. **pbxproj updates**: Added 3 new files (PatternSetupCoordinator.swift, VaultStorageIntegrationTests.swift, PatternSetupCoordinatorTests.swift) to the Xcode project
+
+5. **Build & Test**: All 165 tests passed (was 149), committed and pushed
+
+6. **Second user request**: "Push it to testflight"
+   - Bumped build from 22 to 23
+   - Archived and uploaded to App Store Connect
+   - Committed build bump and pushed
+
+7. **Third user request**: Design website for the app
+   - User has Cloudflare account, both vaultaire.app and vaultaire.com domains
+   - Static site, use Cloudflare CDN, htmx, Tailwind
+   - Match the iOS app's style
+   - Need privacy policy, terms of use
+   - Asked questions via AskUserQuestion:
+     - Domain: vaultaire.com → vaultaire.app (301 redirect)
+     - CF Setup: wrangler via npx (was not authenticated)
+     - App Status: Live on App Store
+     - Privacy: Sentry + TelemetryDeck, user opt-in, no personal data
+
+8. **Website implementation**:
+   - Installed npm dependencies in web/
+   - Created _headers (AASA content-type, security headers)
+   - Created _redirects
+   - Updated styles/input.css with Vaultaire design tokens via @theme
+   - Rewrote index.html with full landing page (nav, hero, pattern animation, features grid, security section, CTA, footer)
+   - Created privacy/index.html
+   - Created terms/index.html
+   - Created favicon.svg
+   - Updated s/index.html to match new design
+   - Updated AGENTS.md
+   - Built Tailwind CSS
+   - Committed and pushed
+
+9. **Provided Cloudflare setup instructions** (Steps 1-5: wrangler login, create project, deploy, add custom domains, set up redirects, verify AASA)
+
+10. **User said "It's done"** - referring to wrangler login being complete
+
+Now the user is asking for a summary of the conversation.
+
+Let me list all user messages:
+1. "Implement the following plan: [detailed plan for VAULT-4fm + VAULT-d3u]"
+2. "Great. Push it to testflight"
+3. "Ok, I want to start designing the website for this app..." (long message about Cloudflare, domains, requirements)
+4. Answers to AskUserQuestion (domain strategy, CF setup, app status, privacy)
+5. "It's done" + request for summary
+
+Key files and their importance:
+- PatternSetupCoordinator.swift - NEW production file, extracts save logic
+- PatternSetupView.swift - MODIFIED to delegate to coordinator
+- VaultStorageIntegrationTests.swift - NEW test file, 10 tests
+- PatternSetupCoordinatorTests.swift - NEW test file, 6 tests
+- project.pbxproj - MODIFIED for new files + build bump
+- web/index.html - REWRITTEN with full landing page
+- web/privacy/index.html - NEW
+- web/terms/index.html - NEW
+- web/_headers - NEW
+- web/styles/input.css - UPDATED with design tokens
+- web/AGENTS.md - UPDATED
+- Various other web files created
+
+Errors:
+1. EncryptedFileHeader.filename → originalFilename
+2. SourceKit false positives (expected, ignored per error tracker)
+
+Beads issues closed: VAULT-4fm, VAULT-d3u
+
+Pending: User needs to complete Cloudflare setup (wrangler login, deploy, add domains, configure redirects). They said "It's done" about the wrangler login.
+
+Summary:
+1. Primary Request and Intent:
+   The session had three main requests:
+   - **Implement test plan (VAULT-4fm + VAULT-d3u)**: Create VaultStorage integration tests (10 tests) and extract PatternSetupView save logic into a testable PatternSetupCoordinator with closure-based DI (6 tests). No production code changes for storage tests; minimal production changes for coordinator extraction.
+   - **Deploy to TestFlight**: Push build 23 to App Store Connect for TestFlight distribution.
+   - **Design and set up website**: Create a static website for Vaultaire on Cloudflare Pages using htmx and Tailwind CSS, matching the iOS app's visual style. Includes landing page, privacy policy, terms of use. Domains: vaultaire.app (primary), vaultaire.com (301 redirect). The user wanted to work on marketing together and indicated they'd use AskUserQuestion for collaborative decisions.
+
+2. Key Technical Concepts:
+   - VaultStorage integration testing with random keys and cleanup via `deleteVaultIndex(for:)`
+   - Closure-based dependency injection for SwiftUI view testability (PatternSetupCoordinator)
+   - VaultIndex creation: NEVER use bare v1 init; use `loadIndex(with:)` for proper v3 with master key
+   - `EncryptedFileHeader` uses `originalFilename` not `filename`
+   - Tailwind CSS v4 with `@theme` for design token definitions
+   - Cloudflare Pages `_headers` file for AASA Content-Type and security headers
+   - iOS app design tokens: lavender `#D1D1E9` / navy `#1A1B2E` bg, `#6246EA` accent, `#E45858` highlight
+   - Zero-knowledge architecture for privacy policy (Sentry + TelemetryDeck opt-in, no personal data)
+   - TestFlight upload via `xcodebuild -exportArchive` with ASC API key auth
+   - Beads issue tracking: VAULT-4fm (storage tests) and VAULT-d3u (error path tests) both closed
+
+3. Files and Code Sections:
+
+   - **apps/ios/Vault/Features/Onboarding/PatternSetupCoordinator.swift** — NEW
+     - Extracts save logic from PatternSetupView into a testable struct with closure-based DI
+     - Defaults point to real singletons (KeyDerivation, VaultStorage, RecoveryPhraseManager)
+     ```swift
+     struct PatternSetupCoordinator {
+         var deriveKey: ([Int], Int) async throws -> Data = { pattern, gridSize in
+             try await KeyDerivation.deriveKey(from: pattern, gridSize: gridSize)
+         }
+         var vaultExists: (Data) -> Bool = { key in
+             VaultStorage.shared.vaultExists(for: key)
+         }
+         var saveIndex: (VaultStorage.VaultIndex, Data) throws -> Void = { index, key in
+             try VaultStorage.shared.saveIndex(index, with: key)
+         }
+         var saveRecoveryPhrase: (String, [Int], Int, Data) async throws -> Void = { phrase, pattern, gridSize, key in
+             try await RecoveryPhraseManager.shared.saveRecoveryPhrase(
+                 phrase: phrase, pattern: pattern, gridSize: gridSize, patternKey: key
+             )
+         }
+
+         enum SetupResult {
+             case success(key: Data)
+             case duplicatePattern
+             case error(String)
+         }
+
+         func savePattern(_ pattern: [Int], gridSize: Int, phrase: String) async -> SetupResult { ... }
+         func saveCustomPhrase(_ phrase: String, pattern: [Int], gridSize: Int, key: Data) async -> SetupResult { ... }
+     }
+     ```
+
+   - **apps/ios/Vault/Features/Onboarding/PatternSetupView.swift** — MODIFIED
+     - Added `@State private var coordinator = PatternSetupCoordinator()`
+     - Replaced `savePattern(_:)` body: now calls `coordinator.savePattern()` and switches on `SetupResult`
+     - Replaced `saveCustomRecoveryPhrase()` body: now calls `coordinator.saveCustomPhrase()`
+     - All UI state management (isSaving, errorMessage, step, validationResult) stays in the view
+
+   - **apps/ios/VaultTests/VaultStorageIntegrationTests.swift** — NEW
+     - 10 integration tests using `VaultStorage.shared` with unique random keys
+     - Tests: saveAndLoadIndexRoundTrip, vaultExistsReturnsTrueAfterSave, vaultExistsReturnsFalseForUnknownKey, deleteVaultIndex, storeAndRetrieveFile, storeAndListFiles, deleteFile, retrieveDeletedFileThrows, changeVaultKey, indexCodableRoundTrip
+     - setUp generates `testKey = CryptoEngine.generateRandomBytes(count: 32)!`
+     - tearDown cleans up all keys via `deleteVaultIndex(for:)`
+
+   - **apps/ios/VaultTests/PatternSetupCoordinatorTests.swift** — NEW
+     - 6 tests with injected closures: testSuccessReturnsKey, testDuplicatePatternDetected, testKeyDerivationFailure, testIndexSaveFailure, testRecoveryPhraseSaveFailure, testCustomPhraseSaveFailure
+     - Uses helper `makeCoordinator(deriveKey:vaultExists:saveIndex:saveRecoveryPhrase:)` for DI
+
+   - **apps/ios/Vault.xcodeproj/project.pbxproj** — MODIFIED
+     - Added PBXFileReference + PBXBuildFile entries with IDs: TS0000028/TS0000029 (VaultStorageIntegrationTests), TS000002A/TS000002B (PatternSetupCoordinatorTests), 019000008/019000009 (PatternSetupCoordinator)
+     - Added to Onboarding group, VaultTests group, main Sources phase, test Sources phase
+     - Build number bumped from 22 to 23 across all 8 CURRENT_PROJECT_VERSION entries
+
+   - **web/index.html** — REWRITTEN
+     - Full landing page with fixed nav (backdrop-blur), hero section with animated badge, pattern grid animation (JS animates dots through a demo pattern), 6 feature cards (Pattern Lock, Zero-Knowledge, Multiple Vaults, Duress Protection, Secure Sharing, iCloud Backup), security "How it works" section with 3 steps, stats bar (AES-256, PBKDF2, 600K iterations, Zero Knowledge), CTA section, footer with legal links
+     - Uses Vaultaire design tokens: `bg-vault-bg dark:bg-vault-bg-dark`, etc.
+     - Includes htmx from CDN, Open Graph meta tags, SVG favicon
+
+   - **web/privacy/index.html** — NEW
+     - Privacy policy covering: zero data collection, opt-in analytics (TelemetryDeck + Sentry), iCloud backup, vault sharing, in-app purchases, children's privacy
+     - Links to TelemetryDeck and Sentry privacy policies
+     - Contact: support@vaultaire.app
+
+   - **web/terms/index.html** — NEW
+     - Terms covering: acceptance, service description, user responsibilities (remember pattern, save recovery phrase), no data recovery guarantee, subscriptions via Apple, vault sharing responsibilities, duress mode (irreversible), IP, warranties disclaimer, liability limitation
+
+   - **web/_headers** — NEW
+     - AASA `Content-Type: application/json` with 1-hour cache
+     - Security headers: X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy
+
+   - **web/styles/input.css** — UPDATED
+     - Added `@theme` block with Vaultaire design tokens matching iOS VaultTheme.swift
+     - Colors: vault-bg (#D1D1E9/#1A1B2E), vault-surface (#FFFFFE/#2D2E3A), vault-text (#2B2C34/#E8E8F0), vault-accent (#6246EA), vault-highlight (#E45858/#FF6F6F)
+
+   - **web/favicon.svg** — NEW (lock icon matching app icon in indigo-purple)
+   - **web/s/index.html** — UPDATED to match new design language
+   - **web/AGENTS.md** — UPDATED with domains, design tokens, deployment instructions
+   - **web/_redirects** — NEW (placeholder comment for vaultaire.com redirect)
+
+4. Errors and Fixes:
+   - **EncryptedFileHeader.filename doesn't exist**: VaultStorageIntegrationTests used `result.header.filename` but the struct field is `originalFilename`. Fixed by changing to `result.header.originalFilename`.
+   - **SourceKit false positives**: "Cannot find 'KeyDerivation' in scope", "No such module 'XCTest'" — expected per error tracker, ignored. Build succeeded via xcodebuild.
+
+5. Problem Solving:
+   - Successfully extracted save logic from PatternSetupView into testable coordinator without changing behavior — all 165 tests pass including the 10 new storage integration tests and 6 new coordinator tests
+   - TestFlight build 23 uploaded successfully (Sentry dSYM warning is cosmetic)
+   - Website design tokens pulled from iOS VaultTheme.swift color assets to ensure visual consistency
+   - Wrangler not globally installed — used `npx wrangler` successfully
+   - Wrangler not authenticated — provided step-by-step manual Cloudflare setup instructions for the user
+
+6. All User Messages:
+   - "Implement the following plan: [detailed VAULT-4fm + VAULT-d3u implementation plan with specific files, tests, and pbxproj IDs]"
+   - "Great. Push it to testflight"
+   - "Ok, I want to start designing the website for this app. I got cloudflare account and domains ready. I got both vaultaire.app and vaultaire.com but only one should be used. I want you to set up cloudflare for them correctly and work on the design of the website so I can publish the app. Let's start with the setup. The website should be static, use cloudflare cdn, use htmx and tailwind, be obviously of the same style as the app. We also have other requirement, like privacy policy, terms of use, etc. We need to work on the marketing together. Use AskUserQuestion tool to ask me questions about the process. For now let's focus on the setup before we jump in into the design and marketing part, but feel free to explore as much of it as you can"
+   - AskUserQuestion answers: domain=".com redirects to .app", CF setup="wrangler if installed, else install", app status="like app is on App Store", privacy="Sentry+TelemetryDeck if user allows, no personal data"
+   - "It's done" (referring to wrangler login / Cloudflare setup being complete)
+
+7. Pending Tasks:
+   - **Deploy to Cloudflare Pages**: User said "It's done" about their Cloudflare setup. Need to run `npx wrangler pages deploy` from the web/ directory
+   - **Add vaultaire.com redirect**: Configure 301 redirect rule in Cloudflare dashboard (Rules > Redirect Rules)
+   - **Verify AASA**: After deploy, verify `curl -I https://vaultaire.app/.well-known/apple-app-site-association` returns correct Content-Type
+   - **Marketing collaboration**: User mentioned wanting to work on marketing together, this hasn't started yet
+   - **Design iteration**: The landing page is a first draft; the user may want to preview and iterate on the design
+
+8. Current Work:
+   The website setup was completed and pushed to git. The Cloudflare setup instructions were provided. The user confirmed "It's done" about the Cloudflare authentication/setup. The immediate next step is to deploy the website to Cloudflare Pages now that wrangler is authenticated.
+
+9. Optional Next Step:
+   Deploy the website to Cloudflare Pages. The user said "It's done" in response to the wrangler login instructions, suggesting they've authenticated. The next logical step is:
+   ```bash
+   cd web && npm run build && npx wrangler pages project create vaultaire-web && npx wrangler pages deploy . --project-name vaultaire-web
+   ```
+   Then verify the AASA file and add custom domains. After that, begin the marketing collaboration the user mentioned: "We need to work on the marketing together."
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+When I open the onboarding flow, once I get to the paywall, I can't select any of the buttons. It actually takes seconds before it starts working.
+
+---
+
+push it to testflight
