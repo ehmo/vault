@@ -12,13 +12,11 @@ struct FullScreenPhotoViewer: View {
     @Environment(\.dismiss) private var dismiss
     @State private var currentIndex: Int
     @State private var images: [UUID: UIImage] = [:]
-    @State private var dragOffset: CGFloat = 0
     @State private var showingActions = false
     @State private var showingExportConfirmation = false
     @State private var showingDeleteConfirmation = false
     @State private var shareURL: URL?
     @State private var showingVideoPlayer: VaultFileItem?
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(files: [VaultFileItem], vaultKey: Data?, masterKey: Data? = nil, initialIndex: Int,
          onDelete: ((UUID) -> Void)? = nil, allowDownloads: Bool = true) {
@@ -41,14 +39,16 @@ struct FullScreenPhotoViewer: View {
             Color.black.ignoresSafeArea()
 
             TabView(selection: $currentIndex) {
-                ForEach(files) { file in
+                ForEach(Array(files.enumerated()), id: \.element.id) { index, file in
                     photoPage(file: file)
-                        .tag(files.firstIndex(where: { $0.id == file.id }) ?? 0)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.black)
+                        .clipped()
+                        .tag(index)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .offset(y: dragOffset)
-            .simultaneousGesture(dragToDissmissGesture)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // Top bar overlay
             VStack {
@@ -148,26 +148,6 @@ struct FullScreenPhotoViewer: View {
                     await loadFullImage(for: file)
                 }
         }
-    }
-
-    // MARK: - Drag to Dismiss
-
-    private var dragToDissmissGesture: some Gesture {
-        DragGesture(minimumDistance: 40)
-            .onChanged { value in
-                if abs(value.translation.height) > abs(value.translation.width) {
-                    dragOffset = value.translation.height
-                }
-            }
-            .onEnded { value in
-                if abs(value.translation.height) > 150 {
-                    dismiss()
-                } else {
-                    withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
-                        dragOffset = 0
-                    }
-                }
-            }
     }
 
     // MARK: - Image Loading

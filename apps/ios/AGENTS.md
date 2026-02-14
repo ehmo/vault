@@ -135,7 +135,9 @@ All pattern grid screens MUST behave identically. There are two categories:
 - **Maestro binary source**: `maestro test` launches the app currently installed on the simulator. After code changes, reinstall the freshly built `.app` with `simctl install` before trusting flow results.
 - **Link sharing**: URL fragments (#) never reach server. Base58 (Bitcoin alphabet) excludes ambiguous chars. `fullScreenCover` with computed Binding for deep-link sheets.
 - **Sheet keyboard jump on lock screen**: For lock-screen sheets that contain text input, set `.presentationDetents([.large])` at the presentation site (`PatternLockView`) to prevent keyboard-triggered detent changes that make the background appear to jump.
+- **Lock-screen modal stability**: If keyboard focus in lock-screen recovery/join flows still causes visual background shifts, present those flows with `.fullScreenCover` from `PatternLockView` and ensure lock-screen surfaces are opaque (`Color.vaultBackground`) to prevent any underlying vault content from showing through transitions.
 - **Top inset seam in VaultView**: `safeAreaInset(edge: .top)` can inject default platform spacing and create a visible gap between search controls and first section header. Set `spacing: 0` for flush layout.
+- **Top controls breathing room**: Keep a small intentional bottom inset under the search/filter row (e.g., `topSafeAreaContent` bottom padding) so pull-down states do not crowd the first section edge.
 - **Pattern feedback state precedence**: On create-pattern steps that can emit both `validationResult` and `errorMessage`, always clear the other state when setting one. Otherwise stale `validationResult` can mask newer `errorMessage` (or vice versa).
 - **ChangePattern flow state**: Prefer a dedicated flow state type (`ChangePatternFlowState`) with explicit transitions/helpers over ad-hoc per-branch state mutation; this keeps error/validation exclusivity and processing guards deterministic and unit-testable.
 - **Deterministic Change Pattern tests**: Simulator-only test hooks (`change_pattern_test_*`) are available in `ChangePatternView` for Maestro regression flows; they should never gate production behavior.
@@ -147,6 +149,7 @@ All pattern grid screens MUST behave identically. There are two categories:
 - **Crypto fallback safety**: Never use `Data(repeating: 0, count: N)` as crypto key fallback — use `SymmetricKey(size:)` for proper entropy
 - **try? on security paths**: `try?` on duress vault setup, file deletion, or recovery data operations hides critical failures. Use `do/catch` + Sentry for anything where silent failure = false sense of security
 - **VaultView extensions**: Decomposed into +Grid, +Toolbar, +FanMenu, +SharedVault, +Actions. Keep body in main file, extracted views/methods in extensions.
+- **Full-screen photo paging**: Keep `TabView(.page)` pages strictly full-frame/clipped and avoid competing drag gestures on the `TabView` itself; gesture conflicts can leave pages visually between anchors.
 - **Parallel chunk downloads**: `downloadChunksParallel` uses bounded TaskGroup (max 4), order-preserving reassembly via `[Int: Data]` dictionary
 - **Structured logging**: Subsystem `"app.vaultaire.ios"`, category = class name. `Self.logger` for actors/classes, file-level `let` for `@MainActor` classes with `nonisolated` methods. Levels: trace (sensitive), debug (routine), info (notable), warning (non-fatal), error (failures)
 - **TestFlight CLI upload**: Requires App Store Connect API key (.p8). Without it, export IPA locally + use Xcode Organizer to upload.

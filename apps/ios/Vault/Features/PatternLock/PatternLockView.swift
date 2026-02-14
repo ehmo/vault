@@ -129,15 +129,15 @@ struct PatternLockView: View {
             Spacer()
         }
         .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.vaultBackground.ignoresSafeArea())
         .animation(reduceMotion ? nil : .spring(response: 0.3), value: showError)
-        .sheet(isPresented: $showRecoveryOption) {
+        .fullScreenCover(isPresented: $showRecoveryOption) {
             RecoveryPhraseInputView()
                 .interactiveDismissDisabled()
-                .presentationDetents([.large])
         }
-        .sheet(isPresented: $showJoinSharedVault) {
+        .fullScreenCover(isPresented: $showJoinSharedVault) {
             JoinVaultView()
-                .presentationDetents([.large])
         }
         .ignoresSafeArea(.keyboard)
         .premiumPaywall(isPresented: $showingPaywall)
@@ -287,6 +287,7 @@ struct RecoveryPhraseInputView: View {
                 }
             }
         }
+        .background(Color.vaultBackground.ignoresSafeArea())
         .ignoresSafeArea(.keyboard)
     }
 

@@ -56,6 +56,7 @@ extension VaultView {
                 }
             }
         }
+        .padding(.bottom, (!files.isEmpty && !showingSettings) ? 6 : 0)
         .background(Color.vaultBackground)
     }
 

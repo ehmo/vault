@@ -65,6 +65,8 @@ struct JoinVaultView: View {
                 .padding()
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color.vaultBackground.ignoresSafeArea())
         .ignoresSafeArea(.keyboard)
         .task {
             let status = await CloudKitSharingManager.shared.checkiCloudStatus()

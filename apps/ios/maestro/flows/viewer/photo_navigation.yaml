@@ -5,15 +5,27 @@ appId: app.vaultaire.ios
 
 # Open first photo
 - tapOn:
-    index: 0
+    point: "20%, 34%"
+
+# Viewer should be fully presented
+- assertVisible:
+    id: "viewer_done"
 
 # Swipe left to next photo
+- swipe:
+    direction: "LEFT"
+
+# Swipe left again (regression: page should still snap cleanly)
 - swipe:
     direction: "LEFT"
 
 # Swipe right to go back
 - swipe:
     direction: "RIGHT"
+
+# Viewer controls must remain stable after multiple swipes
+- assertVisible:
+    id: "viewer_done"
 
 - tapOn:
     id: "viewer_done"
