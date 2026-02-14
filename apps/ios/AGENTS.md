@@ -150,6 +150,7 @@ All pattern grid screens MUST behave identically. There are two categories:
 - **try? on security paths**: `try?` on duress vault setup, file deletion, or recovery data operations hides critical failures. Use `do/catch` + Sentry for anything where silent failure = false sense of security
 - **VaultView extensions**: Decomposed into +Grid, +Toolbar, +FanMenu, +SharedVault, +Actions. Keep body in main file, extracted views/methods in extensions.
 - **Full-screen photo paging**: Keep `TabView(.page)` pages strictly full-frame/clipped and avoid competing drag gestures on the `TabView` itself; gesture conflicts can leave pages visually between anchors.
+- **Photo viewer presentation identity**: Do not drive full-screen photo presentation with `fullScreenCover(item:)` keyed by the current photo index. Use stable boolean presentation plus a separate initial index; index-keyed presentation can reinstantiate the cover during swipes and cause native-paging glitches.
 - **Parallel chunk downloads**: `downloadChunksParallel` uses bounded TaskGroup (max 4), order-preserving reassembly via `[Int: Data]` dictionary
 - **Structured logging**: Subsystem `"app.vaultaire.ios"`, category = class name. `Self.logger` for actors/classes, file-level `let` for `@MainActor` classes with `nonisolated` methods. Levels: trace (sensitive), debug (routine), info (notable), warning (non-fatal), error (failures)
 - **TestFlight CLI upload**: Requires App Store Connect API key (.p8). Without it, export IPA locally + use Xcode Organizer to upload.

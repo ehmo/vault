@@ -206,15 +206,15 @@ struct VaultView: View {
         sortOrder == .dateNewest || sortOrder == .dateOldest
     }
 
-    /// Identifiable wrapper so `fullScreenCover(item:)` can drive presentation from an Int index.
-    private struct PhotoViewerItem: Identifiable {
-        let id: Int // index into splitFiles.media
-    }
-
-    private var photoViewerItem: Binding<PhotoViewerItem?> {
+    /// Keep cover presentation stable while allowing index changes inside the viewer.
+    private var isPhotoViewerPresented: Binding<Bool> {
         Binding(
-            get: { selectedPhotoIndex.map { PhotoViewerItem(id: $0) } },
-            set: { selectedPhotoIndex = $0?.id }
+            get: { selectedPhotoIndex != nil },
+            set: { isPresented in
+                if !isPresented {
+                    selectedPhotoIndex = nil
+                }
+            }
         )
     }
 
@@ -360,20 +360,24 @@ struct VaultView: View {
         ) { result in
             handleImportedFiles(result)
         }
-        .fullScreenCover(item: photoViewerItem) { item in
-            FullScreenPhotoViewer(
-                files: visible.media,
-                vaultKey: appState.currentVaultKey,
-                masterKey: masterKey,
-                initialIndex: item.id,
-                onDelete: isSharedVault ? nil : { deletedId in
-                    if let idx = files.firstIndex(where: { $0.id == deletedId }) {
-                        files.remove(at: idx)
-                    }
-                    selectedPhotoIndex = nil
-                },
-                allowDownloads: sharePolicy?.allowDownloads ?? true
-            )
+        .fullScreenCover(isPresented: isPhotoViewerPresented, onDismiss: { selectedPhotoIndex = nil }) {
+            if let initialIndex = selectedPhotoIndex, !visible.media.isEmpty {
+                let clampedIndex = min(max(initialIndex, 0), visible.media.count - 1)
+                FullScreenPhotoViewer(
+                    files: visible.media,
+                    vaultKey: appState.currentVaultKey,
+                    masterKey: masterKey,
+                    initialIndex: clampedIndex,
+                    onDelete: isSharedVault ? nil : { deletedId in
+                        if let idx = files.firstIndex(where: { $0.id == deletedId }) {
+                            files.remove(at: idx)
+                        }
+                    },
+                    allowDownloads: sharePolicy?.allowDownloads ?? true
+                )
+            } else {
+                Color.black.ignoresSafeArea()
+            }
         }
         .sheet(item: $selectedFile) { file in
             SecureImageViewer(
