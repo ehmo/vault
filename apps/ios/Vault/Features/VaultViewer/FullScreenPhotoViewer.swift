@@ -11,6 +11,7 @@ struct FullScreenPhotoViewer: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var currentIndex: Int
+    @State private var pageScrollID: Int?
     @State private var images: [UUID: UIImage] = [:]
     @State private var showingActions = false
     @State private var showingExportConfirmation = false
@@ -35,48 +36,65 @@ struct FullScreenPhotoViewer: View {
     }
 
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                Color.black.ignoresSafeArea()
 
-            TabView(selection: $currentIndex) {
-                ForEach(Array(files.enumerated()), id: \.element.id) { index, file in
-                    photoPage(file: file)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.black)
-                        .clipped()
-                        .tag(index)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            // Top bar overlay
-            VStack {
-                HStack {
-                    Button("Done") { dismiss() }
-                        .foregroundStyle(.white)
-                        .frame(minWidth: 44, minHeight: 44)
-                        .accessibilityIdentifier("viewer_done")
-                    Spacer()
-                    if onDelete != nil || allowDownloads {
-                        Button(action: { showingActions = true }) {
-                            Image(systemName: "ellipsis.circle")
-                                .foregroundStyle(.white)
-                                .imageScale(.large)
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: 0) {
+                        ForEach(Array(files.enumerated()), id: \.element.id) { index, file in
+                            photoPage(file: file)
+                                .frame(width: geometry.size.width, height: geometry.size.height)
+                                .background(Color.black)
+                                .clipped()
+                                .id(index)
                         }
-                        .frame(minWidth: 44, minHeight: 44)
-                        .accessibilityIdentifier("viewer_actions")
-                        .accessibilityLabel("More actions")
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollIndicators(.hidden)
+                .scrollTargetBehavior(.paging)
+                .scrollPosition(id: $pageScrollID)
+                .onAppear {
+                    pageScrollID = currentIndex
+                }
+                .onChange(of: pageScrollID) { _, newID in
+                    guard let newID else { return }
+                    if currentIndex != newID {
+                        currentIndex = newID
                     }
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 12)
-                Spacer()
+                .onChange(of: currentIndex) { _, newIndex in
+                    if pageScrollID != newIndex {
+                        pageScrollID = newIndex
+                    }
+                    preloadAdjacent(around: newIndex)
+                    evictDistant(from: newIndex)
+                }
+                // Top bar overlay
+                VStack {
+                    HStack {
+                        Button("Done") { dismiss() }
+                            .foregroundStyle(.white)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .accessibilityIdentifier("viewer_done")
+                        Spacer()
+                        if onDelete != nil || allowDownloads {
+                            Button(action: { showingActions = true }) {
+                                Image(systemName: "ellipsis.circle")
+                                    .foregroundStyle(.white)
+                                    .imageScale(.large)
+                            }
+                            .frame(minWidth: 44, minHeight: 44)
+                            .accessibilityIdentifier("viewer_actions")
+                            .accessibilityLabel("More actions")
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 12)
+                    Spacer()
+                }
             }
-        }
-        .onChange(of: currentIndex) { _, newIndex in
-            preloadAdjacent(around: newIndex)
-            evictDistant(from: newIndex)
         }
         .task {
             preloadAdjacent(around: initialIndex)
