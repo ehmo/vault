@@ -880,16 +880,27 @@ final class VaultStorage {
         var index = try loadIndex(with: key)
         let masterKey = try getMasterKey(from: index, vaultKey: key)
 
-        let encryptedFile = try CryptoEngine.encryptFileFromURL(fileURL, filename: filename, mimeType: mimeType, with: masterKey)
+        // Build header (small — stays in memory)
+        let fileId = UUID()
+        let originalFileSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int) ?? 0
+        let header = CryptoEngine.EncryptedFileHeader(
+            fileId: fileId,
+            originalFilename: filename,
+            mimeType: mimeType,
+            originalSize: UInt64(originalFileSize),
+            createdAt: Date()
+        )
+        let encryptedHeader = try CryptoEngine.encrypt(header.serialize(), with: masterKey)
 
-        let fileData = encryptedFile.encryptedContent
-        let fileSize = fileData.count
+        // Calculate total size WITHOUT loading the file into memory
+        let encContentSize = CryptoEngine.encryptedContentSize(forFileOfSize: originalFileSize)
+        let totalSize = 4 + encryptedHeader.count + encContentSize
 
         // Find a blob with enough space
         var targetBlobIndex: Int? = nil
         if let blobs = index.blobs {
             for (i, blob) in blobs.enumerated() {
-                if blob.cursor + fileSize <= blob.capacity {
+                if blob.cursor + totalSize <= blob.capacity {
                     targetBlobIndex = i
                     break
                 }
@@ -920,15 +931,27 @@ final class VaultStorage {
         }
         defer { try? handle.close() }
 
+        // Write header to blob
         try handle.seek(toOffset: UInt64(writeOffset))
-        handle.write(fileData)
+        var headerSize = UInt32(encryptedHeader.count)
+        let headerSizeData = Data(bytes: &headerSize, count: 4)
+        handle.write(headerSizeData)
+        handle.write(encryptedHeader)
+
+        // Stream-encrypt content directly to blob — peak memory: ~256KB
+        try CryptoEngine.encryptFileStreamingToHandle(from: fileURL, to: handle, with: masterKey)
+
+        // Build header preview for index (first 64 bytes of on-disk format)
+        var headerPreview = Data()
+        headerPreview.append(headerSizeData)
+        headerPreview.append(encryptedHeader.prefix(60))
 
         var encryptedThumbnail: Data? = nil
         if let thumbnail = thumbnailData {
             encryptedThumbnail = try? CryptoEngine.encrypt(thumbnail, with: masterKey)
         }
 
-        let newCursor = writeOffset + fileSize
+        let newCursor = writeOffset + totalSize
         index.blobs![blobIdx].cursor = newCursor
 
         if targetBlobId == "primary" {
@@ -937,10 +960,10 @@ final class VaultStorage {
         }
 
         let entry = VaultIndex.VaultFileEntry(
-            fileId: encryptedFile.header.fileId,
+            fileId: fileId,
             offset: writeOffset,
-            size: fileSize,
-            encryptedHeaderPreview: fileData.prefix(64),
+            size: totalSize,
+            encryptedHeaderPreview: headerPreview,
             isDeleted: false,
             thumbnailData: encryptedThumbnail,
             mimeType: mimeType,
@@ -953,7 +976,7 @@ final class VaultStorage {
 
         try saveIndex(index, with: key)
 
-        return encryptedFile.header.fileId
+        return fileId
     }
 
     func retrieveFile(id: UUID, with key: Data) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {

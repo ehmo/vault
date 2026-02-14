@@ -6,8 +6,8 @@ struct VaultairePaywallView: View {
 
     @Environment(SubscriptionManager.self) private var subscriptionManager
 
-    @State private var selectedPlan: PlanType = .monthly
-    @State private var trialEnabled = false
+    @State private var selectedPlan: PlanType = .annual
+    @State private var trialEnabled = true
     @State private var isPurchasing = false
     @State private var errorMessage: String?
 
@@ -271,7 +271,7 @@ struct VaultairePaywallView: View {
     }
 
     private var ctaText: String {
-        if selectedPlan == .annual && trialEnabled {
+        if selectedPlan == .annual && trialEnabled && isTrialEligible {
             return "Try for 7 days"
         }
         switch selectedPlan {

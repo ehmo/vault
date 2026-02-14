@@ -8,6 +8,12 @@ struct ToastMessage: Equatable {
 
     static func fileEncrypted() -> Self { .init(icon: "lock.fill", message: "File encrypted and saved") }
     static func filesImported(_ count: Int) -> Self { .init(icon: "lock.fill", message: "\(count) file\(count == 1 ? "" : "s") imported") }
+    static func importFailed(_ failed: Int, imported: Int) -> Self {
+        if imported > 0 {
+            return .init(icon: "exclamationmark.triangle", message: "\(imported) imported, \(failed) failed")
+        }
+        return .init(icon: "exclamationmark.triangle", message: "\(failed) file\(failed == 1 ? "" : "s") failed to import")
+    }
     static func filesDeleted(_ count: Int) -> Self { .init(icon: "trash", message: "\(count) file\(count == 1 ? "" : "s") deleted") }
     static func exported() -> Self { .init(icon: "square.and.arrow.up", message: "Exported to Photos") }
     static func milestone(_ text: String) -> Self { .init(icon: "sparkles", message: text) }

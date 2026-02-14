@@ -251,6 +251,7 @@ extension VaultView {
 
         activeImportTask = Task.detached(priority: .userInitiated) {
             var successCount = 0
+            var failedCount = 0
             for (index, result) in results.enumerated() {
                 // Stop immediately if vault was locked or switched
                 guard !Task.isCancelled else { break }
@@ -338,6 +339,11 @@ extension VaultView {
                     }
                 } catch {
                     if Task.isCancelled { break }
+                    failedCount += 1
+                    SentryManager.shared.addBreadcrumb(
+                        category: "import.failed",
+                        data: ["index": index, "isVideo": isVideo, "error": "\(error)"]
+                    )
                     await MainActor.run { self.importProgress = (index + 1, count) }
                     #if DEBUG
                     print("❌ [VaultView] Failed to import item \(index): \(error)")
@@ -346,11 +352,16 @@ extension VaultView {
             }
 
             let imported = successCount
+            let failed = failedCount
             await MainActor.run {
                 guard !Task.isCancelled else { return }
                 self.importProgress = nil
                 UIApplication.shared.isIdleTimerDisabled = false
-                if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: self.files.count) {
+                if failed > 0 && imported == 0 {
+                    self.toastMessage = .importFailed(failed, imported: 0)
+                } else if failed > 0 {
+                    self.toastMessage = .importFailed(failed, imported: imported)
+                } else if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: self.files.count) {
                     self.toastMessage = .milestone(milestone)
                 } else {
                     self.toastMessage = .filesImported(imported)

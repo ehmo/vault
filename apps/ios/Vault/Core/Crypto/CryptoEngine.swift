@@ -443,6 +443,78 @@ enum CryptoEngine {
         return output
     }
 
+    // MARK: - Streaming Encryption to FileHandle (zero-copy)
+
+    /// Calculates the exact encrypted content size for a file, without encrypting it.
+    /// This allows pre-allocating blob space before streaming encryption.
+    static func encryptedContentSize(forFileOfSize fileSize: Int) -> Int {
+        if fileSize <= VaultCoreConstants.streamingThreshold {
+            // Single-shot AES-GCM: nonce(12) + ciphertext(fileSize) + tag(16)
+            return fileSize + 28
+        }
+        let chunkSize = VaultCoreConstants.streamingChunkSize
+        let totalChunks = (fileSize + chunkSize - 1) / chunkSize
+        // Streaming header(33) + per-chunk overhead(4 size prefix + 28 AES-GCM) + raw data
+        return 33 + totalChunks * 32 + fileSize
+    }
+
+    /// Stream-encrypts a file directly to a FileHandle, writing chunks as they're encrypted.
+    /// Peak memory: ~256KB (one chunk) instead of the entire file.
+    static func encryptFileStreamingToHandle(from sourceURL: URL, to handle: FileHandle, with key: Data) throws {
+        guard key.count == 32 else { throw CryptoError.keyGenerationFailed }
+        let fileSize = try FileManager.default.attributesOfItem(atPath: sourceURL.path)[.size] as? Int ?? 0
+
+        if fileSize <= VaultCoreConstants.streamingThreshold {
+            // Small file: single-shot encrypt and write
+            let data = try Data(contentsOf: sourceURL)
+            let encrypted = try encrypt(data, with: key)
+            handle.write(encrypted)
+            return
+        }
+
+        // Streaming encryption — write directly to handle instead of accumulating in memory
+        let chunkSize = VaultCoreConstants.streamingChunkSize
+        let totalChunks = (fileSize + chunkSize - 1) / chunkSize
+        let symmetricKey = SymmetricKey(data: key)
+
+        guard let baseNonceData = generateRandomBytes(count: 12) else {
+            throw CryptoError.encryptionFailed
+        }
+
+        // Write streaming header (33 bytes)
+        var magic = VaultCoreConstants.streamingMagic
+        handle.write(Data(bytes: &magic, count: 4))
+        var version = VaultCoreConstants.streamingVersion
+        handle.write(Data(bytes: &version, count: 1))
+        var cs = UInt32(chunkSize)
+        handle.write(Data(bytes: &cs, count: 4))
+        var tc = UInt32(totalChunks)
+        handle.write(Data(bytes: &tc, count: 4))
+        var os = UInt64(fileSize)
+        handle.write(Data(bytes: &os, count: 8))
+        handle.write(baseNonceData)
+
+        // Stream chunks: read → encrypt → write, one chunk at a time
+        let sourceHandle = try FileHandle(forReadingFrom: sourceURL)
+        defer { try? sourceHandle.close() }
+
+        for chunkIndex in 0..<totalChunks {
+            let chunkData = sourceHandle.readData(ofLength: chunkSize)
+            guard !chunkData.isEmpty else { break }
+
+            let nonce = try xorNonce(baseNonceData, with: UInt64(chunkIndex))
+            let gcmNonce = try AES.GCM.Nonce(data: nonce)
+            let sealedBox = try AES.GCM.seal(chunkData, using: symmetricKey, nonce: gcmNonce)
+            guard let combined = sealedBox.combined else {
+                throw CryptoError.encryptionFailed
+            }
+
+            var encSize = UInt32(combined.count)
+            handle.write(Data(bytes: &encSize, count: 4))
+            handle.write(combined)
+        }
+    }
+
     /// Detects whether data is in VCSE streaming format.
     static func isStreamingFormat(_ data: Data) -> Bool {
         guard data.count >= 4 else { return false }

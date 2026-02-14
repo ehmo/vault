@@ -37,7 +37,7 @@ appId: app.vaultaire.ios
 # Now on paywall step
 - assertVisible: "Unlock Vaultaire Pro"
 
-# Default is Monthly - CTA should say "Subscribe"
+# Default is Annual - CTA should say "Subscribe" (trial text only when eligible)
 - assertVisible: "Subscribe"
 
 # Test 1: Tap Lifetime - CTA changes to "Purchase for"
