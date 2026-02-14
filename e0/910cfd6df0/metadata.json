@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "e0910cfd6df0",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Core/Storage/VaultStorage.swift",
+    "apps/ios/Vault/Core/Storage/iCloudBackupManager.swift",
+    "apps/ios/VaultTests/VaultStorageIntegrationTests.swift",
+    "apps/ios/docs/cloudkit-setup.md",
+    "apps/ios/docs/design-decisions.md",
+    "apps/ios/docs/marketing-copy.md",
+    "apps/ios/docs/storage.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e0/910cfd6df0/0/metadata.json",
+      "transcript": "/e0/910cfd6df0/0/full.jsonl",
+      "context": "/e0/910cfd6df0/0/context.md",
+      "content_hash": "/e0/910cfd6df0/0/content_hash.txt",
+      "prompt": "/e0/910cfd6df0/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 63,
+    "cache_creation_tokens": 123818,
+    "cache_read_tokens": 7261955,
+    "output_tokens": 2198,
+    "api_call_count": 57
+  }
+}

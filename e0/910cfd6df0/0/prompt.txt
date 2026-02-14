@@ -1,0 +1,197 @@
+Implement the following plan:
+
+# Reduce Blob Size to 50MB + Multi-Blob iCloud Backup
+
+## Context
+500MB pre-allocated blobs cause iCloud backup failures (exceeds CloudKit's 250MB CKAsset limit, slow uploads, unreliable over cellular). Additionally: backup only saves `vault_data.bin` (ignores expansion blobs = silent data loss for premium users), and doesn't backup index files (cross-device restore loses master key = all files unrecoverable).
+
+Fix: reduce blob size to 50MB, redesign backup to handle all blobs + indexes with chunked uploads.
+
+## Change 1: Reduce `defaultBlobSize` from 500MB to 50MB
+
+**File**: `apps/ios/Vault/Core/Storage/VaultStorage.swift`
+
+- Line 42: `500 * 1024 * 1024` → `50 * 1024 * 1024`
+- Everything cascades: `cursorBlockOffset`, `createRandomBlob`, `createExpansionBlob`, `compactBlobs`
+- Existing blobs unaffected — capacity stored in BlobDescriptor, not derived from constant
+- New blobs (primary + expansion) are 50MB
+
+## Change 2: Fix Global Cursor for Legacy Blobs
+
+**Problem**: `readGlobalCursor()` / `writeGlobalCursor()` use `cursorBlockOffset` (now 50MB-16) to find the XOR footer. On existing 500MB blobs, the footer is at 500MB-16. Reading at 50MB-16 returns garbage, magic check fails, cursor = 0.
+
+**Fix**: Derive cursor footer offset from actual file size on disk, not the constant.
+
+**File**: `apps/ios/Vault/Core/Storage/VaultStorage.swift`
+
+Add helper:
+```swift
+private func cursorFooterOffset() -> Int {
+    if let attrs = try? fileManager.attributesOfItem(atPath: blobURL.path),
+       let size = attrs[.size] as? Int, size > 16 {
+        return size - 16
+    }
+    return cursorBlockOffset
+}
+```
+
+- `readGlobalCursor()`: replace `cursorBlockOffset` → `cursorFooterOffset()`
+- `writeGlobalCursor()`: replace `cursorBlockOffset` → `cursorFooterOffset()`
+- Keep `cursorBlockOffset` for NEW primary blob capacity (BlobDescriptor)
+- `migrateToV3()`: set primary capacity to `cursorFooterOffset()` (matches existing blob)
+
+## Change 3: Fix Secure Wipe for Variable-Size Blobs
+
+**Problem**: `secureWipeAllBlobs()` and `compactBlobs()` wipe up to `defaultBlobSize`. After change, old 500MB blobs get only first 50MB wiped — 450MB of encrypted data remains.
+
+**File**: `apps/ios/Vault/Core/Storage/VaultStorage.swift`
+
+Extract helper:
+```swift
+private func secureOverwrite(url: URL) {
+    let fileSize = (try? fileManager.attributesOfItem(atPath: url.path)[.size] as? Int) ?? defaultBlobSize
+    guard let handle = try? FileHandle(forWritingTo: url) else { return }
+    let chunkSize = 1024 * 1024
+    var offset = 0
+    while offset < fileSize {
+        if let random = CryptoEngine.generateRandomBytes(count: min(chunkSize, fileSize - offset)) {
+            try? handle.seek(toOffset: UInt64(offset))
+            handle.write(random)
+        }
+        offset += chunkSize
+    }
+    try? handle.close()
+}
+```
+
+- `secureWipeAllBlobs()`: replace inline wipe loop → `secureOverwrite(url:)`
+- `compactBlobs()`: replace old blob overwrite loop → `secureOverwrite(url:)`
+
+## Change 4: Multi-Blob + Index iCloud Backup
+
+**Problem**: Backup only saves `vault_data.bin`. Ignores expansion blobs (premium data loss) and index files (master key lost on cross-device restore).
+
+**File**: `apps/ios/Vault/Core/Storage/iCloudBackupManager.swift`
+
+### Backup Payload Format (v2)
+
+Pack all blob data (used portions only, 0→cursor) + all index files into a binary payload:
+```
+Header:  magic 0x56424B32 (4B) | version 2 (1B) | blobCount (2B) | indexCount (2B)
+Blobs:   [idLen(2B) | blobId(var) | dataLen(8B) | data(var)] × blobCount
+Indexes: [nameLen(2B) | fileName(var) | dataLen(4B) | data(var)] × indexCount
+```
+
+Only backup used portion per blob (0→cursor). On restore, create full-size blob with fresh random padding. This cuts backup size dramatically — a vault with 5MB of content backs up ~5MB instead of 50MB.
+
+### Updated BackupMetadata
+```swift
+struct BackupMetadata: Codable {
+    let timestamp: Date
+    let size: Int
+    let checksum: Data
+    let formatVersion: Int?   // nil=v1 single asset, 2=chunked
+    let chunkCount: Int?
+    let backupId: String?
+}
+```
+
+### CloudKit Records
+
+**Existing `VaultBackup`** (id=`current_backup`): add `formatVersion`, `chunkCount`, `backupId` fields. Set `backupData = nil` for v2.
+
+**New `VaultBackupChunk`** record type (private DB):
+- `chunkData`: CKAsset (≤2MB)
+- `chunkIndex`: Int64
+- `backupId`: String
+
+Record naming: `{backupId}_bchunk_{index}`
+
+### Backup Flow
+1. `loadIndex(with:)` → iterate `index.blobs`, read used data (0→cursor) per blob
+2. Collect all `vault_index_*.bin` files from Documents
+3. `packBackupPayload()` → binary format above
+4. `CryptoEngine.encrypt()` the payload
+5. Chunk into 2MB pieces, upload via `uploadBackupChunksParallel()` (mirrors CloudKitSharingManager pattern)
+6. Save manifest record with metadata, clear old `backupData` asset
+7. Delete old backup chunks (previous `backupId`)
+
+### Restore Flow (backward compatible)
+1. Fetch manifest, decode `BackupMetadata`
+2. If `formatVersion == nil` or `1` → **v1 legacy**: restore single `backupData` CKAsset as before
+3. If `formatVersion == 2` → **v2 chunked**:
+   - Download chunks in parallel via `downloadBackupChunksParallel()`
+   - Reassemble, verify HMAC, decrypt
+   - `unpackBackupPayload()` → blobs + indexes
+   - For each blob: create file at `defaultBlobSize`, fill random, overwrite used portion at offset 0
+   - For each index: write to Documents as-is
+
+### Chunk Upload/Download Helpers
+Mirror `CloudKitSharingManager.uploadChunksParallel()` pattern:
+- `uploadBackupChunksParallel(backupId:chunks:onProgress:)` — max 4 concurrent, uses `privateDatabase`
+- `downloadBackupChunksParallel(backupId:chunkCount:onProgress:)` — max 4 concurrent, reassembles in order
+- `deleteOldBackupChunks(excludingBackupId:)` — cleanup
+
+### Auto-Backup Update
+`performBackupIfNeeded()` — no structural changes needed, it calls `performBackup()` which now handles multi-blob internally.
+
+## Change 5: Update Tests
+
+**File**: `apps/ios/VaultTests/VaultStorageIntegrationTests.swift`
+- Lines 27, 32, 40, 55: `500 * 1024 * 1024` → `50 * 1024 * 1024`
+
+## Change 6: Update Documentation
+
+| File | Changes |
+|------|---------|
+| `apps/ios/docs/storage.md` | 10+ refs: "500 MB" → "50 MB", update hex offsets, capacity examples |
+| `apps/ios/docs/design-decisions.md` | 2 refs: "500MB" → "50MB" |
+| `apps/ios/docs/marketing-copy.md` | 2 refs: "500 MB" → "50 MB" |
+| `apps/ios/docs/cloudkit-setup.md` | 1 ref + add VaultBackupChunk record type docs |
+
+## CloudKit Schema Deployment
+
+Manual step after implementation:
+1. Add `VaultBackupChunk` record type in CloudKit Dashboard (Development)
+2. Fields: `chunkData` (Asset), `chunkIndex` (Int64), `backupId` (String)
+3. Add queryable index on `backupId`
+4. Add fields to `VaultBackup`: `formatVersion` (Int64), `chunkCount` (Int64), `backupId` (String)
+5. Deploy schema to Production
+
+## Files Modified Summary
+
+| File | Change |
+|------|--------|
+| `VaultStorage.swift` | `defaultBlobSize` 50MB, `cursorFooterOffset()`, `secureOverwrite()`, fix wipe/compact |
+| `iCloudBackupManager.swift` | Multi-blob payload format, chunked upload/download, backward-compat restore, BackupMetadata v2 |
+| `VaultStorageIntegrationTests.swift` | Update hardcoded 500MB values |
+| `docs/storage.md` | Update size refs |
+| `docs/design-decisions.md` | Update size refs |
+| `docs/marketing-copy.md` | Update size refs |
+| `docs/cloudkit-setup.md` | Update size refs + new record type docs |
+
+## Verification
+1. Build succeeds with no warnings
+2. New vault creates 50MB primary blob (not 500MB)
+3. Importing enough files to fill 50MB triggers expansion blob creation (premium)
+4. Secure wipe fully overwrites old 500MB blobs (check file size is used, not constant)
+5. Compaction with mixed 500MB + 50MB blobs produces 50MB-only output
+6. `readGlobalCursor` works on existing 500MB blobs (reads at correct offset)
+7. iCloud backup uploads multiple chunks successfully
+8. iCloud restore on fresh device: blobs + indexes restored, vault accessible with same pattern
+9. Legacy v1 backup still restores correctly after code change
+10. Auto-backup fires and completes in background
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+>  Manual CloudKit step still required: Add VaultBackupChunk record type to CloudKit Dashboard (Development) with fields chunkData (Asset), chunkIndex (Int64),
+  backupId (String), plus add formatVersion/chunkCount/backupId fields to VaultBackup.
+
+Tell me exactly what I need to do
+
+---
+
+Both done. Publish the app to testflight
