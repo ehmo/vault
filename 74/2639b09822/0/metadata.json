@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "742639b09822",
+  "session_id": "eb91cd9f-683c-4b20-9e16-fa12b83ddb98",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-14T17:07:47.114105Z",
+  "branch": "main",
+  "checkpoints_count": 7,
+  "files_touched": [
+    ".scratch-pad.md",
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Core/Sharing/BackgroundShareTransferManager.swift",
+    "apps/ios/Vault/Features/PatternLock/PatternLockView.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/Vault/Features/Sharing/JoinVaultView.swift",
+    "apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Grid.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Toolbar.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "3a48a629-b29b-46c9-8354-25b35acbba4b",
+  "checkpoint_transcript_start": 3153,
+  "transcript_lines_at_start": 3153,
+  "token_usage": {
+    "input_tokens": 98,
+    "cache_creation_tokens": 212210,
+    "cache_read_tokens": 9802876,
+    "output_tokens": 1885,
+    "api_call_count": 80
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-14T17:07:46.210021Z",
+    "agent_lines": 55,
+    "human_added": 13627,
+    "human_modified": 11,
+    "human_removed": 0,
+    "total_committed": 13693,
+    "agent_percentage": 0.4016650843496677
+  }
+}
