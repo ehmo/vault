@@ -87,7 +87,7 @@ This document captures key product decisions, trade-offs, and the reasoning behi
 
 ## Storage Decisions
 
-### Pre-Allocated 500MB Blob
+### Pre-Allocated 50MB Blob
 
 **Decision:** Create fixed-size blob filled with random data.
 
@@ -97,7 +97,7 @@ This document captures key product decisions, trade-offs, and the reasoning behi
 - Deletion doesn't change blob size
 
 **Trade-off:**
-- Uses 500MB regardless of actual content
+- Uses 50MB regardless of actual content
 - Deleted space not reclaimed
 - Limited total capacity
 

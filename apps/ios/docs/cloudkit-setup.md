@@ -73,6 +73,33 @@ Two record types are needed: `SharedVault` (manifest) and `SharedVaultChunk` (fi
 | `chunkIndex` | Int64 | Order index (0-based) |
 | `vaultId` | String | Reference to parent shareVaultId |
 
+#### VaultBackup (Private Database — Backup Manifest)
+
+1. Click "+" to add another record type
+2. Name: `VaultBackup`
+3. Click "Create Record Type"
+
+| Field Name | Type | Purpose |
+|------------|------|---------|
+| `metadata` | Bytes | JSON-encoded backup metadata |
+| `backupData` | Asset | v1 only: single encrypted blob (nil for v2) |
+| `timestamp` | Date/Time | When backup was created |
+| `formatVersion` | Int64 | 1=single asset, 2=chunked |
+| `chunkCount` | Int64 | Number of VaultBackupChunk records (v2) |
+| `backupId` | String | Unique ID linking chunks to this backup |
+
+#### VaultBackupChunk (Private Database — Backup Data)
+
+1. Click "+" to add another record type
+2. Name: `VaultBackupChunk`
+3. Click "Create Record Type"
+
+| Field Name | Type | Purpose |
+|------------|------|---------|
+| `chunkData` | Asset | Encrypted backup data (~2 MB per chunk) |
+| `chunkIndex` | Int64 | Order index (0-based) |
+| `backupId` | String | Reference to parent VaultBackup |
+
 ### Configure Indexes
 
 After fields exist (either manually created or auto-created by first upload):
@@ -88,6 +115,10 @@ After fields exist (either manually created or auto-created by first upload):
 2. Ensure `recordName` is queryable (automatic)
 3. Add queryable index for `vaultId`
 4. Add sortable index for `chunkIndex`
+
+**VaultBackupChunk (Private Database):**
+1. Click "Edit Indexes" on the VaultBackupChunk record type
+2. Add queryable index for `backupId`
 
 ### Deploy to Production
 
@@ -296,10 +327,11 @@ Shared vaults use CloudKit's **public database**:
 
 ### Vault Size Considerations
 
-- Files are split into ~50 MB chunks to stay within CloudKit's 250 MB asset limit
-- Each chunk is a separate `SharedVaultChunk` record
-- Large vaults generate many chunk records (e.g. 500 MB vault = ~10 chunks)
-- Sync updates delete old chunks and upload new ones
+- Shared vault files are split into ~50 MB chunks (`SharedVaultChunk`)
+- iCloud backups use 2 MB chunks (`VaultBackupChunk`) for reliability
+- Backups only include used data (not full blob), reducing upload size
+- Large vaults generate many chunk records
+- Sync/backup updates delete old chunks and upload new ones
 
 ## 8. Production Checklist
 
@@ -308,8 +340,10 @@ Shared vaults use CloudKit's **public database**:
 - [ ] Container identifier matches code
 - [ ] `SharedVault` record type created in CloudKit Dashboard
 - [ ] `SharedVaultChunk` record type created in CloudKit Dashboard
-- [ ] All fields added with correct types on both record types
-- [ ] Indexes configured for queries (shareVaultId, vaultId, chunkIndex)
+- [ ] `VaultBackup` record type created in CloudKit Dashboard (private DB)
+- [ ] `VaultBackupChunk` record type created in CloudKit Dashboard (private DB)
+- [ ] All fields added with correct types on all record types
+- [ ] Indexes configured for queries (shareVaultId, vaultId, chunkIndex, backupId)
 - [ ] Schema deployed to Production
 - [ ] Tested manifest + chunk upload/download on physical device
 - [ ] Tested one-time claim (claimed flag prevents reuse)

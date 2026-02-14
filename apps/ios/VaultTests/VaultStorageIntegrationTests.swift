@@ -24,12 +24,12 @@ final class VaultStorageIntegrationTests: XCTestCase {
     // MARK: - Index Round Trip
 
     func testSaveAndLoadIndexRoundTrip() throws {
-        let index = VaultStorage.VaultIndex(files: [], nextOffset: 0, totalSize: 500 * 1024 * 1024)
+        let index = VaultStorage.VaultIndex(files: [], nextOffset: 0, totalSize: 50 * 1024 * 1024)
         try storage.saveIndex(index, with: testKey)
 
         let loaded = try storage.loadIndex(with: testKey)
         XCTAssertEqual(loaded.files.count, 0)
-        XCTAssertEqual(loaded.totalSize, 500 * 1024 * 1024)
+        XCTAssertEqual(loaded.totalSize, 50 * 1024 * 1024)
     }
 
     // MARK: - Vault Exists
@@ -37,7 +37,7 @@ final class VaultStorageIntegrationTests: XCTestCase {
     func testVaultExistsReturnsTrueAfterSave() throws {
         XCTAssertFalse(storage.vaultExists(for: testKey))
 
-        let index = VaultStorage.VaultIndex(files: [], nextOffset: 0, totalSize: 500 * 1024 * 1024)
+        let index = VaultStorage.VaultIndex(files: [], nextOffset: 0, totalSize: 50 * 1024 * 1024)
         try storage.saveIndex(index, with: testKey)
 
         XCTAssertTrue(storage.vaultExists(for: testKey))
@@ -52,7 +52,7 @@ final class VaultStorageIntegrationTests: XCTestCase {
     // MARK: - Delete Vault Index
 
     func testDeleteVaultIndex() throws {
-        let index = VaultStorage.VaultIndex(files: [], nextOffset: 0, totalSize: 500 * 1024 * 1024)
+        let index = VaultStorage.VaultIndex(files: [], nextOffset: 0, totalSize: 50 * 1024 * 1024)
         try storage.saveIndex(index, with: testKey)
         XCTAssertTrue(storage.vaultExists(for: testKey))
 
@@ -178,7 +178,7 @@ final class VaultStorageIntegrationTests: XCTestCase {
         let index = VaultStorage.VaultIndex(
             files: [entry],
             nextOffset: 3072,
-            totalSize: 500 * 1024 * 1024,
+            totalSize: 50 * 1024 * 1024,
             encryptedMasterKey: encryptedMasterKey,
             version: 3
         )

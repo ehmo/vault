@@ -38,12 +38,22 @@ final class VaultStorage {
     // Note: We don't use a single index file anymore - each vault gets its own
     // based on a hash of the vault key
 
-    // Pre-allocated blob size (500 MB)
-    private let defaultBlobSize: Int = 500 * 1024 * 1024
+    // Pre-allocated blob size (50 MB)
+    private let defaultBlobSize: Int = 50 * 1024 * 1024
 
     // Global cursor block lives in the last 16 bytes of the blob
     private var cursorBlockOffset: Int { defaultBlobSize - 16 }
     private let cursorMagic: UInt64 = 0x5641553100000000
+
+    /// Derives the cursor footer offset from the actual file size on disk.
+    /// Handles legacy 500MB blobs where the footer is at 500MB-16, not 50MB-16.
+    private func cursorFooterOffset() -> Int {
+        if let attrs = try? fileManager.attributesOfItem(atPath: blobURL.path),
+           let size = attrs[.size] as? Int, size > 16 {
+            return size - 16
+        }
+        return cursorBlockOffset
+    }
 
     private let initQueue = DispatchQueue(label: "vault.blob.init")
     /// Serializes all index read/write operations to prevent concurrent access races
@@ -154,7 +164,7 @@ final class VaultStorage {
         defer { try? handle.close() }
 
         do {
-            try handle.seek(toOffset: UInt64(cursorBlockOffset))
+            try handle.seek(toOffset: UInt64(cursorFooterOffset()))
             guard let block = try handle.read(upToCount: 16), block.count == 16 else { return 0 }
 
             let xorKey = SecureEnclaveManager.shared.getBlobCursorXORKey()
@@ -210,7 +220,7 @@ final class VaultStorage {
         }
 
         do {
-            try handle.seek(toOffset: UInt64(cursorBlockOffset))
+            try handle.seek(toOffset: UInt64(cursorFooterOffset()))
             handle.write(encoded)
             #if DEBUG
             print("📍 [VaultStorage] writeGlobalCursor: \(offset)")
@@ -584,10 +594,12 @@ final class VaultStorage {
         let globalCursor = readGlobalCursor()
         let cursor = max(globalCursor, index.nextOffset)
 
+        // Use actual file size for capacity — legacy blobs may be 500MB
+        let actualCapacity = cursorFooterOffset()
         let primary = BlobDescriptor(
             blobId: "primary",
             fileName: blobFileName,
-            capacity: cursorBlockOffset,
+            capacity: actualCapacity,
             cursor: cursor
         )
         index.blobs = [primary]
@@ -1321,6 +1333,23 @@ final class VaultStorage {
         writeGlobalCursor(0)
     }
 
+    /// Overwrite entire file with random data, using actual file size (not constant).
+    /// Handles legacy 500MB blobs and new 50MB blobs correctly.
+    private func secureOverwrite(url: URL) {
+        let fileSize = (try? fileManager.attributesOfItem(atPath: url.path)[.size] as? Int) ?? defaultBlobSize
+        guard let handle = try? FileHandle(forWritingTo: url) else { return }
+        let chunkSize = 1024 * 1024
+        var offset = 0
+        while offset < fileSize {
+            if let random = CryptoEngine.generateRandomBytes(count: min(chunkSize, fileSize - offset)) {
+                try? handle.seek(toOffset: UInt64(offset))
+                handle.write(random)
+            }
+            offset += chunkSize
+        }
+        try? handle.close()
+    }
+
     /// Secure wipe: overwrite all blob files with random data, then delete expansion blobs.
     func secureWipeAllBlobs() {
         ensureBlobReady()
@@ -1328,19 +1357,8 @@ final class VaultStorage {
         print("💣 [VaultStorage] Secure wiping all blobs!")
         #endif
 
-        let chunkSize = 1024 * 1024
-
         for url in allBlobURLs() {
-            guard let handle = try? FileHandle(forWritingTo: url) else { continue }
-            var offset = 0
-            while offset < defaultBlobSize {
-                if let randomData = CryptoEngine.generateRandomBytes(count: chunkSize) {
-                    try? handle.seek(toOffset: UInt64(offset))
-                    handle.write(randomData)
-                }
-                offset += chunkSize
-            }
-            try? handle.close()
+            secureOverwrite(url: url)
 
             // Delete expansion blobs; keep primary
             if url.lastPathComponent != blobFileName {
@@ -1524,21 +1542,9 @@ final class VaultStorage {
             cursor: currentCursor
         ))
 
-        // Overwrite old blobs with random data, then delete expansion blobs
-        let chunkSize = 1024 * 1024
+        // Overwrite old blobs with random data (uses actual file size), then delete
         for url in oldBlobURLs {
-            if let handle = try? FileHandle(forWritingTo: url) {
-                var offset = 0
-                while offset < defaultBlobSize {
-                    if let randomData = CryptoEngine.generateRandomBytes(count: chunkSize) {
-                        try? handle.seek(toOffset: UInt64(offset))
-                        handle.write(randomData)
-                    }
-                    offset += chunkSize
-                }
-                try? handle.close()
-            }
-            // Delete old expansion blobs and old primary
+            secureOverwrite(url: url)
             try? fileManager.removeItem(at: url)
         }
 

@@ -2,13 +2,13 @@
 
 ## Overview
 
-Vault uses a **pre-allocated blob** storage model designed for plausible deniability. All vault data is stored within a single 500MB file filled with random data, making encrypted content indistinguishable from noise.
+Vault uses a **pre-allocated blob** storage model designed for plausible deniability. All vault data is stored within a single 50MB file filled with random data, making encrypted content indistinguishable from noise.
 
 ## Storage Files
 
 ```
 Documents/
-├── vault_data.bin    # 500 MB pre-allocated blob
+├── vault_data.bin    # 50 MB pre-allocated blob
 └── vault_index.bin   # Encrypted file index
 ```
 
@@ -17,7 +17,7 @@ Documents/
 **Purpose:** Store all encrypted file content
 
 **Properties:**
-- Fixed size: 500 MB
+- Fixed size: 50 MB
 - Created on first launch
 - Filled with cryptographically random data
 - Files written at specific offsets
@@ -32,7 +32,7 @@ Documents/
 │             ...                                             │
 │ 0x00250000  [Random or deleted file (random)]               │
 │             ...                                             │
-│ 0x1DCD6500  [Random padding to 500MB]                       │
+│ 0x03200000  [Random padding to 50MB]                       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -45,7 +45,7 @@ Documents/
 struct VaultIndex: Codable {
     var files: [VaultFileEntry]
     var nextOffset: Int
-    var totalSize: Int  // 500 MB
+    var totalSize: Int  // 50 MB
 
     // Owner sharing fields
     var activeShares: [ShareRecord]?   // nil = not shared
@@ -204,7 +204,7 @@ Offset  Size   Field
 
 ### How It Works
 
-1. **Pre-allocation**: 500MB blob created with random data
+1. **Pre-allocation**: 50MB blob created with random data
 2. **Indistinguishability**: Encrypted data looks like random data
 3. **No metadata leakage**: File count, sizes not visible
 4. **Wrong key = empty**: Decryption failure returns empty vault
@@ -214,7 +214,7 @@ Offset  Size   Field
 | Attack | Mitigation |
 |--------|------------|
 | File carving | No recognizable headers in encrypted data |
-| Size analysis | Fixed 500MB blob regardless of content |
+| Size analysis | Fixed 50MB blob regardless of content |
 | Timestamp analysis | No filesystem timestamps for individual files |
 | Deletion detection | Deleted files overwritten with random |
 | Usage patterns | All access goes through single blob file |
@@ -237,14 +237,16 @@ Offset  Size   Field
 ### Capacity Calculation
 
 ```
-Total blob:     500 MB
+Total blob:     50 MB
 Index overhead: ~10 KB per file
 Per-file overhead: ~300 bytes (header + encryption)
 
-Approximate capacity:
-- 100 photos (5MB each):  ~500 MB ✓
-- 1000 documents (100KB): ~100 MB ✓
-- 10 videos (50MB each):  ~500 MB ✓
+Approximate capacity (single blob, free tier):
+- 10 photos (5MB each):   ~50 MB ✓
+- 500 documents (100KB):  ~50 MB ✓
+- 1 video (50MB):         ~50 MB ✓
+
+Premium users get expansion blobs (50 MB each) for unlimited storage.
 ```
 
 ### Future Enhancement: Compaction

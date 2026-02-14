@@ -46,7 +46,7 @@ No error. No hint. No proof anything exists.
 Most vault apps encrypt your files. Vault makes them **undetectable**.
 
 - **Wrong pattern = empty vault, not an error.** Anyone looking over your shoulder sees a working app with nothing in it.
-- **All storage looks like random noise.** Vault pre-allocates a 500 MB encrypted block filled with random data. Whether you've stored 0 files or 500, the storage looks identical. Forensic tools cannot determine if data exists at all.
+- **All storage looks like random noise.** Vault pre-allocates a 50 MB encrypted block filled with random data. Whether you've stored 0 files or 500, the storage looks identical. Forensic tools cannot determine if data exists at all.
 - **No metadata leaks.** No file counts, no thumbnails on the lock screen, no "last opened" timestamps.
 
 ### Multiple Hidden Vaults
@@ -134,7 +134,7 @@ When you do share, all data is encrypted on your device before upload. Apple's C
 - **Platform:** iOS 17+
 - **Price:** Free
 - **Size:** Lightweight — no bloat, no ads, no third-party SDKs
-- **Storage:** 500 MB pre-allocated encrypted blob per vault
+- **Storage:** 50 MB pre-allocated encrypted blob per vault (expandable with premium)
 - **Encryption:** AES-256-GCM via Apple CryptoKit
 - **Key Derivation:** PBKDF2-HMAC-SHA512 (600K–800K iterations)
 - **Hardware Security:** Apple Secure Enclave integration
