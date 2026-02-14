@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "d7d3b91deb43",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".scratch-pad.md",
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Core/Telemetry/AnalyticsManager.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d7/d3b91deb43/0/metadata.json",
+      "transcript": "/d7/d3b91deb43/0/full.jsonl",
+      "context": "/d7/d3b91deb43/0/context.md",
+      "content_hash": "/d7/d3b91deb43/0/content_hash.txt",
+      "prompt": "/d7/d3b91deb43/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 57,
+    "cache_creation_tokens": 115344,
+    "cache_read_tokens": 5358001,
+    "output_tokens": 1981,
+    "api_call_count": 53
+  }
+}
