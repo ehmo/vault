@@ -336,6 +336,55 @@ enum CryptoEngine {
         }
     }
 
+    /// Stream-decrypts VCSE content directly from an already-positioned file handle.
+    /// The handle must be positioned at the start of streaming content and `contentLength`
+    /// must match the encrypted content length (not including vault entry header bytes).
+    static func decryptStreamingFromHandleToFile(
+        handle: FileHandle,
+        contentLength: Int,
+        with key: Data,
+        outputURL: URL
+    ) throws {
+        guard key.count == 32 else { throw CryptoError.keyGenerationFailed }
+        guard contentLength >= 33 else { throw CryptoError.invalidData }
+
+        let header = try readExact(33, from: handle)
+        let magic = header.subdata(in: 0..<4).withUnsafeBytes { $0.load(as: UInt32.self) }
+        guard magic == VaultCoreConstants.streamingMagic else { throw CryptoError.invalidData }
+
+        let totalChunks = header.subdata(in: 9..<13).withUnsafeBytes { $0.load(as: UInt32.self) }
+        let baseNonceData = header.subdata(in: 21..<33)
+        let symmetricKey = SymmetricKey(data: key)
+
+        FileManager.default.createFile(atPath: outputURL.path, contents: nil, attributes: [
+            .protectionKey: FileProtectionType.complete
+        ])
+        let outputHandle = try FileHandle(forWritingTo: outputURL)
+        defer { try? outputHandle.close() }
+
+        var consumedBytes = 33
+        for chunkIndex in 0..<Int(totalChunks) {
+            let encSizeData = try readExact(4, from: handle)
+            consumedBytes += 4
+            let encSize = encSizeData.withUnsafeBytes { $0.load(as: UInt32.self) }
+            guard encSize > 0 else { throw CryptoError.invalidData }
+            guard consumedBytes + Int(encSize) <= contentLength else { throw CryptoError.invalidData }
+
+            let encChunk = try readExact(Int(encSize), from: handle)
+            consumedBytes += Int(encSize)
+
+            let nonce = try xorNonce(baseNonceData, with: UInt64(chunkIndex))
+            _ = try AES.GCM.Nonce(data: nonce)
+            let sealedBox = try AES.GCM.SealedBox(combined: encChunk)
+            let decrypted = try AES.GCM.open(sealedBox, using: symmetricKey)
+            outputHandle.write(decrypted)
+        }
+
+        guard consumedBytes == contentLength else {
+            throw CryptoError.invalidData
+        }
+    }
+
     // MARK: - Streaming Encryption (chunked AES-GCM)
 
     /// Encrypts a file using chunked AES-GCM for memory-efficient processing of large files.
@@ -544,6 +593,12 @@ enum CryptoEngine {
         return nonce
     }
 
+    private static func readExact(_ count: Int, from handle: FileHandle) throws -> Data {
+        let data = handle.readData(ofLength: count)
+        guard data.count == count else { throw CryptoError.invalidData }
+        return data
+    }
+
     // MARK: - Secure Random
 
     static func generateRandomBytes(count: Int) -> Data? {
@@ -567,4 +622,3 @@ enum CryptoEngine {
         return hmac == computed
     }
 }
-

@@ -1,4 +1,5 @@
 import UIKit
+import ImageIO
 
 enum FileUtilities {
     static func generateThumbnail(from data: Data, maxSize: CGFloat = 200) -> Data? {
@@ -14,6 +15,22 @@ enum FileUtilities {
         }
 
         return thumbnail.jpegData(compressionQuality: 0.7)
+    }
+
+    /// Memory-efficient thumbnail generation directly from file URL.
+    /// Uses ImageIO downsampling to avoid decoding full-size images into memory.
+    static func generateThumbnail(fromFileURL fileURL: URL, maxPixelSize: CGFloat = 400) -> Data? {
+        guard let source = CGImageSourceCreateWithURL(fileURL as CFURL, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+        ]
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+            return nil
+        }
+        let image = UIImage(cgImage: cgImage)
+        return image.jpegData(compressionQuality: 0.7)
     }
 
     static func mimeType(forExtension ext: String) -> String {

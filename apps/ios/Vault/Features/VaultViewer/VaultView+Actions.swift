@@ -510,20 +510,20 @@ extension VaultView {
                             if showProgress { self.importProgress = (index + 1, count) }
                         }
                     } else {
-                        guard let data = try? Data(contentsOf: url) else { continue }
-                        guard !Task.isCancelled else { break }
+                        let fileSize = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
+                        let thumbnail = mimeType.hasPrefix("image/")
+                            ? FileUtilities.generateThumbnail(fromFileURL: url)
+                            : nil
 
-                        let thumbnail = mimeType.hasPrefix("image/") ? FileUtilities.generateThumbnail(from: data) : nil
-
-                        let fileId = try VaultStorage.shared.storeFile(
-                            data: data, filename: filename, mimeType: mimeType,
+                        let fileId = try VaultStorage.shared.storeFileFromURL(
+                            url, filename: filename, mimeType: mimeType,
                             with: key, thumbnailData: thumbnail
                         )
                         let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
                         await MainActor.run {
                             guard !Task.isCancelled else { return }
                             self.files.append(VaultFileItem(
-                                id: fileId, size: data.count,
+                                id: fileId, size: fileSize,
                                 encryptedThumbnail: encThumb, mimeType: mimeType,
                                 filename: filename
                             ))

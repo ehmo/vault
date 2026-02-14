@@ -131,9 +131,19 @@ All pattern grid screens MUST behave identically. There are two categories:
 - **Background task expiration**: Use `MainActor.assumeIsolated` in handler, call `endBackgroundTask` synchronously. Store `bgTaskId` as property with idempotent helper.
 - **Transfer status UI**: Handle ALL non-idle enum cases, not just `.uploading`
 - **Maestro**: No `wait` (use `waitForAnimationToEnd`), no `clearInput` (use `eraseText`), no `../` in `addMedia` paths, `clearKeychain` triggers system dialog, `clearState` resets UserDefaults
+- **Maestro + TextEditor**: `TextEditor` accessibility IDs may not be discoverable by Maestro/XCTest in some SwiftUI sheets. Use coordinate taps (`point`) as fallback for input focus.
+- **Maestro binary source**: `maestro test` launches the app currently installed on the simulator. After code changes, reinstall the freshly built `.app` with `simctl install` before trusting flow results.
 - **Link sharing**: URL fragments (#) never reach server. Base58 (Bitcoin alphabet) excludes ambiguous chars. `fullScreenCover` with computed Binding for deep-link sheets.
+- **Sheet keyboard jump on lock screen**: For lock-screen sheets that contain text input, set `.presentationDetents([.large])` at the presentation site (`PatternLockView`) to prevent keyboard-triggered detent changes that make the background appear to jump.
+- **Top inset seam in VaultView**: `safeAreaInset(edge: .top)` can inject default platform spacing and create a visible gap between search controls and first section header. Set `spacing: 0` for flush layout.
+- **Pattern feedback state precedence**: On create-pattern steps that can emit both `validationResult` and `errorMessage`, always clear the other state when setting one. Otherwise stale `validationResult` can mask newer `errorMessage` (or vice versa).
+- **ChangePattern flow state**: Prefer a dedicated flow state type (`ChangePatternFlowState`) with explicit transitions/helpers over ad-hoc per-branch state mutation; this keeps error/validation exclusivity and processing guards deterministic and unit-testable.
+- **Deterministic Change Pattern tests**: Simulator-only test hooks (`change_pattern_test_*`) are available in `ChangePatternView` for Maestro regression flows; they should never gate production behavior.
 - **Test target**: `@testable import Vault` with `TEST_HOST` pattern, TS prefix IDs. `xcrun simctl list devices available` before test runs.
 - **Streaming encryption**: `CryptoEngine.encryptStreaming(fileURL:originalSize:with:)` reads via FileHandle in 256KB chunks — use for any file >10MB to avoid peak memory spikes
+- **Streaming decrypt path**: For temp-file retrieval of VCSE content, parse header from `FileHandle` and stream-decrypt directly to output URL. Avoid loading whole encrypted entries into `Data` first.
+- **Share consumed-state lookups**: Fetch consumed states in batch (`consumedStatusByShareVaultIds`) for list/sync paths to avoid N+1 CloudKit/DB reads.
+- **VaultView derived data**: Compute filtered/sorted visible files once per render pass and pass that derived data into grid/viewer helpers instead of recomputing in each subview.
 - **Crypto fallback safety**: Never use `Data(repeating: 0, count: N)` as crypto key fallback — use `SymmetricKey(size:)` for proper entropy
 - **try? on security paths**: `try?` on duress vault setup, file deletion, or recovery data operations hides critical failures. Use `do/catch` + Sentry for anything where silent failure = false sense of security
 - **VaultView extensions**: Decomposed into +Grid, +Toolbar, +FanMenu, +SharedVault, +Actions. Keep body in main file, extracted views/methods in extensions.

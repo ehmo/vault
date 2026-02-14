@@ -10,3 +10,7 @@ appId: app.vaultaire.ios
 # Verify select button is visible (another indicator files exist)
 - assertVisible:
     id: "vault_select_button"
+
+# Verify top controls row is present
+- assertVisible:
+    id: "vault_search_field"

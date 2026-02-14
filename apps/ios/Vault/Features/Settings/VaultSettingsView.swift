@@ -343,25 +343,91 @@ struct VaultSettingsView: View {
 
 // MARK: - Change Pattern
 
+enum ChangePatternStep: Equatable {
+    case verifyCurrent
+    case createNew
+    case confirmNew
+    case complete
+}
+
+struct ChangePatternFlowState {
+    var step: ChangePatternStep = .verifyCurrent
+    var currentPattern: [Int] = []
+    var newPattern: [Int] = []
+    var validationResult: PatternValidationResult?
+    var errorMessage: String?
+    var isProcessing = false
+    var newRecoveryPhrase = ""
+
+    mutating func clearFeedback() {
+        validationResult = nil
+        errorMessage = nil
+    }
+
+    mutating func showValidation(_ result: PatternValidationResult) {
+        validationResult = result
+        errorMessage = nil
+    }
+
+    mutating func showError(_ message: String) {
+        errorMessage = message
+        validationResult = nil
+    }
+
+    mutating func beginProcessingIfIdle() -> Bool {
+        guard !isProcessing else { return false }
+        isProcessing = true
+        return true
+    }
+
+    mutating func endProcessing() {
+        isProcessing = false
+    }
+
+    mutating func resetForStartOver() {
+        step = .verifyCurrent
+        currentPattern = []
+        newPattern = []
+        clearFeedback()
+        isProcessing = false
+    }
+
+    mutating func skipVerifyForTesting(pattern: [Int]) {
+        step = .createNew
+        currentPattern = pattern
+        newPattern = []
+        clearFeedback()
+        isProcessing = false
+    }
+
+    mutating func transitionToCreate(currentPattern pattern: [Int]) {
+        currentPattern = pattern
+        step = .createNew
+        clearFeedback()
+        isProcessing = false
+    }
+
+    mutating func transitionToConfirm(newPattern pattern: [Int]) {
+        newPattern = pattern
+        step = .confirmNew
+        clearFeedback()
+        isProcessing = false
+    }
+
+    mutating func complete(with recoveryPhrase: String) {
+        step = .complete
+        newRecoveryPhrase = recoveryPhrase
+        clearFeedback()
+        isProcessing = false
+    }
+}
+
 struct ChangePatternView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
     
     @State private var patternState = PatternState()
-    @State private var step: ChangeStep = .verifyCurrent
-    @State private var currentPattern: [Int] = []
-    @State private var newPattern: [Int] = []
-    @State private var validationResult: PatternValidationResult?
-    @State private var errorMessage: String?
-    @State private var isProcessing = false
-    @State private var newRecoveryPhrase: String = ""
-
-    enum ChangeStep {
-        case verifyCurrent
-        case createNew
-        case confirmNew
-        case complete
-    }
+    @State private var flow = ChangePatternFlowState()
 
     var body: some View {
         NavigationStack {
@@ -377,6 +443,10 @@ struct ChangePatternView: View {
                 .padding(.top)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Step \(stepIndex + 1) of 3")
+
+                if isMaestroHookEnabled {
+                    maestroChangePatternTestHooks
+                }
 
                 // Title and subtitle — fixed height prevents grid from shifting between steps
                 VStack(spacing: 8) {
@@ -403,6 +473,7 @@ struct ChangePatternView: View {
                     Group {
                         if let result = validationResult, step == .createNew {
                             PatternValidationFeedbackView(result: result)
+                                .accessibilityIdentifier("change_pattern_validation_feedback")
                         } else if let error = errorMessage {
                             HStack {
                                 Image(systemName: "xmark.circle.fill")
@@ -414,6 +485,7 @@ struct ChangePatternView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .vaultGlassBackground(cornerRadius: 12)
                             .transition(.scale.combined(with: .opacity))
+                            .accessibilityIdentifier("change_pattern_error_message")
                         } else {
                             Color.clear
                         }
@@ -441,6 +513,41 @@ struct ChangePatternView: View {
     }
     
     // MARK: - Computed Properties
+
+    private var step: ChangePatternStep {
+        get { flow.step }
+        nonmutating set { flow.step = newValue }
+    }
+
+    private var currentPattern: [Int] {
+        get { flow.currentPattern }
+        nonmutating set { flow.currentPattern = newValue }
+    }
+
+    private var newPattern: [Int] {
+        get { flow.newPattern }
+        nonmutating set { flow.newPattern = newValue }
+    }
+
+    private var validationResult: PatternValidationResult? {
+        get { flow.validationResult }
+        nonmutating set { flow.validationResult = newValue }
+    }
+
+    private var errorMessage: String? {
+        get { flow.errorMessage }
+        nonmutating set { flow.errorMessage = newValue }
+    }
+
+    private var isProcessing: Bool {
+        get { flow.isProcessing }
+        nonmutating set { flow.isProcessing = newValue }
+    }
+
+    private var newRecoveryPhrase: String {
+        get { flow.newRecoveryPhrase }
+        nonmutating set { flow.newRecoveryPhrase = newValue }
+    }
     
     private var stepIndex: Int {
         switch step {
@@ -477,6 +584,57 @@ struct ChangePatternView: View {
             onPatternComplete: handlePatternComplete
         )
         .frame(width: 280, height: 280)
+        .disabled(isProcessing)
+        .opacity(isProcessing ? 0.6 : 1)
+    }
+
+    private var isMaestroHookEnabled: Bool {
+        #if targetEnvironment(simulator)
+        true
+        #else
+        ProcessInfo.processInfo.environment["MAESTRO_TEST"] == "true" ||
+        ProcessInfo.processInfo.arguments.contains("-MAESTRO_TEST") ||
+        ProcessInfo.processInfo.arguments.contains("MAESTRO_TEST")
+        #endif
+    }
+
+    @ViewBuilder
+    private var maestroChangePatternTestHooks: some View {
+        switch step {
+        case .verifyCurrent:
+            Button("TEST: Skip Verify") {
+                flow.skipVerifyForTesting(pattern: [0, 1, 2, 3, 4, 5])
+                patternState.reset()
+            }
+            .font(.caption2)
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("change_pattern_test_skip_verify")
+
+        case .createNew:
+            HStack(spacing: 8) {
+                Button("TEST: Validation Error") {
+                    let simulatedInvalid = PatternValidator.shared.validate([0, 1], gridSize: patternState.gridSize)
+                    flow.showValidation(simulatedInvalid)
+                    patternState.reset()
+                    flow.endProcessing()
+                }
+                .font(.caption2)
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("change_pattern_test_set_validation_error")
+
+                Button("TEST: Reused Error") {
+                    flow.showError("This pattern is already used by another vault. Please choose a different pattern.")
+                    patternState.reset()
+                    flow.endProcessing()
+                }
+                .font(.caption2)
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("change_pattern_test_set_reused_error")
+            }
+
+        default:
+            EmptyView()
+        }
     }
 
     private var completeSection: some View {
@@ -535,54 +693,39 @@ struct ChangePatternView: View {
             case .verifyCurrent:
                 Button("Clear") {
                     patternState.reset()
-                    errorMessage = nil
-                    validationResult = nil
+                    flow.clearFeedback()
                 }
                 .disabled(patternState.selectedNodes.isEmpty || isProcessing)
 
                 Button("Start Over") {
-                    step = .verifyCurrent
-                    currentPattern = []
-                    newPattern = []
+                    flow.resetForStartOver()
                     patternState.reset()
-                    errorMessage = nil
-                    validationResult = nil
                 }
                 .hidden()
 
             case .createNew:
                 Button("Clear") {
                     patternState.reset()
-                    errorMessage = nil
-                    validationResult = nil
+                    flow.clearFeedback()
                 }
                 .disabled(patternState.selectedNodes.isEmpty || isProcessing)
 
                 Button("Start Over") {
-                    step = .verifyCurrent
-                    currentPattern = []
-                    newPattern = []
+                    flow.resetForStartOver()
                     patternState.reset()
-                    errorMessage = nil
-                    validationResult = nil
                 }
                 .disabled(isProcessing)
 
             case .confirmNew:
                 Button("Clear") {
                     patternState.reset()
-                    errorMessage = nil
-                    validationResult = nil
+                    flow.clearFeedback()
                 }
                 .hidden()
 
                 Button("Start Over") {
-                    step = .verifyCurrent
-                    currentPattern = []
-                    newPattern = []
+                    flow.resetForStartOver()
                     patternState.reset()
-                    errorMessage = nil
-                    validationResult = nil
                 }
                 .disabled(isProcessing)
 
@@ -602,6 +745,11 @@ struct ChangePatternView: View {
 
     private func handlePatternComplete(_ pattern: [Int]) {
         vaultSettingsLogger.debug("Pattern completed in \(String(describing: step), privacy: .public) step")
+
+        guard !isProcessing else {
+            vaultSettingsLogger.debug("Ignoring pattern input while processing")
+            return
+        }
         
         switch step {
         case .verifyCurrent:
@@ -620,7 +768,7 @@ struct ChangePatternView: View {
     
     private func verifyCurrentPattern(_ pattern: [Int]) {
         guard let currentKey = appState.currentVaultKey else {
-            errorMessage = "No vault key available"
+            flow.showError("No vault key available")
             patternState.reset()
             return
         }
@@ -628,12 +776,12 @@ struct ChangePatternView: View {
         // Validate pattern structure first
         let validation = PatternValidator.shared.validate(pattern, gridSize: patternState.gridSize)
         if !validation.isValid {
-            errorMessage = validation.errors.first?.message ?? "Invalid pattern"
+            flow.showError(validation.errors.first?.message ?? "Invalid pattern")
             patternState.reset()
             return
         }
 
-        isProcessing = true
+        guard flow.beginProcessingIfIdle() else { return }
 
         Task {
             do {
@@ -644,30 +792,28 @@ struct ChangePatternView: View {
                     if enteredKey == currentKey {
                         // Pattern verified - move to next step
                         vaultSettingsLogger.debug("Current pattern verified")
-                        currentPattern = pattern
-                        step = .createNew
+                        flow.transitionToCreate(currentPattern: pattern)
                         patternState.reset()
-                        errorMessage = nil
                     } else {
                         // Pattern doesn't match
                         vaultSettingsLogger.debug("Current pattern incorrect")
-                        errorMessage = "Incorrect pattern. Please try again."
+                        flow.showError("Incorrect pattern. Please try again.")
                         patternState.reset()
                     }
-                    isProcessing = false
+                    flow.endProcessing()
                 }
             } catch {
                 await MainActor.run {
-                    errorMessage = "Error verifying pattern: \(error.localizedDescription)"
+                    flow.showError("Error verifying pattern: \(error.localizedDescription)")
                     patternState.reset()
-                    isProcessing = false
+                    flow.endProcessing()
                 }
             }
         }
     }
     
     private func validateNewPattern(_ pattern: [Int]) {
-        isProcessing = true
+        guard flow.beginProcessingIfIdle() else { return }
 
         Task {
             // First, validate the pattern structure
@@ -682,31 +828,28 @@ struct ChangePatternView: View {
                     await MainActor.run {
                         if vaultExists {
                             vaultSettingsLogger.info("Pattern already used by another vault")
-                            errorMessage = "This pattern is already used by another vault. Please choose a different pattern."
+                            flow.showError("This pattern is already used by another vault. Please choose a different pattern.")
                             patternState.reset()
                         } else {
                             vaultSettingsLogger.debug("New pattern valid and unique")
-                            newPattern = pattern
-                            step = .confirmNew
+                            flow.transitionToConfirm(newPattern: pattern)
                             patternState.reset()
-                            errorMessage = nil
-                            validationResult = nil
                         }
-                        isProcessing = false
+                        flow.endProcessing()
                     }
                 } catch {
                     await MainActor.run {
-                        errorMessage = "Error checking pattern: \(error.localizedDescription)"
+                        flow.showError("Error checking pattern: \(error.localizedDescription)")
                         patternState.reset()
-                        isProcessing = false
+                        flow.endProcessing()
                     }
                 }
             } else {
                 vaultSettingsLogger.debug("New pattern invalid")
                 await MainActor.run {
-                    validationResult = result
+                    flow.showValidation(result)
                     patternState.reset()
-                    isProcessing = false
+                    flow.endProcessing()
                 }
             }
         }
@@ -715,7 +858,7 @@ struct ChangePatternView: View {
     private func confirmNewPattern(_ pattern: [Int]) {
         let validation = PatternValidator.shared.validate(pattern, gridSize: patternState.gridSize)
         if !validation.isValid {
-            errorMessage = validation.errors.first?.message ?? "Invalid pattern"
+            flow.showError(validation.errors.first?.message ?? "Invalid pattern")
             patternState.reset()
             return
         }
@@ -725,18 +868,18 @@ struct ChangePatternView: View {
             updateVaultPattern(pattern)
         } else {
             vaultSettingsLogger.debug("Patterns don't match")
-            errorMessage = "Patterns don't match. Please try again."
+            flow.showError("Patterns don't match. Please try again.")
             patternState.reset()
         }
     }
     
     private func updateVaultPattern(_ newPattern: [Int]) {
         guard let oldKey = appState.currentVaultKey else {
-            errorMessage = "No vault key available"
+            flow.showError("No vault key available")
             return
         }
         
-        isProcessing = true
+        guard flow.beginProcessingIfIdle() else { return }
         
         Task {
             do {
@@ -775,19 +918,16 @@ struct ChangePatternView: View {
                 // 6. Update app state with new key
                 await MainActor.run {
                     appState.currentVaultKey = newKey
-                    newRecoveryPhrase = recoveryPhrase
-                    step = .complete
-                    isProcessing = false
-                    errorMessage = nil
+                    flow.complete(with: recoveryPhrase)
 
                     vaultSettingsLogger.info("Pattern change complete")
                 }
             } catch {
                 vaultSettingsLogger.error("Error updating pattern: \(error.localizedDescription, privacy: .public)")
                 await MainActor.run {
-                    errorMessage = "Failed to update pattern: \(error.localizedDescription)"
+                    flow.showError("Failed to update pattern: \(error.localizedDescription)")
                     patternState.reset()
-                    isProcessing = false
+                    flow.endProcessing()
                 }
             }
         }

@@ -11,3 +11,18 @@ appId: app.vaultaire.ios
 # Change pattern view should appear
 # Pattern drawing requires coordinate-based swipe gestures
 # In test mode, the flow opens but pattern drawing is simulator-dependent
+- assertVisible: "Change Pattern"
+- assertVisible: "Verify Current Pattern"
+
+# Deterministic test hook for Maestro
+- assertVisible:
+    id: "change_pattern_test_skip_verify"
+- tapOn:
+    id: "change_pattern_test_skip_verify"
+
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Create step should appear
+- assertVisible:
+    text: "Create New Pattern"

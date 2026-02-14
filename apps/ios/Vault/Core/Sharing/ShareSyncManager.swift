@@ -77,6 +77,10 @@ final class ShareSyncManager {
 
         syncStatus = .syncing
 
+        let consumedByShareId = await CloudKitSharingManager.shared.consumedStatusByShareVaultIds(
+            activeShares.map(\.id)
+        )
+
         // Upload to each active share
         let totalShares = activeShares.count
         var successCount = 0
@@ -87,7 +91,7 @@ final class ShareSyncManager {
         for (i, share) in activeShares.enumerated() {
             do {
                 // Check if recipient has consumed this share
-                if await CloudKitSharingManager.shared.isShareConsumed(shareVaultId: share.id) {
+                if consumedByShareId[share.id] == true {
                     consumedShareIds.insert(share.id)
                     shareSyncLogger.info("Share \(share.id, privacy: .public) consumed by recipient, skipping sync")
                     continue

@@ -1,0 +1,44 @@
+appId: app.vaultaire.ios
+---
+# Deterministic regression for Change Pattern create-step feedback replacement.
+# Verifies that a newer "reused pattern" error replaces (and removes) prior
+# validation feedback errors.
+- runFlow: ../helpers/launch_test_mode.yaml
+
+- tapOn:
+    id: "vault_settings_button"
+- tapOn:
+    id: "settings_change_pattern"
+
+- assertVisible: "Change Pattern"
+- assertVisible: "Verify Current Pattern"
+
+# Use Maestro-only hook to jump into create step deterministically
+- tapOn:
+    id: "change_pattern_test_skip_verify"
+
+- assertVisible: "Create New Pattern"
+
+# Simulate invalid structure validation feedback first
+- tapOn:
+    id: "change_pattern_test_set_validation_error"
+
+- assertVisible:
+    id: "change_pattern_validation_feedback"
+- assertVisible:
+    text: "Pattern must connect at least 6 nodes"
+- assertVisible:
+    text: "Pattern must have at least 2 direction changes"
+
+# Then simulate reused-pattern error; previous validation errors must disappear
+- tapOn:
+    id: "change_pattern_test_set_reused_error"
+
+- assertVisible:
+    id: "change_pattern_error_message"
+- assertVisible:
+    text: "This pattern is already used by another vault. Please choose a different pattern."
+- assertNotVisible:
+    text: "Pattern must connect at least 6 nodes"
+- assertNotVisible:
+    text: "Pattern must have at least 2 direction changes"

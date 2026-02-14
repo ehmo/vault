@@ -1,0 +1,54 @@
+appId: app.vaultaire.ios
+---
+# Regression: Lock-screen sheets should remain stable when keyboard appears.
+# Covers both lock-screen entry points shown in reports:
+# 1) Join Shared Vault phrase input
+# 2) Recovery phrase input
+- runFlow: ../helpers/launch_test_mode.yaml
+
+# Move to lock screen first
+- tapOn:
+    id: "vault_lock_button"
+- assertVisible: "Draw your pattern"
+
+# --- Join Shared Vault keyboard focus ---
+- tapOn:
+    id: "unlock_join_link"
+- assertVisible:
+    id: "join_cancel"
+- assertVisible:
+    text: "Join Shared Vault"
+- tapOn:
+    id: "join_phrase_input"
+- inputText: "keyboard stability join phrase"
+
+# Header controls should remain visible after keyboard is up
+- assertVisible:
+    id: "join_cancel"
+- assertVisible:
+    text: "Join Shared Vault"
+
+- tapOn:
+    id: "join_cancel"
+- assertVisible: "Draw your pattern"
+
+# --- Recovery keyboard focus ---
+- tapOn:
+    id: "unlock_recovery_link"
+- extendedWaitUntil:
+    visible: "Recovery"
+    timeout: 3000
+- assertVisible: "Cancel"
+- assertVisible:
+    text: "Recovery"
+- tapOn:
+    point: "50%, 35%"
+- inputText: "recovery keyboard stability sample phrase"
+
+# Header controls should remain visible after keyboard is up
+- assertVisible: "Cancel"
+- assertVisible:
+    text: "Recovery"
+
+- tapOn: "Cancel"
+- assertVisible: "Draw your pattern"

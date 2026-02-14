@@ -78,6 +78,35 @@ final class VaultStorageIntegrationTests: XCTestCase {
         XCTAssertEqual(result.header.mimeType, "text/plain")
     }
 
+    func testStoreFromURLAndRetrieveToTempURLStreamingRoundTrip() throws {
+        let index = try storage.loadIndex(with: testKey)
+        try storage.saveIndex(index, with: testKey)
+
+        let payloadSize = VaultCoreConstants.streamingThreshold + (128 * 1024)
+        let sourceBytes = Data((0..<payloadSize).map { UInt8($0 % 251) })
+        let sourceURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("bin")
+        try sourceBytes.write(to: sourceURL)
+        defer { try? FileManager.default.removeItem(at: sourceURL) }
+
+        let fileId = try storage.storeFileFromURL(
+            sourceURL,
+            filename: "stream.bin",
+            mimeType: "application/octet-stream",
+            with: testKey
+        )
+
+        let result = try storage.retrieveFileToTempURL(id: fileId, with: testKey)
+        defer { try? FileManager.default.removeItem(at: result.tempURL) }
+
+        XCTAssertEqual(result.header.originalFilename, "stream.bin")
+        XCTAssertEqual(Int(result.header.originalSize), payloadSize)
+
+        let restoredBytes = try Data(contentsOf: result.tempURL)
+        XCTAssertEqual(restoredBytes, sourceBytes)
+    }
+
     func testStoreAndListFiles() throws {
         let index = try storage.loadIndex(with: testKey)
         try storage.saveIndex(index, with: testKey)

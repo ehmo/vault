@@ -1038,16 +1038,52 @@ final class VaultStorage {
         defer { try? handle.close() }
 
         try handle.seek(toOffset: UInt64(entry.offset))
-        guard let encryptedData = try handle.read(upToCount: entry.size) else {
+        guard let headerSizeData = try handle.read(upToCount: 4), headerSizeData.count == 4 else {
             throw VaultStorageError.readError
         }
+        let headerSize = headerSizeData.withUnsafeBytes { $0.load(as: UInt32.self) }
+        let encryptedHeaderSize = Int(headerSize)
+        guard encryptedHeaderSize > 0 else {
+            throw VaultStorageError.corruptedData
+        }
+        guard let encryptedHeader = try handle.read(upToCount: encryptedHeaderSize),
+              encryptedHeader.count == encryptedHeaderSize else {
+            throw VaultStorageError.readError
+        }
+        let decryptedHeaderData = try CryptoEngine.decrypt(encryptedHeader, with: masterKey)
+        let header = try CryptoEngine.EncryptedFileHeader.deserialize(from: decryptedHeaderData)
+
+        let encryptedContentSize = entry.size - 4 - encryptedHeaderSize
+        guard encryptedContentSize > 0 else {
+            throw VaultStorageError.corruptedData
+        }
+        let contentOffset = UInt64(entry.offset + 4 + encryptedHeaderSize)
+        try handle.seek(toOffset: contentOffset)
+        let magicProbe = handle.readData(ofLength: 4)
+        guard magicProbe.count == 4 else { throw VaultStorageError.readError }
+        try handle.seek(toOffset: contentOffset)
 
         let ext = (entry.filename as NSString?)?.pathExtension ?? "mp4"
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension(ext)
 
-        let header = try CryptoEngine.decryptFileToTempURL(data: encryptedData, with: masterKey, tempURL: tempURL)
+        let magic = magicProbe.withUnsafeBytes { $0.load(as: UInt32.self) }
+        if magic == VaultCoreConstants.streamingMagic {
+            try CryptoEngine.decryptStreamingFromHandleToFile(
+                handle: handle,
+                contentLength: encryptedContentSize,
+                with: masterKey,
+                outputURL: tempURL
+            )
+        } else {
+            guard let encryptedContent = try handle.read(upToCount: encryptedContentSize),
+                  encryptedContent.count == encryptedContentSize else {
+                throw VaultStorageError.readError
+            }
+            let decrypted = try CryptoEngine.decrypt(encryptedContent, with: masterKey)
+            try decrypted.write(to: tempURL, options: [.atomic, .completeFileProtection])
+        }
 
         return (header, tempURL)
     }

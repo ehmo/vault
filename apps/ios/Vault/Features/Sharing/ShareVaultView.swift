@@ -141,12 +141,10 @@ struct ShareVaultView: View {
             estimatedUploadSize = index.files.filter { !$0.isDeleted }.reduce(0) { $0 + $1.size }
             if var shares = index.activeShares, !shares.isEmpty {
                 // Check for consumed shares and remove them
-                var consumedIds: Set<String> = []
-                for share in shares {
-                    if await CloudKitSharingManager.shared.isShareConsumed(shareVaultId: share.id) {
-                        consumedIds.insert(share.id)
-                    }
-                }
+                let consumedMap = await CloudKitSharingManager.shared.consumedStatusByShareVaultIds(
+                    shares.map(\.id)
+                )
+                let consumedIds = Set(consumedMap.compactMap { $0.value ? $0.key : nil })
                 if !consumedIds.isEmpty {
                     shares.removeAll { consumedIds.contains($0.id) }
                     index.activeShares = shares.isEmpty ? nil : shares

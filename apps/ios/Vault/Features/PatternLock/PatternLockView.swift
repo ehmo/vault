@@ -133,9 +133,11 @@ struct PatternLockView: View {
         .sheet(isPresented: $showRecoveryOption) {
             RecoveryPhraseInputView()
                 .interactiveDismissDisabled()
+                .presentationDetents([.large])
         }
         .sheet(isPresented: $showJoinSharedVault) {
             JoinVaultView()
+                .presentationDetents([.large])
         }
         .ignoresSafeArea(.keyboard)
         .premiumPaywall(isPresented: $showingPaywall)
@@ -249,6 +251,7 @@ struct RecoveryPhraseInputView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
+                    .accessibilityIdentifier("unlock_recovery_phrase_input")
 
                 Button(action: attemptRecovery) {
                     if isProcessing {
@@ -280,6 +283,7 @@ struct RecoveryPhraseInputView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                        .accessibilityIdentifier("unlock_recovery_cancel")
                 }
             }
         }

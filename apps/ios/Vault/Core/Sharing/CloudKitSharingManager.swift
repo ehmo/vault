@@ -698,6 +698,29 @@ final class CloudKitSharingManager {
 
     // MARK: - Consumed
 
+    /// Batch-fetches consumed state for multiple share IDs in a single CloudKit query.
+    func consumedStatusByShareVaultIds(_ shareVaultIds: [String]) async -> [String: Bool] {
+        guard !shareVaultIds.isEmpty else { return [:] }
+        let predicate = NSPredicate(format: "shareVaultId IN %@", shareVaultIds)
+        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
+
+        do {
+            let results = try await publicDatabase.records(matching: query)
+            var statusById: [String: Bool] = [:]
+            statusById.reserveCapacity(shareVaultIds.count)
+            for (_, result) in results.matchResults {
+                if let record = try? result.get(),
+                   let shareVaultId = record["shareVaultId"] as? String {
+                    statusById[shareVaultId] = (record["consumed"] as? Bool) ?? false
+                }
+            }
+            return statusById
+        } catch {
+            Self.logger.warning("Failed to batch-check consumed status: \(error.localizedDescription, privacy: .public)")
+            return [:]
+        }
+    }
+
     /// Marks a share as consumed by the recipient (e.g. after policy-triggered self-destruct).
     /// Sets `consumed = true` on the CloudKit manifest, mirroring how `revokeShare` sets `revoked`.
     func markShareConsumed(shareVaultId: String) async throws {
@@ -715,21 +738,8 @@ final class CloudKitSharingManager {
 
     /// Checks whether a share has been consumed by its recipient.
     func isShareConsumed(shareVaultId: String) async -> Bool {
-        let predicate = NSPredicate(format: "shareVaultId == %@", shareVaultId)
-        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
-
-        do {
-            let results = try await publicDatabase.records(matching: query)
-            for (_, result) in results.matchResults {
-                if let record = try? result.get(),
-                   let consumed = record["consumed"] as? Bool, consumed {
-                    return true
-                }
-            }
-        } catch {
-            Self.logger.warning("Failed to check consumed status for \(shareVaultId, privacy: .public): \(error.localizedDescription, privacy: .public)")
-        }
-        return false
+        let consumedMap = await consumedStatusByShareVaultIds([shareVaultId])
+        return consumedMap[shareVaultId] ?? false
     }
 
     // MARK: - Helpers

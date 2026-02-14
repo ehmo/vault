@@ -125,3 +125,82 @@ final class PatternSetupCoordinatorTests: XCTestCase {
         }
     }
 }
+
+final class ChangePatternFlowStateTests: XCTestCase {
+
+    func testShowErrorClearsValidationResult() {
+        var state = ChangePatternFlowState()
+        let invalid = PatternValidator.shared.validate([0, 1], gridSize: 5)
+        state.showValidation(invalid)
+
+        state.showError("boom")
+
+        XCTAssertEqual(state.errorMessage, "boom")
+        XCTAssertNil(state.validationResult)
+    }
+
+    func testShowValidationClearsErrorMessage() {
+        var state = ChangePatternFlowState()
+        state.showError("old error")
+        let invalid = PatternValidator.shared.validate([0, 1], gridSize: 5)
+
+        state.showValidation(invalid)
+
+        XCTAssertNil(state.errorMessage)
+        XCTAssertNotNil(state.validationResult)
+    }
+
+    func testBeginProcessingIfIdleRejectsConcurrentStart() {
+        var state = ChangePatternFlowState()
+
+        XCTAssertTrue(state.beginProcessingIfIdle())
+        XCTAssertFalse(state.beginProcessingIfIdle())
+        XCTAssertTrue(state.isProcessing)
+
+        state.endProcessing()
+        XCTAssertFalse(state.isProcessing)
+    }
+
+    func testResetForStartOverClearsState() {
+        var state = ChangePatternFlowState(
+            step: .confirmNew,
+            currentPattern: [0, 1, 2],
+            newPattern: [3, 4, 5],
+            validationResult: PatternValidator.shared.validate([0, 1], gridSize: 5),
+            errorMessage: "x",
+            isProcessing: true,
+            newRecoveryPhrase: "phrase"
+        )
+
+        state.resetForStartOver()
+
+        XCTAssertEqual(state.step, .verifyCurrent)
+        XCTAssertTrue(state.currentPattern.isEmpty)
+        XCTAssertTrue(state.newPattern.isEmpty)
+        XCTAssertNil(state.validationResult)
+        XCTAssertNil(state.errorMessage)
+        XCTAssertFalse(state.isProcessing)
+        XCTAssertEqual(state.newRecoveryPhrase, "phrase")
+    }
+
+    func testTransitionsSetStepAndClearFeedback() {
+        var state = ChangePatternFlowState()
+        state.showError("old")
+        state.transitionToCreate(currentPattern: [0, 1, 2, 3, 4, 5])
+
+        XCTAssertEqual(state.step, .createNew)
+        XCTAssertEqual(state.currentPattern, [0, 1, 2, 3, 4, 5])
+        XCTAssertNil(state.errorMessage)
+        XCTAssertNil(state.validationResult)
+        XCTAssertFalse(state.isProcessing)
+
+        state.showValidation(PatternValidator.shared.validate([0, 1], gridSize: 5))
+        state.transitionToConfirm(newPattern: [6, 7, 8, 9, 10, 11])
+
+        XCTAssertEqual(state.step, .confirmNew)
+        XCTAssertEqual(state.newPattern, [6, 7, 8, 9, 10, 11])
+        XCTAssertNil(state.errorMessage)
+        XCTAssertNil(state.validationResult)
+        XCTAssertFalse(state.isProcessing)
+    }
+}

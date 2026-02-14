@@ -16,4 +16,13 @@ appId: app.vaultaire.ios
 - tapOn:
     id: "settings_regen_phrase"
 
-# Should show new phrase or confirmation
+# Confirm destructive regeneration prompt
+- assertVisible: "Regenerate Recovery Phrase?"
+- tapOn: "Regenerate"
+
+# Flow should remain responsive after confirming regeneration
+- waitForAnimationToEnd:
+    timeout: 1000
+- assertVisible: "Vault Settings"
+- assertVisible:
+    id: "settings_regen_phrase"

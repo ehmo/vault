@@ -5,13 +5,13 @@ import SwiftUI
 extension VaultView {
 
     @ViewBuilder
-    var fileGridContentView: some View {
+    func fileGridContentView(visible: VisibleFiles) -> some View {
         ScrollView {
             if let masterKey {
                 if useDateGrouping {
-                    dateGroupedContentView(masterKey: masterKey)
+                    dateGroupedContentView(visible: visible, masterKey: masterKey)
                 } else {
-                    flatContentView(split: splitFiles, masterKey: masterKey)
+                    flatContentView(visible: visible, masterKey: masterKey)
                 }
             } else {
                 ProgressView("Decrypting...")
@@ -20,8 +20,8 @@ extension VaultView {
     }
 
     @ViewBuilder
-    func dateGroupedContentView(masterKey: Data) -> some View {
-        let groups = groupFilesByDate(sortedFiles, newestFirst: sortOrder == .dateNewest)
+    func dateGroupedContentView(visible: VisibleFiles, masterKey: Data) -> some View {
+        let groups = groupFilesByDate(visible.all, newestFirst: sortOrder == .dateNewest)
         LazyVStack(alignment: .leading, spacing: 0, pinnedViews: .sectionHeaders) {
             ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
                 Section {
@@ -29,11 +29,7 @@ extension VaultView {
                         if fileFilter == .media {
                             PhotosGridView(files: group.media, masterKey: masterKey, onSelect: { file, _ in
                                 SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
-                                let allMedia = sortedFiles.filter {
-                                    let mime = $0.mimeType ?? ""
-                                    return mime.hasPrefix("image/") || mime.hasPrefix("video/")
-                                }
-                                let globalIndex = allMedia.firstIndex(where: { $0.id == file.id }) ?? 0
+                                let globalIndex = visible.mediaIndexById[file.id] ?? 0
                                 selectedPhotoIndex = globalIndex
                             }, onDelete: isSharedVault ? nil : deleteFileById,
                                isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
@@ -63,16 +59,16 @@ extension VaultView {
     }
 
     @ViewBuilder
-    func flatContentView(split: (all: [VaultFileItem], media: [VaultFileItem], documents: [VaultFileItem]), masterKey: Data) -> some View {
+    func flatContentView(visible: VisibleFiles, masterKey: Data) -> some View {
         switch fileFilter {
         case .media:
-            PhotosGridView(files: split.media, masterKey: masterKey, onSelect: { file, index in
+            PhotosGridView(files: visible.media, masterKey: masterKey, onSelect: { file, index in
                 SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                 selectedPhotoIndex = index
             }, onDelete: isSharedVault ? nil : deleteFileById,
                isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
         default:
-            FilesGridView(files: split.all, onSelect: { file in
+            FilesGridView(files: visible.all, onSelect: { file in
                 SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                 selectedFile = file
             }, onDelete: isSharedVault ? nil : deleteFileById,

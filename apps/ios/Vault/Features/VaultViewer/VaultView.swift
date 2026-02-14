@@ -138,51 +138,68 @@ struct VaultView: View {
     @State var selfDestructMessage: String?
     @State var showSelfDestructAlert = false
 
-    var sortedFiles: [VaultFileItem] {
-        var result = files
+    struct VisibleFiles {
+        let all: [VaultFileItem]
+        let media: [VaultFileItem]
+        let documents: [VaultFileItem]
+        let mediaIndexById: [UUID: Int]
+    }
+
+    func computeVisibleFiles() -> VisibleFiles {
+        var visible = files
         switch fileFilter {
-        case .all: break
-        case .media: result = result.filter {
-            let mime = $0.mimeType ?? ""
-            return mime.hasPrefix("image/") || mime.hasPrefix("video/")
-        }
-        case .documents: result = result.filter {
-            let mime = $0.mimeType ?? ""
-            return !mime.hasPrefix("image/") && !mime.hasPrefix("video/")
-        }
+        case .all:
+            break
+        case .media:
+            visible = visible.filter {
+                let mime = $0.mimeType ?? ""
+                return mime.hasPrefix("image/") || mime.hasPrefix("video/")
+            }
+        case .documents:
+            visible = visible.filter {
+                let mime = $0.mimeType ?? ""
+                return !mime.hasPrefix("image/") && !mime.hasPrefix("video/")
+            }
         }
         if !searchText.isEmpty {
-            result = result.filter {
+            visible = visible.filter {
                 ($0.filename ?? "").localizedStandardContains(searchText) ||
                 ($0.mimeType ?? "").localizedStandardContains(searchText)
             }
         }
         switch sortOrder {
         case .dateNewest:
-            result.sort { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
+            visible.sort { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
         case .dateOldest:
-            result.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+            visible.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
         case .sizeSmallest:
-            result.sort { $0.size < $1.size }
+            visible.sort { $0.size < $1.size }
         case .sizeLargest:
-            result.sort { $0.size > $1.size }
+            visible.sort { $0.size > $1.size }
         case .name:
-            result.sort { ($0.filename ?? "").localizedStandardCompare($1.filename ?? "") == .orderedAscending }
+            visible.sort { ($0.filename ?? "").localizedStandardCompare($1.filename ?? "") == .orderedAscending }
         }
-        return result
+
+        let media = visible.filter { $0.isMedia }
+        let documents = visible.filter { !$0.isMedia }
+        let mediaIndexById = Dictionary(
+            uniqueKeysWithValues: media.enumerated().map { ($1.id, $0) }
+        )
+        return VisibleFiles(
+            all: visible,
+            media: media,
+            documents: documents,
+            mediaIndexById: mediaIndexById
+        )
+    }
+
+    var sortedFiles: [VaultFileItem] {
+        computeVisibleFiles().all
     }
 
     var splitFiles: (all: [VaultFileItem], media: [VaultFileItem], documents: [VaultFileItem]) {
-        let result = sortedFiles
-        let media = result.filter {
-            let mime = $0.mimeType ?? ""
-            return mime.hasPrefix("image/") || mime.hasPrefix("video/")
-        }
-        let documents = result.filter {
-            let mime = $0.mimeType ?? ""
-            return !mime.hasPrefix("image/") && !mime.hasPrefix("video/")
-        }
-        return (result, media, documents)
+        let visible = computeVisibleFiles()
+        return (visible.all, visible.media, visible.documents)
     }
 
     var useDateGrouping: Bool {
@@ -202,7 +219,7 @@ struct VaultView: View {
     }
 
     var body: some View {
-        let split = splitFiles
+        let visible = computeVisibleFiles()
         NavigationStack {
             Group {
                 if isLoading {
@@ -211,14 +228,14 @@ struct VaultView: View {
                     emptyStateContent
                 } else {
                     ZStack {
-                        if split.all.isEmpty {
+                        if visible.all.isEmpty {
                             ContentUnavailableView(
                                 "No matching files",
                                 systemImage: "magnifyingglass",
                                 description: Text("No files match \"\(searchText.isEmpty ? fileFilter.rawValue : searchText)\"")
                             )
                         } else {
-                            fileGridContentView
+                            fileGridContentView(visible: visible)
                         }
                     }
                 }
@@ -230,7 +247,7 @@ struct VaultView: View {
                     vaultToolbarContent
                 }
             }
-            .safeAreaInset(edge: .top) {
+            .safeAreaInset(edge: .top, spacing: 0) {
                 topSafeAreaContent
             }
             .safeAreaInset(edge: .bottom) {
@@ -345,7 +362,7 @@ struct VaultView: View {
         }
         .fullScreenCover(item: photoViewerItem) { item in
             FullScreenPhotoViewer(
-                files: split.media,
+                files: visible.media,
                 vaultKey: appState.currentVaultKey,
                 masterKey: masterKey,
                 initialIndex: item.id,
