@@ -1,8 +1,10 @@
 import SwiftUI
+import AVKit
 
 struct FullScreenPhotoViewer: View {
     let files: [VaultFileItem]
     let vaultKey: Data?
+    let masterKey: Data?
     let initialIndex: Int
     var onDelete: ((UUID) -> Void)?
     var allowDownloads: Bool = true
@@ -15,12 +17,14 @@ struct FullScreenPhotoViewer: View {
     @State private var showingExportConfirmation = false
     @State private var showingDeleteConfirmation = false
     @State private var shareURL: URL?
+    @State private var showingVideoPlayer: VaultFileItem?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(files: [VaultFileItem], vaultKey: Data?, initialIndex: Int,
+    init(files: [VaultFileItem], vaultKey: Data?, masterKey: Data? = nil, initialIndex: Int,
          onDelete: ((UUID) -> Void)? = nil, allowDownloads: Bool = true) {
         self.files = files
         self.vaultKey = vaultKey
+        self.masterKey = masterKey
         self.initialIndex = initialIndex
         self.onDelete = onDelete
         self.allowDownloads = allowDownloads
@@ -105,17 +109,37 @@ struct FullScreenPhotoViewer: View {
                 self.shareURL = nil
             }
         }
+        .fullScreenCover(item: $showingVideoPlayer) { file in
+            SecureVideoPlayer(file: file, vaultKey: vaultKey)
+        }
     }
 
     // MARK: - Page Content
 
     @ViewBuilder
     private func photoPage(file: VaultFileItem) -> some View {
+        let isVideo = (file.mimeType ?? "").hasPrefix("video/")
+
         if let image = images[file.id] {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFit()
-                .containerRelativeFrame([.horizontal, .vertical])
+            ZStack {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .containerRelativeFrame([.horizontal, .vertical])
+
+                if isVideo {
+                    Button {
+                        showingVideoPlayer = file
+                    } label: {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 72))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .shadow(radius: 4)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("viewer_play_video")
+                }
+            }
         } else {
             ProgressView()
                 .tint(.white)
@@ -149,16 +173,36 @@ struct FullScreenPhotoViewer: View {
     // MARK: - Image Loading
 
     private func loadFullImage(for file: VaultFileItem) async {
-        guard let key = vaultKey, images[file.id] == nil else { return }
-        do {
-            let (header, content) = try VaultStorage.shared.retrieveFile(id: file.id, with: key)
-            guard header.mimeType.hasPrefix("image/"),
-                  let uiImage = UIImage(data: content) else { return }
-            await MainActor.run {
-                images[file.id] = uiImage
+        guard images[file.id] == nil else { return }
+
+        let isVideo = (file.mimeType ?? "").hasPrefix("video/")
+
+        if isVideo {
+            // For videos, decrypt the thumbnail from the file entry (fast, ~30KB)
+            guard let masterKey = masterKey,
+                  let encryptedThumb = file.encryptedThumbnail else { return }
+            do {
+                let thumbData = try CryptoEngine.decrypt(encryptedThumb, with: masterKey)
+                guard let uiImage = UIImage(data: thumbData) else { return }
+                await MainActor.run {
+                    images[file.id] = uiImage
+                }
+            } catch {
+                // Thumbnail decryption failed
             }
-        } catch {
-            // Loading failed — cell stays as spinner
+        } else {
+            // For images, load full content
+            guard let key = vaultKey else { return }
+            do {
+                let (header, content) = try VaultStorage.shared.retrieveFile(id: file.id, with: key)
+                guard header.mimeType.hasPrefix("image/"),
+                      let uiImage = UIImage(data: content) else { return }
+                await MainActor.run {
+                    images[file.id] = uiImage
+                }
+            } catch {
+                // Loading failed — cell stays as spinner
+            }
         }
     }
 

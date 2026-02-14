@@ -308,6 +308,7 @@ final class VaultStorage {
             let filename: String?
             let blobId: String? // nil = primary blob (backward compat)
             let createdAt: Date? // When the file was added to the vault
+            let duration: TimeInterval? // Video duration in seconds (nil for non-video)
 
             // Legacy initializer for backward compatibility
             init(fileId: UUID, offset: Int, size: Int, encryptedHeaderPreview: Data, isDeleted: Bool) {
@@ -321,12 +322,13 @@ final class VaultStorage {
                 self.filename = nil
                 self.blobId = nil
                 self.createdAt = nil
+                self.duration = nil
             }
 
             // Full initializer with thumbnail and blobId
             init(fileId: UUID, offset: Int, size: Int, encryptedHeaderPreview: Data, isDeleted: Bool,
                  thumbnailData: Data?, mimeType: String?, filename: String?, blobId: String? = nil,
-                 createdAt: Date? = nil) {
+                 createdAt: Date? = nil, duration: TimeInterval? = nil) {
                 self.fileId = fileId
                 self.offset = offset
                 self.size = size
@@ -337,6 +339,7 @@ final class VaultStorage {
                 self.filename = filename
                 self.blobId = blobId
                 self.createdAt = createdAt
+                self.duration = duration
             }
         }
     }
@@ -608,7 +611,7 @@ final class VaultStorage {
 
     // MARK: - File Operations
 
-    func storeFile(data: Data, filename: String, mimeType: String, with key: Data, thumbnailData: Data? = nil) throws -> UUID {
+    func storeFile(data: Data, filename: String, mimeType: String, with key: Data, thumbnailData: Data? = nil, duration: TimeInterval? = nil) throws -> UUID {
         let span = SentryManager.shared.startTransaction(name: "storage.store_file", operation: "storage.store_file")
         span.setTag(value: "\(data.count / 1024)", key: "fileSizeKB")
         span.setTag(value: mimeType, key: "mimeType")
@@ -734,7 +737,8 @@ final class VaultStorage {
             mimeType: mimeType,
             filename: filename,
             blobId: targetBlobId == "primary" ? nil : targetBlobId,
-            createdAt: Date()
+            createdAt: Date(),
+            duration: duration
         )
         index.files.append(entry)
 
@@ -854,6 +858,92 @@ final class VaultStorage {
         return storedIds
     }
 
+    /// Store a file from a URL without loading the entire raw content into memory.
+    /// Uses streaming encryption for large files (VCSE for files > 1MB).
+    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: Data, thumbnailData: Data? = nil, duration: TimeInterval? = nil) throws -> UUID {
+        ensureBlobReady()
+        indexLock.lock()
+        defer { indexLock.unlock() }
+
+        var index = try loadIndex(with: key)
+        let masterKey = try getMasterKey(from: index, vaultKey: key)
+
+        let encryptedFile = try CryptoEngine.encryptFileFromURL(fileURL, filename: filename, mimeType: mimeType, with: masterKey)
+
+        let fileData = encryptedFile.encryptedContent
+        let fileSize = fileData.count
+
+        // Find a blob with enough space
+        var targetBlobIndex: Int? = nil
+        if let blobs = index.blobs {
+            for (i, blob) in blobs.enumerated() {
+                if blob.cursor + fileSize <= blob.capacity {
+                    targetBlobIndex = i
+                    break
+                }
+            }
+        }
+
+        if targetBlobIndex == nil {
+            guard SubscriptionManager.isPremiumSnapshot else {
+                throw VaultStorageError.expansionNotAllowed
+            }
+            guard let newBlob = createExpansionBlob() else {
+                throw VaultStorageError.writeError
+            }
+            if index.blobs == nil { index.blobs = [] }
+            index.blobs!.append(newBlob)
+            targetBlobIndex = index.blobs!.count - 1
+        }
+
+        guard let blobIdx = targetBlobIndex, let blobs = index.blobs else {
+            throw VaultStorageError.writeError
+        }
+        let writeOffset = blobs[blobIdx].cursor
+        let targetBlobId = blobs[blobIdx].blobId
+        let targetURL = blobURL(for: targetBlobId, in: index)
+
+        guard let handle = try? FileHandle(forWritingTo: targetURL) else {
+            throw VaultStorageError.writeError
+        }
+        defer { try? handle.close() }
+
+        try handle.seek(toOffset: UInt64(writeOffset))
+        handle.write(fileData)
+
+        var encryptedThumbnail: Data? = nil
+        if let thumbnail = thumbnailData {
+            encryptedThumbnail = try? CryptoEngine.encrypt(thumbnail, with: masterKey)
+        }
+
+        let newCursor = writeOffset + fileSize
+        index.blobs![blobIdx].cursor = newCursor
+
+        if targetBlobId == "primary" {
+            writeGlobalCursor(newCursor)
+            index.nextOffset = newCursor
+        }
+
+        let entry = VaultIndex.VaultFileEntry(
+            fileId: encryptedFile.header.fileId,
+            offset: writeOffset,
+            size: fileSize,
+            encryptedHeaderPreview: fileData.prefix(64),
+            isDeleted: false,
+            thumbnailData: encryptedThumbnail,
+            mimeType: mimeType,
+            filename: filename,
+            blobId: targetBlobId == "primary" ? nil : targetBlobId,
+            createdAt: Date(),
+            duration: duration
+        )
+        index.files.append(entry)
+
+        try saveIndex(index, with: key)
+
+        return encryptedFile.header.fileId
+    }
+
     func retrieveFile(id: UUID, with key: Data) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
         let span = SentryManager.shared.startTransaction(name: "storage.retrieve_file", operation: "storage.retrieve_file")
         ensureBlobReady()
@@ -894,6 +984,39 @@ final class VaultStorage {
         return try CryptoEngine.decryptFile(data: encryptedData, with: masterKey)
     }
 
+    /// Retrieves and decrypts a file directly to a temp URL, minimizing peak memory.
+    /// For VCSE-encrypted content, stream-decrypts in 256KB chunks (~512KB peak).
+    func retrieveFileToTempURL(id: UUID, with key: Data) throws -> (header: CryptoEngine.EncryptedFileHeader, tempURL: URL) {
+        ensureBlobReady()
+        let index = try loadIndex(with: key)
+        let masterKey = try getMasterKey(from: index, vaultKey: key)
+
+        guard let entry = index.files.first(where: { $0.fileId == id && !$0.isDeleted }) else {
+            throw VaultStorageError.fileNotFound
+        }
+
+        let targetURL = blobURL(for: entry.blobId, in: index)
+
+        guard let handle = try? FileHandle(forReadingFrom: targetURL) else {
+            throw VaultStorageError.readError
+        }
+        defer { try? handle.close() }
+
+        try handle.seek(toOffset: UInt64(entry.offset))
+        guard let encryptedData = try handle.read(upToCount: entry.size) else {
+            throw VaultStorageError.readError
+        }
+
+        let ext = (entry.filename as NSString?)?.pathExtension ?? "mp4"
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension(ext)
+
+        let header = try CryptoEngine.decryptFileToTempURL(data: encryptedData, with: masterKey, tempURL: tempURL)
+
+        return (header, tempURL)
+    }
+
     func deleteFile(id: UUID, with key: Data) throws {
         ensureBlobReady()
         indexLock.lock()
@@ -929,7 +1052,8 @@ final class VaultStorage {
             mimeType: entry.mimeType,
             filename: entry.filename,
             blobId: entry.blobId,
-            createdAt: entry.createdAt
+            createdAt: entry.createdAt,
+            duration: entry.duration
         )
 
         try saveIndex(index, with: key)
@@ -976,7 +1100,8 @@ final class VaultStorage {
                     mimeType: entry.mimeType,
                     filename: entry.filename,
                     blobId: entry.blobId,
-                    createdAt: entry.createdAt
+                    createdAt: entry.createdAt,
+                    duration: entry.duration
                 )
 
                 deletedCount += 1
@@ -1029,6 +1154,7 @@ final class VaultStorage {
         let mimeType: String?
         let filename: String?
         let createdAt: Date?
+        let duration: TimeInterval?
     }
 
     /// Returns the master key and file entries without decrypting thumbnails.
@@ -1047,7 +1173,8 @@ final class VaultStorage {
                 encryptedThumbnail: entry.thumbnailData,
                 mimeType: entry.mimeType,
                 filename: entry.filename,
-                createdAt: entry.createdAt
+                createdAt: entry.createdAt,
+                duration: entry.duration
             )
         }
 
@@ -1381,7 +1508,9 @@ final class VaultStorage {
                 thumbnailData: entry.thumbnailData,
                 mimeType: entry.mimeType,
                 filename: entry.filename,
-                blobId: currentBlobId == "primary" ? nil : currentBlobId
+                blobId: currentBlobId == "primary" ? nil : currentBlobId,
+                createdAt: entry.createdAt,
+                duration: entry.duration
             )
             newFiles.append(newEntry)
             currentCursor += entry.size

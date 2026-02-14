@@ -72,15 +72,8 @@ struct SecureVideoPlayer: View {
 
         Task {
             do {
-                let (header, content) = try VaultStorage.shared.retrieveFile(id: file.id, with: key)
-
-                // Videos need to be written to a temp file for playback
-                // This is a security tradeoff - we delete immediately after
-                let tempURL = FileManager.default.temporaryDirectory
-                    .appendingPathComponent(UUID().uuidString)
-                    .appendingPathExtension(header.originalFilename.components(separatedBy: ".").last ?? "mp4")
-
-                try content.write(to: tempURL, options: [.atomic, .completeFileProtection])
+                // Decrypt directly to temp file — avoids holding entire decrypted video in memory
+                let (_, tempURL) = try VaultStorage.shared.retrieveFileToTempURL(id: file.id, with: key)
 
                 await MainActor.run {
                     self.tempFileURL = tempURL

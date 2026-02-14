@@ -339,6 +339,7 @@ struct VaultView: View {
             FullScreenPhotoViewer(
                 files: split.media,
                 vaultKey: appState.currentVaultKey,
+                masterKey: masterKey,
                 initialIndex: item.id,
                 onDelete: isSharedVault ? nil : { deletedId in
                     if let idx = files.firstIndex(where: { $0.id == deletedId }) {
@@ -425,14 +426,16 @@ struct VaultFileItem: Identifiable, Sendable {
     let mimeType: String?
     let filename: String?
     let createdAt: Date?
+    let duration: TimeInterval?
 
-    init(id: UUID, size: Int, encryptedThumbnail: Data?, mimeType: String?, filename: String?, createdAt: Date? = nil) {
+    init(id: UUID, size: Int, encryptedThumbnail: Data?, mimeType: String?, filename: String?, createdAt: Date? = nil, duration: TimeInterval? = nil) {
         self.id = id
         self.size = size
         self.encryptedThumbnail = encryptedThumbnail
         self.mimeType = mimeType
         self.filename = filename
         self.createdAt = createdAt
+        self.duration = duration
     }
 
     var isImage: Bool {

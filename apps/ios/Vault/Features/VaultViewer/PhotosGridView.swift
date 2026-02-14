@@ -64,6 +64,17 @@ struct PhotosGridView: View {
                 RoundedRectangle(cornerRadius: 4)
                     .stroke(Color.vaultSecondaryText.opacity(0.15), lineWidth: 0.5)
             )
+            .overlay(alignment: .bottomLeading) {
+                if !isEditing, let duration = file.duration, (file.mimeType ?? "").hasPrefix("video/") {
+                    Text(formatDuration(duration))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 4))
+                        .padding(4)
+                }
+            }
             .overlay(alignment: .bottomTrailing) {
                 if isEditing {
                     selectionCircle(selected: selectedIds.contains(file.id))
@@ -133,6 +144,19 @@ struct PhotosGridView: View {
             onToggleSelect?(id)
             UISelectionFeedbackGenerator().selectionChanged()
         }
+    }
+
+    // MARK: - Duration Formatting
+
+    private func formatDuration(_ seconds: TimeInterval) -> String {
+        let totalSeconds = Int(seconds)
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let secs = totalSeconds % 60
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, secs)
+        }
+        return String(format: "%d:%02d", minutes, secs)
     }
 
     // MARK: - Selection Circle

@@ -154,7 +154,8 @@ extension VaultView {
                         encryptedThumbnail: entry.encryptedThumbnail,
                         mimeType: entry.mimeType,
                         filename: entry.filename,
-                        createdAt: entry.createdAt
+                        createdAt: entry.createdAt,
+                        duration: entry.duration
                     )
                 }
                 await MainActor.run {
@@ -258,20 +259,42 @@ extension VaultView {
                 let isVideo = provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier)
 
                 do {
-                    let (data, filename, mimeType, thumbnail): (Data, String, String, Data?)
-
                     if isVideo {
-                        // Load video via file representation
-                        let videoData = try await Self.loadVideoData(from: provider)
-                        guard !Task.isCancelled else { break }
-                        let ext = provider.suggestedName.flatMap { URL(string: $0)?.pathExtension } ?? "mov"
-                        let mime = FileUtilities.mimeType(forExtension: ext)
-                        let thumbData = await Self.generateVideoThumbnail(from: videoData)
+                        // URL-based video import — never loads raw video into memory
+                        let tempVideoURL = try await Self.loadVideoURL(from: provider)
+                        guard !Task.isCancelled else {
+                            try? FileManager.default.removeItem(at: tempVideoURL)
+                            break
+                        }
 
-                        data = videoData
-                        filename = provider.suggestedName ?? "VID_\(Date().timeIntervalSince1970)_\(index).\(ext)"
-                        mimeType = mime.hasPrefix("video/") ? mime : "video/quicktime"
-                        thumbnail = thumbData
+                        let ext = tempVideoURL.pathExtension.isEmpty ? "mov" : tempVideoURL.pathExtension
+                        let mime = FileUtilities.mimeType(forExtension: ext)
+                        let mimeType = mime.hasPrefix("video/") ? mime : "video/quicktime"
+                        let filename = provider.suggestedName.map { name -> String in
+                            if (name as NSString).pathExtension.isEmpty { return name + ".\(ext)" }
+                            return name
+                        } ?? "VID_\(Date().timeIntervalSince1970)_\(index).\(ext)"
+
+                        let metadata = await Self.generateVideoMetadata(from: tempVideoURL)
+                        let fileSize = (try? FileManager.default.attributesOfItem(atPath: tempVideoURL.path)[.size] as? Int) ?? 0
+
+                        let fileId = try VaultStorage.shared.storeFileFromURL(
+                            tempVideoURL, filename: filename, mimeType: mimeType,
+                            with: key, thumbnailData: metadata.thumbnail, duration: metadata.duration
+                        )
+                        try? FileManager.default.removeItem(at: tempVideoURL)
+
+                        let encThumb = metadata.thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
+                        await MainActor.run {
+                            guard !Task.isCancelled else { return }
+                            self.files.append(VaultFileItem(
+                                id: fileId, size: fileSize,
+                                encryptedThumbnail: encThumb, mimeType: mimeType,
+                                filename: filename, duration: metadata.duration
+                            ))
+                            self.importProgress = (index + 1, count)
+                        }
+                        successCount += 1
                     } else {
                         // Load image via UIImage
                         guard provider.canLoadObject(ofClass: UIImage.self) else {
@@ -291,34 +314,28 @@ extension VaultView {
                             continue
                         }
 
-                        data = jpegData
-                        filename = "IMG_\(Date().timeIntervalSince1970)_\(index).jpg"
-                        mimeType = "image/jpeg"
-                        thumbnail = FileUtilities.generateThumbnail(from: jpegData)
-                    }
+                        let thumbnail = FileUtilities.generateThumbnail(from: jpegData)
+                        let filename = "IMG_\(Date().timeIntervalSince1970)_\(index).jpg"
+                        let mimeType = "image/jpeg"
 
-                    guard !Task.isCancelled else { break }
+                        guard !Task.isCancelled else { break }
 
-                    let fileId = try VaultStorage.shared.storeFile(
-                        data: data,
-                        filename: filename,
-                        mimeType: mimeType,
-                        with: key,
-                        thumbnailData: thumbnail
-                    )
-                    let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
-                    await MainActor.run {
-                        guard !Task.isCancelled else { return }
-                        self.files.append(VaultFileItem(
-                            id: fileId,
-                            size: data.count,
-                            encryptedThumbnail: encThumb,
-                            mimeType: mimeType,
-                            filename: filename
-                        ))
-                        self.importProgress = (index + 1, count)
+                        let fileId = try VaultStorage.shared.storeFile(
+                            data: jpegData, filename: filename, mimeType: mimeType,
+                            with: key, thumbnailData: thumbnail
+                        )
+                        let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
+                        await MainActor.run {
+                            guard !Task.isCancelled else { return }
+                            self.files.append(VaultFileItem(
+                                id: fileId, size: jpegData.count,
+                                encryptedThumbnail: encThumb, mimeType: mimeType,
+                                filename: filename
+                            ))
+                            self.importProgress = (index + 1, count)
+                        }
+                        successCount += 1
                     }
-                    successCount += 1
                 } catch {
                     if Task.isCancelled { break }
                     await MainActor.run { self.importProgress = (index + 1, count) }
@@ -352,8 +369,9 @@ extension VaultView {
         }
     }
 
-    /// Load video data from a PHPicker item provider
-    static func loadVideoData(from provider: NSItemProvider) async throws -> Data {
+    /// Load a video from PHPicker to a temp URL without loading entire file into memory.
+    /// The caller is responsible for cleaning up the returned URL.
+    static func loadVideoURL(from provider: NSItemProvider) async throws -> URL {
         try await withCheckedThrowingContinuation { continuation in
             provider.loadFileRepresentation(forTypeIdentifier: UTType.movie.identifier) { url, error in
                 if let error {
@@ -364,10 +382,13 @@ extension VaultView {
                     continuation.resume(throwing: CocoaError(.fileReadUnknown))
                     return
                 }
-                // Must copy data before the callback returns — the URL is temporary
+                // Copy to our temp directory — provider URL is ephemeral
+                let destURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString)
+                    .appendingPathExtension(url.pathExtension.isEmpty ? "mov" : url.pathExtension)
                 do {
-                    let data = try Data(contentsOf: url)
-                    continuation.resume(returning: data)
+                    try FileManager.default.copyItem(at: url, to: destURL)
+                    continuation.resume(returning: destURL)
                 } catch {
                     continuation.resume(throwing: error)
                 }
@@ -375,25 +396,32 @@ extension VaultView {
         }
     }
 
-    /// Generate a thumbnail from video data using AVAssetImageGenerator
-    static func generateVideoThumbnail(from data: Data) async -> Data? {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mov")
-        defer { try? FileManager.default.removeItem(at: tempURL) }
+    /// Generate a thumbnail and capture duration from a video URL.
+    static func generateVideoMetadata(from url: URL) async -> (thumbnail: Data?, duration: TimeInterval?) {
+        let asset = AVAsset(url: url)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 400, height: 400)
 
-        do {
-            try data.write(to: tempURL)
-            let asset = AVAsset(url: tempURL)
-            let generator = AVAssetImageGenerator(asset: asset)
-            generator.appliesPreferredTrackTransform = true
-            generator.maximumSize = CGSize(width: 400, height: 400)
+        var thumbnail: Data?
+        var duration: TimeInterval?
 
-            let time = CMTime(seconds: 0.5, preferredTimescale: 600)
-            let cgImage = try generator.copyCGImage(at: time, actualTime: nil)
-            let uiImage = UIImage(cgImage: cgImage)
-            return uiImage.jpegData(compressionQuality: 0.7)
-        } catch {
-            return nil
+        // Capture duration
+        if let cmDuration = try? await asset.load(.duration) {
+            let seconds = CMTimeGetSeconds(cmDuration)
+            if seconds.isFinite && seconds > 0 {
+                duration = seconds
+            }
         }
+
+        // Generate thumbnail frame
+        let time = CMTime(seconds: 0.5, preferredTimescale: 600)
+        if let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) {
+            let uiImage = UIImage(cgImage: cgImage)
+            thumbnail = uiImage.jpegData(compressionQuality: 0.7)
+        }
+
+        return (thumbnail, duration)
     }
 
     func handleImportedFiles(_ result: Result<[URL], Error>) {
@@ -440,36 +468,57 @@ extension VaultView {
                 guard url.startAccessingSecurityScopedResource() else { continue }
                 defer { url.stopAccessingSecurityScopedResource() }
 
-                guard let data = try? Data(contentsOf: url) else { continue }
-                guard !Task.isCancelled else { break }
-
                 let filename = url.lastPathComponent
                 let mimeType = FileUtilities.mimeType(forExtension: url.pathExtension)
-                let thumbnail = mimeType.hasPrefix("image/") ? FileUtilities.generateThumbnail(from: data) : nil
 
-                guard let fileId = try? VaultStorage.shared.storeFile(
-                    data: data,
-                    filename: filename,
-                    mimeType: mimeType,
-                    with: key,
-                    thumbnailData: thumbnail
-                ) else { continue }
+                do {
+                    if mimeType.hasPrefix("video/") {
+                        // URL-based video import — avoids loading raw video into memory
+                        let metadata = await Self.generateVideoMetadata(from: url)
+                        let fileSize = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
 
-                let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
-                await MainActor.run {
-                    guard !Task.isCancelled else { return }
-                    self.files.append(VaultFileItem(
-                        id: fileId,
-                        size: data.count,
-                        encryptedThumbnail: encThumb,
-                        mimeType: mimeType,
-                        filename: filename
-                    ))
+                        let fileId = try VaultStorage.shared.storeFileFromURL(
+                            url, filename: filename, mimeType: mimeType,
+                            with: key, thumbnailData: metadata.thumbnail, duration: metadata.duration
+                        )
+                        let encThumb = metadata.thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
+                        await MainActor.run {
+                            guard !Task.isCancelled else { return }
+                            self.files.append(VaultFileItem(
+                                id: fileId, size: fileSize,
+                                encryptedThumbnail: encThumb, mimeType: mimeType,
+                                filename: filename, duration: metadata.duration
+                            ))
+                            if showProgress { self.importProgress = (index + 1, count) }
+                        }
+                    } else {
+                        guard let data = try? Data(contentsOf: url) else { continue }
+                        guard !Task.isCancelled else { break }
+
+                        let thumbnail = mimeType.hasPrefix("image/") ? FileUtilities.generateThumbnail(from: data) : nil
+
+                        let fileId = try VaultStorage.shared.storeFile(
+                            data: data, filename: filename, mimeType: mimeType,
+                            with: key, thumbnailData: thumbnail
+                        )
+                        let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
+                        await MainActor.run {
+                            guard !Task.isCancelled else { return }
+                            self.files.append(VaultFileItem(
+                                id: fileId, size: data.count,
+                                encryptedThumbnail: encThumb, mimeType: mimeType,
+                                filename: filename
+                            ))
+                            if showProgress { self.importProgress = (index + 1, count) }
+                        }
+                    }
+                    successCount += 1
+                } catch {
+                    if Task.isCancelled { break }
                     if showProgress {
-                        self.importProgress = (index + 1, count)
+                        await MainActor.run { self.importProgress = (index + 1, count) }
                     }
                 }
-                successCount += 1
             }
 
             let imported = successCount

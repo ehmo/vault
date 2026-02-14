@@ -209,6 +209,34 @@ enum CryptoEngine {
         )
     }
 
+    /// Encrypts a file from a URL without loading the entire raw content into memory.
+    /// Uses streaming encryption (VCSE) for files > 1MB.
+    static func encryptFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: Data) throws -> EncryptedFile {
+        let fileSize = try FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int ?? 0
+
+        let header = EncryptedFileHeader(
+            fileId: UUID(),
+            originalFilename: filename,
+            mimeType: mimeType,
+            originalSize: UInt64(fileSize),
+            createdAt: Date()
+        )
+
+        let encryptedHeader = try encrypt(header.serialize(), with: key)
+        let encryptedContent = try encryptForStaging(fileURL, with: key)
+
+        var combined = Data()
+        var headerSize = UInt32(encryptedHeader.count)
+        combined.append(Data(bytes: &headerSize, count: 4))
+        combined.append(encryptedHeader)
+        combined.append(encryptedContent)
+
+        return EncryptedFile(
+            header: header,
+            encryptedContent: combined
+        )
+    }
+
     static func decryptFile(data: Data, with key: Data) throws -> (header: EncryptedFileHeader, content: Data) {
         guard data.count > 4 else {
             #if !EXTENSION
@@ -234,9 +262,78 @@ enum CryptoEngine {
 
         // Extract and decrypt content
         let encryptedContent = data.subdata(in: (4 + Int(headerSize))..<data.count)
-        let content = try decrypt(encryptedContent, with: key)
+        let content = try decryptStaged(encryptedContent, with: key)
 
         return (header, content)
+    }
+
+    /// Decrypts an encrypted file directly to a temp URL, minimizing peak memory.
+    /// For VCSE content: stream-decrypts 256KB chunks to file (~512KB peak).
+    /// For single-shot content: decrypts in memory and writes to file.
+    @discardableResult
+    static func decryptFileToTempURL(data: Data, with key: Data, tempURL: URL) throws -> EncryptedFileHeader {
+        guard data.count > 4 else {
+            throw CryptoError.invalidData
+        }
+
+        let headerSizeData = data.prefix(4)
+        let headerSize = headerSizeData.withUnsafeBytes { $0.load(as: UInt32.self) }
+
+        guard data.count > 4 + Int(headerSize) else {
+            throw CryptoError.invalidData
+        }
+
+        let encryptedHeader = data.subdata(in: 4..<(4 + Int(headerSize)))
+        let decryptedHeaderData = try decrypt(encryptedHeader, with: key)
+        let header = try EncryptedFileHeader.deserialize(from: decryptedHeaderData)
+
+        let encryptedContent = data.subdata(in: (4 + Int(headerSize))..<data.count)
+
+        if isStreamingFormat(encryptedContent) {
+            try decryptStreamingToFile(encryptedContent, with: key, outputURL: tempURL)
+        } else {
+            let content = try decrypt(encryptedContent, with: key)
+            try content.write(to: tempURL, options: [.atomic, .completeFileProtection])
+        }
+
+        return header
+    }
+
+    /// Stream-decrypts VCSE data directly to a file, writing each chunk as it's decrypted.
+    private static func decryptStreamingToFile(_ data: Data, with key: Data, outputURL: URL) throws {
+        guard key.count == 32 else { throw CryptoError.keyGenerationFailed }
+        guard data.count >= 33 else { throw CryptoError.invalidData }
+
+        let magic = data.subdata(in: 0..<4).withUnsafeBytes { $0.load(as: UInt32.self) }
+        guard magic == VaultCoreConstants.streamingMagic else { throw CryptoError.invalidData }
+
+        let totalChunks = data.subdata(in: 9..<13).withUnsafeBytes { $0.load(as: UInt32.self) }
+        let baseNonceData = data.subdata(in: 21..<33)
+        let symmetricKey = SymmetricKey(data: key)
+
+        FileManager.default.createFile(atPath: outputURL.path, contents: nil, attributes: [
+            .protectionKey: FileProtectionType.complete
+        ])
+        let handle = try FileHandle(forWritingTo: outputURL)
+        defer { try? handle.close() }
+
+        var offset = 33
+
+        for chunkIndex in 0..<Int(totalChunks) {
+            guard offset + 4 <= data.count else { throw CryptoError.invalidData }
+            let encSize = data.subdata(in: offset..<(offset + 4)).withUnsafeBytes { $0.load(as: UInt32.self) }
+            offset += 4
+
+            guard offset + Int(encSize) <= data.count else { throw CryptoError.invalidData }
+            let encChunk = data.subdata(in: offset..<(offset + Int(encSize)))
+            offset += Int(encSize)
+
+            let nonce = try xorNonce(baseNonceData, with: UInt64(chunkIndex))
+            _ = try AES.GCM.Nonce(data: nonce)
+            let sealedBox = try AES.GCM.SealedBox(combined: encChunk)
+            let decrypted = try AES.GCM.open(sealedBox, using: symmetricKey)
+            handle.write(decrypted)
+        }
     }
 
     // MARK: - Streaming Encryption (chunked AES-GCM)
