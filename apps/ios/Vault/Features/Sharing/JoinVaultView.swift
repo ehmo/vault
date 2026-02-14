@@ -65,6 +65,7 @@ struct JoinVaultView: View {
                 .padding()
             }
         }
+        .ignoresSafeArea(.keyboard)
         .task {
             let status = await CloudKitSharingManager.shared.checkiCloudStatus()
             iCloudStatus = status

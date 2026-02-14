@@ -668,23 +668,17 @@ struct ChangePatternView: View {
     
     private func validateNewPattern(_ pattern: [Int]) {
         isProcessing = true
-        
+
         Task {
             // First, validate the pattern structure
             let result = PatternValidator.shared.validate(pattern, gridSize: patternState.gridSize)
 
-            await MainActor.run {
-                validationResult = result
-            }
-
             if result.isValid {
-                // Check if this pattern already exists as another vault
+                // Pattern valid — don't show feedback yet (avoids brief flash before transition)
                 do {
                     let newKey = try await KeyDerivation.deriveKey(from: pattern, gridSize: patternState.gridSize)
-                    
-                    // Check if a vault with this key already exists
                     let vaultExists = VaultStorage.shared.vaultExists(for: newKey)
-                    
+
                     await MainActor.run {
                         if vaultExists {
                             vaultSettingsLogger.info("Pattern already used by another vault")
@@ -696,6 +690,7 @@ struct ChangePatternView: View {
                             step = .confirmNew
                             patternState.reset()
                             errorMessage = nil
+                            validationResult = nil
                         }
                         isProcessing = false
                     }
@@ -709,6 +704,7 @@ struct ChangePatternView: View {
             } else {
                 vaultSettingsLogger.debug("New pattern invalid")
                 await MainActor.run {
+                    validationResult = result
                     patternState.reset()
                     isProcessing = false
                 }
@@ -839,6 +835,7 @@ struct CustomRecoveryPhraseInputView: View {
                 }
             }
         }
+        .ignoresSafeArea(.keyboard)
     }
 
     private var inputView: some View {

@@ -56,6 +56,7 @@ extension VaultView {
                 }
             }
         }
+        .background(Color.vaultBackground)
     }
 
     // MARK: - Edit Mode Controls

@@ -48,7 +48,7 @@ struct FullScreenPhotoViewer: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .offset(y: dragOffset)
-            .gesture(dragToDissmissGesture)
+            .simultaneousGesture(dragToDissmissGesture)
 
             // Top bar overlay
             VStack {

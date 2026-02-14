@@ -21,9 +21,9 @@ extension VaultView {
 
     @ViewBuilder
     func dateGroupedContentView(masterKey: Data) -> some View {
-        let groups = groupFilesByDate(sortedFiles)
+        let groups = groupFilesByDate(sortedFiles, newestFirst: sortOrder == .dateNewest)
         LazyVStack(alignment: .leading, spacing: 0, pinnedViews: .sectionHeaders) {
-            ForEach(groups) { group in
+            ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
                 Section {
                     Group {
                         if fileFilter == .media {
@@ -46,15 +46,16 @@ extension VaultView {
                                isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
                         }
                     }
-                    .padding(.top, 8)
+                    .padding(.top, 4)
                 } header: {
                     Text(group.title)
                         .font(.headline)
                         .foregroundStyle(.vaultSecondaryText)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
+                        .padding(.top, index > 0 ? 12 : 0)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(.ultraThinMaterial)
+                        .background(Color.vaultBackground)
                         .accessibilityAddTraits(.isHeader)
                 }
             }

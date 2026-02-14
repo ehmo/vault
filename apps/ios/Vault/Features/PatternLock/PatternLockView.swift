@@ -283,6 +283,7 @@ struct RecoveryPhraseInputView: View {
                 }
             }
         }
+        .ignoresSafeArea(.keyboard)
     }
 
     private func attemptRecovery() {

@@ -43,45 +43,53 @@ struct DateGroup: Identifiable {
     let files: [VaultFileItem] // non-media files
 }
 
-func groupFilesByDate(_ items: [VaultFileItem]) -> [DateGroup] {
+func groupFilesByDate(_ items: [VaultFileItem], newestFirst: Bool = true) -> [DateGroup] {
     let calendar = Calendar.current
     let now = Date()
     let startOfToday = calendar.startOfDay(for: now)
     let startOfYesterday = calendar.date(byAdding: .day, value: -1, to: startOfToday)!
-    let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now))!
-    let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
 
-    var buckets: [(title: String, items: [VaultFileItem])] = [
-        ("Today", []),
-        ("Yesterday", []),
-        ("This Week", []),
-        ("This Month", []),
-        ("Earlier", [])
-    ]
+    // Group items by calendar day
+    var dayBuckets: [(dayStart: Date, title: String, items: [VaultFileItem])] = []
+    var bucketIndex: [Date: Int] = [:]
+
+    let dayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.doesRelativeDateFormatting = false
+        f.dateFormat = "EEEE, MMMM d"
+        return f
+    }()
 
     for item in items {
-        guard let date = item.createdAt else {
-            buckets[4].items.append(item)
-            continue
-        }
-        if date >= startOfToday {
-            buckets[0].items.append(item)
-        } else if date >= startOfYesterday {
-            buckets[1].items.append(item)
-        } else if date >= startOfWeek {
-            buckets[2].items.append(item)
-        } else if date >= startOfMonth {
-            buckets[3].items.append(item)
+        let date = item.createdAt ?? .distantPast
+        let dayStart = calendar.startOfDay(for: date)
+
+        let title: String
+        if dayStart >= startOfToday {
+            title = "Today"
+        } else if dayStart >= startOfYesterday {
+            title = "Yesterday"
         } else {
-            buckets[4].items.append(item)
+            title = dayFormatter.string(from: date)
+        }
+
+        if let idx = bucketIndex[dayStart] {
+            dayBuckets[idx].items.append(item)
+        } else {
+            bucketIndex[dayStart] = dayBuckets.count
+            dayBuckets.append((dayStart: dayStart, title: title, items: [item]))
         }
     }
 
-    return buckets.compactMap { bucket in
-        guard !bucket.items.isEmpty else { return nil }
+    // Sort buckets to match the chosen sort direction
+    dayBuckets.sort { newestFirst ? $0.dayStart > $1.dayStart : $0.dayStart < $1.dayStart }
+
+    let isoFormatter = ISO8601DateFormatter()
+    return dayBuckets.map { bucket in
         let media = bucket.items.filter { $0.isMedia }
         let files = bucket.items.filter { !$0.isMedia }
-        return DateGroup(id: bucket.title, title: bucket.title, items: bucket.items, media: media, files: files)
+        let uniqueId = isoFormatter.string(from: bucket.dayStart)
+        return DateGroup(id: uniqueId, title: bucket.title, items: bucket.items, media: media, files: files)
     }
 }
 

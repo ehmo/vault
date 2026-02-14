@@ -88,7 +88,7 @@ final class BackgroundShareTransferManager {
     private(set) var displayProgress: Int = 0
     private var animationStep: Int = 0
     private(set) var currentMessage: String = ""
-    private var progressTimer: Timer?
+    private var progressTask: Task<Void, Never>?
 
     private init() {}
 
@@ -635,18 +635,19 @@ final class BackgroundShareTransferManager {
         currentMessage = "Starting..."
         stopProgressTimer()
 
-        // Timer fires on main RunLoop → guaranteed main thread.
-        // MainActor.assumeIsolated avoids Task allocation overhead.
-        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.17, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {
+        // Task-based loop instead of Timer.scheduledTimer so updates continue
+        // when the app is backgrounded (RunLoop timers stop in background).
+        progressTask = Task { [weak self] in
+            while !Task.isCancelled {
                 self?.progressTimerTick()
+                try? await Task.sleep(for: .milliseconds(500))
             }
         }
     }
 
     private func stopProgressTimer() {
-        progressTimer?.invalidate()
-        progressTimer = nil
+        progressTask?.cancel()
+        progressTask = nil
     }
 
     private func progressTimerTick() {
