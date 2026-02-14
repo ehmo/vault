@@ -1,1 +1,23 @@
 @import "tailwindcss";
+
+@theme {
+  /* Vaultaire design tokens (matching iOS app) */
+  --color-vault-bg: #D1D1E9;
+  --color-vault-bg-dark: #1A1B2E;
+  --color-vault-surface: #FFFFFE;
+  --color-vault-surface-dark: #2D2E3A;
+  --color-vault-text: #2B2C34;
+  --color-vault-text-dark: #E8E8F0;
+  --color-vault-secondary: #2B2C34B3;
+  --color-vault-secondary-dark: #E8E8F0B3;
+  --color-vault-accent: #6246EA;
+  --color-vault-highlight: #E45858;
+  --color-vault-highlight-dark: #FF6F6F;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+  }
+}
