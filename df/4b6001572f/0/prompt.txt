@@ -1,0 +1,95 @@
+Implement the following plan:
+
+# Implement VAULT-4fm + VAULT-d3u: Storage Tests + Error Path Tests
+
+## Context
+Two open beads issues need implementation:
+- **VAULT-4fm**: VaultStorage has zero integration tests. Need round-trip coverage for core storage operations.
+- **VAULT-d3u**: PatternSetupView error paths (key derivation failure, save failure, duplicate pattern) now show alerts but are untestable because the view calls singletons directly.
+
+## Task 1: VaultStorage Integration Tests (VAULT-4fm)
+
+**Approach**: Use `VaultStorage.shared` with unique random keys per test. Clean up via `deleteVaultIndex(for:)` in `tearDown`. No production code changes.
+
+**New file**: `apps/ios/VaultTests/VaultStorageIntegrationTests.swift`
+
+**Tests** (~10):
+1. `testSaveAndLoadIndexRoundTrip` — save index, load it back, verify fields match
+2. `testVaultExistsReturnsTrueAfterSave` — save index, check `vaultExists` → true
+3. `testVaultExistsReturnsFalseForUnknownKey` — random key → false
+4. `testDeleteVaultIndex` — save, delete, verify `vaultExists` → false
+5. `testStoreAndRetrieveFile` — store small file, retrieve by UUID, verify content
+6. `testStoreAndListFiles` — store 3 files, `listFiles` → count 3, IDs match
+7. `testDeleteFile` — store, delete, list → empty
+8. `testRetrieveDeletedFileThrows` — store, delete, retrieve → throws
+9. `testChangeVaultKey` — store files under keyA, change to keyB, verify accessible under keyB
+10. `testIndexCodableRoundTrip` — encode VaultIndex to JSON, decode, verify (pure, no I/O)
+
+**Setup/tearDown**: Generate `testKey = CryptoEngine.generateRandomBytes(count: 32)!` in setUp. Delete index in tearDown. For changeVaultKey test, clean up both keys.
+
+## Task 2: PatternSetupCoordinator + Tests (VAULT-d3u)
+
+**Approach**: Extract save logic from PatternSetupView into a `PatternSetupCoordinator` struct with closure-based dependency injection. Defaults point to real singletons. View delegates to coordinator. No protocols, no ViewModel, no environment changes — minimal footprint.
+
+**New production file**: `apps/ios/Vault/Features/Onboarding/PatternSetupCoordinator.swift`
+
+```swift
+struct PatternSetupCoordinator {
+    var deriveKey: ([Int], Int) async throws -> Data = { pattern, gridSize in
+        try await KeyDerivation.deriveKey(from: pattern, gridSize: gridSize)
+    }
+    var vaultExists: (Data) -> Bool = { VaultStorage.shared.vaultExists(for: $0) }
+    var saveIndex: (VaultStorage.VaultIndex, Data) throws -> Void = { try VaultStorage.shared.saveIndex($0, with: $1) }
+    var saveRecoveryPhrase: (String, [Int], Int, Data) async throws -> Void = { phrase, pattern, gridSize, key in
+        try await RecoveryPhraseManager.shared.saveRecoveryPhrase(phrase: phrase, pattern: pattern, gridSize: gridSize, patternKey: key)
+    }
+
+    enum Result { case success(key: Data), duplicatePattern, error(String) }
+
+    func savePattern(_ pattern: [Int], gridSize: Int, phrase: String) async -> Result { ... }
+    func saveCustomPhrase(_ phrase: String, pattern: [Int], gridSize: Int, key: Data) async -> Result { ... }
+}
+```
+
+**PatternSetupView changes**: Add `@State private var coordinator = PatternSetupCoordinator()`. Replace body of `savePattern(_:)` and `saveCustomRecoveryPhrase()` with coordinator calls, keeping all UI state updates in the view.
+
+**New test file**: `apps/ios/VaultTests/PatternSetupCoordinatorTests.swift`
+
+**Tests** (~6):
+1. `testSuccessReturnsKey` — all closures succeed → `.success(key:)`
+2. `testDuplicatePatternDetected` — `vaultExists` returns true → `.duplicatePattern`
+3. `testKeyDerivationFailure` — `deriveKey` throws → `.error`
+4. `testIndexSaveFailure` — `saveIndex` throws → `.error`
+5. `testRecoveryPhraseSaveFailure` — `saveRecoveryPhrase` throws → `.error`
+6. `testCustomPhraseSaveFailure` — for `saveCustomPhrase` path
+
+## Files Modified
+- `apps/ios/VaultTests/VaultStorageIntegrationTests.swift` — **NEW**
+- `apps/ios/Vault/Features/Onboarding/PatternSetupCoordinator.swift` — **NEW**
+- `apps/ios/Vault/Features/Onboarding/PatternSetupView.swift` — delegate to coordinator
+- `apps/ios/VaultTests/PatternSetupCoordinatorTests.swift` — **NEW**
+- `apps/ios/Vault.xcodeproj/project.pbxproj` — add 3 new files
+
+## pbxproj IDs
+| ID | Type | File |
+|----|------|------|
+| `TS0000028` | PBXFileReference | VaultStorageIntegrationTests.swift |
+| `TS0000029` | PBXBuildFile | VaultStorageIntegrationTests.swift |
+| `TS000002A` | PBXFileReference | PatternSetupCoordinatorTests.swift |
+| `TS000002B` | PBXBuildFile | PatternSetupCoordinatorTests.swift |
+| `019000008` | PBXFileReference | PatternSetupCoordinator.swift |
+| `019000009` | PBXBuildFile | PatternSetupCoordinator.swift |
+
+## Verification
+1. Build succeeds
+2. All existing 149 tests still pass
+3. VaultStorageIntegrationTests pass (~10 tests)
+4. PatternSetupCoordinatorTests pass (~6 tests)
+5. All 8 Maestro flows still pass (PatternSetupView behavior unchanged)
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Great. Push it to testflight
