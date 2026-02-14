@@ -115,6 +115,8 @@
 		TS0000027 /* OnboardingStepTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000026 /* OnboardingStepTests.swift */; };
 		TS0000029 /* VaultStorageIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000028 /* VaultStorageIntegrationTests.swift */; };
 		TS000002B /* PatternSetupCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS000002A /* PatternSetupCoordinatorTests.swift */; };
+		TS000002D /* DateGroupingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS000002C /* DateGroupingTests.swift */; };
+		TS000002F /* VaultFileItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS000002E /* VaultFileItemTests.swift */; };
 		019000009 /* PatternSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000008 /* PatternSetupCoordinator.swift */; };
 		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
 		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
@@ -271,6 +273,8 @@
 		TS0000026 /* OnboardingStepTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingStepTests.swift; sourceTree = "<group>"; };
 		TS0000028 /* VaultStorageIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultStorageIntegrationTests.swift; sourceTree = "<group>"; };
 		TS000002A /* PatternSetupCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinatorTests.swift; sourceTree = "<group>"; };
+		TS000002C /* DateGroupingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateGroupingTests.swift; sourceTree = "<group>"; };
+		TS000002E /* VaultFileItemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFileItemTests.swift; sourceTree = "<group>"; };
 		019000008 /* PatternSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinator.swift; sourceTree = "<group>"; };
 		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
@@ -649,6 +653,8 @@
 				TS0000026 /* OnboardingStepTests.swift */,
 				TS0000028 /* VaultStorageIntegrationTests.swift */,
 				TS000002A /* PatternSetupCoordinatorTests.swift */,
+				TS000002C /* DateGroupingTests.swift */,
+				TS000002E /* VaultFileItemTests.swift */,
 			);
 			path = VaultTests;
 			sourceTree = "<group>";
@@ -982,6 +988,8 @@
 				TS0000027 /* OnboardingStepTests.swift in Sources */,
 				TS0000029 /* VaultStorageIntegrationTests.swift in Sources */,
 				TS000002B /* PatternSetupCoordinatorTests.swift in Sources */,
+				TS000002D /* DateGroupingTests.swift in Sources */,
+				TS000002F /* VaultFileItemTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
