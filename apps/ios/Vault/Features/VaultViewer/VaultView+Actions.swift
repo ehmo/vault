@@ -252,6 +252,7 @@ extension VaultView {
         activeImportTask = Task.detached(priority: .userInitiated) {
             var successCount = 0
             var failedCount = 0
+            var lastErrorReason: String?
             for (index, result) in results.enumerated() {
                 // Stop immediately if vault was locked or switched
                 guard !Task.isCancelled else { break }
@@ -299,6 +300,8 @@ extension VaultView {
                     } else {
                         // Load image via UIImage
                         guard provider.canLoadObject(ofClass: UIImage.self) else {
+                            failedCount += 1
+                            lastErrorReason = "Unsupported file format"
                             await MainActor.run { self.importProgress = (index + 1, count) }
                             continue
                         }
@@ -311,6 +314,8 @@ extension VaultView {
                         guard !Task.isCancelled else { break }
 
                         guard let image, let jpegData = image.jpegData(compressionQuality: 0.8) else {
+                            failedCount += 1
+                            lastErrorReason = "Could not convert image"
                             await MainActor.run { self.importProgress = (index + 1, count) }
                             continue
                         }
@@ -340,6 +345,7 @@ extension VaultView {
                 } catch {
                     if Task.isCancelled { break }
                     failedCount += 1
+                    lastErrorReason = error.localizedDescription
                     SentryManager.shared.addBreadcrumb(
                         category: "import.failed",
                         data: ["index": index, "isVideo": isVideo, "error": "\(error)"]
@@ -353,14 +359,15 @@ extension VaultView {
 
             let imported = successCount
             let failed = failedCount
+            let errorReason = lastErrorReason
             await MainActor.run {
                 guard !Task.isCancelled else { return }
                 self.importProgress = nil
                 UIApplication.shared.isIdleTimerDisabled = false
                 if failed > 0 && imported == 0 {
-                    self.toastMessage = .importFailed(failed, imported: 0)
+                    self.toastMessage = .importFailed(failed, imported: 0, reason: errorReason)
                 } else if failed > 0 {
-                    self.toastMessage = .importFailed(failed, imported: imported)
+                    self.toastMessage = .importFailed(failed, imported: imported, reason: errorReason)
                 } else if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: self.files.count) {
                     self.toastMessage = .milestone(milestone)
                 } else {
