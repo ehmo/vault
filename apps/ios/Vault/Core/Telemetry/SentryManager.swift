@@ -25,27 +25,31 @@ final class SentryManager: @unchecked Sendable {
     func start() {
         guard !self.isStarted else { return }
         self.isStarted = true
-        SentrySDK.start { options in
-            options.dsn = "https://5c2cd9ddb6a7514efdb3903e09d76e59@o4510751132745728.ingest.us.sentry.io/4510798192181248"
+        // SentrySDK.start() is synchronous and heavy (crash handlers, swizzling,
+        // auto-instrumentation). Run it off the main thread to avoid blocking UI.
+        Task.detached(priority: .utility) {
+            SentrySDK.start { options in
+                options.dsn = "https://5c2cd9ddb6a7514efdb3903e09d76e59@o4510751132745728.ingest.us.sentry.io/4510798192181248"
 
-            // Privacy: never send PII, screenshots, or view hierarchy
-            options.sendDefaultPii = false
-            options.attachScreenshot = false
-            options.attachViewHierarchy = false
+                // Privacy: never send PII, screenshots, or view hierarchy
+                options.sendDefaultPii = false
+                options.attachScreenshot = false
+                options.attachViewHierarchy = false
 
-            // Performance
-            options.enableAutoPerformanceTracing = true
-            options.enableNetworkTracking = true
-            options.enableFileIOTracing = true
-            options.enableUIViewControllerTracing = false // SwiftUI app
-            options.tracesSampleRate = 1.0
+                // Performance
+                options.enableAutoPerformanceTracing = true
+                options.enableNetworkTracking = true
+                options.enableFileIOTracing = true
+                options.enableUIViewControllerTracing = false // SwiftUI app
+                options.tracesSampleRate = 1.0
 
-            // Scrub before sending events (scrubEvent is a pure static function)
-            options.beforeSend = { event in
-                Self.scrubEvent(event)
+                // Scrub before sending events (scrubEvent is a pure static function)
+                options.beforeSend = { event in
+                    Self.scrubEvent(event)
+                }
+
+                options.debug = false
             }
-
-            options.debug = false
         }
     }
 
