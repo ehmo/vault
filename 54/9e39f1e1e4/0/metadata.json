@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "549e39f1e1e4",
+  "session_id": "eb91cd9f-683c-4b20-9e16-fa12b83ddb98",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-14T07:36:03.398879Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Core/Billing/VaultairePaywallView.swift",
+    "apps/ios/maestro/flows/test_paywall_buttons.yaml",
+    "apps/ios/maestro/flows/test_paywall_with_analytics.yaml"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "fe1e8f36-41a0-4001-b3c2-240afde4bab5",
+  "checkpoint_transcript_start": 1482,
+  "transcript_lines_at_start": 1482,
+  "token_usage": {
+    "input_tokens": 39,
+    "cache_creation_tokens": 30420,
+    "cache_read_tokens": 5555559,
+    "output_tokens": 4063,
+    "api_call_count": 37
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-14T07:36:03.119201Z",
+    "agent_lines": 185,
+    "human_added": 13618,
+    "human_modified": 34,
+    "human_removed": 0,
+    "total_committed": 13837,
+    "agent_percentage": 1.3369950133699502
+  }
+}
