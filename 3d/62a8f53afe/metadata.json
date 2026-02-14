@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "3d62a8f53afe",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".scratch-pad.md",
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Features/Onboarding/AnalyticsConsentView.swift",
+    "apps/ios/Vault/Features/Onboarding/OnboardingView.swift",
+    "apps/ios/Vault/Features/Onboarding/PatternSetupView.swift",
+    "apps/ios/Vault/Features/Onboarding/PaywallStepView.swift",
+    "apps/ios/Vault/Features/Onboarding/PermissionsView.swift",
+    "apps/ios/Vault/Features/Onboarding/ThankYouView.swift",
+    "apps/ios/VaultTests/OnboardingStepTests.swift",
+    "apps/ios/maestro/flows/onboarding/analytics_consent.yaml",
+    "apps/ios/maestro/flows/onboarding/back_navigation.yaml",
+    "apps/ios/maestro/flows/onboarding/complete_onboarding.yaml",
+    "apps/ios/maestro/flows/onboarding/pattern_confirm_error.yaml",
+    "apps/ios/maestro/flows/onboarding/pattern_setup.yaml",
+    "apps/ios/maestro/flows/onboarding/skip_paywall.yaml",
+    "apps/ios/maestro/flows/onboarding/thankyou_screen.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3d/62a8f53afe/0/metadata.json",
+      "transcript": "/3d/62a8f53afe/0/full.jsonl",
+      "context": "/3d/62a8f53afe/0/context.md",
+      "content_hash": "/3d/62a8f53afe/0/content_hash.txt",
+      "prompt": "/3d/62a8f53afe/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 17,
+    "cache_creation_tokens": 92661,
+    "cache_read_tokens": 890473,
+    "output_tokens": 1667,
+    "api_call_count": 9
+  }
+}
