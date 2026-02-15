@@ -959,7 +959,10 @@ struct CustomRecoveryPhraseInputView: View {
             }
             .navigationTitle("Custom Recovery Phrase")
             .navigationBarTitleDisplayMode(.inline)
-            .background(Color.vaultBackground.ignoresSafeArea())
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.vaultBackground)
+            .toolbarBackground(Color.vaultBackground, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -977,6 +980,7 @@ struct CustomRecoveryPhraseInputView: View {
                 }
             }
         }
+        .background(Color.vaultBackground.ignoresSafeArea())
         .ignoresSafeArea(.keyboard)
     }
 

@@ -3,6 +3,7 @@ import StoreKit
 
 struct VaultairePaywallView: View {
     let onDismiss: () -> Void
+    var showDismissButton: Bool = true
 
     @Environment(SubscriptionManager.self) private var subscriptionManager
 
@@ -46,12 +47,16 @@ struct VaultairePaywallView: View {
             }
             .background(Color.vaultBackground.ignoresSafeArea())
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button {
-                        onDismiss()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.vaultSecondaryText)
+                if showDismissButton {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button {
+                            onDismiss()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(.vaultSecondaryText)
+                        }
+                        .accessibilityIdentifier("paywall_dismiss")
                     }
                 }
             }

@@ -20,7 +20,7 @@ enum VaultStorageError: Error, LocalizedError {
         case .fileNotFound: return "File not found in vault"
         case .corruptedData: return "Vault data is corrupted"
         case .vaultAlreadyExists: return "A vault with this pattern already exists"
-        case .expansionNotAllowed: return "Storage expansion requires premium"
+        case .expansionNotAllowed: return "Unable to expand storage"
         }
     }
 }
@@ -674,15 +674,8 @@ final class VaultStorage {
             }
         }
 
-        // No blob has space — try to expand
+        // No blob has space — expand automatically
         if targetBlobIndex == nil {
-            guard SubscriptionManager.isPremiumSnapshot else {
-                #if DEBUG
-                print("❌ [VaultStorage] No space and expansion not allowed (free tier)")
-                #endif
-                throw VaultStorageError.expansionNotAllowed
-            }
-
             guard let newBlob = createExpansionBlob() else {
                 throw VaultStorageError.writeError
             }
@@ -803,9 +796,6 @@ final class VaultStorage {
             }
 
             if targetBlobIndex == nil {
-                guard SubscriptionManager.isPremiumSnapshot else {
-                    throw VaultStorageError.expansionNotAllowed
-                }
                 guard let newBlob = createExpansionBlob() else {
                     throw VaultStorageError.writeError
                 }
@@ -908,9 +898,6 @@ final class VaultStorage {
         }
 
         if targetBlobIndex == nil {
-            guard SubscriptionManager.isPremiumSnapshot else {
-                throw VaultStorageError.expansionNotAllowed
-            }
             guard let newBlob = createExpansionBlob() else {
                 throw VaultStorageError.writeError
             }

@@ -32,7 +32,7 @@ struct OnboardingView: View {
         } else {
             VStack(spacing: 0) {
                 // Progress bar + back arrow
-                HStack(spacing: 4) {
+                HStack(spacing: 8) {
                     Button {
                         if let prev = currentStep.previous() {
                             withAnimation(animation) { currentStep = prev }
@@ -62,6 +62,13 @@ struct OnboardingView: View {
                                 )
                                 .scaleEffect(x: currentStep.progressFraction, y: 1, anchor: .leading)
                         }
+
+                    if currentStep == .paywall {
+                        Button("Skip") { advance() }
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.vaultSecondaryText)
+                            .accessibilityIdentifier("paywall_skip")
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 12)

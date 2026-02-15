@@ -279,8 +279,12 @@ struct RecoveryPhraseInputView: View {
                 Spacer()
             }
             .padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.vaultBackground)
             .navigationTitle("Recovery")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Color.vaultBackground, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

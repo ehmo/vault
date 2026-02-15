@@ -179,7 +179,8 @@ extension VaultView {
             Spacer()
         }
         .padding(14)
-        .vaultGlassBackground(cornerRadius: 12)
+        .background(Color.vaultSurface)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .accessibilityElement(children: .combine)
     }
 

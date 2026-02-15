@@ -146,12 +146,12 @@ final class ImportIngestorTests: XCTestCase {
             imported: 3,
             failed: 2,
             batchesCleaned: 1,
-            failureReason: "Storage expansion requires premium"
+            failureReason: "Unable to expand storage"
         )
         XCTAssertEqual(result.imported, 3)
         XCTAssertEqual(result.failed, 2)
         XCTAssertEqual(result.batchesCleaned, 1)
-        XCTAssertEqual(result.failureReason, "Storage expansion requires premium")
+        XCTAssertEqual(result.failureReason, "Unable to expand storage")
     }
 
     // MARK: - Missing File Handling
@@ -300,10 +300,10 @@ final class ImportIngestorTests: XCTestCase {
     // MARK: - Toast Message Tests
 
     func testImportFailedToastWithReason() {
-        let toast = ToastMessage.importFailed(5, imported: 0, reason: "Storage expansion requires premium")
+        let toast = ToastMessage.importFailed(5, imported: 0, reason: "Unable to expand storage")
         XCTAssertEqual(toast.icon, "exclamationmark.triangle")
         XCTAssertTrue(toast.message.contains("5 files failed"))
-        XCTAssertTrue(toast.message.contains("Storage expansion requires premium"))
+        XCTAssertTrue(toast.message.contains("Unable to expand storage"))
     }
 
     func testImportFailedToastPartialSuccess() {
