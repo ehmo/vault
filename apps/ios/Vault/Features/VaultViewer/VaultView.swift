@@ -396,6 +396,7 @@ struct VaultView: View {
             NavigationStack {
                 VaultSettingsView()
             }
+            .preferredColorScheme(appState.appearanceMode.preferredColorScheme)
         }
         .ignoresSafeArea(.keyboard)
         .alert("Vault Unavailable", isPresented: $showSelfDestructAlert) {
