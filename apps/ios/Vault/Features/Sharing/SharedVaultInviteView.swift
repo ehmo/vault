@@ -69,6 +69,7 @@ struct SharedVaultInviteView: View {
                 .padding()
             }
         }
+        .background(Color.vaultBackground.ignoresSafeArea())
         .task {
             let status = await CloudKitSharingManager.shared.checkiCloudStatus()
             iCloudStatus = status

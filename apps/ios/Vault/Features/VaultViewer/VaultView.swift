@@ -240,6 +240,7 @@ struct VaultView: View {
                     }
                 }
             }
+            .background(Color.vaultBackground.ignoresSafeArea())
             .navigationTitle(appState.vaultName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

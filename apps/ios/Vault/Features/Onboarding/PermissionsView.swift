@@ -65,6 +65,7 @@ struct PermissionsView: View {
             .padding(.bottom, 40)
             .accessibilityIdentifier("permissions_continue")
         }
+        .background(Color.vaultBackground.ignoresSafeArea())
         .task {
             await checkCurrentStatuses()
         }

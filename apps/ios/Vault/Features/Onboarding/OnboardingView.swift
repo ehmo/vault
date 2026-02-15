@@ -83,6 +83,7 @@ struct OnboardingView: View {
                     })
                 }
             }
+            .background(Color.vaultBackground.ignoresSafeArea())
         }
     }
 

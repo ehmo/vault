@@ -58,6 +58,7 @@ struct ThankYouView: View {
             .padding(.bottom, 40)
             .accessibilityIdentifier("thankyou_continue")
         }
+        .background(Color.vaultBackground.ignoresSafeArea())
     }
 }
 

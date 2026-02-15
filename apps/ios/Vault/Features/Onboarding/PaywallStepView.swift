@@ -15,6 +15,7 @@ struct PaywallStepView: View {
             .accessibilityIdentifier("paywall_skip")
             .padding(.bottom, 24)
         }
+        .background(Color.vaultBackground.ignoresSafeArea())
     }
 }
 

@@ -59,6 +59,7 @@ struct ShareVaultView: View {
                 }
                 .padding()
             }
+            .background(Color.vaultBackground.ignoresSafeArea())
             .navigationTitle("Share Vault")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

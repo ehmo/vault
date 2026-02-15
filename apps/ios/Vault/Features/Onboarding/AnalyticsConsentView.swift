@@ -54,6 +54,7 @@ struct AnalyticsConsentView: View {
             .padding(.horizontal, 40)
             .padding(.bottom, 40)
         }
+        .background(Color.vaultBackground.ignoresSafeArea())
     }
 }
 
