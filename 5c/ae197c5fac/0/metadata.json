@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "5cae197c5fac",
+  "session_id": "dcab78b4-18f8-4b08-acd3-69ac914db32e",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-15T06:53:16.035082Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Core/Crypto/CryptoEngine.swift",
+    "apps/ios/Vault/Core/VaultCoreConstants.swift",
+    "apps/ios/VaultTests/CryptoStreamingTests.swift",
+    "apps/ios/VaultTests/ShareExtensionIntegrationTests.swift",
+    "apps/ios/VaultTests/StagedImportManagerTests.swift"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 59,
+    "cache_creation_tokens": 93074,
+    "cache_read_tokens": 5438583,
+    "output_tokens": 1029,
+    "api_call_count": 54
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-15T06:53:15.931583Z",
+    "agent_lines": 8,
+    "human_added": 1022,
+    "human_modified": 3,
+    "human_removed": 0,
+    "total_committed": 1033,
+    "agent_percentage": 0.7744433688286544
+  }
+}
