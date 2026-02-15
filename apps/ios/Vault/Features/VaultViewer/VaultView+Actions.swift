@@ -123,12 +123,26 @@ extension VaultView {
         Task {
             let result = await ImportIngestor.processPendingImports(for: vaultKey)
             await MainActor.run {
-                appState.hasPendingImports = false
-                appState.pendingImportCount = 0
                 if result.imported > 0 {
+                    appState.hasPendingImports = false
+                    appState.pendingImportCount = 0
                     loadFiles()
                     let generator = UINotificationFeedbackGenerator()
                     generator.notificationOccurred(.success)
+                    if result.failed > 0 {
+                        toastMessage = .importFailed(result.failed, imported: result.imported, reason: result.failureReason)
+                    } else {
+                        toastMessage = .filesImported(result.imported)
+                    }
+                } else if result.failed > 0 {
+                    // All imports failed — show error and keep banner visible
+                    toastMessage = .importFailed(result.failed, imported: 0, reason: result.failureReason)
+                    let generator = UINotificationFeedbackGenerator()
+                    generator.notificationOccurred(.error)
+                } else {
+                    // No files to process
+                    appState.hasPendingImports = false
+                    appState.pendingImportCount = 0
                 }
             }
         }
