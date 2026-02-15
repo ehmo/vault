@@ -583,7 +583,7 @@ enum CryptoEngine {
     }
 
     /// XORs a 12-byte nonce with a chunk index (big-endian, into the last 8 bytes).
-    private static func xorNonce(_ baseNonce: Data, with index: UInt64) throws -> Data {
+    static func xorNonce(_ baseNonce: Data, with index: UInt64) throws -> Data {
         guard baseNonce.count == 12 else { throw CryptoError.invalidData }
         var nonce = baseNonce
         var bigEndianIndex = index.bigEndian
@@ -595,7 +595,7 @@ enum CryptoEngine {
         return nonce
     }
 
-    private static func readExact(_ count: Int, from handle: FileHandle) throws -> Data {
+    static func readExact(_ count: Int, from handle: FileHandle) throws -> Data {
         let data = handle.readData(ofLength: count)
         guard data.count == count else { throw CryptoError.invalidData }
         return data

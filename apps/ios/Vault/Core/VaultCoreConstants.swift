@@ -33,8 +33,19 @@ enum VaultCoreConstants {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)
     }
 
+    #if DEBUG
+    /// Test-only override for the pending imports base URL.
+    /// Set this to a temp directory in tests so StagedImportManager works without an app group container.
+    static var testPendingImportsOverride: URL?
+    #endif
+
     /// Returns the pending imports directory URL within the app group container.
     static var pendingImportsURL: URL? {
-        appGroupContainerURL?.appendingPathComponent(pendingImportsDirectory)
+        #if DEBUG
+        if let override = testPendingImportsOverride {
+            return override
+        }
+        #endif
+        return appGroupContainerURL?.appendingPathComponent(pendingImportsDirectory)
     }
 }

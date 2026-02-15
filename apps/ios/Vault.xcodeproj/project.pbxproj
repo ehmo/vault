@@ -117,6 +117,9 @@
 		TS000002B /* PatternSetupCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS000002A /* PatternSetupCoordinatorTests.swift */; };
 		TS000002D /* DateGroupingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS000002C /* DateGroupingTests.swift */; };
 		TS000002F /* VaultFileItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS000002E /* VaultFileItemTests.swift */; };
+		TS0000031 /* CryptoStreamingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000030 /* CryptoStreamingTests.swift */; };
+		TS0000033 /* StagedImportManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000032 /* StagedImportManagerTests.swift */; };
+		TS0000035 /* ShareExtensionIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000034 /* ShareExtensionIntegrationTests.swift */; };
 		019000009 /* PatternSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000008 /* PatternSetupCoordinator.swift */; };
 		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
 		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
@@ -275,6 +278,9 @@
 		TS000002A /* PatternSetupCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinatorTests.swift; sourceTree = "<group>"; };
 		TS000002C /* DateGroupingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateGroupingTests.swift; sourceTree = "<group>"; };
 		TS000002E /* VaultFileItemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFileItemTests.swift; sourceTree = "<group>"; };
+		TS0000030 /* CryptoStreamingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoStreamingTests.swift; sourceTree = "<group>"; };
+		TS0000032 /* StagedImportManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StagedImportManagerTests.swift; sourceTree = "<group>"; };
+		TS0000034 /* ShareExtensionIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareExtensionIntegrationTests.swift; sourceTree = "<group>"; };
 		019000008 /* PatternSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinator.swift; sourceTree = "<group>"; };
 		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
@@ -655,6 +661,9 @@
 				TS000002A /* PatternSetupCoordinatorTests.swift */,
 				TS000002C /* DateGroupingTests.swift */,
 				TS000002E /* VaultFileItemTests.swift */,
+				TS0000030 /* CryptoStreamingTests.swift */,
+				TS0000032 /* StagedImportManagerTests.swift */,
+				TS0000034 /* ShareExtensionIntegrationTests.swift */,
 			);
 			path = VaultTests;
 			sourceTree = "<group>";
@@ -990,6 +999,9 @@
 				TS000002B /* PatternSetupCoordinatorTests.swift in Sources */,
 				TS000002D /* DateGroupingTests.swift in Sources */,
 				TS000002F /* VaultFileItemTests.swift in Sources */,
+				TS0000031 /* CryptoStreamingTests.swift in Sources */,
+				TS0000033 /* StagedImportManagerTests.swift in Sources */,
+				TS0000035 /* ShareExtensionIntegrationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
