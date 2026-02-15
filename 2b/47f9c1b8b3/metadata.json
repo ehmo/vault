@@ -1,0 +1,58 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "2b47f9c1b8b3",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".scratch-pad.md",
+    "apps/ios/AGENTS.md",
+    "apps/ios/DESIGN.md",
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Billing/PaywallTrigger.swift",
+    "apps/ios/Vault/Core/Billing/VaultairePaywallView.swift",
+    "apps/ios/Vault/Core/Crypto/CryptoEngine.swift",
+    "apps/ios/Vault/Core/Storage/ImportIngestor.swift",
+    "apps/ios/Vault/Core/Storage/StagedImportManager.swift",
+    "apps/ios/Vault/Core/Storage/VaultStorage.swift",
+    "apps/ios/Vault/Core/VaultCoreConstants.swift",
+    "apps/ios/Vault/Extensions/ShareExtension/ShareViewController.swift",
+    "apps/ios/Vault/Features/Onboarding/AnalyticsConsentView.swift",
+    "apps/ios/Vault/Features/Onboarding/OnboardingView.swift",
+    "apps/ios/Vault/Features/Onboarding/PaywallStepView.swift",
+    "apps/ios/Vault/Features/Onboarding/PermissionsView.swift",
+    "apps/ios/Vault/Features/Onboarding/ThankYouView.swift",
+    "apps/ios/Vault/Features/PatternLock/PatternLockView.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/Vault/Features/Sharing/ShareVaultView.swift",
+    "apps/ios/Vault/Features/Sharing/SharedVaultInviteView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Actions.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Grid.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Toolbar.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
+    "apps/ios/Vault/UI/Components/LoadingView.swift",
+    "apps/ios/Vault/UI/Components/PendingImportBanner.swift",
+    "apps/ios/VaultTests/CryptoStreamingTests.swift",
+    "apps/ios/VaultTests/ImportIngestorTests.swift",
+    "apps/ios/VaultTests/ShareExtensionIntegrationTests.swift",
+    "apps/ios/VaultTests/StagedImportManagerTests.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/2b/47f9c1b8b3/0/metadata.json",
+      "transcript": "/2b/47f9c1b8b3/0/full.jsonl",
+      "context": "/2b/47f9c1b8b3/0/context.md",
+      "content_hash": "/2b/47f9c1b8b3/0/content_hash.txt",
+      "prompt": "/2b/47f9c1b8b3/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 122,
+    "cache_creation_tokens": 202196,
+    "cache_read_tokens": 15602621,
+    "output_tokens": 6214,
+    "api_call_count": 118
+  }
+}
