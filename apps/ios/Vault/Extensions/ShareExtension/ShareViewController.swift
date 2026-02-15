@@ -14,6 +14,7 @@ final class ShareViewController: UIViewController {
     // MARK: - State
 
     private var receivedItems: [NSExtensionItem] = []
+    private var isProcessing = false
     private var patternView: PatternInputView!
     private var titleLabel: UILabel!
     private var statusLabel: UILabel!
@@ -178,10 +179,11 @@ final class ShareViewController: UIViewController {
             fileMetadata.append(meta)
         }
 
-        // Write manifest LAST (atomic visibility marker)
+        // Release provider references — NSItemProvider may cache loaded representations
         let sourceApp = receivedItems.first?.attributedContentText.map { _ in
             Bundle.main.bundleIdentifier
         } ?? nil
+        receivedItems = []
         let manifest = StagedImportManifest(
             batchId: batchId,
             keyFingerprint: fingerprint,
@@ -404,10 +406,20 @@ final class ShareViewController: UIViewController {
 
 extension ShareViewController: PatternInputDelegate {
     func patternComplete(_ pattern: [Int]) {
+        guard !isProcessing else { return }
+        isProcessing = true
+
         Task {
-            let key = try await KeyDerivation.deriveKey(from: pattern, gridSize: VaultCoreConstants.gridSize)
-            await MainActor.run {
-                self.processSharedContent(with: key)
+            do {
+                let key = try await KeyDerivation.deriveKey(from: pattern, gridSize: VaultCoreConstants.gridSize)
+                await MainActor.run {
+                    self.processSharedContent(with: key)
+                }
+            } catch {
+                await MainActor.run {
+                    self.isProcessing = false
+                    self.showError()
+                }
             }
         }
     }
