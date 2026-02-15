@@ -1,0 +1,241 @@
+Implement the following plan:
+
+# Share Extension Test Suite
+
+## Context
+
+The share extension has had multiple memory crash fixes and hardening over the last session. User wants comprehensive tests to catch regressions fast. Currently **zero tests** exist for streaming encryption, staged import manager, or the share extension flow. Existing CryptoEngineTests only covers single-shot encrypt/decrypt, file headers, HMAC, and streaming format detection.
+
+## Plan
+
+Create **3 new test files** covering all testable share extension code paths:
+
+### 1. `CryptoStreamingTests.swift` — Streaming encryption/decryption edge cases
+
+Tests the code paths the share extension actually uses. **Not covered by existing CryptoEngineTests.**
+
+| Test | What it validates |
+|------|-------------------|
+| `testStreamingEncryptDecryptRoundTrip` | Encrypt file > threshold via streaming, decrypt, compare bytes |
+| `testSingleShotEncryptDecryptAtThreshold` | File exactly at 1MB → single-shot path |
+| `testStreamingEncryptDecryptOneByteOverThreshold` | 1MB+1 → streaming path kicks in |
+| `testEncryptDecryptEmptyFile` | 0-byte file → single-shot, 28 bytes overhead |
+| `testEncryptDecryptOneByte` | 1-byte file → single-shot, 29 bytes encrypted |
+| `testEncryptDecryptLastChunkPartial` | File that doesn't divide evenly into 256KB chunks |
+| `testStreamingToHandleRoundTrip` | `encryptFileStreamingToHandle` → `decryptStreamingToFile` |
+| `testStreamingToHandleSmallFile` | Handle path with file ≤ threshold → single-shot write |
+| `testDecryptStagedAutoDetectsFormat` | `decryptStaged` picks correct path for both formats |
+| `testEncryptedContentSizeAccuracy` | `encryptedContentSize()` matches actual encrypted output for small, threshold, and large files |
+| `testStreamingFromHandleToFileRoundTrip` | `decryptStreamingFromHandleToFile` → verify original bytes |
+| `testWrongKeyDecryptionFails` | Encrypt with key A, decrypt with key B → throws |
+| `testTruncatedStreamingHeaderThrows` | < 33 bytes of streaming data → CryptoError.invalidData |
+| `testWrongMagicNumberThrows` | Correct size but wrong magic → CryptoError.invalidData |
+| `testTruncatedChunkDataThrows` | Valid header but chunk claims more bytes than available |
+| `testCorruptedChunkContentThrows` | Valid header + valid chunk size but garbled ciphertext |
+| `testInvalidKeyLengthThrows` | 16-byte, 64-byte, and empty keys → keyGenerationFailed |
+| `testXorNonceProducesDifferentNonces` | Index 0 vs 1 produce distinct nonces |
+| `testXorNonceInvalidBaseLengthThrows` | 11-byte base nonce → invalidData |
+| `testReadExactShortReadThrows` | FileHandle with fewer bytes than requested |
+| `testMultiChunkStreamingIntegrity` | Large file (3MB+) → verify every byte survives round-trip |
+
+### 2. `StagedImportManagerTests.swift` — Batch management edge cases
+
+Uses a temp directory as a fake app-group container. Tests batch lifecycle.
+
+| Test | What it validates |
+|------|-------------------|
+| `testCreateBatchCreatesDirectory` | Batch dir created, UUID returned |
+| `testWriteAndReadManifestRoundTrip` | JSON encode → decode preserves all fields |
+| `testManifestRetryCountDefaultsToZero` | New manifest has retryCount=0 |
+| `testWriteAndReadEncryptedFile` | Write .enc file → read returns same bytes |
+| `testWriteAndReadEncryptedThumbnail` | Write .thumb.enc → read returns same bytes |
+| `testReadNonexistentFileReturnsNil` | readEncryptedFile for missing UUID → nil |
+| `testReadNonexistentThumbnailReturnsNil` | readEncryptedThumbnail for missing UUID → nil |
+| `testPendingBatchesFiltersByFingerprint` | Two batches with different fingerprints → only matching returned |
+| `testPendingBatchesSortedByTimestamp` | Older batch appears first |
+| `testPendingFileCountAcrossMultipleBatches` | Sum of files across matching batches |
+| `testDeleteBatchRemovesDirectory` | deleteBatch → dir gone |
+| `testIncrementRetryKeepsBatchAtRetryZero` | First call → retryCount 1, batch kept |
+| `testIncrementRetryDeletesBatchAtRetryOne` | Second call → retryCount 2, batch deleted |
+| `testIncrementRetryDeletesOrphanedBatch` | No manifest → batch deleted |
+| `testCleanupOrphansDeletesDirsWithoutManifest` | Orphan dir removed, valid batch kept |
+| `testCleanupExpiredDeletesOldBatches` | Batch older than interval removed |
+| `testCleanupExpiredKeepsRecentBatches` | Batch newer than interval kept |
+| `testDeleteAllBatches` | All batch dirs removed, returns count |
+| `testTotalPendingSizeCalculation` | Sum of all file sizes in all batches |
+| `testManifestCodableRoundTripWithAllFields` | All StagedFileMetadata fields preserved through JSON |
+| `testManifestWithNilSourceAppBundleId` | Optional field encodes/decodes correctly |
+
+### 3. `ShareExtensionIntegrationTests.swift` — End-to-end share flow
+
+Tests the full encrypt-stage-read cycle that the share extension performs.
+
+| Test | What it validates |
+|------|-------------------|
+| `testFullShareFlowSmallFile` | Write file < 1MB → encrypt → stage → read back → decrypt → compare |
+| `testFullShareFlowLargeFile` | Write file > 1MB → streaming encrypt → stage → read back → decrypt |
+| `testFullShareFlowMultipleFiles` | 5 files in one batch → all round-trip correctly |
+| `testThumbnailEncryptDecryptRoundTrip` | Encrypt thumbnail data → write to batch → read → decrypt → compare |
+| `testBatchManifestRecordsCorrectMetadata` | Verify filename, mimeType, originalSize, encryptedSize, hasThumbnail |
+| `testEncryptedSizeLargerThanOriginal` | encryptedSize > originalSize for all files (AES-GCM overhead) |
+| `testBatchWithMixedFileSizes` | Mix of small and large files in one batch → all correct |
+| `testFreeTierLimitEnforcement` | Verify limit check logic for images, videos, files |
+| `testPremiumBypassesFreeTierLimits` | Premium flag → no limit errors |
+| `testKeyFingerprintMatchesAcrossFlows` | Same key → same fingerprint in extension and main app read |
+| `testMultipleBatchesSameKey` | Two separate shares → two batches → both readable |
+| `testCleanupAfterSuccessfulImport` | deleteBatch removes all files + manifest |
+| `testAtomicManifestVisibility` | Files written before manifest → batch only visible after manifest write |
+
+## Files to create
+
+1. `/Users/nan/Work/ai/vault/apps/ios/VaultTests/CryptoStreamingTests.swift`
+2. `/Users/nan/Work/ai/vault/apps/ios/VaultTests/StagedImportManagerTests.swift`
+3. `/Users/nan/Work/ai/vault/apps/ios/VaultTests/ShareExtensionIntegrationTests.swift`
+
+## Files to modify
+
+- `/Users/nan/Work/ai/vault/apps/ios/Vault.xcodeproj/project.pbxproj` — register new test files in VaultTests target
+
+## Patterns to follow
+
+- `import XCTest` + `@testable import Vault`
+- `final class XTests: XCTestCase`
+- MARK comments for grouping
+- `setUp()`/`tearDown()` for temp directory cleanup
+- Generate test keys with `CryptoEngine.generateRandomBytes(count: 32)!`
+- Use temp directories for all file I/O: `FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)`
+
+## Verification
+
+```bash
+xcodebuild test -project Vault.xcodeproj -scheme Vault \
+  -destination 'id=57965726-931A-462A-A262-3A3DAFA7CDDF' \
+  -only-testing:VaultTests/CryptoStreamingTests \
+  -only-testing:VaultTests/StagedImportManagerTests \
+  -only-testing:VaultTests/ShareExtensionIntegrationTests
+```
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Push it to testflight
+
+---
+
+Base directory for this skill: /Users/nan/.claude/skills/asc-xcode-build
+
+# Xcode Build and Export
+
+Use this skill when you need to build an app from source and prepare it for upload to App Store Connect.
+
+## Preconditions
+- Xcode installed and command line tools configured
+- Valid signing identity and provisioning profiles (or automatic signing enabled)
+
+## iOS Build Flow
+
+### 1. Clean and Archive
+```bash
+xcodebuild clean archive \
+  -scheme "YourScheme" \
+  -configuration Release \
+  -archivePath /tmp/YourApp.xcarchive \
+  -destination "generic/platform=iOS"
+```
+
+### 2. Export IPA
+```bash
+xcodebuild -exportArchive \
+  -archivePath /tmp/YourApp.xcarchive \
+  -exportPath /tmp/YourAppExport \
+  -exportOptionsPlist ExportOptions.plist \
+  -allowProvisioningUpdates
+```
+
+A minimal `ExportOptions.plist` for App Store distribution:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>app-store-connect</string>
+    <key>teamID</key>
+    <string>YOUR_TEAM_ID</string>
+</dict>
+</plist>
+```
+
+### 3. Upload with asc
+```bash
+asc builds upload --app "APP_ID" --ipa "/tmp/YourAppExport/YourApp.ipa"
+```
+
+## macOS Build Flow
+
+### 1. Archive
+```bash
+xcodebuild archive \
+  -scheme "YourMacScheme" \
+  -configuration Release \
+  -archivePath /tmp/YourMacApp.xcarchive \
+  -destination "generic/platform=macOS"
+```
+
+### 2. Export PKG
+```bash
+xcodebuild -exportArchive \
+  -archivePath /tmp/YourMacApp.xcarchive \
+  -exportPath /tmp/YourMacAppExport \
+  -exportOptionsPlist ExportOptions.plist \
+  -allowProvisioningUpdates
+```
+
+### 3. Upload PKG
+macOS apps export as `.pkg` files. Use `xcrun altool`:
+```bash
+xcrun altool --upload-app \
+  -f "/tmp/YourMacAppExport/YourApp.pkg" \
+  --type macos \
+  --apiKey "$ASC_KEY_ID" \
+  --apiIssuer "$ASC_ISSUER_ID"
+```
+
+Note: The API key file must be in `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8`
+
+## Build Number Management
+
+Each upload requires a unique build number higher than previously uploaded builds.
+
+In Xcode project settings:
+- `CURRENT_PROJECT_VERSION` - build number (e.g., "316")
+- `MARKETING_VERSION` - version string (e.g., "2.2.0")
+
+Check existing builds:
+```bash
+asc builds list --app "APP_ID" --platform IOS --limit 5
+```
+
+## Troubleshooting
+
+### "No profiles for bundle ID" during export
+- Add `-allowProvisioningUpdates` flag
+- Verify your Apple ID is logged into Xcode
+
+### Build rejected for missing icon (macOS)
+macOS requires ICNS format icons with all sizes:
+- 16x16, 32x32, 128x128, 256x256, 512x512 (1x and 2x)
+
+### CFBundleVersion too low
+The build number must be higher than any previously uploaded build. Increment `CURRENT_PROJECT_VERSION` and rebuild.
+
+## Notes
+- Always clean before archive for release builds
+- Use `xcodebuild -showBuildSettings` to verify configuration
+- For submission issues (encryption, content rights), see `asc-submission-health` skill
+
+---
+
+When I switch between light and dark the change is imminent but system is not. It should read what the system's default is and change should be immediate
