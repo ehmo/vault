@@ -79,6 +79,7 @@ struct WelcomeView: View {
             .padding(.bottom, 40)
             .accessibilityIdentifier("welcome_continue")
         }
+        .background(Color.vaultBackground.ignoresSafeArea())
     }
 }
 

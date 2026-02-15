@@ -245,6 +245,7 @@ struct RecoveryPhraseInputView: View {
                     .multilineTextAlignment(.center)
 
                 TextEditor(text: $phrase)
+                    .scrollContentBackground(.hidden)
                     .frame(height: 120)
                     .padding(8)
                     .background(Color.vaultSurface)

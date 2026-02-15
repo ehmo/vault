@@ -502,6 +502,7 @@ struct ChangePatternView: View {
                 bottomButtons
             }
             .padding()
+            .background(Color.vaultBackground.ignoresSafeArea())
             .navigationTitle("Change Pattern")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -958,6 +959,7 @@ struct CustomRecoveryPhraseInputView: View {
             }
             .navigationTitle("Custom Recovery Phrase")
             .navigationBarTitleDisplayMode(.inline)
+            .background(Color.vaultBackground.ignoresSafeArea())
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -1000,6 +1002,7 @@ struct CustomRecoveryPhraseInputView: View {
                 // Phrase input
                 ZStack(alignment: .topLeading) {
                     TextEditor(text: $customPhrase)
+                        .scrollContentBackground(.hidden)
                         .autocorrectionDisabled()
                         .onChange(of: customPhrase) { _, newValue in
                             validatePhrase(newValue)

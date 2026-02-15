@@ -94,6 +94,7 @@ struct PatternSetupView: View {
             bottomButtons
         }
         .padding()
+        .background(Color.vaultBackground.ignoresSafeArea())
         .overlay {
             if isSaving {
                 Color.black.opacity(0.3)
@@ -162,6 +163,7 @@ struct PatternSetupView: View {
 
                     ZStack(alignment: .topLeading) {
                         TextEditor(text: $customPhrase)
+                            .scrollContentBackground(.hidden)
                             .autocorrectionDisabled()
                             .onChange(of: customPhrase) { _, newValue in
                                 validateCustomPhrase(newValue)

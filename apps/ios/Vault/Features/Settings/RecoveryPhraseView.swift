@@ -83,6 +83,7 @@ struct RecoveryPhraseView: View {
             }
             .navigationTitle("Recovery Phrase")
             .navigationBarTitleDisplayMode(.inline)
+            .background(Color.vaultBackground.ignoresSafeArea())
         }
         .task {
             generateOrLoadPhrase()
