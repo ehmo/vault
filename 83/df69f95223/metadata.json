@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "83df69f95223",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/DESIGN.md",
+    "apps/ios/Vault/App/ContentView.swift",
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Billing/PaywallTrigger.swift",
+    "apps/ios/Vault/Core/Billing/VaultairePaywallView.swift",
+    "apps/ios/Vault/Core/Storage/ImportIngestor.swift",
+    "apps/ios/Vault/Extensions/ShareExtension/ShareViewController.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/Vault/Features/Sharing/ShareVaultView.swift",
+    "apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/SecureImageViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/SecureVideoPlayer.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
+    "apps/ios/Vault/UI/Components/PixelAnimation.swift",
+    "apps/ios/Vault/UI/Components/ToastView.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/83/df69f95223/0/metadata.json",
+      "transcript": "/83/df69f95223/0/full.jsonl",
+      "context": "/83/df69f95223/0/context.md",
+      "content_hash": "/83/df69f95223/0/content_hash.txt",
+      "prompt": "/83/df69f95223/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 44191,
+    "cache_read_tokens": 2156412,
+    "output_tokens": 3400,
+    "api_call_count": 20
+  }
+}

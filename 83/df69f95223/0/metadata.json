@@ -1,0 +1,47 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "83df69f95223",
+  "session_id": "884047a8-97c8-4dcc-ab93-24679fa55577",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-15T05:42:32.207423Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/DESIGN.md",
+    "apps/ios/Vault/App/ContentView.swift",
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Billing/PaywallTrigger.swift",
+    "apps/ios/Vault/Core/Billing/VaultairePaywallView.swift",
+    "apps/ios/Vault/Core/Storage/ImportIngestor.swift",
+    "apps/ios/Vault/Extensions/ShareExtension/ShareViewController.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/Vault/Features/Sharing/ShareVaultView.swift",
+    "apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/SecureImageViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/SecureVideoPlayer.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
+    "apps/ios/Vault/UI/Components/PixelAnimation.swift",
+    "apps/ios/Vault/UI/Components/ToastView.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "906d3330-077f-4274-b345-31976a4bece8",
+  "checkpoint_transcript_start": 1388,
+  "transcript_lines_at_start": 1388,
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 44191,
+    "cache_read_tokens": 2156412,
+    "output_tokens": 3400,
+    "api_call_count": 20
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-15T05:42:31.94646Z",
+    "agent_lines": 0,
+    "human_added": 2,
+    "human_modified": 21,
+    "human_removed": 0,
+    "total_committed": 2,
+    "agent_percentage": 0
+  }
+}
