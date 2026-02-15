@@ -95,9 +95,9 @@ User-selectable: System, Light, Dark.
 ### Implementation
 
 1. Stored in `AppState.appearanceMode`, persisted via UserDefaults key `"appAppearanceMode"`.
-2. Applied globally via `UIWindow.overrideUserInterfaceStyle` — affects all windows, sheets, fullScreenCovers, and alerts.
-3. Also applied via `.preferredColorScheme()` on the root `WindowGroup` as SwiftUI-level backup.
-4. **Never** use `.preferredColorScheme(.dark)` or `.preferredColorScheme(.light)` on individual views.
+2. Applied **exclusively** via `UIWindow.overrideUserInterfaceStyle` — affects all windows, sheets, fullScreenCovers, and alerts.
+3. **Never** use `.preferredColorScheme()` anywhere — it conflicts with UIKit overrides and fails to revert from explicit (light/dark) back to system mode.
+4. New windows (from fullScreenCovers/sheets) are caught via `UIWindow.didBecomeKeyNotification` observer in VaultApp.
 5. Settings path: Settings > App Settings > Appearance > System / Light / Dark.
 
 ## Layout Patterns
