@@ -125,7 +125,7 @@ struct FallbackPaywallView: View {
                 }
                 .padding(.bottom, 32)
             }
-            .background(Color.vaultBackground)
+            .background(Color.vaultBackground.ignoresSafeArea())
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { showPaywall = false }) {

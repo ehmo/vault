@@ -119,10 +119,15 @@ extension VaultView {
     }
 
     func importPendingFiles() {
+        guard !isImportingPendingFiles else { return }
         guard let vaultKey = appState.currentVaultKey else { return }
+        isImportingPendingFiles = true
+        UIApplication.shared.isIdleTimerDisabled = true
         Task {
             let result = await ImportIngestor.processPendingImports(for: vaultKey)
             await MainActor.run {
+                isImportingPendingFiles = false
+                UIApplication.shared.isIdleTimerDisabled = false
                 if result.imported > 0 {
                     appState.hasPendingImports = false
                     appState.pendingImportCount = 0
@@ -135,7 +140,7 @@ extension VaultView {
                         toastMessage = .filesImported(result.imported)
                     }
                 } else if result.failed > 0 {
-                    // All imports failed — show error and keep banner visible
+                    // All imports failed — show error and keep banner visible for retry
                     toastMessage = .importFailed(result.failed, imported: 0, reason: result.failureReason)
                     let generator = UINotificationFeedbackGenerator()
                     generator.notificationOccurred(.error)
@@ -225,7 +230,9 @@ extension VaultView {
                 // Trigger sync if sharing
                 await ShareSyncManager.shared.scheduleSync(vaultKey: key)
             } catch {
-                // Handle error silently
+                await MainActor.run {
+                    self.toastMessage = .importFailed(1, imported: 0, reason: error.localizedDescription)
+                }
             }
         }
     }
@@ -495,9 +502,14 @@ extension VaultView {
 
         activeImportTask = Task.detached(priority: .userInitiated) {
             var successCount = 0
+            var failedCount = 0
+            var lastErrorReason: String?
             for (index, url) in urls.enumerated() {
                 guard !Task.isCancelled else { break }
-                guard url.startAccessingSecurityScopedResource() else { continue }
+                guard url.startAccessingSecurityScopedResource() else {
+                    failedCount += 1
+                    continue
+                }
                 defer { url.stopAccessingSecurityScopedResource() }
 
                 let filename = url.lastPathComponent
@@ -547,6 +559,8 @@ extension VaultView {
                     successCount += 1
                 } catch {
                     if Task.isCancelled { break }
+                    failedCount += 1
+                    lastErrorReason = error.localizedDescription
                     if showProgress {
                         await MainActor.run { self.importProgress = (index + 1, count) }
                     }
@@ -554,11 +568,19 @@ extension VaultView {
             }
 
             let imported = successCount
+            let failed = failedCount
+            let errorReason = lastErrorReason
             await MainActor.run {
                 guard !Task.isCancelled else { return }
                 self.importProgress = nil
                 UIApplication.shared.isIdleTimerDisabled = false
-                self.toastMessage = .filesImported(imported)
+                if failed > 0 && imported == 0 {
+                    self.toastMessage = .importFailed(failed, imported: 0, reason: errorReason)
+                } else if failed > 0 {
+                    self.toastMessage = .importFailed(failed, imported: imported, reason: errorReason)
+                } else {
+                    self.toastMessage = .filesImported(imported)
+                }
                 // Switch to All filter so imported files are visible
                 if imported > 0 && self.fileFilter != .all {
                     self.fileFilter = .all

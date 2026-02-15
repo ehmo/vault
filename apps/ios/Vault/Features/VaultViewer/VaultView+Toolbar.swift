@@ -51,9 +51,11 @@ extension VaultView {
                 sharedVaultBannerView
             }
             if appState.hasPendingImports {
-                PendingImportBanner(fileCount: appState.pendingImportCount) {
-                    importPendingFiles()
-                }
+                PendingImportBanner(
+                    fileCount: appState.pendingImportCount,
+                    onImport: { importPendingFiles() },
+                    isImporting: $isImportingPendingFiles
+                )
             }
         }
         .padding(.bottom, (!files.isEmpty && !showingSettings) ? 6 : 0)

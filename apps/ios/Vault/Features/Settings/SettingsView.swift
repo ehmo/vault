@@ -560,6 +560,7 @@ struct DuressSetupSheet: View {
             .padding()
             .navigationTitle("Duress Vault")
             .navigationBarTitleDisplayMode(.inline)
+            .background(Color.vaultBackground.ignoresSafeArea())
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -879,6 +880,7 @@ struct RestoreFromBackupView: View {
                     restoreContentView
                 }
             }
+            .background(Color.vaultBackground.ignoresSafeArea())
             .navigationTitle("Restore from Backup")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

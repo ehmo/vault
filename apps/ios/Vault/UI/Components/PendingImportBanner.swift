@@ -5,8 +5,7 @@ import SwiftUI
 struct PendingImportBanner: View {
     let fileCount: Int
     let onImport: () -> Void
-
-    @State private var isImporting = false
+    @Binding var isImporting: Bool
 
     var body: some View {
         HStack(spacing: 12) {
