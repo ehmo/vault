@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "1733a033ba21",
+  "session_id": "dcab78b4-18f8-4b08-acd3-69ac914db32e",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-15T07:42:07.442675Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Crypto/CryptoEngine.swift",
+    "apps/ios/Vault/Core/Storage/ImportIngestor.swift",
+    "apps/ios/Vault/Core/VaultCoreConstants.swift",
+    "apps/ios/Vault/Features/Onboarding/AnalyticsConsentView.swift",
+    "apps/ios/Vault/Features/Onboarding/OnboardingView.swift",
+    "apps/ios/Vault/Features/Onboarding/PaywallStepView.swift",
+    "apps/ios/Vault/Features/Onboarding/PermissionsView.swift",
+    "apps/ios/Vault/Features/Onboarding/ThankYouView.swift",
+    "apps/ios/Vault/Features/Sharing/ShareVaultView.swift",
+    "apps/ios/Vault/Features/Sharing/SharedVaultInviteView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Actions.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
+    "apps/ios/Vault/UI/Components/LoadingView.swift",
+    "apps/ios/VaultTests/CryptoStreamingTests.swift",
+    "apps/ios/VaultTests/ShareExtensionIntegrationTests.swift",
+    "apps/ios/VaultTests/StagedImportManagerTests.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "5010e82a-3eb9-4e5c-8aeb-c9f491cce377",
+  "checkpoint_transcript_start": 1035,
+  "transcript_lines_at_start": 1035,
+  "token_usage": {
+    "input_tokens": 109,
+    "cache_creation_tokens": 214930,
+    "cache_read_tokens": 9555144,
+    "output_tokens": 4275,
+    "api_call_count": 95
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-15T07:42:06.872402Z",
+    "agent_lines": 70,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 70,
+    "agent_percentage": 100
+  }
+}
