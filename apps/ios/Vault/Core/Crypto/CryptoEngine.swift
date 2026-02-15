@@ -332,7 +332,7 @@ enum CryptoEngine {
             _ = try AES.GCM.Nonce(data: nonce)
             let sealedBox = try AES.GCM.SealedBox(combined: encChunk)
             let decrypted = try AES.GCM.open(sealedBox, using: symmetricKey)
-            handle.write(decrypted)
+            try handle.write(contentsOf: decrypted)
         }
     }
 
@@ -377,7 +377,7 @@ enum CryptoEngine {
             _ = try AES.GCM.Nonce(data: nonce)
             let sealedBox = try AES.GCM.SealedBox(combined: encChunk)
             let decrypted = try AES.GCM.open(sealedBox, using: symmetricKey)
-            outputHandle.write(decrypted)
+            try outputHandle.write(contentsOf: decrypted)
         }
 
         guard consumedBytes == contentLength else {
@@ -509,6 +509,8 @@ enum CryptoEngine {
 
     /// Stream-encrypts a file directly to a FileHandle, writing chunks as they're encrypted.
     /// Peak memory: ~256KB (one chunk) instead of the entire file.
+    /// Uses throwing `write(contentsOf:)` so disk-full errors propagate as Swift errors
+    /// instead of crashing via uncatchable Objective-C NSExceptions.
     static func encryptFileStreamingToHandle(from sourceURL: URL, to handle: FileHandle, with key: Data) throws {
         guard key.count == 32 else { throw CryptoError.keyGenerationFailed }
         let fileSize = try FileManager.default.attributesOfItem(atPath: sourceURL.path)[.size] as? Int ?? 0
@@ -517,7 +519,7 @@ enum CryptoEngine {
             // Small file: single-shot encrypt and write
             let data = try Data(contentsOf: sourceURL)
             let encrypted = try encrypt(data, with: key)
-            handle.write(encrypted)
+            try handle.write(contentsOf: encrypted)
             return
         }
 
@@ -532,16 +534,16 @@ enum CryptoEngine {
 
         // Write streaming header (33 bytes)
         var magic = VaultCoreConstants.streamingMagic
-        handle.write(Data(bytes: &magic, count: 4))
+        try handle.write(contentsOf: Data(bytes: &magic, count: 4))
         var version = VaultCoreConstants.streamingVersion
-        handle.write(Data(bytes: &version, count: 1))
+        try handle.write(contentsOf: Data(bytes: &version, count: 1))
         var cs = UInt32(chunkSize)
-        handle.write(Data(bytes: &cs, count: 4))
+        try handle.write(contentsOf: Data(bytes: &cs, count: 4))
         var tc = UInt32(totalChunks)
-        handle.write(Data(bytes: &tc, count: 4))
+        try handle.write(contentsOf: Data(bytes: &tc, count: 4))
         var os = UInt64(fileSize)
-        handle.write(Data(bytes: &os, count: 8))
-        handle.write(baseNonceData)
+        try handle.write(contentsOf: Data(bytes: &os, count: 8))
+        try handle.write(contentsOf: baseNonceData)
 
         // Stream chunks: read → encrypt → write, one chunk at a time
         let sourceHandle = try FileHandle(forReadingFrom: sourceURL)
@@ -559,8 +561,8 @@ enum CryptoEngine {
             }
 
             var encSize = UInt32(combined.count)
-            handle.write(Data(bytes: &encSize, count: 4))
-            handle.write(combined)
+            try handle.write(contentsOf: Data(bytes: &encSize, count: 4))
+            try handle.write(contentsOf: combined)
         }
     }
 
