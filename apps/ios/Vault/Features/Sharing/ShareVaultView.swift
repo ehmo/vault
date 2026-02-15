@@ -36,27 +36,7 @@ struct ShareVaultView: View {
     @State private var activeShares: [VaultStorage.ShareRecord] = []
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                Button("Cancel") {
-                    if case .uploading = mode {
-                        showDismissWarning = true
-                    } else {
-                        dismiss()
-                    }
-                }
-                .accessibilityIdentifier("share_cancel")
-                Spacer()
-                Text("Share Vault")
-                    .font(.headline)
-                Spacer()
-                Button("Cancel") { }.opacity(0)
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 12)
-            Divider()
-
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
                     // Upload status indicator
@@ -78,6 +58,20 @@ struct ShareVaultView: View {
                     }
                 }
                 .padding()
+            }
+            .navigationTitle("Share Vault")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        if case .uploading = mode {
+                            showDismissWarning = true
+                        } else {
+                            dismiss()
+                        }
+                    }
+                    .accessibilityIdentifier("share_cancel")
+                }
             }
         }
         .interactiveDismissDisabled({

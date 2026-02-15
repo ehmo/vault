@@ -26,7 +26,7 @@ struct PremiumGateModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .sheet(isPresented: $showPaywall) {
+            .fullScreenCover(isPresented: $showPaywall) {
                 if subscriptionManager.hasProducts {
                     VaultairePaywallView(onDismiss: { showPaywall = false })
                 } else {

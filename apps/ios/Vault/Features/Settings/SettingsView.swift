@@ -512,7 +512,7 @@ struct DuressPatternSettingsView: View {
         .task {
             hasDuressVault = await DuressHandler.shared.hasDuressVault
         }
-        .sheet(isPresented: $showingSetupSheet) {
+        .fullScreenCover(isPresented: $showingSetupSheet) {
             DuressSetupSheet()
         }
     }
@@ -626,7 +626,7 @@ struct iCloudBackupSettingsView: View {
         .onChange(of: isBackupEnabled) { _, enabled in
             handleToggleChange(enabled)
         }
-        .sheet(isPresented: $showingRestore) {
+        .fullScreenCover(isPresented: $showingRestore) {
             RestoreFromBackupView()
         }
     }

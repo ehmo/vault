@@ -30,20 +30,32 @@ struct VaultairePaywallView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                headerSection
-                benefitsTable
-                planSelector
-                trialToggle
-                ctaButton
-                footerSection
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    headerSection
+                    benefitsTable
+                    planSelector
+                    trialToggle
+                    ctaButton
+                    footerSection
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 32)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 32)
+            .background(Color.vaultBackground.ignoresSafeArea())
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button {
+                        onDismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.vaultSecondaryText)
+                    }
+                }
+            }
         }
-        .background(Color.vaultBackground.ignoresSafeArea())
     }
 
     // MARK: - Header

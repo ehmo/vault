@@ -376,10 +376,10 @@ struct VaultView: View {
                     allowDownloads: sharePolicy?.allowDownloads ?? true
                 )
             } else {
-                Color.black.ignoresSafeArea()
+                Color.vaultBackground.ignoresSafeArea()
             }
         }
-        .sheet(item: $selectedFile) { file in
+        .fullScreenCover(item: $selectedFile) { file in
             SecureImageViewer(
                 file: file,
                 vaultKey: appState.currentVaultKey,
@@ -391,14 +391,11 @@ struct VaultView: View {
                 },
                 allowDownloads: sharePolicy?.allowDownloads ?? true
             )
-            .presentationDetents([.medium, .large])
         }
-        .sheet(isPresented: $showingSettings) {
+        .fullScreenCover(isPresented: $showingSettings) {
             NavigationStack {
                 VaultSettingsView()
             }
-            .presentationDetents([.large])
-            .preferredColorScheme(appState.appearanceMode.preferredColorScheme)
         }
         .ignoresSafeArea(.keyboard)
         .alert("Vault Unavailable", isPresented: $showSelfDestructAlert) {

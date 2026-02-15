@@ -155,17 +155,17 @@ struct VaultSettingsView: View {
                     .accessibilityIdentifier("vault_settings_done")
             }
         }
-        .sheet(isPresented: $showingChangePattern) {
+        .fullScreenCover(isPresented: $showingChangePattern) {
             ChangePatternView()
                 .interactiveDismissDisabled()
         }
-        .sheet(isPresented: $showingRegeneratedPhrase) {
+        .fullScreenCover(isPresented: $showingRegeneratedPhrase) {
             RecoveryPhraseView()
         }
-        .sheet(isPresented: $showingShareVault) {
+        .fullScreenCover(isPresented: $showingShareVault) {
             ShareVaultView()
         }
-        .sheet(isPresented: $showingCustomPhraseInput) {
+        .fullScreenCover(isPresented: $showingCustomPhraseInput) {
             CustomRecoveryPhraseInputView()
                 .interactiveDismissDisabled()
         }
