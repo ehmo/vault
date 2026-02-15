@@ -34,18 +34,15 @@ struct ToastView: View {
         HStack(spacing: 10) {
             Image(systemName: toast.icon)
                 .font(.body.weight(.semibold))
-                .foregroundStyle(.white)
 
             Text(toast.message)
                 .font(.subheadline.weight(.medium))
-                .foregroundStyle(.white)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(.ultraThinMaterial)
-        .background(Color.black.opacity(0.6))
         .clipShape(Capsule())
-        .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+        .shadow(radius: 8, y: 4)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isStaticText)
     }

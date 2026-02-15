@@ -50,9 +50,9 @@ struct ContentView: View {
                     .transition(.opacity)
             }
 
-            // Screenshot detected: full-screen black overlay (covers UI before lock)
+            // Screenshot detected: full-screen overlay (covers UI before lock)
             if appState.screenshotDetected {
-                Color.black
+                Color.vaultBackground
                     .ignoresSafeArea()
             }
         }

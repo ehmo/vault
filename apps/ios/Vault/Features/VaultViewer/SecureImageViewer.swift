@@ -25,25 +25,22 @@ struct SecureImageViewer: View {
                 Button("Done") {
                     dismiss()
                 }
-                .foregroundStyle(.white)
                 Spacer()
                 Button(action: { showingActions = true }) {
                     Image(systemName: "ellipsis.circle")
-                        .foregroundStyle(.white)
                         .imageScale(.large)
                 }
             }
             .padding(.horizontal)
             .padding(.vertical, 12)
-            .background(Color.black)
+            .background(Color.vaultBackground)
             Divider()
 
             ZStack {
-                Color.black.ignoresSafeArea()
+                Color.vaultBackground.ignoresSafeArea()
 
                 if isLoading {
                     ProgressView()
-                        .tint(.white)
                 } else if let image = image {
                     imageView(image)
                 } else if let url = tempFileURL {
@@ -113,11 +110,10 @@ struct SecureImageViewer: View {
 
             Text("Unable to load file")
                 .font(.headline)
-                .foregroundStyle(.white)
 
             Text(message)
                 .font(.subheadline)
-                .foregroundStyle(.gray)
+                .foregroundStyle(.vaultSecondaryText)
         }
     }
 

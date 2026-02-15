@@ -38,6 +38,7 @@ struct VaultApp: App {
                 .environment(deepLinkHandler)
                 .environment(SubscriptionManager.shared)
                 .preferredColorScheme(appState.appearanceMode.preferredColorScheme)
+                .onAppear { appState.applyAppearanceToAllWindows() }
                 .onOpenURL { url in
                     deepLinkHandler.handle(url)
                 }
@@ -99,6 +100,23 @@ final class AppState {
     func setAppearanceMode(_ mode: AppAppearanceMode) {
         appearanceMode = mode
         UserDefaults.standard.set(mode.rawValue, forKey: Self.appearanceModeKey)
+        applyAppearanceToAllWindows()
+    }
+
+    /// Applies the user's appearance mode to all UIKit windows, ensuring sheets,
+    /// fullScreenCovers, and alerts all respect the setting immediately.
+    func applyAppearanceToAllWindows() {
+        let style: UIUserInterfaceStyle = switch appearanceMode {
+        case .system: .unspecified
+        case .light: .light
+        case .dark: .dark
+        }
+        for scene in UIApplication.shared.connectedScenes {
+            guard let windowScene = scene as? UIWindowScene else { continue }
+            for window in windowScene.windows {
+                window.overrideUserInterfaceStyle = style
+            }
+        }
     }
 
     func unlockWithPattern(_ pattern: [Int], gridSize: Int = 5, precomputedKey: Data? = nil) async -> Bool {

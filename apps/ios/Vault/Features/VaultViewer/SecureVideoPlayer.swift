@@ -17,20 +17,18 @@ struct SecureVideoPlayer: View {
                 Button("Done") {
                     dismiss()
                 }
-                .foregroundStyle(.white)
                 Spacer()
             }
             .padding(.horizontal)
             .padding(.vertical, 12)
-            .background(Color.black)
+            .background(Color.vaultBackground)
             Divider()
 
             ZStack {
-                Color.black.ignoresSafeArea()
+                Color.vaultBackground.ignoresSafeArea()
 
                 if isLoading {
                     ProgressView()
-                        .tint(.white)
                 } else if let player = player {
                     VideoPlayer(player: player)
                         .ignoresSafeArea()
@@ -53,11 +51,10 @@ struct SecureVideoPlayer: View {
 
             Text("Unable to play video")
                 .font(.headline)
-                .foregroundStyle(.white)
 
             Text(message)
                 .font(.subheadline)
-                .foregroundStyle(.gray)
+                .foregroundStyle(.vaultSecondaryText)
         }
     }
 

@@ -63,7 +63,6 @@ struct FallbackPaywallView: View {
 
                         Text("Vaultaire PRO")
                             .font(.largeTitle.bold())
-                            .foregroundStyle(.white)
 
                         Text("Unlock the full power of Vaultaire")
                             .font(.subheadline)
@@ -82,7 +81,6 @@ struct FallbackPaywallView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(feature.title)
                                         .font(.body.weight(.semibold))
-                                        .foregroundStyle(.white)
                                     Text(feature.description)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
@@ -127,7 +125,7 @@ struct FallbackPaywallView: View {
                 }
                 .padding(.bottom, 32)
             }
-            .background(Color.black)
+            .background(Color.vaultBackground)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { showPaywall = false }) {
@@ -137,7 +135,7 @@ struct FallbackPaywallView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
+        // Color scheme is inherited from the global AppState appearance override
     }
 }
 

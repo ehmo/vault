@@ -104,21 +104,19 @@ struct AppSettingsView: View {
                 }
             }
 
-            // Security & Privacy (merged)
+            // Settings
             Section {
-                Picker(
-                    "Appearance",
-                    selection: Binding(
-                        get: { appState.appearanceMode },
-                        set: { appState.setAppearanceMode($0) }
-                    )
-                ) {
-                    ForEach(AppAppearanceMode.allCases, id: \.rawValue) { mode in
-                        Text(mode.title).tag(mode)
+                NavigationLink {
+                    AppearanceSettingsView()
+                } label: {
+                    HStack {
+                        Text("Appearance")
+                        Spacer()
+                        Text(appState.appearanceMode.title)
+                            .foregroundStyle(.vaultSecondaryText)
                     }
                 }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("app_appearance_picker")
+                .accessibilityIdentifier("app_appearance_setting")
 
                 Toggle("Show pattern feedback", isOn: $showFeedback)
                     .accessibilityIdentifier("app_pattern_feedback")
@@ -424,6 +422,38 @@ struct AppSettingsView: View {
 struct SettingsView: View {
     var body: some View {
         AppSettingsView()
+    }
+}
+
+// MARK: - Appearance Settings
+
+struct AppearanceSettingsView: View {
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(AppAppearanceMode.allCases, id: \.rawValue) { mode in
+                    Button {
+                        appState.setAppearanceMode(mode)
+                    } label: {
+                        HStack {
+                            Text(mode.title)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            if appState.appearanceMode == mode {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(.accent)
+                                    .fontWeight(.semibold)
+                            }
+                        }
+                    }
+                    .accessibilityIdentifier("appearance_\(mode.rawValue)")
+                }
+            }
+        }
+        .navigationTitle("Appearance")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

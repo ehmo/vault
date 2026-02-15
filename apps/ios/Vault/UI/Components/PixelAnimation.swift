@@ -19,7 +19,7 @@ struct PixelAnimation: View {
     var pixelSize: CGFloat = 10
     var spacing: CGFloat = 0
     var timerInterval: Double = 0.1
-    var animationDuration: Double = 0.25
+    var animationDuration: Double = 0.3
     var pattern: [[Int]] = [[1, 2, 3, 6, 9, 8, 7, 4]]
 
     @State private var step: Int = 0
@@ -37,7 +37,7 @@ struct PixelAnimation: View {
         pixelSize: CGFloat = 10,
         spacing: CGFloat = 0,
         timerInterval: Double = 0.1,
-        animationDuration: Double = 0.25,
+        animationDuration: Double = 0.3,
         pattern: [[Int]] = [[1, 2, 3, 6, 9, 8, 7, 4]]
     ) {
         self.brightness = brightness
@@ -166,11 +166,11 @@ private extension UIColor {
 #Preview("Loading") {
     PixelAnimation.loading(size: 80)
         .padding()
-        .background(.black)
+        .background(Color.vaultBackground)
 }
 
 #Preview("Syncing") {
     PixelAnimation.syncing()
         .padding()
-        .background(.black)
+        .background(Color.vaultBackground)
 }

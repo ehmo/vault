@@ -44,7 +44,7 @@ struct FullScreenPhotoViewer: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.black
+                Color.vaultBackground
                     .opacity(backgroundOpacity)
                     .ignoresSafeArea()
 
@@ -53,7 +53,7 @@ struct FullScreenPhotoViewer: View {
                         ForEach(Array(files.enumerated()), id: \.element.id) { index, file in
                             photoPage(file: file)
                                 .frame(width: geometry.size.width, height: geometry.size.height)
-                                .background(Color.black)
+                                .background(Color.vaultBackground)
                                 .clipped()
                                 .id(index)
                         }
@@ -84,14 +84,12 @@ struct FullScreenPhotoViewer: View {
                 VStack {
                     HStack {
                         Button("Done") { dismiss() }
-                            .foregroundStyle(.white)
                             .frame(minWidth: 44, minHeight: 44)
                             .accessibilityIdentifier("viewer_done")
                         Spacer()
                         if onDelete != nil || allowDownloads {
                             Button(action: { showingActions = true }) {
                                 Image(systemName: "ellipsis.circle")
-                                    .foregroundStyle(.white)
                                     .imageScale(.large)
                             }
                             .frame(minWidth: 44, minHeight: 44)
@@ -188,7 +186,7 @@ struct FullScreenPhotoViewer: View {
                     } label: {
                         Image(systemName: "play.circle.fill")
                             .font(.system(size: 72))
-                            .foregroundStyle(.white.opacity(0.9))
+                            .foregroundStyle(.vaultSecondaryText)
                             .shadow(radius: 4)
                     }
                     .buttonStyle(.plain)
@@ -197,7 +195,6 @@ struct FullScreenPhotoViewer: View {
             }
         } else {
             ProgressView()
-                .tint(.white)
                 .containerRelativeFrame([.horizontal, .vertical])
                 .task(id: file.id) {
                     await loadFullImage(for: file)
