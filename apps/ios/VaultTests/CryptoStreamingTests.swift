@@ -325,4 +325,59 @@ final class CryptoStreamingTests: XCTestCase {
         XCTAssertEqual(decrypted.count, originalData.count)
         XCTAssertEqual(decrypted, originalData, "Every byte must survive round-trip")
     }
+
+    // MARK: - decryptStagedFileToURL (file-to-file decryption)
+
+    func testDecryptStagedFileToURLStreamingFormat() throws {
+        // Encrypt a large file with streaming format via encryptFileStreamingToHandle
+        let size = VaultCoreConstants.streamingThreshold + 2048
+        let sourceURL = writeTestFile(size: size)
+        let originalData = try Data(contentsOf: sourceURL)
+
+        let encryptedURL = tempDir.appendingPathComponent("staged.enc")
+        FileManager.default.createFile(atPath: encryptedURL.path, contents: nil)
+        let handle = try FileHandle(forWritingTo: encryptedURL)
+        try CryptoEngine.encryptFileStreamingToHandle(from: sourceURL, to: handle, with: key)
+        try handle.close()
+
+        // Decrypt directly from file to file (no in-memory buffering of entire file)
+        let outputURL = tempDir.appendingPathComponent("decrypted.bin")
+        try CryptoEngine.decryptStagedFileToURL(from: encryptedURL, to: outputURL, with: key)
+
+        let decrypted = try Data(contentsOf: outputURL)
+        XCTAssertEqual(decrypted, originalData)
+    }
+
+    func testDecryptStagedFileToURLSingleShotFormat() throws {
+        // Encrypt a small file with single-shot format via encryptFileStreamingToHandle
+        let size = 512
+        let sourceURL = writeTestFile(size: size)
+        let originalData = try Data(contentsOf: sourceURL)
+
+        let encryptedURL = tempDir.appendingPathComponent("staged_small.enc")
+        FileManager.default.createFile(atPath: encryptedURL.path, contents: nil)
+        let handle = try FileHandle(forWritingTo: encryptedURL)
+        try CryptoEngine.encryptFileStreamingToHandle(from: sourceURL, to: handle, with: key)
+        try handle.close()
+
+        let outputURL = tempDir.appendingPathComponent("decrypted_small.bin")
+        try CryptoEngine.decryptStagedFileToURL(from: encryptedURL, to: outputURL, with: key)
+
+        let decrypted = try Data(contentsOf: outputURL)
+        XCTAssertEqual(decrypted, originalData)
+    }
+
+    func testDecryptStagedFileToURLWrongKeyThrows() throws {
+        let sourceURL = writeTestFile(size: VaultCoreConstants.streamingThreshold + 512)
+
+        let encryptedURL = tempDir.appendingPathComponent("staged_wrongkey.enc")
+        FileManager.default.createFile(atPath: encryptedURL.path, contents: nil)
+        let handle = try FileHandle(forWritingTo: encryptedURL)
+        try CryptoEngine.encryptFileStreamingToHandle(from: sourceURL, to: handle, with: key)
+        try handle.close()
+
+        let wrongKey = CryptoEngine.generateRandomBytes(count: 32)!
+        let outputURL = tempDir.appendingPathComponent("decrypted_wrongkey.bin")
+        XCTAssertThrowsError(try CryptoEngine.decryptStagedFileToURL(from: encryptedURL, to: outputURL, with: wrongKey))
+    }
 }

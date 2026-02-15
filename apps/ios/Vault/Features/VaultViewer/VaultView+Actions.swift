@@ -218,7 +218,8 @@ extension VaultView {
                         size: imageData.count,
                         encryptedThumbnail: encThumb,
                         mimeType: "image/jpeg",
-                        filename: filename
+                        filename: filename,
+                        createdAt: Date()
                     ))
                     if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: self.files.count) {
                         self.toastMessage = .milestone(milestone)
@@ -313,7 +314,7 @@ extension VaultView {
                             self.files.append(VaultFileItem(
                                 id: fileId, size: fileSize,
                                 encryptedThumbnail: encThumb, mimeType: mimeType,
-                                filename: filename, duration: metadata.duration
+                                filename: filename, createdAt: Date(), duration: metadata.duration
                             ))
                             self.importProgress = (index + 1, count)
                         }
@@ -357,7 +358,7 @@ extension VaultView {
                             self.files.append(VaultFileItem(
                                 id: fileId, size: jpegData.count,
                                 encryptedThumbnail: encThumb, mimeType: mimeType,
-                                filename: filename
+                                filename: filename, createdAt: Date()
                             ))
                             self.importProgress = (index + 1, count)
                         }
@@ -531,7 +532,7 @@ extension VaultView {
                             self.files.append(VaultFileItem(
                                 id: fileId, size: fileSize,
                                 encryptedThumbnail: encThumb, mimeType: mimeType,
-                                filename: filename, duration: metadata.duration
+                                filename: filename, createdAt: Date(), duration: metadata.duration
                             ))
                             if showProgress { self.importProgress = (index + 1, count) }
                         }
@@ -551,7 +552,7 @@ extension VaultView {
                             self.files.append(VaultFileItem(
                                 id: fileId, size: fileSize,
                                 encryptedThumbnail: encThumb, mimeType: mimeType,
-                                filename: filename
+                                filename: filename, createdAt: Date()
                             ))
                             if showProgress { self.importProgress = (index + 1, count) }
                         }

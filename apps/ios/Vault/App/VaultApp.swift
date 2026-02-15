@@ -15,14 +15,6 @@ enum AppAppearanceMode: String, CaseIterable {
         case .dark: "Dark"
         }
     }
-
-    var preferredColorScheme: ColorScheme? {
-        switch self {
-        case .system: nil
-        case .light: .light
-        case .dark: .dark
-        }
-    }
 }
 
 @main
@@ -38,8 +30,16 @@ struct VaultApp: App {
                 .environment(appState)
                 .environment(deepLinkHandler)
                 .environment(SubscriptionManager.shared)
-                .preferredColorScheme(appState.effectiveColorScheme)
                 .onAppear {
+                    appState.applyAppearanceToAllWindows()
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                    // Re-apply when app becomes active — catches system appearance changes
+                    appState.applyAppearanceToAllWindows()
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIWindow.didBecomeKeyNotification)) { _ in
+                    // Re-apply when any new window becomes key — catches fullScreenCovers,
+                    // sheets, and alerts which create new UIWindows
                     appState.applyAppearanceToAllWindows()
                 }
                 .onOpenURL { url in
@@ -65,11 +65,16 @@ final class AppState {
     var suppressLockForShareSheet = false
     private(set) var appearanceMode: AppAppearanceMode
 
-    /// The color scheme to apply via `.preferredColorScheme()`.
-    /// For light/dark: returns the explicit scheme.
-    /// For system: returns nil so iOS follows the device appearance automatically.
-    var effectiveColorScheme: ColorScheme? {
-        appearanceMode.preferredColorScheme
+    /// The UIKit interface style for the current appearance mode.
+    /// Used exclusively via `window.overrideUserInterfaceStyle` — we do NOT use
+    /// SwiftUI's `.preferredColorScheme()` because it conflicts with UIKit overrides
+    /// and fails to revert from explicit (light/dark) back to system (.unspecified).
+    var effectiveInterfaceStyle: UIUserInterfaceStyle {
+        switch appearanceMode {
+        case .system: .unspecified
+        case .light: .light
+        case .dark: .dark
+        }
     }
 
     private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "AppState")
@@ -115,12 +120,10 @@ final class AppState {
 
     /// Applies the user's appearance mode to all UIKit windows, ensuring sheets,
     /// fullScreenCovers, and alerts all respect the setting immediately.
+    /// This is the SOLE mechanism for appearance control — SwiftUI's
+    /// `.preferredColorScheme()` is intentionally not used.
     func applyAppearanceToAllWindows() {
-        let style: UIUserInterfaceStyle = switch appearanceMode {
-        case .system: .unspecified
-        case .light: .light
-        case .dark: .dark
-        }
+        let style = effectiveInterfaceStyle
         for scene in UIApplication.shared.connectedScenes {
             guard let windowScene = scene as? UIWindowScene else { continue }
             for window in windowScene.windows {

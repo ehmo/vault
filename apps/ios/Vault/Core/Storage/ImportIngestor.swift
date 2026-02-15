@@ -81,19 +81,24 @@ enum ImportIngestor {
 
         for file in batch.files {
             do {
-                // Read encrypted file
-                guard let encryptedData = StagedImportManager.readEncryptedFile(
+                // Get encrypted file URL (never loads entire file into memory)
+                guard let encryptedURL = StagedImportManager.encryptedFileURL(
                     batchId: batch.batchId,
                     fileId: file.fileId
                 ) else {
+                    importIngestorLogger.error("Encrypted file not found: \(file.fileId, privacy: .public)")
                     failed += 1
                     continue
                 }
 
-                // Decrypt (handles both streaming and single-shot)
-                let decryptedData = try CryptoEngine.decryptStaged(encryptedData, with: vaultKey)
+                // Decrypt directly to temp file — streaming format uses ~256KB peak memory,
+                // single-shot loads only small files (≤1MB) into memory
+                let tempURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("\(file.fileId.uuidString)_import")
+                    .appendingPathExtension(URL(string: file.filename)?.pathExtension ?? "dat")
+                try CryptoEngine.decryptStagedFileToURL(from: encryptedURL, to: tempURL, with: vaultKey)
 
-                // Decrypt thumbnail if available from share extension
+                // Decrypt thumbnail if available from share extension (always small, safe in memory)
                 var thumbnailData: Data?
                 if file.hasThumbnail,
                    let encThumb = StagedImportManager.readEncryptedThumbnail(
@@ -102,13 +107,6 @@ enum ImportIngestor {
                    ) {
                     thumbnailData = try? CryptoEngine.decrypt(encThumb, with: vaultKey)
                 }
-
-                // Write decrypted data to temp file so VaultStorage can stream-encrypt
-                // without holding both decrypted and re-encrypted data in memory
-                let tempURL = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("\(file.fileId.uuidString)_import")
-                    .appendingPathExtension(URL(string: file.filename)?.pathExtension ?? "dat")
-                try decryptedData.write(to: tempURL)
 
                 // Generate thumbnail if the share extension didn't provide one
                 if thumbnailData == nil {
@@ -126,6 +124,7 @@ enum ImportIngestor {
 
                 try? FileManager.default.removeItem(at: tempURL)
                 imported += 1
+                importIngestorLogger.info("Imported file \(imported)/\(batch.files.count): \(file.filename, privacy: .public)")
             } catch {
                 failed += 1
                 failureReason = error.localizedDescription

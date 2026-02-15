@@ -114,6 +114,14 @@ enum StagedImportManager {
         pendingBatches(for: fingerprint).reduce(0) { $0 + $1.files.count }
     }
 
+    /// Returns the URL of an encrypted file in a batch, or nil if the batch directory is unavailable.
+    static func encryptedFileURL(batchId: UUID, fileId: UUID) -> URL? {
+        guard let batchURL = batchDirectory(for: batchId) else { return nil }
+        let fileURL = batchURL.appendingPathComponent("\(fileId.uuidString).enc")
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return nil }
+        return fileURL
+    }
+
     /// Reads encrypted file data for a specific file in a batch.
     static func readEncryptedFile(batchId: UUID, fileId: UUID) -> Data? {
         guard let batchURL = batchDirectory(for: batchId) else { return nil }

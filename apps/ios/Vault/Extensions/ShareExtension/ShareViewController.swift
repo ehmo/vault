@@ -193,8 +193,10 @@ final class ShareViewController: UIViewController {
         )
         try StagedImportManager.writeManifest(manifest, to: batchURL)
 
-        // Schedule delayed local notification (5 minutes)
-        scheduleImportNotification(fileCount: total)
+        // Schedule delayed local notification (5 minutes) with TOTAL pending count
+        // across all batches — not just this session's count
+        let totalPending = StagedImportManager.pendingFileCount(for: fingerprint)
+        scheduleImportNotification(fileCount: totalPending)
 
         await MainActor.run {
             progressView.progress = 1.0

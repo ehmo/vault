@@ -582,6 +582,38 @@ enum CryptoEngine {
         }
     }
 
+    /// Decrypts a staged encrypted file directly to a temp URL without loading the entire
+    /// encrypted file into memory. For streaming format (VCSE), reads and decrypts one chunk
+    /// at a time (~256KB peak). For single-shot (≤1MB), loads into memory since it's small.
+    static func decryptStagedFileToURL(from encryptedURL: URL, to outputURL: URL, with key: Data) throws {
+        let handle = try FileHandle(forReadingFrom: encryptedURL)
+        defer { try? handle.close() }
+
+        // Read first 4 bytes to detect format
+        let magic = handle.readData(ofLength: 4)
+        guard magic.count == 4 else { throw CryptoError.invalidData }
+
+        let magicValue = magic.withUnsafeBytes { $0.load(as: UInt32.self) }
+
+        if magicValue == VaultCoreConstants.streamingMagic {
+            // Streaming format — seek back and use FileHandle-based decryption
+            handle.seek(toFileOffset: 0)
+            let fileSize = (try? FileManager.default.attributesOfItem(atPath: encryptedURL.path)[.size] as? Int) ?? 0
+            try decryptStreamingFromHandleToFile(
+                handle: handle,
+                contentLength: fileSize,
+                with: key,
+                outputURL: outputURL
+            )
+        } else {
+            // Single-shot format — small file, safe to load into memory
+            handle.seek(toFileOffset: 0)
+            let encryptedData = try Data(contentsOf: encryptedURL)
+            let decrypted = try decrypt(encryptedData, with: key)
+            try decrypted.write(to: outputURL, options: [.atomic, .completeFileProtection])
+        }
+    }
+
     /// XORs a 12-byte nonce with a chunk index (big-endian, into the last 8 bytes).
     static func xorNonce(_ baseNonce: Data, with index: UInt64) throws -> Data {
         guard baseNonce.count == 12 else { throw CryptoError.invalidData }
