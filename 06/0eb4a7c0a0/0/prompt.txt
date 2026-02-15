@@ -1,0 +1,419 @@
+I want to clean up and unify all design across the app.
+
+First, the mode of the app, system, dark, light doesn't immediately change the design of the screen. Instead it changes the back screen but not the settings screen. Second I think this should be a menu Settings -> App settings -> Appearance -> System, Dark, Light. And it should change the whole screen instantly.
+
+Also don't push to testflight just yet. I got lots of things I want to fix
+
+---
+
+The "use recovery phrase" screen is all black. The join shared vault screen has all black text area. Set custom recovery phrase screen is completely different. Go through all screens and unify the colors. I want everything to use the structure of the set custom recovery phrase. When you are done, I want you write up brand guidelines, fonts, colors, etc, and adhere to them everywhere.
+
+Also the pixel loader is different in every screen. I want the one from dynamic island be exclusively used everywhere. Same patterns, same colors. Obviously the colors should adjust based on dark or light mode, but otherwise the pixel loader should be exactly the same everywhere
+
+---
+
+Ok, now because we don't use anymore the half cards in join vault and recover with passphrase, I guess we shouldn't use it elsewhere. So maybe we should switch to full screen all screens, including all settings. That means we need buttons at the top. But before we do so, I would like your take on this
+
+---
+
+Ok I agree, let's keep the system sheets what you suggested and change the rest
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **First user message**: User wants to clean up and unify design across the app. Two specific issues:
+   - Appearance mode (system/dark/light) doesn't immediately change the settings screen - only the background changes
+   - Wants the appearance setting moved to: Settings -> App Settings -> Appearance -> System/Dark/Light
+   - Should change whole screen instantly
+   - Don't push to TestFlight yet
+
+2. **My investigation**: Used Explore agents to understand:
+   - AppAppearanceMode enum in VaultApp.swift
+   - `.preferredColorScheme()` applied at root WindowGroup level
+   - Settings presented as `.sheet()` which is separate presentation context
+   - PaywallTrigger.swift has hardcoded `.preferredColorScheme(.dark)`
+
+3. **First round of fixes**:
+   - Added `.preferredColorScheme(appState.appearanceMode.preferredColorScheme)` to the settings sheet in VaultView.swift
+   - Created `AppearanceSettingsView` with System/Dark/Light as checkmark list
+   - Replaced segmented picker with NavigationLink in AppSettingsView
+   - Built successfully
+
+4. **Second user message**: Major design unification request:
+   - "Use recovery phrase" screen is all black
+   - Join shared vault screen has all black text area
+   - Set custom recovery phrase screen is completely different
+   - Go through ALL screens and unify colors to match CustomRecoveryPhraseInputView structure
+   - Write brand guidelines (fonts, colors, etc.)
+   - Pixel loader is different in every screen - wants Dynamic Island version used everywhere
+
+5. **Comprehensive audit**: Used 3 parallel Explore agents to:
+   - Audit ALL views for hardcoded colors
+   - Audit ALL pixel loader usages
+   - Read specific problem screens
+
+6. **Root cause identified**: The "all black" screens were caused by `.fullScreenCover()` and `.sheet()` not inheriting `.preferredColorScheme()` from the parent view hierarchy. The fix was to use UIKit's `UIWindow.overrideUserInterfaceStyle` globally.
+
+7. **Changes made**:
+   - **VaultApp.swift**: Added `applyAppearanceToAllWindows()` method using `UIWindow.overrideUserInterfaceStyle`
+   - **PaywallTrigger.swift**: Removed `.preferredColorScheme(.dark)`, replaced `Color.black` with `Color.vaultBackground`, removed hardcoded `.foregroundStyle(.white)`
+   - **SecureImageViewer.swift**: Replaced hardcoded black/white with theme tokens
+   - **SecureVideoPlayer.swift**: Same treatment
+   - **FullScreenPhotoViewer.swift**: Same treatment
+   - **ToastView.swift**: Replaced hardcoded colors with `.ultraThinMaterial`
+   - **ContentView.swift**: Screenshot overlay uses `Color.vaultBackground`
+   - **PixelAnimation.swift**: Fixed default `animationDuration` from 0.25 to 0.3, fixed preview backgrounds
+   - **DESIGN.md**: Created brand guidelines document
+
+8. **Build verified**: Clean build, zero warnings
+
+9. **Committed**: "Unify design system: global color scheme, theme-only colors, brand guidelines"
+
+10. **Third user message**: User asks for opinion on switching from half-card sheets to full-screen for all screens
+
+11. **My recommendation**: 
+    - Full-screen for settings, multi-step flows, security-critical screens
+    - Keep system sheets for camera picker, photo picker
+    - Suggested either true `.fullScreenCover` or `.sheet([.large]) + .interactiveDismissDisabled()`
+
+12. **Fourth user message**: "Ok I agree, let's keep the system sheets what you suggested and change the rest"
+
+13. **Current work**: I started reading files to plan the sheet→fullScreenCover conversion:
+    - Read RecoveryPhraseView.swift - has NavigationStack ✅
+    - Read ShareVaultView.swift (first 50 lines) - has its own header with Cancel button
+    - Read VaultView.swift lines 345-405 - identified which sheets to convert
+
+Files to convert from `.sheet()` to `.fullScreenCover()`:
+- VaultView.swift: settings (line 396), file viewer (line 382)
+- VaultSettingsView.swift: change pattern (158), recovery phrase (162), share vault (165), custom phrase (168)
+- SettingsView.swift: duress setup (515), restore from backup (629)
+- PaywallTrigger.swift: paywall (29)
+
+Files to KEEP as sheets:
+- VaultView.swift: camera (350), photo picker (353)
+
+I also noticed there's a stale `Color.black.ignoresSafeArea()` in VaultView.swift line 379 (inside the photo viewer fullScreenCover else branch).
+
+The conversation was interrupted for this summary before I could start making the actual sheet→fullScreenCover changes.
+
+Summary:
+1. Primary Request and Intent:
+   The user wants to clean up and unify all design across the Vaultaire iOS app. Specific requests:
+   - **Appearance mode fix**: System/Dark/Light mode should change the entire screen instantly, not just the background. Move the setting to Settings → App Settings → Appearance → System/Dark/Light.
+   - **Color unification**: All screens should use theme tokens (like CustomRecoveryPhraseInputView does). No hardcoded `Color.black`, `Color.white`, etc. Specific problems: "use recovery phrase" screen is all black, join shared vault screen has all black text area.
+   - **Pixel loader unification**: The Dynamic Island pixel loader configuration must be used everywhere — same patterns, same colors, same timing. Colors should adapt to dark/light mode.
+   - **Brand guidelines**: Write up a design document covering fonts, colors, pixel loader spec, and usage rules.
+   - **Sheet → Full-screen conversion**: Convert most `.sheet()` presentations to `.fullScreenCover()` for consistency. Keep system sheets (camera, photo picker) as-is.
+   - **Do NOT push to TestFlight** — user has more things to fix.
+
+2. Key Technical Concepts:
+   - **SwiftUI `.preferredColorScheme()` limitation**: Applied at root `WindowGroup` but does NOT propagate to `.sheet()` and `.fullScreenCover()` presentations, which are separate presentation contexts.
+   - **UIKit `overrideUserInterfaceStyle` global fix**: Setting `UIWindow.overrideUserInterfaceStyle` on all windows ensures every sheet, fullScreenCover, and alert respects the appearance setting instantly.
+   - **Asset catalog color tokens**: `Color.vaultBackground`, `Color.vaultSurface`, `Color.vaultText`, `Color.vaultSecondaryText`, `Color.vaultHighlight`, `Color.accentColor` — all with light/dark variants.
+   - **PixelAnimation canonical config**: Pattern `[1,2,3,6,9,8,7,4]` (perimeter walk), brightness 3, shadowBrightness 2, timerInterval 0.1s, animationDuration 0.3s, color `.accentColor`. Trail effect from animation overlap.
+   - **VaultTheme view modifiers**: `.vaultBackgroundStyle()`, `.vaultGlassBackground()`, `.vaultGlassTintedBackground(tint:)`, `.vaultProminentButtonStyle()`, `.vaultSecondaryButtonStyle()`
+   - **Observable pattern**: `AppState` uses `@Observable` (iOS 17+), not `ObservableObject`
+   - **Build command**: `xcodebuild -project Vault.xcodeproj -scheme Vault -destination 'platform=iOS Simulator,id=57965726-931A-462A-A262-3A3DAFA7CDDF' -configuration Debug build`
+
+3. Files and Code Sections:
+
+   - **`apps/ios/Vault/App/VaultApp.swift`**
+     - Central to appearance mode management. Contains `AppAppearanceMode` enum and `AppState` class.
+     - Added `applyAppearanceToAllWindows()` method and `.onAppear` call to apply on launch.
+     - Added `.preferredColorScheme()` was already on WindowGroup (line 40).
+     ```swift
+     func applyAppearanceToAllWindows() {
+         let style: UIUserInterfaceStyle = switch appearanceMode {
+         case .system: .unspecified
+         case .light: .light
+         case .dark: .dark
+         }
+         for scene in UIApplication.shared.connectedScenes {
+             guard let windowScene = scene as? UIWindowScene else { continue }
+             for window in windowScene.windows {
+                 window.overrideUserInterfaceStyle = style
+             }
+         }
+     }
+     ```
+
+   - **`apps/ios/Vault/Features/Settings/SettingsView.swift`**
+     - Contains `AppSettingsView`, `AppearanceSettingsView` (new), `DuressPatternSettingsView`, `iCloudBackupSettingsView`, `RestoreFromBackupView`
+     - Replaced segmented Picker with NavigationLink to new `AppearanceSettingsView`
+     - Created `AppearanceSettingsView` with checkmark list:
+     ```swift
+     struct AppearanceSettingsView: View {
+         @Environment(AppState.self) private var appState
+         var body: some View {
+             List {
+                 Section {
+                     ForEach(AppAppearanceMode.allCases, id: \.rawValue) { mode in
+                         Button {
+                             appState.setAppearanceMode(mode)
+                         } label: {
+                             HStack {
+                                 Text(mode.title)
+                                     .foregroundStyle(.primary)
+                                 Spacer()
+                                 if appState.appearanceMode == mode {
+                                     Image(systemName: "checkmark")
+                                         .foregroundStyle(.accent)
+                                         .fontWeight(.semibold)
+                                 }
+                             }
+                         }
+                         .accessibilityIdentifier("appearance_\(mode.rawValue)")
+                     }
+                 }
+             }
+             .navigationTitle("Appearance")
+             .navigationBarTitleDisplayMode(.inline)
+         }
+     }
+     ```
+     - Duress setup sheet at line 515 and restore from backup sheet at line 629 need converting to fullScreenCover (pending).
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView.swift`**
+     - Settings sheet (line 396) had `.preferredColorScheme()` added. Needs converting to `.fullScreenCover()`.
+     - File viewer sheet (line 382) with `.presentationDetents([.medium, .large])` needs converting.
+     - Camera (line 350) and photo picker (line 353) sheets to KEEP.
+     - Photo viewer fallback at line 379 still has `Color.black.ignoresSafeArea()` (should be fixed).
+
+   - **`apps/ios/Vault/Features/VaultViewer/SecureImageViewer.swift`**
+     - Replaced `Color.black` backgrounds with `Color.vaultBackground`
+     - Removed `.foregroundStyle(.white)` from toolbar buttons
+     - Error view text changed from `.white`/`.gray` to default/`.vaultSecondaryText`
+
+   - **`apps/ios/Vault/Features/VaultViewer/SecureVideoPlayer.swift`**
+     - Same treatment as SecureImageViewer
+
+   - **`apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift`**
+     - `Color.black` → `Color.vaultBackground` for backgrounds
+     - Removed `.foregroundStyle(.white)` from toolbar buttons
+     - Play button icon: `.foregroundStyle(.white.opacity(0.9))` → `.foregroundStyle(.vaultSecondaryText)`
+     - Removed `.tint(.white)` from ProgressView
+
+   - **`apps/ios/Vault/Core/Billing/PaywallTrigger.swift`**
+     - Removed `.preferredColorScheme(.dark)` override
+     - `Color.black` → `Color.vaultBackground`
+     - Removed `.foregroundStyle(.white)` from title and feature list text
+
+   - **`apps/ios/Vault/UI/Components/ToastView.swift`**
+     - Removed `.foregroundStyle(.white)` from icon and text
+     - Removed `.background(Color.black.opacity(0.6))` — kept `.ultraThinMaterial` only
+     - Removed explicit shadow color
+
+   - **`apps/ios/Vault/App/ContentView.swift`**
+     - Screenshot overlay: `Color.black` → `Color.vaultBackground`
+
+   - **`apps/ios/Vault/UI/Components/PixelAnimation.swift`**
+     - Fixed default `animationDuration` from `0.25` to `0.3` in both property declaration and init parameter
+     - Preview backgrounds: `.background(.black)` → `.background(Color.vaultBackground)`
+
+   - **`apps/ios/DESIGN.md`** (new file)
+     - Brand guidelines covering color palette, typography, pixel loader spec, view modifiers, appearance mode rules, layout patterns, error/success states, accessibility
+
+   - **`apps/ios/Vault/Features/PatternLock/PatternLockView.swift`**
+     - Read but NOT modified. RecoveryPhraseInputView (line 228+) was found to be already properly themed with `.vaultSurface`, `.vaultBackground`, `.vaultSecondaryText`. The "all black" issue was from missing color scheme propagation on `.fullScreenCover`, not hardcoded colors.
+     - Has NavigationStack with Cancel button ✅
+
+   - **`apps/ios/Vault/Features/Settings/VaultSettingsView.swift`**
+     - Read for sheet presentations at lines 158, 162, 165, 168. These need converting to `.fullScreenCover()` (pending).
+     - Already has NavigationStack with Done toolbar button ✅
+
+   - **`apps/ios/Vault/Features/Settings/RecoveryPhraseView.swift`**
+     - Read for pending conversion. Has NavigationStack ✅
+
+   - **`apps/ios/Vault/Features/Sharing/ShareVaultView.swift`**
+     - Read first 50 lines. Has its own header bar with Cancel button ✅
+
+   - **`apps/ios/Vault/Features/Camera/SecureCameraView.swift`**
+     - Read but intentionally NOT modified. Camera needs black background for preview (standard iOS pattern). White controls are intentional for overlay on variable camera content.
+
+   - **`apps/ios/Vault/UI/Theme/VaultTheme.swift`**
+     - Read for reference. Contains all view modifier definitions including glass effects for iOS 26+.
+
+   - **Color asset values** (from exploration):
+     | Token | Light | Dark |
+     |-------|-------|------|
+     | VaultBackground | #D1D1E9 | #20233C |
+     | VaultSurface | #FFFFFE | #323444 |
+     | VaultText | #2B2C34 | #E8E8F0 |
+     | VaultSecondaryText | #2B2C34 @ 70% | #E8E8F0 @ 78% |
+     | VaultHighlight | #E45858 | #FF6F6F |
+     | AccentColor | #6246EA | #6E5CFA |
+
+4. Errors and Fixes:
+   - **Simulator name ambiguity**: `xcodebuild` failed with "multiple devices matched" for `iPhone 17 Pro` (two simulators with different casing). Fixed by using explicit simulator UUID: `id=57965726-931A-462A-A262-3A3DAFA7CDDF`.
+   - **SourceKit false positives**: Many "Cannot find X in scope" diagnostics appeared throughout the session. These are documented in the scratch pad as known false positives — cross-file SourceKit diagnostics don't represent real build errors. Ignored them and verified with actual `xcodebuild`.
+   - No user feedback corrections on errors — user approved the approaches taken.
+
+5. Problem Solving:
+   - **Root cause of "all black" screens**: `.fullScreenCover()` and `.sheet()` are separate presentation contexts that don't inherit `.preferredColorScheme()` from parent. Solved with global `UIWindow.overrideUserInterfaceStyle` in `AppState.applyAppearanceToAllWindows()`.
+   - **Pixel loader inconsistency**: Found all 10 in-app usages correctly use factory methods. Only the struct's default parameters had wrong `animationDuration` (0.25 vs canonical 0.3). Fixed the latent bug.
+   - **Design audit**: Identified intentional vs accidental hardcoded colors. Kept intentional ones (camera, thumbnail overlays, accent button text) and fixed all others.
+
+6. All User Messages:
+   - "I want to clean up and unify all design across the app. First, the mode of the app, system, dark, light doesn't immediately change the design of the screen. Instead it changes the back screen but not the settings screen. Second I think this should be a menu Settings -> App settings -> Appearance -> System, Dark, Light. And it should change the whole screen instantly. Also don't push to testflight just yet. I got lots of things I want to fix"
+   - "The 'use recovery phrase' screen is all black. The join shared vault screen has all black text area. Set custom recovery phrase screen is completely different. Go through all screens and unify the colors. I want everything to use the structure of the set custom recovery phrase. When you are done, I want you write up brand guidelines, fonts, colors, etc, and adhere to them everywhere. Also the pixel loader is different in every screen. I want the one from dynamic island be exclusively used everywhere. Same patterns, same colors. Obviously the colors should adjust based on dark or light mode, but otherwise the pixel loader should be exactly the same everywhere"
+   - "Ok, now because we don't use anymore the half cards in join vault and recover with passphrase, I guess we shouldn't use it elsewhere. So maybe we should switch to full screen all screens, including all settings. That means we need buttons at the top. But before we do so, I would like your take on this"
+   - "Ok I agree, let's keep the system sheets what you suggested and change the rest"
+
+7. Pending Tasks:
+   - **Convert `.sheet()` to `.fullScreenCover()` for all non-system presentations**:
+     - `VaultView.swift` line 396: Settings sheet → fullScreenCover (remove `.presentationDetents`, remove `.preferredColorScheme`)
+     - `VaultView.swift` line 382: File viewer sheet → fullScreenCover (remove `.presentationDetents([.medium, .large])`)
+     - `VaultSettingsView.swift` line 158: Change pattern sheet → fullScreenCover
+     - `VaultSettingsView.swift` line 162: Recovery phrase sheet → fullScreenCover
+     - `VaultSettingsView.swift` line 165: Share vault sheet → fullScreenCover
+     - `VaultSettingsView.swift` line 168: Custom phrase sheet → fullScreenCover
+     - `SettingsView.swift` line 515: Duress setup sheet → fullScreenCover
+     - `SettingsView.swift` line 629: Restore from backup sheet → fullScreenCover
+     - `PaywallTrigger.swift` line 29: Paywall sheet → fullScreenCover
+   - KEEP as sheets: Camera (VaultView line 350), Photo picker (VaultView line 353)
+   - Fix stale `Color.black.ignoresSafeArea()` at VaultView.swift line 379
+   - Ensure all presented views have proper NavigationStack with Done/Cancel buttons
+   - Session close protocol: git add, bd sync, git commit, git push
+   - Update `.scratch-pad.md` with session learnings
+
+8. Current Work:
+   I was about to start converting `.sheet()` presentations to `.fullScreenCover()` throughout the app. I had just finished reading the files that needed modification to verify they have proper NavigationStack with toolbar buttons:
+   - `RecoveryPhraseView.swift` — has NavigationStack ✅
+   - `ShareVaultView.swift` — has its own header with Cancel button ✅
+   - `VaultView.swift` lines 345-405 — identified which sheets to convert vs keep
+
+   The user confirmed: "Ok I agree, let's keep the system sheets what you suggested and change the rest"
+
+9. Optional Next Step:
+   Begin the `.sheet()` → `.fullScreenCover()` conversion across all identified files. The user said: "Ok I agree, let's keep the system sheets what you suggested and change the rest." 
+   
+   Specifically, start with `VaultView.swift` converting:
+   - Line 396: Settings `.sheet` → `.fullScreenCover` (remove `.presentationDetents([.large])` and `.preferredColorScheme(...)`)
+   - Line 382: File viewer `.sheet(item:)` → `.fullScreenCover(item:)` (remove `.presentationDetents([.medium, .large])`)
+   
+   Then move to `VaultSettingsView.swift` (lines 158, 162, 165, 168) and `SettingsView.swift` (lines 515, 629) and `PaywallTrigger.swift` (line 29).
+   
+   Each needs verification that the presented view has a NavigationStack with proper Done/Cancel toolbar buttons. Build and commit after all changes.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+When using the share extension adding lots of files, the files don't get really synced. If you watch the video /Users/nan/Downloads/ScreenRecording_02-14-2026\ 21-33-19_1.MP4 you can see that it never gets past 40% and when I open the vault nothing shows in it. In fact on the first attempt the app crashesh and then data never shows up there
+
+---
+
+Ok push everything into testflight
+
+---
+
+Base directory for this skill: /Users/nan/.claude/skills/asc-release-flow
+
+# Release flow (TestFlight and App Store)
+
+Use this skill when you need to get a new build into TestFlight or submit to the App Store.
+
+## Preconditions
+- Ensure credentials are set (`asc auth login` or `ASC_*` env vars).
+- Use a new build number for each upload.
+- Prefer `ASC_APP_ID` or pass `--app` explicitly.
+- Build must have encryption compliance resolved (see asc-submission-health skill).
+
+## iOS Release
+
+### Preferred end-to-end commands
+- TestFlight:
+  - `asc publish testflight --app <APP_ID> --ipa <PATH> --group <GROUP_ID>[,<GROUP_ID>]`
+  - Optional: `--wait`, `--notify`, `--platform`, `--poll-interval`, `--timeout`
+- App Store:
+  - `asc publish appstore --app <APP_ID> --ipa <PATH> --version <VERSION>`
+  - Optional: `--wait`, `--submit --confirm`, `--platform`, `--poll-interval`, `--timeout`
+
+### Manual sequence (when you need more control)
+1. Upload the build:
+   - `asc builds upload --app <APP_ID> --ipa <PATH>`
+2. Find the build ID if needed:
+   - `asc builds latest --app <APP_ID> [--version <VERSION>] [--platform <PLATFORM>]`
+3. TestFlight distribution:
+   - `asc builds add-groups --build <BUILD_ID> --group <GROUP_ID>[,<GROUP_ID>]`
+4. App Store attach + submit:
+   - `asc versions attach-build --version-id <VERSION_ID> --build <BUILD_ID>`
+   - `asc submit create --app <APP_ID> --version <VERSION> --build <BUILD_ID> --confirm`
+5. Check or cancel submission:
+   - `asc submit status --id <SUBMISSION_ID>` or `--version-id <VERSION_ID>`
+   - `asc submit cancel --id <SUBMISSION_ID> --confirm`
+
+## macOS Release
+
+macOS apps are distributed as `.pkg` files, not `.ipa`.
+
+### Build and Export
+See `asc-xcode-build` skill for full build/archive/export workflow.
+
+### Upload PKG
+Use `xcrun altool` (asc doesn't yet support .pkg uploads directly):
+```bash
+# Ensure API key is in ~/.appstoreconnect/private_keys/
+xcrun altool --upload-app \
+  -f "/path/to/YourApp.pkg" \
+  --type macos \
+  --apiKey "$ASC_KEY_ID" \
+  --apiIssuer "$ASC_ISSUER_ID"
+```
+
+### Attach and Submit
+Same as iOS, but use `--platform MAC_OS`:
+```bash
+# Wait for build to process
+asc builds list --app <APP_ID> --platform MAC_OS --limit 5
+
+# Attach to version
+asc versions attach-build --version-id <VERSION_ID> --build <BUILD_ID>
+
+# Create submission
+asc review submissions-create --app <APP_ID> --platform MAC_OS
+
+# Add version item
+asc review items-add \
+  --submission <SUBMISSION_ID> \
+  --item-type appStoreVersions \
+  --item-id <VERSION_ID>
+
+# Submit
+asc review submissions-submit --id <SUBMISSION_ID> --confirm
+```
+
+## visionOS / tvOS Release
+
+Same as iOS flow, use appropriate `--platform`:
+- `VISION_OS`
+- `TV_OS`
+
+## Multi-Platform Release
+
+When releasing the same version across platforms:
+1. Upload each platform's build separately
+2. Create version for each platform if not exists
+3. Attach builds to respective versions
+4. Submit each platform separately (or together via reviewSubmissions API)
+
+## Pre-submission Checklist
+Before submitting, verify:
+- [ ] Build status is `VALID` (not processing)
+- [ ] Encryption compliance resolved
+- [ ] Content rights declaration set
+- [ ] Copyright field populated
+- [ ] All localizations complete
+- [ ] Screenshots present
+
+See `asc-submission-health` skill for detailed preflight checks.
+
+## Notes
+- Always use `--help` to verify flags for the exact command.
+- Use `--output table` / `--output markdown` for human-readable output; default is JSON.
+- macOS builds require `ITSAppUsesNonExemptEncryption` in Info.plist to avoid encryption issues.
