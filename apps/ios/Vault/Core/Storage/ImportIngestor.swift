@@ -93,15 +93,23 @@ enum ImportIngestor {
                     thumbnailData = try? CryptoEngine.decrypt(encThumb, with: vaultKey)
                 }
 
-                // Store via VaultStorage (this handles master key encryption internally)
-                _ = try VaultStorage.shared.storeFile(
-                    data: decryptedData,
+                // Write decrypted data to temp file so VaultStorage can stream-encrypt
+                // without holding both decrypted and re-encrypted data in memory
+                let tempURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("\(file.fileId.uuidString)_import")
+                    .appendingPathExtension(URL(string: file.filename)?.pathExtension ?? "dat")
+                try decryptedData.write(to: tempURL)
+
+                // Store via VaultStorage using URL-based API (streams to blob)
+                _ = try VaultStorage.shared.storeFileFromURL(
+                    tempURL,
                     filename: file.filename,
                     mimeType: file.mimeType,
                     with: vaultKey,
                     thumbnailData: thumbnailData
                 )
 
+                try? FileManager.default.removeItem(at: tempURL)
                 imported += 1
             } catch {
                 failed += 1

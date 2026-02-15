@@ -209,23 +209,17 @@ final class ShareViewController: UIViewController {
 
         // Load file representation (file URL, not Data — memory safe for large files)
         let (tempURL, filename, mimeType) = try await loadFile(from: provider, utType: utType)
+        defer { try? FileManager.default.removeItem(at: tempURL) }
 
         let fileSize = (try? FileManager.default.attributesOfItem(atPath: tempURL.path)[.size] as? Int) ?? 0
 
-        // Encrypt
-        let encryptedData: Data
-        if fileSize > VaultCoreConstants.streamingThreshold {
-            encryptedData = try CryptoEngine.encryptStreaming(
-                fileURL: tempURL,
-                originalSize: fileSize,
-                with: key
-            )
-        } else {
-            let data = try Data(contentsOf: tempURL)
-            encryptedData = try CryptoEngine.encrypt(data, with: key)
-        }
-
-        try StagedImportManager.writeEncryptedFile(encryptedData, fileId: fileId, to: batchURL)
+        // Encrypt directly to output file — peak memory ~256KB instead of entire file
+        let encryptedURL = batchURL.appendingPathComponent("\(fileId.uuidString).enc")
+        FileManager.default.createFile(atPath: encryptedURL.path, contents: nil)
+        let outputHandle = try FileHandle(forWritingTo: encryptedURL)
+        defer { try? outputHandle.close() }
+        try CryptoEngine.encryptFileStreamingToHandle(from: tempURL, to: outputHandle, with: key)
+        let encryptedSize = (try? FileManager.default.attributesOfItem(atPath: encryptedURL.path)[.size] as? Int) ?? 0
 
         // Generate and encrypt thumbnail for images
         var hasThumbnail = false
@@ -241,7 +235,7 @@ final class ShareViewController: UIViewController {
             mimeType: mimeType,
             utType: utType.identifier,
             originalSize: fileSize,
-            encryptedSize: encryptedData.count,
+            encryptedSize: encryptedSize,
             hasThumbnail: hasThumbnail,
             timestamp: Date()
         )
@@ -266,10 +260,10 @@ final class ShareViewController: UIViewController {
                     return
                 }
 
-                // Copy to a temp location since the provided URL may be deleted
+                // Copy to a temp location since the provided URL may be deleted.
+                // Use UUID prefix to avoid collisions when sharing multiple files.
                 let tempDir = FileManager.default.temporaryDirectory
-                let tempURL = tempDir.appendingPathComponent(url.lastPathComponent)
-                try? FileManager.default.removeItem(at: tempURL)
+                let tempURL = tempDir.appendingPathComponent("\(UUID().uuidString)_\(url.lastPathComponent)")
                 do {
                     try FileManager.default.copyItem(at: url, to: tempURL)
                 } catch {
