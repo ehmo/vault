@@ -30,6 +30,7 @@ struct VaultApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var appState = AppState()
     @State private var deepLinkHandler = DeepLinkHandler()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -37,8 +38,16 @@ struct VaultApp: App {
                 .environment(appState)
                 .environment(deepLinkHandler)
                 .environment(SubscriptionManager.shared)
-                .preferredColorScheme(appState.appearanceMode.preferredColorScheme)
-                .onAppear { appState.applyAppearanceToAllWindows() }
+                .preferredColorScheme(appState.effectiveColorScheme)
+                .onAppear {
+                    appState.applyAppearanceToAllWindows()
+                    appState.refreshSystemAppearance()
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        appState.refreshSystemAppearance()
+                    }
+                }
                 .onOpenURL { url in
                     deepLinkHandler.handle(url)
                 }
@@ -61,6 +70,20 @@ final class AppState {
     var hasPendingImports = false
     var suppressLockForShareSheet = false
     private(set) var appearanceMode: AppAppearanceMode
+    /// Resolved system color scheme — set explicitly so SwiftUI re-renders immediately
+    /// when switching to "System" mode (nil would defer the visual update).
+    private var resolvedSystemScheme: ColorScheme?
+
+    /// The color scheme to apply via `.preferredColorScheme()`.
+    /// For light/dark: returns the explicit scheme.
+    /// For system: returns the resolved system scheme (not nil) for immediate visual feedback.
+    var effectiveColorScheme: ColorScheme? {
+        switch appearanceMode {
+        case .system: resolvedSystemScheme
+        case .light: .light
+        case .dark: .dark
+        }
+    }
 
     private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "AppState")
     private static let appearanceModeKey = "appAppearanceMode"
@@ -101,6 +124,7 @@ final class AppState {
         appearanceMode = mode
         UserDefaults.standard.set(mode.rawValue, forKey: Self.appearanceModeKey)
         applyAppearanceToAllWindows()
+        refreshSystemAppearance()
     }
 
     /// Applies the user's appearance mode to all UIKit windows, ensuring sheets,
@@ -117,6 +141,20 @@ final class AppState {
                 window.overrideUserInterfaceStyle = style
             }
         }
+    }
+
+    /// Reads the system's actual color scheme and updates resolvedSystemScheme.
+    /// Called when switching to system mode or when the app becomes active.
+    func refreshSystemAppearance() {
+        guard appearanceMode == .system else { return }
+        // Read from the window scene's trait collection — not affected by
+        // window-level overrideUserInterfaceStyle, so this always returns
+        // the true system appearance.
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene else {
+            resolvedSystemScheme = nil
+            return
+        }
+        resolvedSystemScheme = scene.traitCollection.userInterfaceStyle == .dark ? .dark : .light
     }
 
     func unlockWithPattern(_ pattern: [Int], gridSize: Int = 5, precomputedKey: Data? = nil) async -> Bool {
