@@ -1,4 +1,5 @@
 import UIKit
+import ImageIO
 import UniformTypeIdentifiers
 import CommonCrypto
 import CryptoKit
@@ -213,20 +214,27 @@ final class ShareViewController: UIViewController {
 
         let fileSize = (try? FileManager.default.attributesOfItem(atPath: tempURL.path)[.size] as? Int) ?? 0
 
-        // Encrypt directly to output file — peak memory ~256KB instead of entire file
-        let encryptedURL = batchURL.appendingPathComponent("\(fileId.uuidString).enc")
-        FileManager.default.createFile(atPath: encryptedURL.path, contents: nil)
-        let outputHandle = try FileHandle(forWritingTo: encryptedURL)
-        defer { try? outputHandle.close() }
-        try CryptoEngine.encryptFileStreamingToHandle(from: tempURL, to: outputHandle, with: key)
-        let encryptedSize = (try? FileManager.default.attributesOfItem(atPath: encryptedURL.path)[.size] as? Int) ?? 0
+        // All synchronous work in autoreleasepool to free UIKit/Foundation temporaries
+        // between files, keeping peak memory under the ~120MB extension limit.
+        let (encryptedSize, hasThumbnail) = try autoreleasepool {
+            // Encrypt directly to output file — peak memory ~256KB instead of entire file
+            let encryptedURL = batchURL.appendingPathComponent("\(fileId.uuidString).enc")
+            FileManager.default.createFile(atPath: encryptedURL.path, contents: nil)
+            let outputHandle = try FileHandle(forWritingTo: encryptedURL)
+            defer { try? outputHandle.close() }
+            try CryptoEngine.encryptFileStreamingToHandle(from: tempURL, to: outputHandle, with: key)
+            let encSize = (try? FileManager.default.attributesOfItem(atPath: encryptedURL.path)[.size] as? Int) ?? 0
 
-        // Generate and encrypt thumbnail for images
-        var hasThumbnail = false
-        if utType.conforms(to: .image), let thumbData = generateThumbnail(from: tempURL) {
-            let encThumb = try CryptoEngine.encrypt(thumbData, with: key)
-            try StagedImportManager.writeEncryptedThumbnail(encThumb, fileId: fileId, to: batchURL)
-            hasThumbnail = true
+            // Generate and encrypt thumbnail for images using CGImageSource
+            // (avoids loading full bitmap — peak memory ~200KB vs ~48MB for UIImage)
+            var hasThumb = false
+            if utType.conforms(to: .image), let thumbData = generateThumbnail(from: tempURL) {
+                let encThumb = try CryptoEngine.encrypt(thumbData, with: key)
+                try StagedImportManager.writeEncryptedThumbnail(encThumb, fileId: fileId, to: batchURL)
+                hasThumb = true
+            }
+
+            return (encSize, hasThumb)
         }
 
         return StagedFileMetadata(
@@ -288,17 +296,26 @@ final class ShareViewController: UIViewController {
         }
     }
 
+    /// Generates a thumbnail using ImageIO (CGImageSource), which reads only the
+    /// metadata and a downsampled version of the image — never the full bitmap.
+    /// Peak memory: ~200KB vs ~48MB+ for UIImage on a 12MP photo.
     private func generateThumbnail(from url: URL) -> Data? {
-        guard let image = UIImage(contentsOfFile: url.path) else { return nil }
         let maxDimension: CGFloat = 200
-        let scale = min(maxDimension / image.size.width, maxDimension / image.size.height, 1.0)
-        let newSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
 
-        let renderer = UIGraphicsImageRenderer(size: newSize)
-        let thumbImage = renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: newSize))
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxDimension,
+        ]
+
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+            return nil
         }
-        return thumbImage.jpegData(compressionQuality: 0.6)
+
+        let uiImage = UIImage(cgImage: cgImage)
+        return uiImage.jpegData(compressionQuality: 0.6)
     }
 
     // MARK: - Notification
