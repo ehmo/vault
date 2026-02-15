@@ -144,3 +144,11 @@ Let me chronologically analyze the conversation:
 
 **Message 1 (C...
 
+### Prompt 22
+
+One more time. Go through everything and make sure that the extension works flawleslly epecially for edge cases. I want you to write extensive tests for it so if it breaks we catch it fast
+
+### Prompt 23
+
+[Request interrupted by user for tool use]
+

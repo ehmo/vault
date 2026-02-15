@@ -1122,3 +1122,11 @@ Summary:
 
 If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
 Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+One more time. Go through everything and make sure that the extension works flawleslly epecially for edge cases. I want you to write extensive tests for it so if it breaks we catch it fast
+
+---
+
+[Request interrupted by user for tool use]

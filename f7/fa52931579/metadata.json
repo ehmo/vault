@@ -3,9 +3,31 @@
   "checkpoint_id": "f7fa52931579",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 0,
   "files_touched": [
-    "apps/ios/Vault/Core/Crypto/CryptoEngine.swift"
+    "apps/ios/DESIGN.md",
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/App/ContentView.swift",
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Billing/PaywallTrigger.swift",
+    "apps/ios/Vault/Core/Billing/VaultairePaywallView.swift",
+    "apps/ios/Vault/Core/Crypto/CryptoEngine.swift",
+    "apps/ios/Vault/Core/Storage/ImportIngestor.swift",
+    "apps/ios/Vault/Extensions/ShareExtension/ShareViewController.swift",
+    "apps/ios/Vault/Features/Onboarding/PatternSetupView.swift",
+    "apps/ios/Vault/Features/Onboarding/WelcomeView.swift",
+    "apps/ios/Vault/Features/PatternLock/PatternLockView.swift",
+    "apps/ios/Vault/Features/Settings/RecoveryPhraseView.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/Vault/Features/Sharing/JoinVaultView.swift",
+    "apps/ios/Vault/Features/Sharing/ShareVaultView.swift",
+    "apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/SecureImageViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/SecureVideoPlayer.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
+    "apps/ios/Vault/UI/Components/PixelAnimation.swift",
+    "apps/ios/Vault/UI/Components/ToastView.swift"
   ],
   "sessions": [
     {
@@ -17,10 +39,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 29,
-    "cache_creation_tokens": 57632,
-    "cache_read_tokens": 2238552,
-    "output_tokens": 287,
-    "api_call_count": 25
+    "input_tokens": 2719,
+    "cache_creation_tokens": 38604,
+    "cache_read_tokens": 731170,
+    "output_tokens": 56,
+    "api_call_count": 8
   }
 }
