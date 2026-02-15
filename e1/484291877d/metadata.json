@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "e1484291877d",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Extensions/ShareExtension/ShareViewController.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e1/484291877d/0/metadata.json",
+      "transcript": "/e1/484291877d/0/full.jsonl",
+      "context": "/e1/484291877d/0/context.md",
+      "content_hash": "/e1/484291877d/0/content_hash.txt",
+      "prompt": "/e1/484291877d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 14,
+    "cache_creation_tokens": 22242,
+    "cache_read_tokens": 1671412,
+    "output_tokens": 309,
+    "api_call_count": 12
+  }
+}
