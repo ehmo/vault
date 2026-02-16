@@ -109,6 +109,80 @@ enum SVDFSerializer {
         return (output, manifest)
     }
 
+    // MARK: - Build Full (Streaming to Disk)
+
+    /// Builds a complete SVDF file by streaming entries to disk one at a time.
+    /// Peak memory is O(largest_file) instead of O(total_vault_size).
+    ///
+    /// - Parameters:
+    ///   - fileURL: Destination file URL for the SVDF output.
+    ///   - fileCount: Number of files to include.
+    ///   - forEachFile: Closure called for each file index; returns the SharedFile to encode.
+    ///   - metadata: Metadata to encrypt and embed.
+    ///   - shareKey: Encryption key for manifest and metadata.
+    /// - Returns: The file manifest and list of file IDs.
+    static func buildFullStreaming(
+        to fileURL: URL,
+        fileCount: Int,
+        forEachFile: (Int) throws -> SharedVaultData.SharedFile,
+        metadata: SharedVaultData.SharedVaultMetadata,
+        shareKey: Data
+    ) throws -> (manifest: [FileManifestEntry], fileIds: [String]) {
+        FileManager.default.createFile(atPath: fileURL.path, contents: nil)
+        let handle = try FileHandle(forWritingTo: fileURL)
+        defer { try? handle.close() }
+
+        // Write zeroed header placeholder
+        handle.write(Data(count: headerSize))
+
+        var manifest: [FileManifestEntry] = []
+        var fileIds: [String] = []
+        manifest.reserveCapacity(fileCount)
+        fileIds.reserveCapacity(fileCount)
+
+        // Stream file entries one at a time — each SharedFile is encoded,
+        // written to disk, then freed before the next one is created.
+        for i in 0..<fileCount {
+            let file = try forEachFile(i)
+            let entryOffset = handle.offsetInFile
+            let entry = encodeFileEntry(file)
+            handle.write(entry)
+            manifest.append(FileManifestEntry(
+                id: file.id.uuidString,
+                offset: Int(entryOffset),
+                size: entry.count
+            ))
+            fileIds.append(file.id.uuidString)
+        }
+
+        // Encrypt and write manifest
+        let manifestJSON = try JSONEncoder().encode(manifest)
+        let encryptedManifest = try CryptoEngine.encrypt(manifestJSON, with: shareKey)
+        let manifestOffset = handle.offsetInFile
+        handle.write(encryptedManifest)
+
+        // Encrypt and write metadata
+        let metadataJSON = try JSONEncoder().encode(metadata)
+        let encryptedMetadata = try CryptoEngine.encrypt(metadataJSON, with: shareKey)
+        let metadataOffset = handle.offsetInFile
+        handle.write(encryptedMetadata)
+
+        // Seek back and write the real header
+        handle.seek(toFileOffset: 0)
+        var headerData = Data(count: headerSize)
+        writeHeader(
+            into: &headerData,
+            fileCount: UInt32(fileCount),
+            manifestOffset: UInt64(manifestOffset),
+            manifestSize: UInt32(encryptedManifest.count),
+            metadataOffset: UInt64(metadataOffset),
+            metadataSize: UInt32(encryptedMetadata.count)
+        )
+        handle.write(headerData)
+
+        return (manifest, fileIds)
+    }
+
     // MARK: - Build Incremental
 
     /// Appends new files and marks deletions on an existing SVDF blob.

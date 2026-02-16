@@ -193,73 +193,76 @@ final class BackgroundShareTransferManager {
                 Self.logger.info("[upload-telemetry] loadIndex + decryptMasterKey: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - phaseStart))s")
                 phaseStart = CFAbsoluteTimeGetCurrent()
                 await self?.setTargetProgress(keyPhaseEnd, message: "Preparing vault...")
-                var sharedFiles: [SharedVaultData.SharedFile] = []
                 let activeFiles = index.files.filter { !$0.isDeleted }
                 let fileCount = activeFiles.count
 
-                // Process files sequentially to avoid OOM — each file is fully
-                // decrypted + re-encrypted in memory, so unbounded concurrency
-                // with 32+ files would hold all decrypted content simultaneously.
                 let capturedIndex = index
                 let capturedMasterKey = masterKey
                 let capturedShareKey = shareKey
-
-                Self.logger.info("[upload-telemetry] re-encrypting \(fileCount) files...")
-                sharedFiles.reserveCapacity(fileCount)
-                for (i, entry) in activeFiles.enumerated() {
-                    guard !Task.isCancelled else { return }
-                    let file: SharedVaultData.SharedFile = try autoreleasepool {
-                        let fileStart = CFAbsoluteTimeGetCurrent()
-                        let (header, content) = try VaultStorage.shared.retrieveFileContent(
-                            entry: entry, index: capturedIndex, masterKey: capturedMasterKey
-                        )
-                        let readElapsed = CFAbsoluteTimeGetCurrent() - fileStart
-                        let reencrypted = try CryptoEngine.encrypt(content, with: capturedShareKey)
-                        let encryptElapsed = CFAbsoluteTimeGetCurrent() - fileStart - readElapsed
-
-                        var encryptedThumb: Data? = nil
-                        if let thumbData = entry.thumbnailData {
-                            let decryptedThumb = try CryptoEngine.decrypt(thumbData, with: capturedMasterKey)
-                            encryptedThumb = try CryptoEngine.encrypt(decryptedThumb, with: capturedShareKey)
-                        }
-
-                        Self.logger.info("[upload-telemetry] file[\(i)] \(header.originalFilename, privacy: .public) (\(content.count / 1024)KB): read=\(String(format: "%.2f", readElapsed))s encrypt=\(String(format: "%.2f", encryptElapsed))s")
-
-                        return SharedVaultData.SharedFile(
-                            id: header.fileId,
-                            filename: header.originalFilename,
-                            mimeType: header.mimeType,
-                            size: Int(header.originalSize),
-                            encryptedContent: reencrypted,
-                            createdAt: header.createdAt,
-                            encryptedThumbnail: encryptedThumb
-                        )
-                    }
-                    sharedFiles.append(file)
-                    let encryptRange = encryptPhaseEnd - keyPhaseEnd
-                    let pct = fileCount > 0
-                        ? keyPhaseEnd + encryptRange * (i + 1) / fileCount
-                        : encryptPhaseEnd
-                    await self?.setTargetProgress(pct, message: "Encrypting files...")
-                }
-                Self.logger.info("[upload-telemetry] all files re-encrypted: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - phaseStart))s")
-                phaseStart = CFAbsoluteTimeGetCurrent()
-
-                guard !Task.isCancelled else { return }
 
                 let metadata = SharedVaultData.SharedVaultMetadata(
                     ownerFingerprint: KeyDerivation.keyFingerprint(from: capturedVaultKey),
                     sharedAt: Date()
                 )
 
-                let svdfResult = try SVDFSerializer.buildFull(
-                    files: sharedFiles,
+                // Stream SVDF construction to disk — each file is decrypted,
+                // re-encrypted, written to the SVDF file, then freed.
+                // Peak memory: O(largest_file) instead of O(total_vault_size).
+                let syncCache = ShareSyncCache(shareVaultId: shareVaultId)
+
+                Self.logger.info("[upload-telemetry] streaming \(fileCount) files to SVDF...")
+                let svdfResult = try SVDFSerializer.buildFullStreaming(
+                    to: Self.svdfURL,
+                    fileCount: fileCount,
+                    forEachFile: { i in
+                        try Task.checkCancellation()
+                        let entry = activeFiles[i]
+                        return try autoreleasepool {
+                            let fileStart = CFAbsoluteTimeGetCurrent()
+                            let (header, content) = try VaultStorage.shared.retrieveFileContent(
+                                entry: entry, index: capturedIndex, masterKey: capturedMasterKey
+                            )
+                            let readElapsed = CFAbsoluteTimeGetCurrent() - fileStart
+                            let reencrypted = try CryptoEngine.encrypt(content, with: capturedShareKey)
+                            let encryptElapsed = CFAbsoluteTimeGetCurrent() - fileStart - readElapsed
+
+                            var encryptedThumb: Data? = nil
+                            if let thumbData = entry.thumbnailData {
+                                let decryptedThumb = try CryptoEngine.decrypt(thumbData, with: capturedMasterKey)
+                                encryptedThumb = try CryptoEngine.encrypt(decryptedThumb, with: capturedShareKey)
+                            }
+
+                            Self.logger.info("[upload-telemetry] file[\(i)] \(header.originalFilename, privacy: .public) (\(content.count / 1024)KB): read=\(String(format: "%.2f", readElapsed))s encrypt=\(String(format: "%.2f", encryptElapsed))s")
+
+                            // Cache encrypted data for future incremental syncs
+                            try? syncCache.saveEncryptedFile(header.fileId.uuidString, data: reencrypted)
+                            if let thumb = encryptedThumb {
+                                try? syncCache.saveEncryptedThumb(header.fileId.uuidString, data: thumb)
+                            }
+
+                            return SharedVaultData.SharedFile(
+                                id: header.fileId,
+                                filename: header.originalFilename,
+                                mimeType: header.mimeType,
+                                size: Int(header.originalSize),
+                                encryptedContent: reencrypted,
+                                createdAt: header.createdAt,
+                                encryptedThumbnail: encryptedThumb
+                            )
+                        }
+                    },
                     metadata: metadata,
                     shareKey: capturedShareKey
                 )
-                let encodedData = svdfResult.data
-                Self.logger.info("[upload-telemetry] SVDF encoding (\(encodedData.count / 1024)KB): \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - phaseStart))s")
+                Self.logger.info("[upload-telemetry] all files streamed to SVDF: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - phaseStart))s")
                 phaseStart = CFAbsoluteTimeGetCurrent()
+                await self?.setTargetProgress(encryptPhaseEnd, message: "Encrypting files...")
+
+                guard !Task.isCancelled else { return }
+
+                // Read SVDF from disk for upload
+                let encodedData = try Data(contentsOf: Self.svdfURL)
+                Self.logger.info("[upload-telemetry] SVDF on disk (\(encodedData.count / 1024)KB)")
                 await self?.setTargetProgress(5, message: "Uploading vault...")
 
                 guard !Task.isCancelled else { return }
@@ -275,11 +278,12 @@ final class BackgroundShareTransferManager {
                     policy: policy,
                     ownerFingerprint: KeyDerivation.keyFingerprint(from: capturedVaultKey),
                     totalChunks: totalChunks,
-                    sharedFileIds: sharedFiles.map { $0.id.uuidString },
+                    sharedFileIds: svdfResult.fileIds,
                     svdfManifest: svdfResult.manifest,
                     createdAt: Date()
                 )
-                try Self.savePendingUpload(pendingState, svdfData: encodedData)
+                // SVDF data already at Self.svdfURL from streaming build
+                try JSONEncoder().encode(pendingState).write(to: Self.stateURL)
                 Self.logger.info("[upload-telemetry] pending upload state saved to disk")
 
                 Self.logger.info("[upload-telemetry] starting CloudKit upload (\(encodedData.count / (1024 * 1024))MB)...")
@@ -307,11 +311,11 @@ final class BackgroundShareTransferManager {
                 Self.logger.info("[upload-telemetry] total elapsed so far: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - uploadStart))s")
                 phaseStart = CFAbsoluteTimeGetCurrent()
 
-                // Initialize sync cache for future incremental syncs
-                let syncCache = ShareSyncCache(shareVaultId: shareVaultId)
+                // Finalize sync cache for future incremental syncs
+                // (encrypted files already cached during streaming build)
                 try syncCache.saveSVDF(encodedData)
                 let chunkHashes = ShareSyncCache.computeChunkHashes(encodedData)
-                let currentFileIds = Set(sharedFiles.map { $0.id.uuidString })
+                let currentFileIds = Set(svdfResult.fileIds)
                 let syncState = ShareSyncCache.SyncState(
                     syncedFileIds: currentFileIds,
                     chunkHashes: chunkHashes,
@@ -322,14 +326,6 @@ final class BackgroundShareTransferManager {
                     totalBytes: encodedData.count
                 )
                 try syncCache.saveSyncState(syncState)
-
-                // Cache each encrypted file for future incremental syncs
-                for file in sharedFiles {
-                    try? syncCache.saveEncryptedFile(file.id.uuidString, data: file.encryptedContent)
-                    if let thumb = file.encryptedThumbnail {
-                        try? syncCache.saveEncryptedThumb(file.id.uuidString, data: thumb)
-                    }
-                }
 
                 // Save share record
                 let shareRecord = VaultStorage.ShareRecord(
