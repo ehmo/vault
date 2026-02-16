@@ -173,6 +173,7 @@ final class ShareUploadManager {
     private var jobsById: [String: UploadJob] = [:]
     private var pendingStateByJobId: [String: PendingUploadState] = [:]
     private var uploadTasks: [String: Task<Void, Never>] = [:]
+    private var terminatedJobIds: Set<String> = []
 
     private var currentBgTaskId: UIBackgroundTaskIdentifier = .invalid
     private var currentBGProcessingTask: BGProcessingTask?
@@ -362,19 +363,48 @@ final class ShareUploadManager {
     }
 
     func cancelUpload(jobId: String) {
+        terminateUpload(
+            jobId: jobId,
+            vaultKey: vaultKeyProvider?(),
+            cleanupRemote: true
+        )
+    }
+
+    /// Hard-terminates an upload job:
+    /// - cancel task
+    /// - remove pending state + disk payload
+    /// - remove row/state immediately
+    /// - clean up share artifacts in background
+    func terminateUpload(jobId: String, vaultKey: Data?, cleanupRemote: Bool = true) {
+        let shareVaultId = jobsById[jobId]?.shareVaultId
+            ?? pendingStateByJobId[jobId]?.shareVaultId
+            ?? Self.loadPendingUploadState(jobId: jobId)?.shareVaultId
+
+        let hadRunningTask = uploadTasks[jobId] != nil
+        if hadRunningTask {
+            terminatedJobIds.insert(jobId)
+        }
+
         uploadTasks[jobId]?.cancel()
         uploadTasks.removeValue(forKey: jobId)
         pendingStateByJobId.removeValue(forKey: jobId)
         Self.clearPendingUpload(jobId: jobId)
+        removeJob(jobId: jobId)
 
-        updateJob(jobId: jobId) { job in
-            job.status = .cancelled
-            job.message = "Upload terminated"
-            job.errorMessage = nil
+        if let shareVaultId, let vaultKey {
+            removeShareRecord(shareVaultId: shareVaultId, vaultKey: vaultKey)
         }
 
         teardownBackgroundExecutionIfIdle()
         refreshActivityLifecycleAfterStatusChange()
+
+        guard let shareVaultId else { return }
+        Task.detached(priority: .utility) {
+            if cleanupRemote {
+                try? await CloudKitSharingManager.shared.deleteSharedVault(shareVaultId: shareVaultId)
+            }
+            try? ShareSyncCache(shareVaultId: shareVaultId).purge()
+        }
     }
 
     // MARK: - Task runners
@@ -389,6 +419,7 @@ final class ShareUploadManager {
     ) async {
         defer {
             uploadTasks.removeValue(forKey: jobId)
+            terminatedJobIds.remove(jobId)
             teardownBackgroundExecutionIfIdle()
             refreshActivityLifecycleAfterStatusChange()
             completeBackgroundProcessingTaskIfPossible()
@@ -566,6 +597,9 @@ final class ShareUploadManager {
 
             LocalNotificationManager.shared.sendUploadComplete()
         } catch is CancellationError {
+            if terminatedJobIds.contains(jobId) {
+                return
+            }
             if let pendingState = pendingStateByJobId[jobId],
                Self.loadPendingUploadState(jobId: pendingState.jobId) != nil {
                 updateJob(jobId: jobId) { job in
@@ -580,6 +614,9 @@ final class ShareUploadManager {
                 }
             }
         } catch {
+            if terminatedJobIds.contains(jobId) {
+                return
+            }
             EmbraceManager.shared.captureError(error)
             updateJob(jobId: jobId) { job in
                 job.status = .failed
@@ -594,6 +631,7 @@ final class ShareUploadManager {
 
     private func startResumeTask(state: PendingUploadState, vaultKey: Data) {
         guard uploadTasks[state.jobId] == nil else { return }
+        terminatedJobIds.remove(state.jobId)
         ensureBackgroundExecution()
         startActivityTickerIfNeeded()
 
@@ -614,6 +652,7 @@ final class ShareUploadManager {
     private func runResumeUpload(state: PendingUploadState, vaultKey: Data) async {
         defer {
             uploadTasks.removeValue(forKey: state.jobId)
+            terminatedJobIds.remove(state.jobId)
             teardownBackgroundExecutionIfIdle()
             refreshActivityLifecycleAfterStatusChange()
             completeBackgroundProcessingTaskIfPossible()
@@ -711,6 +750,9 @@ final class ShareUploadManager {
 
             LocalNotificationManager.shared.sendUploadComplete()
         } catch is CancellationError {
+            if terminatedJobIds.contains(state.jobId) {
+                return
+            }
             if Self.loadPendingUploadState(jobId: state.jobId) != nil {
                 updateJob(jobId: state.jobId) { job in
                     job.status = .paused
@@ -724,6 +766,9 @@ final class ShareUploadManager {
                 }
             }
         } catch {
+            if terminatedJobIds.contains(state.jobId) {
+                return
+            }
             EmbraceManager.shared.captureError(error)
             updateJob(jobId: state.jobId) { job in
                 job.status = .failed
@@ -954,6 +999,28 @@ final class ShareUploadManager {
         mutate(&job)
         upsertJob(job)
         refreshActivityLifecycleAfterStatusChange()
+    }
+
+    private func removeJob(jobId: String) {
+        jobsById.removeValue(forKey: jobId)
+        jobs = jobsById.values.sorted { lhs, rhs in
+            if lhs.createdAt == rhs.createdAt { return lhs.id > rhs.id }
+            return lhs.createdAt > rhs.createdAt
+        }
+    }
+
+    private func removeShareRecord(shareVaultId: String, vaultKey: Data) {
+        do {
+            var index = try VaultStorage.shared.loadIndex(with: vaultKey)
+            guard var shares = index.activeShares else { return }
+            let originalCount = shares.count
+            shares.removeAll { $0.id == shareVaultId }
+            guard shares.count != originalCount else { return }
+            index.activeShares = shares.isEmpty ? nil : shares
+            try VaultStorage.shared.saveIndex(index, with: vaultKey)
+        } catch {
+            Self.logger.error("Failed to remove share record for terminated upload: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     private func appendShareRecord(

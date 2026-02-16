@@ -411,7 +411,7 @@ struct ShareVaultView: View {
 
                 if job.canTerminate {
                     Button("Terminate", role: .destructive) {
-                        ShareUploadManager.shared.cancelUpload(jobId: job.id)
+                        terminateUpload(job)
                     }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("share_upload_terminate")
@@ -705,7 +705,11 @@ struct ShareVaultView: View {
         do {
             // Cancel all upload jobs for this vault first
             for job in uploadJobs where job.canTerminate {
-                ShareUploadManager.shared.cancelUpload(jobId: job.id)
+                ShareUploadManager.shared.terminateUpload(
+                    jobId: job.id,
+                    vaultKey: key,
+                    cleanupRemote: true
+                )
             }
 
             // Immediately clear local shares so UI feels responsive
@@ -726,6 +730,20 @@ struct ShareVaultView: View {
         } catch {
             isStopping = false
             mode = .error("Failed to stop sharing: \(error.localizedDescription)")
+        }
+    }
+
+    private func terminateUpload(_ job: ShareUploadManager.UploadJob) {
+        ShareUploadManager.shared.terminateUpload(
+            jobId: job.id,
+            vaultKey: appState.currentVaultKey,
+            cleanupRemote: true
+        )
+
+        uploadJobs.removeAll { $0.id == job.id }
+        activeShares.removeAll { $0.id == job.shareVaultId }
+        if uploadJobs.isEmpty && activeShares.isEmpty {
+            mode = .newShare
         }
     }
 
