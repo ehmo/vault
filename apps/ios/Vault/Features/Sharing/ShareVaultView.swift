@@ -40,6 +40,7 @@ struct ShareVaultView: View {
 
     // Screen-awake policy while uploads are running and this screen is visible
     @State private var didDisableIdleTimerForUploads = false
+    @State private var isShareScreenVisible = false
 
     var body: some View {
         NavigationStack {
@@ -97,9 +98,11 @@ struct ShareVaultView: View {
             }
         }
         .onAppear {
+            isShareScreenVisible = true
             applyIdleTimerPolicy()
         }
         .onDisappear {
+            isShareScreenVisible = false
             releaseIdleTimerPolicyIfNeeded()
         }
     }
@@ -758,7 +761,10 @@ struct ShareVaultView: View {
     // MARK: - Idle timer
 
     private func applyIdleTimerPolicy() {
-        let shouldDisable = uploadJobs.contains(where: { $0.status.isRunning })
+        let shouldDisable = Self.shouldDisableIdleTimer(
+            isShareScreenVisible: isShareScreenVisible,
+            uploadJobs: uploadJobs
+        )
 
         if shouldDisable && !didDisableIdleTimerForUploads {
             UIApplication.shared.isIdleTimerDisabled = true
@@ -845,6 +851,14 @@ struct ShareVaultView: View {
         default:
             return true
         }
+    }
+
+    static func shouldDisableIdleTimer(
+        isShareScreenVisible: Bool,
+        uploadJobs: [ShareUploadManager.UploadJob]
+    ) -> Bool {
+        guard isShareScreenVisible else { return false }
+        return uploadJobs.contains(where: { $0.status.isRunning })
     }
 
     private func iCloudStatusMessage(_ status: CKAccountStatus) -> String {

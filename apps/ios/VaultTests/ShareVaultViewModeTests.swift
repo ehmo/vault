@@ -82,6 +82,24 @@ final class ShareVaultViewModeTests: XCTestCase {
         )
     }
 
+    func testIdleTimerDisabledOnlyWhenShareScreenVisibleAndUploadRunning() {
+        XCTAssertTrue(
+            ShareVaultView.shouldDisableIdleTimer(
+                isShareScreenVisible: true,
+                uploadJobs: [makeUploadJob(status: .uploading)]
+            )
+        )
+    }
+
+    func testIdleTimerNotDisabledWhenShareScreenNotVisible() {
+        XCTAssertFalse(
+            ShareVaultView.shouldDisableIdleTimer(
+                isShareScreenVisible: false,
+                uploadJobs: [makeUploadJob(status: .uploading)]
+            )
+        )
+    }
+
     private func assert(_ mode: ShareVaultView.ViewMode, matches expected: ShareVaultView.ViewMode) {
         switch (mode, expected) {
         case (.loading, .loading),
