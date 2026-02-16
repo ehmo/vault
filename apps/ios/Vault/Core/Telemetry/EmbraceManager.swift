@@ -1,10 +1,12 @@
 import Foundation
 import EmbraceIO
+import os
 
 // File-scoped sensitive keywords to avoid actor isolation issues in Swift 6
 private let SensitiveKeywords: [String] = [
     "key", "pattern", "phrase", "salt", "password", "secret", "token"
 ]
+private let TelemetryLogger = Logger(subsystem: "app.vaultaire.ios", category: "Embrace")
 
 /// Status codes matching the former Sentry SpanStatus values used by call sites.
 enum SpanStatus {
@@ -23,14 +25,14 @@ enum SpanStatus {
 ///
 /// SAFETY: `@unchecked Sendable` — the underlying Embrace span is thread-safe.
 final class SpanHandle: @unchecked Sendable {
-    private let _setTag: @Sendable (_ value: String, _ key: String) -> Void
-    private let _finish: @Sendable (_ status: SpanStatus) -> Void
-    fileprivate let _createChild: @Sendable (_ name: String, _ desc: String) -> SpanHandle
+    private let _setTag: (_ value: String, _ key: String) -> Void
+    private let _finish: (_ status: SpanStatus) -> Void
+    fileprivate let _createChild: (_ name: String, _ desc: String) -> SpanHandle
 
     fileprivate init(
-        setTag: @escaping @Sendable (_ value: String, _ key: String) -> Void,
-        finish: @escaping @Sendable (_ status: SpanStatus) -> Void,
-        createChild: @escaping @Sendable (_ name: String, _ desc: String) -> SpanHandle
+        setTag: @escaping (_ value: String, _ key: String) -> Void,
+        finish: @escaping (_ status: SpanStatus) -> Void,
+        createChild: @escaping (_ name: String, _ desc: String) -> SpanHandle
     ) {
         self._setTag = setTag
         self._finish = finish
@@ -73,7 +75,10 @@ final class EmbraceManager: @unchecked Sendable {
     func start() {
         guard !self.isStarted else { return }
         self.isStarted = true
-        guard !self.hasSetup else { return }
+        guard !self.hasSetup else {
+            emitStartupHealthSignal(trigger: "re_enable")
+            return
+        }
         do {
             // Embrace enforces queue preconditions during setup; run on MainActor.
             try Embrace
@@ -82,10 +87,11 @@ final class EmbraceManager: @unchecked Sendable {
                 ))
                 .start()
             self.hasSetup = true
+            emitStartupHealthSignal(trigger: "initial_start")
         } catch {
             self.isStarted = false
             self.hasSetup = false
-            print("[EmbraceManager] Setup failed: \(error.localizedDescription)")
+            TelemetryLogger.error("[EmbraceManager] Setup failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -157,10 +163,41 @@ final class EmbraceManager: @unchecked Sendable {
 
     // MARK: - Convenience: Errors
 
-    func captureError(_ error: Error) {
+    func captureError(_ error: Error, context: [String: Any]? = nil) {
+        let nsError = error as NSError
+        var attributes: [String: String] = [
+            "error.type": String(describing: type(of: error)),
+            "error.domain": nsError.domain,
+            "error.code": String(nsError.code)
+        ]
+        if let context = Self.scrubProperties(context) {
+            for (key, value) in context {
+                attributes["context.\(key)"] = value
+            }
+        }
+
+        if let failureReason = nsError.userInfo[NSLocalizedFailureReasonErrorKey] as? String,
+            !failureReason.isEmpty
+        {
+            attributes["error.failure_reason"] = Self.containsSensitive(failureReason) ? "[REDACTED]" : failureReason
+        }
+
+        let scrubbedLocalizedDescription = Self.containsSensitive(error.localizedDescription)
+            ? "[REDACTED]"
+            : error.localizedDescription
+        attributes["error.localized_description"] = scrubbedLocalizedDescription
+
+        Embrace.client?.log(
+            "handled_exception",
+            severity: .error,
+            type: .exception,
+            attributes: attributes,
+            stackTraceBehavior: .main
+        )
+
         let span = Embrace.client?.buildSpan(name: "error.captured").startSpan()
         span?.setAttribute(key: "error.type", value: String(describing: type(of: error)))
-        span?.setAttribute(key: "error.message", value: error.localizedDescription)
+        span?.setAttribute(key: "error.message", value: scrubbedLocalizedDescription)
         span?.end(errorCode: .failure)
     }
 
@@ -204,5 +241,38 @@ final class EmbraceManager: @unchecked Sendable {
             }
         }
         return result
+    }
+
+    private func emitStartupHealthSignal(trigger: String) {
+        guard let client = Embrace.client else {
+            TelemetryLogger.error("[EmbraceManager] No client after start trigger=\(trigger, privacy: .public)")
+            return
+        }
+
+        let lastRunState = client.lastRunEndState()
+        client.log(
+            "embrace_started",
+            severity: .info,
+            attributes: [
+                "trigger": trigger,
+                "sdk_state": String(client.state.rawValue),
+                "sdk_enabled": String(client.isSDKEnabled),
+                "last_run_end_state": String(lastRunState.rawValue)
+            ],
+            stackTraceBehavior: .notIncluded
+        )
+
+        if lastRunState == .crash {
+            client.log(
+                "previous_run_crashed",
+                severity: .critical,
+                type: .exception,
+                attributes: [
+                    "source": "lastRunEndState",
+                    "sdk_state": String(client.state.rawValue)
+                ],
+                stackTraceBehavior: .notIncluded
+            )
+        }
     }
 }
