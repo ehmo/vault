@@ -7,6 +7,18 @@ final class ImportIngestorTests: XCTestCase {
     private var key: Data!
     private var fingerprint: String!
 
+    private actor ProgressCollector {
+        private var snapshots: [ImportIngestor.ImportProgress] = []
+
+        func append(_ progress: ImportIngestor.ImportProgress) {
+            snapshots.append(progress)
+        }
+
+        func values() -> [ImportIngestor.ImportProgress] {
+            snapshots
+        }
+    }
+
     override func setUp() {
         super.setUp()
         tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -246,6 +258,81 @@ final class ImportIngestorTests: XCTestCase {
         XCTAssertEqual(result.imported, 0)
         XCTAssertEqual(result.failed, 0)
         XCTAssertEqual(result.batchesCleaned, 1)
+    }
+
+    func testProgressCallbackReportsFromZeroToCompletion() async throws {
+        let (batchURL, batchId) = try StagedImportManager.createBatch()
+        let fileId = UUID()
+        let encURL = batchURL.appendingPathComponent("\(fileId.uuidString).enc")
+        try Data(repeating: 0xFF, count: 100).write(to: encURL)
+
+        let meta = StagedFileMetadata(
+            fileId: fileId,
+            filename: "broken.dat",
+            mimeType: "application/octet-stream",
+            utType: "public.data",
+            originalSize: 50,
+            encryptedSize: 100,
+            hasThumbnail: false,
+            timestamp: Date()
+        )
+        try writeManifest(batchId: batchId, batchURL: batchURL, files: [meta])
+
+        let collector = ProgressCollector()
+        let result = await ImportIngestor.processPendingImports(for: key) { progress in
+            await collector.append(progress)
+        }
+        let snapshots = await collector.values()
+
+        XCTAssertEqual(result.imported, 0)
+        XCTAssertEqual(result.failed, 1)
+        XCTAssertEqual(snapshots.first?.completed, 0)
+        XCTAssertEqual(snapshots.first?.total, 1)
+        XCTAssertEqual(snapshots.last?.completed, 1)
+        XCTAssertEqual(snapshots.last?.total, 1)
+    }
+
+    func testProgressTotalExcludesAlreadyImportedMissingPayloads() async throws {
+        let (batchURL, batchId) = try StagedImportManager.createBatch()
+        let missingFileId = UUID()
+        let failingFileId = UUID()
+
+        let failingEncURL = batchURL.appendingPathComponent("\(failingFileId.uuidString).enc")
+        try Data(repeating: 0xFF, count: 120).write(to: failingEncURL)
+
+        let missingMeta = StagedFileMetadata(
+            fileId: missingFileId,
+            filename: "missing.dat",
+            mimeType: "application/octet-stream",
+            utType: "public.data",
+            originalSize: 80,
+            encryptedSize: 100,
+            hasThumbnail: false,
+            timestamp: Date()
+        )
+        let failingMeta = StagedFileMetadata(
+            fileId: failingFileId,
+            filename: "failing.dat",
+            mimeType: "application/octet-stream",
+            utType: "public.data",
+            originalSize: 80,
+            encryptedSize: 120,
+            hasThumbnail: false,
+            timestamp: Date()
+        )
+        try writeManifest(batchId: batchId, batchURL: batchURL, files: [missingMeta, failingMeta])
+
+        let collector = ProgressCollector()
+        let result = await ImportIngestor.processPendingImports(for: key) { progress in
+            await collector.append(progress)
+        }
+        let snapshots = await collector.values()
+
+        XCTAssertEqual(result.imported, 0)
+        XCTAssertEqual(result.failed, 1)
+        XCTAssertEqual(snapshots.first?.total, 1)
+        XCTAssertEqual(snapshots.last?.completed, 1)
+        XCTAssertEqual(snapshots.last?.total, 1)
     }
 
     // MARK: - Wrong Key Batch

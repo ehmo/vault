@@ -177,6 +177,23 @@ final class StagedImportManagerTests: XCTestCase {
         XCTAssertEqual(StagedImportManager.pendingFileCount(for: "other"), 10)
     }
 
+    func testPendingImportableFileCountOnlyCountsExistingEncryptedPayloads() throws {
+        let manifest = createManifest(fingerprint: "fp", fileCount: 3)
+        let batchURL = try writeBatch(manifest)
+
+        let presentFileIds = [manifest.files[0].fileId, manifest.files[2].fileId]
+        for fileId in presentFileIds {
+            try StagedImportManager.writeEncryptedFile(
+                CryptoEngine.generateRandomBytes(count: 64)!,
+                fileId: fileId,
+                to: batchURL
+            )
+        }
+
+        XCTAssertEqual(StagedImportManager.pendingFileCount(for: "fp"), 3)
+        XCTAssertEqual(StagedImportManager.pendingImportableFileCount(for: "fp"), 2)
+    }
+
     // MARK: - Batch Deletion
 
     func testDeleteBatchRemovesDirectory() throws {

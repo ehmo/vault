@@ -11,6 +11,11 @@ private let importIngestorLogger = Logger(subsystem: "app.vaultaire.ios", catego
 
 enum ImportIngestor {
 
+    struct ImportProgress: Sendable {
+        let completed: Int
+        let total: Int
+    }
+
     struct ImportResult {
         let imported: Int
         let failed: Int
@@ -21,7 +26,10 @@ enum ImportIngestor {
 
     /// Processes all pending batches matching the given vault key.
     /// Decrypts each file, stores it via VaultStorage, and cleans up the batch.
-    static func processPendingImports(for vaultKey: Data) async -> ImportResult {
+    static func processPendingImports(
+        for vaultKey: Data,
+        onProgress: (@Sendable (ImportProgress) async -> Void)? = nil
+    ) async -> ImportResult {
         let fingerprint = KeyDerivation.keyFingerprint(from: vaultKey)
         let batches = StagedImportManager.pendingBatches(for: fingerprint)
 
@@ -29,15 +37,30 @@ enum ImportIngestor {
             return ImportResult(imported: 0, failed: 0, batchesCleaned: 0, failureReason: nil)
         }
 
+        let totalImportable = batches.reduce(0) { total, batch in
+            total + StagedImportManager.importableFileCount(in: batch)
+        }
+        if totalImportable > 0, let onProgress {
+            await onProgress(ImportProgress(completed: 0, total: totalImportable))
+        }
+
         var totalImported = 0
         var totalFailed = 0
         var batchesCleaned = 0
         var lastFailureReason: String?
+        var totalProcessed = 0
 
         for batch in batches {
-            let batchResult = await processBatch(batch, vaultKey: vaultKey)
+            let batchResult = await processBatch(
+                batch,
+                vaultKey: vaultKey,
+                completedOffset: totalProcessed,
+                totalImportable: totalImportable,
+                onProgress: onProgress
+            )
             totalImported += batchResult.imported
             totalFailed += batchResult.failed
+            totalProcessed += batchResult.processed
             if let reason = batchResult.failureReason {
                 lastFailureReason = reason
             }
@@ -68,17 +91,25 @@ enum ImportIngestor {
         // Clean up orphaned batches while we're at it
         StagedImportManager.cleanupOrphans()
 
+        if totalImportable > 0, totalProcessed < totalImportable, let onProgress {
+            await onProgress(ImportProgress(completed: totalImportable, total: totalImportable))
+        }
+
         return ImportResult(imported: totalImported, failed: totalFailed, batchesCleaned: batchesCleaned, failureReason: lastFailureReason)
     }
 
     private static func processBatch(
         _ batch: StagedImportManifest,
-        vaultKey: Data
-    ) async -> (imported: Int, failed: Int, failureReason: String?) {
+        vaultKey: Data,
+        completedOffset: Int,
+        totalImportable: Int,
+        onProgress: (@Sendable (ImportProgress) async -> Void)?
+    ) async -> (imported: Int, failed: Int, processed: Int, failureReason: String?) {
         var imported = 0
         var skipped = 0
         var failed = 0
         var failureReason: String?
+        var processed = 0
 
         for file in batch.files {
             // If the .enc file is missing, this file was already imported in a
@@ -145,13 +176,23 @@ enum ImportIngestor {
                 failureReason = error.localizedDescription
                 importIngestorLogger.error("Failed to import \(file.fileId, privacy: .public): \(error.localizedDescription, privacy: .public)")
             }
+
+            processed += 1
+            if totalImportable > 0, let onProgress {
+                await onProgress(
+                    ImportProgress(
+                        completed: min(completedOffset + processed, totalImportable),
+                        total: totalImportable
+                    )
+                )
+            }
         }
 
         if skipped > 0 {
             importIngestorLogger.info("Batch \(batch.batchId, privacy: .public): skipped \(skipped) already-imported files")
         }
 
-        return (imported, failed, failureReason)
+        return (imported, failed, processed, failureReason)
     }
 
     // MARK: - Thumbnail Generation

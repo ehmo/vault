@@ -114,6 +114,22 @@ enum StagedImportManager {
         pendingBatches(for: fingerprint).reduce(0) { $0 + $1.files.count }
     }
 
+    /// Returns the count of files that are still importable across all pending
+    /// batches for a fingerprint. This excludes files whose `.enc` payload was
+    /// already deleted after a prior successful import attempt.
+    static func pendingImportableFileCount(for fingerprint: String) -> Int {
+        pendingBatches(for: fingerprint).reduce(0) { total, batch in
+            total + importableFileCount(in: batch)
+        }
+    }
+
+    /// Returns the count of files in a batch that still have an encrypted payload on disk.
+    static func importableFileCount(in batch: StagedImportManifest) -> Int {
+        batch.files.reduce(0) { total, file in
+            total + (encryptedFileURL(batchId: batch.batchId, fileId: file.fileId) != nil ? 1 : 0)
+        }
+    }
+
     /// Returns the URL of an encrypted file in a batch, or nil if the batch directory is unavailable.
     static func encryptedFileURL(batchId: UUID, fileId: UUID) -> URL? {
         guard let batchURL = batchDirectory(for: batchId) else { return nil }

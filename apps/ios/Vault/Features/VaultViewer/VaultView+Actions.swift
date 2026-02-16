@@ -121,16 +121,40 @@ extension VaultView {
     func importPendingFiles() {
         guard !isImportingPendingFiles else { return }
         guard let vaultKey = appState.currentVaultKey else { return }
+
         isImportingPendingFiles = true
         UIApplication.shared.isIdleTimerDisabled = true
-        Task {
-            let result = await ImportIngestor.processPendingImports(for: vaultKey)
+
+        let fingerprint = KeyDerivation.keyFingerprint(from: vaultKey)
+        let initialPendingCount = StagedImportManager.pendingImportableFileCount(for: fingerprint)
+        if initialPendingCount > 0 {
+            importProgress = (0, initialPendingCount)
+        }
+
+        activeImportTask?.cancel()
+        activeImportTask = Task.detached(priority: .userInitiated) {
+            let result = await ImportIngestor.processPendingImports(for: vaultKey) { progress in
+                await MainActor.run {
+                    guard !Task.isCancelled else { return }
+                    self.importProgress = (progress.completed, progress.total)
+                }
+            }
+
             await MainActor.run {
-                isImportingPendingFiles = false
+                // Always perform cleanup, even if task was cancelled.
+                self.isImportingPendingFiles = false
+                self.importProgress = nil
                 UIApplication.shared.isIdleTimerDisabled = false
+            }
+
+            guard !Task.isCancelled else { return }
+
+            let remainingImportable = StagedImportManager.pendingImportableFileCount(for: fingerprint)
+            await MainActor.run {
+                appState.hasPendingImports = remainingImportable > 0
+                appState.pendingImportCount = remainingImportable
+
                 if result.imported > 0 {
-                    appState.hasPendingImports = false
-                    appState.pendingImportCount = 0
                     loadFiles()
                     let generator = UINotificationFeedbackGenerator()
                     generator.notificationOccurred(.success)
