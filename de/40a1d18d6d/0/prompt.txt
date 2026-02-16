@@ -1,0 +1,190 @@
+Implement the following plan:
+
+# Fix OOM Crash During Vault Sharing — Streaming SVDF Build
+
+## Context
+Vault sharing crashes (jetsam/OOM kill) on large vaults (96 files, 48.8MB video). Root cause: `startBackgroundUpload` accumulates ALL re-encrypted `SharedFile` objects in a `sharedFiles` array (~total_vault_size), then `SVDFSerializer.buildFull` copies them all into a new `Data` blob (~total_vault_size again). Peak memory = 2x total vault size. For the crashing vault: ~200MB peak.
+
+## Approach
+Stream SVDF construction to disk via FileHandle, processing one file at a time. Peak memory drops from O(total_vault_size * 2) to O(largest_file * 2 + total_vault_size).
+
+## Changes
+
+### 1. SVDFSerializer.swift — Add `buildFullStreaming`
+
+New static method:
+```swift
+static func buildFullStreaming(
+    to fileURL: URL,
+    fileCount: Int,
+    forEachFile: (Int) throws -> SharedVaultData.SharedFile,
+    metadata: SharedVaultData.SharedVaultMetadata,
+    shareKey: Data
+) throws -> (manifest: [FileManifestEntry], fileIds: [String])
+```
+
+Logic:
+- Create file, open FileHandle for writing
+- Write 64-byte zeroed header placeholder
+- Loop 0..<fileCount: call `forEachFile(i)`, `encodeFileEntry`, write to handle, record manifest entry + file ID, release file data
+- Encrypt+write manifest JSON
+- Encrypt+write metadata JSON
+- Seek to 0, write final header with offsets
+- Close handle, return manifest + fileIds
+
+### 2. BackgroundShareTransferManager.swift — Use streaming build
+
+Replace lines 196-260 (sharedFiles accumulation + buildFull) with:
+
+1. Create `svdfTempURL` (temp file in `pendingDir`)
+2. Create `syncCache = ShareSyncCache(shareVaultId: shareVaultId)` early
+3. Track `var fileIds: [String] = []`
+4. Call `SVDFSerializer.buildFullStreaming(to: svdfTempURL, ...)` with closure:
+   - `autoreleasepool` wrapping decrypt + re-encrypt
+   - Write encrypted file + thumb to syncCache during iteration
+   - Return `SharedFile`
+   - Progress reporting stays sync (no await needed inside closure)
+5. After build: `let encodedData = try Data(contentsOf: svdfTempURL)`
+6. Remove post-upload syncCache file loop (lines 327-332) — already done during build
+7. Update `PendingUploadState` construction to use fileIds from streaming result
+
+Progress reporting change: the `forEachFile` closure is synchronous (throws, not async). Track progress via captured mutable var, update MainActor progress after the streaming call completes each batch. OR: use a simple captured counter and update after `buildFullStreaming` returns. The encrypt phase is only 1-5% of progress anyway — acceptable to not update per-file.
+
+### 3. Memory Profile Comparison
+
+| Phase | Before | After |
+|-------|--------|-------|
+| Re-encryption loop | All SharedFiles in array (~vault_size) | 1 file at a time (written to disk) |
+| SVDF build | New Data blob (~vault_size) | Already on disk |
+| Upload prep | Data read from file | Same (Data read from file) |
+| **Peak** | **~2x vault_size** | **~1x vault_size** |
+
+## Files Modified
+- `apps/ios/Vault/Core/Sharing/SVDFSerializer.swift` — add `buildFullStreaming`
+- `apps/ios/Vault/Core/Sharing/BackgroundShareTransferManager.swift` — replace accumulation with streaming
+
+## Verification
+1. Build with `xcodebuild` — must compile clean
+2. Test with a small vault (few files) — sharing should complete successfully
+3. The fix specifically targets the OOM on large vaults; full verification needs TestFlight deploy + test on the problematic vault
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+deploy to testflight
+
+---
+
+Base directory for this skill: /Users/nan/.claude/skills/asc-xcode-build
+
+# Xcode Build and Export
+
+Use this skill when you need to build an app from source and prepare it for upload to App Store Connect.
+
+## Preconditions
+- Xcode installed and command line tools configured
+- Valid signing identity and provisioning profiles (or automatic signing enabled)
+
+## iOS Build Flow
+
+### 1. Clean and Archive
+```bash
+xcodebuild clean archive \
+  -scheme "YourScheme" \
+  -configuration Release \
+  -archivePath /tmp/YourApp.xcarchive \
+  -destination "generic/platform=iOS"
+```
+
+### 2. Export IPA
+```bash
+xcodebuild -exportArchive \
+  -archivePath /tmp/YourApp.xcarchive \
+  -exportPath /tmp/YourAppExport \
+  -exportOptionsPlist ExportOptions.plist \
+  -allowProvisioningUpdates
+```
+
+A minimal `ExportOptions.plist` for App Store distribution:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>app-store-connect</string>
+    <key>teamID</key>
+    <string>YOUR_TEAM_ID</string>
+</dict>
+</plist>
+```
+
+### 3. Upload with asc
+```bash
+asc builds upload --app "APP_ID" --ipa "/tmp/YourAppExport/YourApp.ipa"
+```
+
+## macOS Build Flow
+
+### 1. Archive
+```bash
+xcodebuild archive \
+  -scheme "YourMacScheme" \
+  -configuration Release \
+  -archivePath /tmp/YourMacApp.xcarchive \
+  -destination "generic/platform=macOS"
+```
+
+### 2. Export PKG
+```bash
+xcodebuild -exportArchive \
+  -archivePath /tmp/YourMacApp.xcarchive \
+  -exportPath /tmp/YourMacAppExport \
+  -exportOptionsPlist ExportOptions.plist \
+  -allowProvisioningUpdates
+```
+
+### 3. Upload PKG
+macOS apps export as `.pkg` files. Use `xcrun altool`:
+```bash
+xcrun altool --upload-app \
+  -f "/tmp/YourMacAppExport/YourApp.pkg" \
+  --type macos \
+  --apiKey "$ASC_KEY_ID" \
+  --apiIssuer "$ASC_ISSUER_ID"
+```
+
+Note: The API key file must be in `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8`
+
+## Build Number Management
+
+Each upload requires a unique build number higher than previously uploaded builds.
+
+In Xcode project settings:
+- `CURRENT_PROJECT_VERSION` - build number (e.g., "316")
+- `MARKETING_VERSION` - version string (e.g., "2.2.0")
+
+Check existing builds:
+```bash
+asc builds list --app "APP_ID" --platform IOS --limit 5
+```
+
+## Troubleshooting
+
+### "No profiles for bundle ID" during export
+- Add `-allowProvisioningUpdates` flag
+- Verify your Apple ID is logged into Xcode
+
+### Build rejected for missing icon (macOS)
+macOS requires ICNS format icons with all sizes:
+- 16x16, 32x32, 128x128, 256x256, 512x512 (1x and 2x)
+
+### CFBundleVersion too low
+The build number must be higher than any previously uploaded build. Increment `CURRENT_PROJECT_VERSION` and rebuild.
+
+## Notes
+- Always clean before archive for release builds
+- Use `xcodebuild -showBuildSettings` to verify configuration
+- For submission issues (encryption, content rights), see `asc-submission-health` skill

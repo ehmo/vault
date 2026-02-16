@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "de40a1d18d6d",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".scratch-pad.md",
+    "apps/ios/Vault/Core/Sharing/BackgroundShareTransferManager.swift",
+    "apps/ios/Vault/Core/Sharing/SVDFSerializer.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/de/40a1d18d6d/0/metadata.json",
+      "transcript": "/de/40a1d18d6d/0/full.jsonl",
+      "context": "/de/40a1d18d6d/0/context.md",
+      "content_hash": "/de/40a1d18d6d/0/content_hash.txt",
+      "prompt": "/de/40a1d18d6d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 35,
+    "cache_creation_tokens": 89759,
+    "cache_read_tokens": 3082719,
+    "output_tokens": 805,
+    "api_call_count": 30
+  }
+}

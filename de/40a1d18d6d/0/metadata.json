@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "de40a1d18d6d",
+  "session_id": "a6a352d5-6ee8-4a5a-92e6-6de41eee70c0",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-16T06:21:25.479157Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".scratch-pad.md",
+    "apps/ios/Vault/Core/Sharing/BackgroundShareTransferManager.swift",
+    "apps/ios/Vault/Core/Sharing/SVDFSerializer.swift"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 35,
+    "cache_creation_tokens": 89759,
+    "cache_read_tokens": 3082719,
+    "output_tokens": 805,
+    "api_call_count": 30
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-16T06:21:25.380508Z",
+    "agent_lines": 0,
+    "human_added": 93,
+    "human_modified": 64,
+    "human_removed": 0,
+    "total_committed": 157,
+    "agent_percentage": 0
+  }
+}
