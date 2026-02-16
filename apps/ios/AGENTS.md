@@ -157,6 +157,7 @@ All pattern grid screens MUST behave identically. There are two categories:
 - **Dark-mode readability tuning**: Keep light tokens unchanged; adjust only dark appearances in color assets (`VaultBackground`, `VaultSurface`, `VaultSecondaryText`, `AccentColor`) so improvements stay global and consistent without per-view overrides.
 - **TestFlight upload auth**: If `xcodebuild -exportArchive` fails with `Failed to Use Accounts`, rerun export/upload with ASC API key flags (`-authenticationKeyPath`, `-authenticationKeyID`, `-authenticationKeyIssuerID`) to avoid Xcode account-session dependency.
 - **ASC CLI builds filter**: In `asc` 0.28+, `asc builds list` no longer supports `--version`; use JSON output + `jq` filtering on `.attributes.version`.
+- **ASC CLI output flag**: Use `--output json` (not `--json`) for `asc` commands like `asc builds list`/`asc builds info`.
 - **TestFlight group assignment**: Do not assume a group named "Internal Testers" is internal; check `asc testflight beta-groups list` and run `asc builds add-groups` when `Internal = false`.
 - **Parallel chunk downloads**: `downloadChunksParallel` uses bounded TaskGroup (max 4), order-preserving reassembly via `[Int: Data]` dictionary
 - **Structured logging**: Subsystem `"app.vaultaire.ios"`, category = class name. `Self.logger` for actors/classes, file-level `let` for `@MainActor` classes with `nonisolated` methods. Levels: trace (sensitive), debug (routine), info (notable), warning (non-fatal), error (failures)
