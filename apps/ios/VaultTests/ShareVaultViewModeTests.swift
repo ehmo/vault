@@ -100,6 +100,26 @@ final class ShareVaultViewModeTests: XCTestCase {
         )
     }
 
+    func testHasPendingUploadDoesNotDeleteJobDirectoryWithoutStateFile() async throws {
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let pendingRoot = documents.appendingPathComponent("pending_uploads", isDirectory: true)
+        let jobId = "test-no-state-\(UUID().uuidString.lowercased())"
+        let jobDir = pendingRoot.appendingPathComponent(jobId, isDirectory: true)
+        let svdfURL = jobDir.appendingPathComponent("svdf_data.bin")
+
+        try FileManager.default.createDirectory(at: jobDir, withIntermediateDirectories: true)
+        try Data([0x01, 0x02, 0x03]).write(to: svdfURL, options: .atomic)
+
+        defer { try? FileManager.default.removeItem(at: jobDir) }
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: jobDir.path))
+        _ = await MainActor.run { ShareUploadManager.shared.hasPendingUpload }
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: jobDir.path),
+            "Scanning pending uploads should not delete in-progress directories without state.json"
+        )
+    }
+
     private func assert(_ mode: ShareVaultView.ViewMode, matches expected: ShareVaultView.ViewMode) {
         switch (mode, expected) {
         case (.loading, .loading),

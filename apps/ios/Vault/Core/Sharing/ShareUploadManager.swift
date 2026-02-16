@@ -1069,6 +1069,14 @@ final class ShareUploadManager {
         var states: [PendingUploadState] = []
         for dir in contents where dir.hasDirectoryPath {
             let jobId = dir.lastPathComponent
+
+            // A job directory can exist briefly before state.json is persisted
+            // (during initial SVDF preparation). Treat it as in-progress and do
+            // not delete it, otherwise we can remove svdf_data.bin mid-upload.
+            guard FileManager.default.fileExists(atPath: stateURL(jobId: jobId).path) else {
+                continue
+            }
+
             guard let state = loadPendingUploadState(jobId: jobId) else {
                 clearPendingUpload(jobId: jobId)
                 continue
