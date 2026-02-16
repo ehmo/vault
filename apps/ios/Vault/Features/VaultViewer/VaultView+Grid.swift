@@ -157,6 +157,8 @@ extension VaultView {
             }
         }
         .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .accessibilityIdentifier("vault_empty_state_container")
     }
 
     @ViewBuilder
