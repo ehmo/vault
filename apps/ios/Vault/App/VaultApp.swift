@@ -93,6 +93,7 @@ final class AppState {
 
     private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "AppState")
     private static let appearanceModeKey = "appAppearanceMode"
+    private static let unlockCeremonyDelayNanoseconds: UInt64 = 1_500_000_000
 
     #if DEBUG
     /// When true, Maestro E2E tests are running — disables lock triggers and enables test bypass
@@ -124,9 +125,15 @@ final class AppState {
         showOnboarding = !UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
     }
 
-    func completeOnboarding() {
+    func completeOnboarding() async {
+        guard showOnboarding else { return }
         UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
         showOnboarding = false
+        isLoading = true
+        try? await Task.sleep(nanoseconds: Self.unlockCeremonyDelayNanoseconds)
+        isUnlocked = true
+        isLoading = false
+        BackgroundShareTransferManager.shared.resumePendingUploadIfNeeded(trigger: "onboarding_completed")
     }
 
     func setAppearanceMode(_ mode: AppAppearanceMode) {
@@ -165,10 +172,10 @@ final class AppState {
                 // Reuse key already derived by the caller (avoids double PBKDF2)
                 key = precomputed
                 // Consistent unlock ceremony: loader shown for 1.5s
-                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                try? await Task.sleep(nanoseconds: Self.unlockCeremonyDelayNanoseconds)
             } else {
                 // Run delay and key derivation concurrently: total time = max(1.5s, derivation)
-                async let delayTask: Void = Task.sleep(nanoseconds: 1_500_000_000)
+                async let delayTask: Void = Task.sleep(nanoseconds: Self.unlockCeremonyDelayNanoseconds)
 
                 let keySpan = EmbraceManager.shared.startSpan(parent: transaction, operation: "crypto.key_derivation", description: "PBKDF2 key derivation")
                 async let keyTask = KeyDerivation.deriveKey(from: pattern, gridSize: gridSize)

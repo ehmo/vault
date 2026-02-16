@@ -105,7 +105,9 @@ struct OnboardingView: View {
     }
 
     private func completeOnboarding() {
-        appState.completeOnboarding()
+        Task {
+            await appState.completeOnboarding()
+        }
     }
 }
 

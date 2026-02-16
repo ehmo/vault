@@ -69,3 +69,13 @@ appId: app.vaultaire.ios
 - tapOn:
     text: "I've Saved It"
     optional: true
+
+# Unlock transition after onboarding completion
+- assertVisible:
+    text: "Unlocking..."
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 2500
+- assertVisible:
+    id: "vault_add_button"
+    optional: true

@@ -344,7 +344,6 @@ struct PatternSetupView: View {
 
                     isSaving = false
                     appState.currentVaultKey = key
-                    appState.isUnlocked = true
                     let letters = GridLetterManager.shared.vaultName(for: pattern)
                     appState.updateVaultName(letters.isEmpty ? "Vault" : "Vault \(letters)")
                     step = .recovery
