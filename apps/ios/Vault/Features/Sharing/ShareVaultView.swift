@@ -32,6 +32,7 @@ struct ShareVaultView: View {
     @State private var activeShares: [VaultStorage.ShareRecord] = []
     @State private var uploadJobs: [ShareUploadManager.UploadJob] = []
     @State private var currentOwnerFingerprint: String?
+    @State private var initializationGeneration = 0
 
     // Phrase display
     @State private var activePhrase: String?
@@ -87,12 +88,12 @@ struct ShareVaultView: View {
         .task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
-                await refreshUploadJobs()
+                await refreshUploadJobs(reloadShares: false)
             }
         }
         .onChange(of: ShareSyncManager.shared.syncStatus) { _, newStatus in
             if case .upToDate = newStatus {
-                reloadActiveShares()
+                Task { await reloadActiveShares() }
             }
         }
         .onAppear {
@@ -106,50 +107,55 @@ struct ShareVaultView: View {
     // MARK: - Initialization
 
     private func initialize() async {
-        let status = await CloudKitSharingManager.shared.checkiCloudStatus()
-        guard status == .available || status == .temporarilyUnavailable else {
-            mode = .iCloudUnavailable(status)
-            return
-        }
-
         guard let key = appState.currentVaultKey else {
             mode = .error("No vault key available")
             return
         }
 
+        let generation = initializationGeneration &+ 1
+        initializationGeneration = generation
         currentOwnerFingerprint = KeyDerivation.keyFingerprint(from: key)
 
         do {
-            var index = try VaultStorage.shared.loadIndex(with: key)
-            estimatedUploadSize = index.files.filter { !$0.isDeleted }.reduce(0) { $0 + $1.size }
+            async let accountStatusTask = CloudKitSharingManager.shared.checkiCloudStatus()
 
-            if var shares = index.activeShares, !shares.isEmpty {
-                // Check for consumed shares and remove them
-                let consumedMap = await CloudKitSharingManager.shared.consumedStatusByShareVaultIds(
-                    shares.map(\.id)
+            let localSnapshot = try await Self.loadLocalSnapshot(vaultKey: key)
+            guard generation == initializationGeneration else { return }
+
+            estimatedUploadSize = localSnapshot.estimatedUploadSize
+            activeShares = localSnapshot.activeShares
+
+            await refreshUploadJobs(reloadShares: false)
+            guard generation == initializationGeneration else { return }
+            updateModeForCurrentData()
+
+            Task {
+                await reconcileConsumedShares(
+                    vaultKey: key,
+                    initialShares: localSnapshot.activeShares,
+                    generation: generation
                 )
-                let consumedIds = Set(consumedMap.compactMap { $0.value ? $0.key : nil })
-                if !consumedIds.isEmpty {
-                    shares.removeAll { consumedIds.contains($0.id) }
-                    index.activeShares = shares.isEmpty ? nil : shares
-                    try VaultStorage.shared.saveIndex(index, with: key)
-                }
-                activeShares = shares
-            } else {
-                activeShares = []
             }
 
-            await refreshUploadJobs()
-            updateModeForCurrentData()
+            let status = await accountStatusTask
+            guard generation == initializationGeneration else { return }
+            guard status == .available || status == .temporarilyUnavailable else {
+                mode = .iCloudUnavailable(status)
+                return
+            }
         } catch {
             mode = .error(error.localizedDescription)
         }
     }
 
-    private func refreshUploadJobs() async {
+    private func refreshUploadJobs(reloadShares: Bool = true) async {
+        let previousRunningCount = runningUploadCount
         let latestJobs = ShareUploadManager.shared.jobs(forOwnerFingerprint: currentOwnerFingerprint)
         uploadJobs = latestJobs.filter(Self.shouldDisplayUploadJob)
-        reloadActiveShares()
+        let shouldReloadShares = reloadShares || (previousRunningCount > 0 && runningUploadCount == 0)
+        if shouldReloadShares {
+            await reloadActiveShares()
+        }
         applyIdleTimerPolicy()
         updateModeForCurrentData()
     }
@@ -662,17 +668,17 @@ struct ShareVaultView: View {
 
         activePhrase = phrase
         mode = .manageShares
-        Task { await refreshUploadJobs() }
+        Task { await refreshUploadJobs(reloadShares: false) }
     }
 
-    private func reloadActiveShares() {
+    private func reloadActiveShares() async {
         guard let key = appState.currentVaultKey,
-              let index = try? VaultStorage.shared.loadIndex(with: key),
-              let shares = index.activeShares, !shares.isEmpty else {
+              let shares = try? await Self.loadActiveShares(vaultKey: key) else {
             activeShares = []
             return
         }
         activeShares = shares
+        updateModeForCurrentData()
     }
 
     private func revokeShare(_ share: VaultStorage.ShareRecord) async {
@@ -777,6 +783,60 @@ struct ShareVaultView: View {
         formatter.countStyle = .file
         return formatter
     }()
+
+    private struct LocalSnapshot: Sendable {
+        let estimatedUploadSize: Int
+        let activeShares: [VaultStorage.ShareRecord]
+    }
+
+    private static func loadLocalSnapshot(vaultKey: Data) async throws -> LocalSnapshot {
+        try await Task.detached(priority: .userInitiated) {
+            let index = try VaultStorage.shared.loadIndex(with: vaultKey)
+            let estimatedSize = index.files.filter { !$0.isDeleted }.reduce(0) { $0 + $1.size }
+            return LocalSnapshot(
+                estimatedUploadSize: estimatedSize,
+                activeShares: index.activeShares ?? []
+            )
+        }.value
+    }
+
+    private static func loadActiveShares(vaultKey: Data) async throws -> [VaultStorage.ShareRecord] {
+        try await Task.detached(priority: .utility) {
+            let index = try VaultStorage.shared.loadIndex(with: vaultKey)
+            return index.activeShares ?? []
+        }.value
+    }
+
+    private func reconcileConsumedShares(
+        vaultKey: Data,
+        initialShares: [VaultStorage.ShareRecord],
+        generation: Int
+    ) async {
+        guard !initialShares.isEmpty else { return }
+
+        let consumedMap = await CloudKitSharingManager.shared.consumedStatusByShareVaultIds(initialShares.map(\.id))
+        let consumedIds = Set(consumedMap.compactMap { $0.value ? $0.key : nil })
+        guard !consumedIds.isEmpty else { return }
+
+        do {
+            let updatedShares = try await Task.detached(priority: .utility) { () -> [VaultStorage.ShareRecord] in
+                var index = try VaultStorage.shared.loadIndex(with: vaultKey)
+                var shares = index.activeShares ?? []
+                shares.removeAll { consumedIds.contains($0.id) }
+                index.activeShares = shares.isEmpty ? nil : shares
+                try VaultStorage.shared.saveIndex(index, with: vaultKey)
+                return shares
+            }.value
+
+            await MainActor.run {
+                guard generation == initializationGeneration else { return }
+                activeShares = updatedShares
+                updateModeForCurrentData()
+            }
+        } catch {
+            shareVaultLogger.error("Failed to reconcile consumed shares: \(error.localizedDescription, privacy: .public)")
+        }
+    }
 
     static func shouldDisplayUploadJob(_ job: ShareUploadManager.UploadJob) -> Bool {
         switch job.status {
