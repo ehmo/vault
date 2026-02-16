@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "a1f3fa842001",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".scratch-pad.md",
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Core/Storage/ImportIngestor.swift",
+    "apps/ios/Vault/Core/Storage/StagedImportManager.swift",
+    "apps/ios/VaultTests/ImportIngestorTests.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a1/f3fa842001/0/metadata.json",
+      "transcript": "/a1/f3fa842001/0/full.jsonl",
+      "context": "/a1/f3fa842001/0/context.md",
+      "content_hash": "/a1/f3fa842001/0/content_hash.txt",
+      "prompt": "/a1/f3fa842001/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 43,
+    "cache_creation_tokens": 74494,
+    "cache_read_tokens": 3950057,
+    "output_tokens": 3836,
+    "api_call_count": 39
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "a1f3fa842001",
+  "session_id": "dcab78b4-18f8-4b08-acd3-69ac914db32e",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-16T01:42:58.424067Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".scratch-pad.md",
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Core/Storage/ImportIngestor.swift",
+    "apps/ios/Vault/Core/Storage/StagedImportManager.swift",
+    "apps/ios/VaultTests/ImportIngestorTests.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "3062d9bc-3be3-429b-b00b-afa9c80e8aa1",
+  "checkpoint_transcript_start": 7669,
+  "transcript_lines_at_start": 7669,
+  "token_usage": {
+    "input_tokens": 43,
+    "cache_creation_tokens": 74494,
+    "cache_read_tokens": 3950057,
+    "output_tokens": 3836,
+    "api_call_count": 39
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-16T01:42:56.387151Z",
+    "agent_lines": 0,
+    "human_added": 92,
+    "human_modified": 54,
+    "human_removed": 0,
+    "total_committed": 114,
+    "agent_percentage": 0
+  }
+}
