@@ -3,7 +3,7 @@
   "checkpoint_id": "2c88f4474d94",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     ".scratch-pad.md",
     "apps/ios/AGENTS.md",
@@ -34,6 +34,7 @@
     "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
     "apps/ios/Vault/UI/Components/LoadingView.swift",
     "apps/ios/Vault/UI/Components/PendingImportBanner.swift",
+    "apps/ios/Vault/UI/Components/StorageRingView.swift",
     "apps/ios/VaultTests/CryptoStreamingTests.swift",
     "apps/ios/VaultTests/ImportIngestorTests.swift",
     "apps/ios/VaultTests/ShareExtensionIntegrationTests.swift",
@@ -46,13 +47,20 @@
       "context": "/2c/88f4474d94/0/context.md",
       "content_hash": "/2c/88f4474d94/0/content_hash.txt",
       "prompt": "/2c/88f4474d94/0/prompt.txt"
+    },
+    {
+      "metadata": "/2c/88f4474d94/1/metadata.json",
+      "transcript": "/2c/88f4474d94/1/full.jsonl",
+      "context": "/2c/88f4474d94/1/context.md",
+      "content_hash": "/2c/88f4474d94/1/content_hash.txt",
+      "prompt": "/2c/88f4474d94/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 19,
-    "cache_creation_tokens": 30140,
-    "cache_read_tokens": 1582076,
-    "output_tokens": 174,
-    "api_call_count": 16
+    "input_tokens": 71,
+    "cache_creation_tokens": 95460,
+    "cache_read_tokens": 5192052,
+    "output_tokens": 917,
+    "api_call_count": 63
   }
 }
