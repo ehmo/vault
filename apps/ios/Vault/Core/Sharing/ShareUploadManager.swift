@@ -184,6 +184,15 @@ final class ShareUploadManager {
 
     private var vaultKeyProvider: (() -> Data?)?
 
+    private struct PreparedUploadArtifacts {
+        let shareKey: Data
+        let phraseVaultId: String
+        let sharedFileIds: [String]
+        let svdfManifest: [SVDFSerializer.FileManifestEntry]
+        let totalChunks: Int
+        let fileSize: Int
+    }
+
     private nonisolated static let logger = Logger(subsystem: "app.vaultaire.ios", category: "ShareUpload")
 
     private nonisolated static let pendingRootDir: URL = {
@@ -432,89 +441,44 @@ final class ShareUploadManager {
                 job.message = "Preparing vault..."
             }
 
-            let shareKey = try KeyDerivation.deriveShareKey(from: phrase)
-            let phraseVaultId = KeyDerivation.shareVaultId(from: phrase)
-
-            let index = try VaultStorage.shared.loadIndex(with: vaultKey)
-            guard let encryptedMasterKey = index.encryptedMasterKey else {
-                throw VaultStorageError.corruptedData
-            }
-            let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey)
-            let activeFiles = index.files.filter { !$0.isDeleted }
-
-            let metadata = SharedVaultData.SharedVaultMetadata(
-                ownerFingerprint: ownerFingerprint,
-                sharedAt: Date()
-            )
-
-            let svdfURL = Self.svdfURL(jobId: jobId)
-            try Self.prepareJobDirectory(jobId: jobId)
-
             updateJob(jobId: jobId) { job in
                 job.status = .preparing
                 job.progress = 5
                 job.message = "Encrypting files..."
             }
 
-            var pendingTempURLForCleanup: URL?
-            defer {
-                if let pendingTempURLForCleanup {
-                    try? FileManager.default.removeItem(at: pendingTempURLForCleanup)
+            let prepTask = Task.detached(priority: .userInitiated) {
+                try Self.buildInitialUploadArtifacts(
+                    jobId: jobId,
+                    phrase: phrase,
+                    vaultKey: vaultKey,
+                    ownerFingerprint: ownerFingerprint
+                )
+            }
+            let prepared: PreparedUploadArtifacts
+            do {
+                prepared = try await withTaskCancellationHandler {
+                    try await prepTask.value
+                } onCancel: {
+                    prepTask.cancel()
                 }
+            } catch {
+                prepTask.cancel()
+                throw error
             }
 
-            let svdfResult = try SVDFSerializer.buildFullStreamingFromPlaintext(
-                to: svdfURL,
-                fileCount: activeFiles.count,
-                forEachFile: { i in
-                    try Task.checkCancellation()
-                    let entry = activeFiles[i]
-                    return try autoreleasepool {
-                        let (header, plaintextURL) = try VaultStorage.shared.retrieveFileToTempURL(
-                            id: entry.fileId,
-                            with: vaultKey
-                        )
-                        pendingTempURLForCleanup = plaintextURL
-
-                        var encryptedThumb: Data? = nil
-                        if let thumbData = entry.thumbnailData {
-                            let decryptedThumb = try CryptoEngine.decrypt(thumbData, with: masterKey)
-                            encryptedThumb = try CryptoEngine.encrypt(decryptedThumb, with: shareKey)
-                        }
-
-                        return SVDFSerializer.StreamingSourceFile(
-                            id: header.fileId,
-                            filename: header.originalFilename,
-                            mimeType: header.mimeType,
-                            originalSize: Int(header.originalSize),
-                            createdAt: header.createdAt,
-                            encryptedThumbnail: encryptedThumb,
-                            plaintextContentURL: plaintextURL
-                        )
-                    }
-                },
-                didWriteFile: { _, file in
-                    try? FileManager.default.removeItem(at: file.plaintextContentURL)
-                    pendingTempURLForCleanup = nil
-                },
-                metadata: metadata,
-                shareKey: shareKey
-            )
-
-            let fileSize = Self.fileSize(of: svdfURL)
-            let chunkSize = 2 * 1024 * 1024
-            let totalChunks = max(1, (fileSize + chunkSize - 1) / chunkSize)
+            let svdfURL = Self.svdfURL(jobId: jobId)
 
             let pendingState = PendingUploadState(
                 jobId: jobId,
                 shareVaultId: shareVaultId,
-                phraseVaultId: phraseVaultId,
-                shareKeyData: shareKey,
+                phraseVaultId: prepared.phraseVaultId,
+                shareKeyData: prepared.shareKey,
                 policy: policy,
                 ownerFingerprint: ownerFingerprint,
-                totalChunks: totalChunks,
-                sharedFileIds: svdfResult.fileIds,
-                svdfManifest: svdfResult.manifest,
+                totalChunks: prepared.totalChunks,
+                sharedFileIds: prepared.sharedFileIds,
+                svdfManifest: prepared.svdfManifest,
                 createdAt: Date(),
                 lastProgress: 5,
                 lastMessage: "Uploading vault..."
@@ -532,7 +496,7 @@ final class ShareUploadManager {
             try await CloudKitSharingManager.shared.uploadChunksFromFile(
                 shareVaultId: shareVaultId,
                 fileURL: svdfURL,
-                chunkIndices: Array(0..<totalChunks),
+                chunkIndices: Array(0..<prepared.totalChunks),
                 onProgress: { [weak self] current, total in
                     Task { @MainActor [weak self] in
                         guard let self else { return }
@@ -549,11 +513,11 @@ final class ShareUploadManager {
 
             try await CloudKitSharingManager.shared.saveManifest(
                 shareVaultId: shareVaultId,
-                phraseVaultId: phraseVaultId,
-                shareKey: shareKey,
+                phraseVaultId: prepared.phraseVaultId,
+                shareKey: prepared.shareKey,
                 policy: policy,
                 ownerFingerprint: ownerFingerprint,
-                totalChunks: totalChunks
+                totalChunks: prepared.totalChunks
             )
 
             updateJob(jobId: jobId) { job in
@@ -563,24 +527,26 @@ final class ShareUploadManager {
             }
             updatePendingProgress(jobId: jobId, progress: 95, message: "Finalizing...")
 
-            let syncCache = ShareSyncCache(shareVaultId: shareVaultId)
-            try syncCache.saveSVDF(from: svdfURL)
-            let chunkHashes = try ShareSyncCache.computeChunkHashes(from: svdfURL)
-            let syncState = ShareSyncCache.SyncState(
-                syncedFileIds: Set(svdfResult.fileIds),
-                chunkHashes: chunkHashes,
-                manifest: svdfResult.manifest,
-                syncSequence: 1,
-                deletedFileIds: [],
-                totalDeletedBytes: 0,
-                totalBytes: fileSize
-            )
-            try syncCache.saveSyncState(syncState)
+            try await Task.detached(priority: .utility) {
+                let syncCache = ShareSyncCache(shareVaultId: shareVaultId)
+                try syncCache.saveSVDF(from: svdfURL)
+                let chunkHashes = try ShareSyncCache.computeChunkHashes(from: svdfURL)
+                let syncState = ShareSyncCache.SyncState(
+                    syncedFileIds: Set(prepared.sharedFileIds),
+                    chunkHashes: chunkHashes,
+                    manifest: prepared.svdfManifest,
+                    syncSequence: 1,
+                    deletedFileIds: [],
+                    totalDeletedBytes: 0,
+                    totalBytes: prepared.fileSize
+                )
+                try syncCache.saveSyncState(syncState)
+            }.value
 
             appendShareRecord(
                 shareVaultId: shareVaultId,
                 policy: policy,
-                shareKeyData: shareKey,
+                shareKeyData: prepared.shareKey,
                 vaultKey: vaultKey
             )
 
@@ -715,21 +681,23 @@ final class ShareUploadManager {
             }
             updatePendingProgress(jobId: state.jobId, progress: 95, message: "Finalizing...")
 
-            let syncCache = ShareSyncCache(shareVaultId: state.shareVaultId)
-            try syncCache.saveSVDF(from: svdfURL)
-            let chunkHashes = try ShareSyncCache.computeChunkHashes(from: svdfURL)
-            let fileSize = Self.fileSize(of: svdfURL)
+            try await Task.detached(priority: .utility) {
+                let syncCache = ShareSyncCache(shareVaultId: state.shareVaultId)
+                try syncCache.saveSVDF(from: svdfURL)
+                let chunkHashes = try ShareSyncCache.computeChunkHashes(from: svdfURL)
+                let fileSize = Self.fileSize(of: svdfURL)
 
-            let syncState = ShareSyncCache.SyncState(
-                syncedFileIds: Set(state.sharedFileIds),
-                chunkHashes: chunkHashes,
-                manifest: state.svdfManifest,
-                syncSequence: 1,
-                deletedFileIds: [],
-                totalDeletedBytes: 0,
-                totalBytes: fileSize
-            )
-            try syncCache.saveSyncState(syncState)
+                let syncState = ShareSyncCache.SyncState(
+                    syncedFileIds: Set(state.sharedFileIds),
+                    chunkHashes: chunkHashes,
+                    manifest: state.svdfManifest,
+                    syncSequence: 1,
+                    deletedFileIds: [],
+                    totalDeletedBytes: 0,
+                    totalBytes: fileSize
+                )
+                try syncCache.saveSyncState(syncState)
+            }.value
 
             appendShareRecord(
                 shareVaultId: state.shareVaultId,
@@ -1161,6 +1129,91 @@ final class ShareUploadManager {
 
     private nonisolated static func fileSize(of url: URL) -> Int {
         (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.intValue ?? 0
+    }
+
+    private nonisolated static func buildInitialUploadArtifacts(
+        jobId: String,
+        phrase: String,
+        vaultKey: Data,
+        ownerFingerprint: String
+    ) throws -> PreparedUploadArtifacts {
+        try Task.checkCancellation()
+
+        let shareKey = try KeyDerivation.deriveShareKey(from: phrase)
+        let phraseVaultId = KeyDerivation.shareVaultId(from: phrase)
+
+        let index = try VaultStorage.shared.loadIndex(with: vaultKey)
+        guard let encryptedMasterKey = index.encryptedMasterKey else {
+            throw VaultStorageError.corruptedData
+        }
+        let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey)
+        let activeFiles = index.files.filter { !$0.isDeleted }
+
+        let metadata = SharedVaultData.SharedVaultMetadata(
+            ownerFingerprint: ownerFingerprint,
+            sharedAt: Date()
+        )
+
+        let svdfURL = svdfURL(jobId: jobId)
+        try prepareJobDirectory(jobId: jobId)
+
+        var pendingTempURLForCleanup: URL?
+        defer {
+            if let pendingTempURLForCleanup {
+                try? FileManager.default.removeItem(at: pendingTempURLForCleanup)
+            }
+        }
+
+        let svdfResult = try SVDFSerializer.buildFullStreamingFromPlaintext(
+            to: svdfURL,
+            fileCount: activeFiles.count,
+            forEachFile: { i in
+                try Task.checkCancellation()
+                let entry = activeFiles[i]
+                return try autoreleasepool {
+                    let (header, plaintextURL) = try VaultStorage.shared.retrieveFileToTempURL(
+                        id: entry.fileId,
+                        with: vaultKey
+                    )
+                    pendingTempURLForCleanup = plaintextURL
+
+                    var encryptedThumb: Data? = nil
+                    if let thumbData = entry.thumbnailData {
+                        let decryptedThumb = try CryptoEngine.decrypt(thumbData, with: masterKey)
+                        encryptedThumb = try CryptoEngine.encrypt(decryptedThumb, with: shareKey)
+                    }
+
+                    return SVDFSerializer.StreamingSourceFile(
+                        id: header.fileId,
+                        filename: header.originalFilename,
+                        mimeType: header.mimeType,
+                        originalSize: Int(header.originalSize),
+                        createdAt: header.createdAt,
+                        encryptedThumbnail: encryptedThumb,
+                        plaintextContentURL: plaintextURL
+                    )
+                }
+            },
+            didWriteFile: { _, file in
+                try? FileManager.default.removeItem(at: file.plaintextContentURL)
+                pendingTempURLForCleanup = nil
+            },
+            metadata: metadata,
+            shareKey: shareKey
+        )
+
+        let fileSize = fileSize(of: svdfURL)
+        let chunkSize = 2 * 1024 * 1024
+        let totalChunks = max(1, (fileSize + chunkSize - 1) / chunkSize)
+
+        return PreparedUploadArtifacts(
+            shareKey: shareKey,
+            phraseVaultId: phraseVaultId,
+            sharedFileIds: svdfResult.fileIds,
+            svdfManifest: svdfResult.manifest,
+            totalChunks: totalChunks,
+            fileSize: fileSize
+        )
     }
 
     private nonisolated func migrateLegacyPendingIfNeeded() {
