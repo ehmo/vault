@@ -42,6 +42,16 @@ final class ShareVaultViewModeTests: XCTestCase {
         }
     }
 
+    func testShouldDisplayUploadJobHidesCompleteAndCancelled() {
+        XCTAssertFalse(ShareVaultView.shouldDisplayUploadJob(makeUploadJob(status: .complete)))
+        XCTAssertFalse(ShareVaultView.shouldDisplayUploadJob(makeUploadJob(status: .cancelled)))
+    }
+
+    func testShouldDisplayUploadJobKeepsFailedAndRunning() {
+        XCTAssertTrue(ShareVaultView.shouldDisplayUploadJob(makeUploadJob(status: .failed)))
+        XCTAssertTrue(ShareVaultView.shouldDisplayUploadJob(makeUploadJob(status: .uploading)))
+    }
+
     private func assert(_ mode: ShareVaultView.ViewMode, matches expected: ShareVaultView.ViewMode) {
         switch (mode, expected) {
         case (.loading, .loading),
@@ -51,5 +61,20 @@ final class ShareVaultViewModeTests: XCTestCase {
         default:
             XCTFail("Mode mismatch: got \(String(describing: mode)), expected \(String(describing: expected))")
         }
+    }
+
+    private func makeUploadJob(status: ShareUploadManager.UploadJobStatus) -> ShareUploadManager.UploadJob {
+        ShareUploadManager.UploadJob(
+            id: UUID().uuidString,
+            ownerFingerprint: "owner",
+            createdAt: Date(),
+            shareVaultId: "share",
+            phrase: nil,
+            status: status,
+            progress: 0,
+            total: 100,
+            message: "",
+            errorMessage: nil
+        )
     }
 }

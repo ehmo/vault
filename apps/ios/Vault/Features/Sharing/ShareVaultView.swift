@@ -147,7 +147,9 @@ struct ShareVaultView: View {
     }
 
     private func refreshUploadJobs() async {
-        uploadJobs = ShareUploadManager.shared.jobs(forOwnerFingerprint: currentOwnerFingerprint)
+        let latestJobs = ShareUploadManager.shared.jobs(forOwnerFingerprint: currentOwnerFingerprint)
+        uploadJobs = latestJobs.filter(Self.shouldDisplayUploadJob)
+        reloadActiveShares()
         applyIdleTimerPolicy()
         updateModeForCurrentData()
     }
@@ -775,6 +777,15 @@ struct ShareVaultView: View {
         formatter.countStyle = .file
         return formatter
     }()
+
+    static func shouldDisplayUploadJob(_ job: ShareUploadManager.UploadJob) -> Bool {
+        switch job.status {
+        case .complete, .cancelled:
+            return false
+        default:
+            return true
+        }
+    }
 
     private func iCloudStatusMessage(_ status: CKAccountStatus) -> String {
         switch status {
