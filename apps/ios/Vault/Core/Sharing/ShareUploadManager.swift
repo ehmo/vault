@@ -553,13 +553,7 @@ final class ShareUploadManager {
             pendingStateByJobId.removeValue(forKey: jobId)
             Self.clearPendingUpload(jobId: jobId)
 
-            updateJob(jobId: jobId) { job in
-                job.status = .complete
-                job.progress = 100
-                job.message = "Upload complete"
-                job.errorMessage = nil
-                job.phrase = nil
-            }
+            removeJob(jobId: jobId)
 
             LocalNotificationManager.shared.sendUploadComplete()
         } catch is CancellationError {
@@ -709,12 +703,7 @@ final class ShareUploadManager {
             pendingStateByJobId.removeValue(forKey: state.jobId)
             Self.clearPendingUpload(jobId: state.jobId)
 
-            updateJob(jobId: state.jobId) { job in
-                job.status = .complete
-                job.progress = 100
-                job.message = "Upload complete"
-                job.errorMessage = nil
-            }
+            removeJob(jobId: state.jobId)
 
             LocalNotificationManager.shared.sendUploadComplete()
         } catch is CancellationError {
