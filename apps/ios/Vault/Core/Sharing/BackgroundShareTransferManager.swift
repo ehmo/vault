@@ -705,6 +705,7 @@ final class BackgroundShareTransferManager {
             do {
                 let result = try await CloudKitSharingManager.shared.downloadSharedVault(
                     phrase: capturedPhrase,
+                    markClaimedOnDownload: false,
                     onProgress: { current, total in
                         Task { @MainActor [weak self] in
                             let pct = total > 0 ? downloadWeight * current / total : 0
@@ -760,6 +761,14 @@ final class BackgroundShareTransferManager {
                 index.shareKeyData = shareKey
                 index.sharedVaultVersion = result.version
                 try VaultStorage.shared.saveIndex(index, with: capturedPatternKey)
+
+                // Claim only after local import/setup succeeds. This prevents
+                // "already claimed" failures on retries after interruption.
+                do {
+                    try await CloudKitSharingManager.shared.markShareClaimed(shareVaultId: result.shareVaultId)
+                } catch {
+                    Self.logger.warning("Failed to mark share claimed after import: \(error.localizedDescription, privacy: .public)")
+                }
 
                 await self?.finishTransfer(.importComplete, activityMessage: "Shared vault is ready")
             } catch {

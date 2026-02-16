@@ -256,9 +256,10 @@ final class CloudKitSharingManager {
     // MARK: - Download (Chunked)
 
     /// Downloads and decrypts a shared vault using a share phrase.
-    /// Checks claimed status and sets it after successful download.
+    /// Checks claimed status and optionally marks as claimed after download.
     func downloadSharedVault(
         phrase: String,
+        markClaimedOnDownload: Bool = true,
         onProgress: ((Int, Int) -> Void)? = nil
     ) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
         let transaction = EmbraceManager.shared.startTransaction(name: "share.download", operation: "share.download")
@@ -324,12 +325,32 @@ final class CloudKitSharingManager {
             decryptedData = encryptedData
         }
 
-        // Mark as claimed
-        manifest["claimed"] = true
-        try await publicDatabase.save(manifest)
+        // For compatibility, some callers still claim at download-time.
+        if markClaimedOnDownload {
+            manifest["claimed"] = true
+            try await publicDatabase.save(manifest)
+        }
 
         transaction.finish(status: .ok)
         return (decryptedData, shareVaultId, policy, remoteVersion)
+    }
+
+    /// Marks a share as claimed by its recipient after setup/import succeeds.
+    /// Uses shareVaultId to locate and update the manifest record.
+    func markShareClaimed(shareVaultId: String) async throws {
+        let predicate = NSPredicate(format: "shareVaultId == %@", shareVaultId)
+        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
+        let results = try await publicDatabase.records(matching: query)
+
+        for (_, result) in results.matchResults {
+            if let record = try? result.get() {
+                record["claimed"] = true
+                try await publicDatabase.save(record)
+                return
+            }
+        }
+
+        throw CloudKitSharingError.vaultNotFound
     }
 
     // MARK: - Check for Updates (Recipient)
