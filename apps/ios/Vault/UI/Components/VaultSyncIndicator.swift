@@ -14,8 +14,7 @@ struct VaultSyncIndicator: View {
     var progress: (current: Int, total: Int)?
 
     var body: some View {
-        switch style {
-        case .loading:
+        if style == .loading {
             // Centered vertical layout for full-screen loading
             VStack(spacing: 24) {
                 pixelAnimation
@@ -23,7 +22,7 @@ struct VaultSyncIndicator: View {
                     .font(.subheadline)
                     .foregroundStyle(.vaultSecondaryText)
             }
-        default:
+        } else {
             // Compact horizontal layout for inline banners
             HStack(spacing: 8) {
                 pixelAnimation

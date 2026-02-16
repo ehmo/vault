@@ -13,8 +13,8 @@ final class RecoveryPhraseManager {
     private let keychainService = "com.vault.recovery"
     private let keychainAccount = "recovery_data"
     
-    private init() {}
-    
+    private init() { /* No-op */ }
+
     // MARK: - Data Structures
     
     /// Contains all recovery data for all vaults in a single encrypted structure

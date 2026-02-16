@@ -60,14 +60,13 @@ extension VaultView {
 
     @ViewBuilder
     func flatContentView(visible: VisibleFiles, masterKey: Data) -> some View {
-        switch fileFilter {
-        case .media:
+        if fileFilter == .media {
             PhotosGridView(files: visible.media, masterKey: masterKey, onSelect: { file, index in
                 EmbraceManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                 selectedPhotoIndex = index
             }, onDelete: isSharedVault ? nil : deleteFileById,
                isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
-        default:
+        } else {
             FilesGridView(files: visible.all, onSelect: { file in
                 EmbraceManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                 selectedFile = file

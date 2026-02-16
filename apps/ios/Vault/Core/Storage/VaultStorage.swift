@@ -357,10 +357,10 @@ final class VaultStorage {
     func loadIndex(with key: Data) throws -> VaultIndex {
         indexLock.lock()
         defer { indexLock.unlock() }
-        return try _loadIndex(with: key)
+        return try performLoadIndex(with: key)
     }
 
-    private func _loadIndex(with key: Data) throws -> VaultIndex {
+    private func performLoadIndex(with key: Data) throws -> VaultIndex {
         let span = EmbraceManager.shared.startTransaction(name: "storage.index_load", operation: "storage.index_load")
         defer { span.finish(status: .ok) }
 
@@ -476,10 +476,10 @@ final class VaultStorage {
     func saveIndex(_ index: VaultIndex, with key: Data) throws {
         indexLock.lock()
         defer { indexLock.unlock() }
-        try _saveIndex(index, with: key)
+        try performSaveIndex(index, with: key)
     }
 
-    private func _saveIndex(_ index: VaultIndex, with key: Data) throws {
+    private func performSaveIndex(_ index: VaultIndex, with key: Data) throws {
         let span = EmbraceManager.shared.startTransaction(name: "storage.index_save", operation: "storage.index_save")
         defer { span.finish(status: .ok) }
 

@@ -241,10 +241,10 @@ final class RecoveryPhraseGeneratorTests: XCTestCase {
         let spaced = generator.validatePhrase("  the  a  an  that  this  one  ")
 
         // Both should yield the same category and bits
-        switch (normal, spaced) {
-        case (.weakEntropy(let bitsA, _), .weakEntropy(let bitsB, _)):
+        if case .weakEntropy(let bitsA, _) = normal,
+           case .weakEntropy(let bitsB, _) = spaced {
             XCTAssertEqual(bitsA, bitsB)
-        default:
+        } else {
             XCTFail("Both should be .weakEntropy but got normal=\(normal), spaced=\(spaced)")
         }
     }

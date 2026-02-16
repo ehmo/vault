@@ -15,8 +15,8 @@ final class GridLetterManager {
     private let gridSize = 5 // 5x5 grid
     private let totalNodes = 25 // 5x5 = 25 nodes
     
-    private init() {}
-    
+    private init() { /* No-op */ }
+
     // MARK: - Letter Assignment
     
     /// Gets the current letter assignments for all grid nodes.

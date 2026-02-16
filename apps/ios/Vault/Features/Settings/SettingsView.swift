@@ -275,7 +275,7 @@ struct AppSettingsView: View {
         .navigationTitle("App Settings")
         .navigationBarTitleDisplayMode(.inline)
         .alert("Destroy All Data?", isPresented: $showingNuclearConfirmation) {
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) { /* No-op */ }
             Button("Destroy Everything", role: .destructive) {
                 performNuclearWipe()
             }
@@ -284,7 +284,7 @@ struct AppSettingsView: View {
         }
         #if DEBUG
         .alert("Debug: Full Reset", isPresented: $showingDebugResetConfirmation) {
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) { /* No-op */ }
             Button("Wipe Everything", role: .destructive) {
                 performDebugFullReset()
             }
@@ -296,7 +296,7 @@ struct AppSettingsView: View {
             pendingStagedSize = StagedImportManager.totalPendingSize()
         }
         .alert("Clear Pending Imports?", isPresented: $showingClearStagedConfirmation) {
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) { /* No-op */ }
             Button("Clear All", role: .destructive) {
                 StagedImportManager.deleteAllBatches()
                 pendingStagedSize = 0

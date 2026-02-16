@@ -38,8 +38,8 @@ xcodebuild archive \
     DEVELOPMENT_TEAM=UFV835UGV6 \
     2>&1 | tail -20
 
-if [ ! -d "$ARCHIVE_PATH" ]; then
-    echo "ERROR: Archive failed — $ARCHIVE_PATH not found"
+if [[ ! -d "$ARCHIVE_PATH" ]]; then
+    echo "ERROR: Archive failed — $ARCHIVE_PATH not found" >&2
     exit 1
 fi
 echo "==> Archive created: $ARCHIVE_PATH"

@@ -176,7 +176,7 @@ struct VaultSettingsView: View {
         }
         .ignoresSafeArea(.keyboard)
         .alert("Delete Vault?", isPresented: $showingDeleteConfirmation) {
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) { /* No-op */ }
             Button("Delete", role: .destructive) {
                 deleteVault()
             }
@@ -184,7 +184,7 @@ struct VaultSettingsView: View {
             Text("All files in this vault will be permanently deleted. This cannot be undone.")
         }
         .alert("Regenerate Recovery Phrase?", isPresented: $showingRegenerateConfirmation) {
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) { /* No-op */ }
             Button("Regenerate", role: .destructive) {
                 regenerateRecoveryPhrase()
             }
@@ -1147,7 +1147,7 @@ struct CustomRecoveryPhraseInputView: View {
             .vaultProminentButtonStyle()
             .padding()
             .alert("Are you sure?", isPresented: $showSaveConfirmation) {
-                Button("Cancel", role: .cancel) { }
+                Button("Cancel", role: .cancel) { /* No-op */ }
                 Button("Yes, I've saved it") { dismiss() }
             } message: {
                 Text("This recovery phrase will NEVER be shown again. Make sure you've written it down and stored it safely.")

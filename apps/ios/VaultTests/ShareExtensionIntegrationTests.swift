@@ -7,10 +7,10 @@ final class ShareExtensionIntegrationTests: XCTestCase {
     private var key: Data!
     private var fingerprint: String!
 
-    override func setUp() {
-        super.setUp()
+    override func setUpWithError() throws {
+        try super.setUpWithError()
         tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try! FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         VaultCoreConstants.testPendingImportsOverride = tempDir
         key = CryptoEngine.generateRandomBytes(count: 32)!
         fingerprint = KeyDerivation.keyFingerprint(from: key)

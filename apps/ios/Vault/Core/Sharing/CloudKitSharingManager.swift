@@ -160,7 +160,7 @@ final class CloudKitSharingManager {
     func syncSharedVault(
         shareVaultId: String,
         vaultData: Data,
-        shareKey: Data,
+        shareKey _: Data,
         currentVersion: Int,
         onProgress: ((Int, Int) -> Void)? = nil
     ) async throws {

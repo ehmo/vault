@@ -256,7 +256,7 @@ struct PatternSetupView: View {
                 .disabled(useCustomPhrase && !(customPhraseValidation?.isAcceptable ?? false))
                 .accessibilityIdentifier("recovery_saved")
                 .alert("Are you sure?", isPresented: $showSaveConfirmation) {
-                    Button("Cancel", role: .cancel) { }
+                    Button("Cancel", role: .cancel) { /* No-op */ }
                     Button("Yes, I've saved it") {
                         if useCustomPhrase {
                             if let validation = customPhraseValidation, validation.isAcceptable {

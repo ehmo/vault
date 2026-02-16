@@ -19,10 +19,10 @@ final class ImportIngestorTests: XCTestCase {
         }
     }
 
-    override func setUp() {
-        super.setUp()
+    override func setUpWithError() throws {
+        try super.setUpWithError()
         tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try! FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         VaultCoreConstants.testPendingImportsOverride = tempDir
         key = CryptoEngine.generateRandomBytes(count: 32)!
         fingerprint = KeyDerivation.keyFingerprint(from: key)
@@ -229,8 +229,8 @@ final class ImportIngestorTests: XCTestCase {
         XCTAssertNotNil(image)
     }
 
-    func testMissingThumbnailReturnsNilNotCrash() {
-        let (_, batchId) = try! StagedImportManager.createBatch()
+    func testMissingThumbnailReturnsNilNotCrash() throws {
+        let (_, batchId) = try StagedImportManager.createBatch()
         let fileId = UUID()
 
         // No thumbnail written, but manifest says hasThumbnail=false

@@ -34,7 +34,7 @@ enum PatternValidationWarning: String {
 final class PatternValidator {
     static let shared = PatternValidator()
 
-    private init() {}
+    private init() { /* No-op */ }
 
     // MARK: - Minimum Requirements
 
@@ -186,7 +186,7 @@ final class PatternValidator {
         return isIncreasing || isDecreasing
     }
 
-    private func isCommonLetter(_ pattern: [Int], gridSize: Int) -> Bool {
+    private func isCommonLetter(_ _pattern: [Int], gridSize _: Int) -> Bool {
         return false
     }
 

@@ -8,7 +8,7 @@ final class FileImporter {
 
     private let storage = VaultStorage.shared
 
-    private init() {}
+    private init() { /* No-op */ }
 
     // MARK: - Supported Types
 

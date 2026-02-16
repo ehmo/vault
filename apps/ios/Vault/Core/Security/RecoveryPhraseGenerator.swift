@@ -5,7 +5,7 @@ import Foundation
 final class RecoveryPhraseGenerator {
     static let shared = RecoveryPhraseGenerator()
 
-    private init() {}
+    private init() { /* No-op */ }
 
     // MARK: - Phrase Generation
 

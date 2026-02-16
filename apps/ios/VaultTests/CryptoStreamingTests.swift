@@ -6,10 +6,10 @@ final class CryptoStreamingTests: XCTestCase {
     private var tempDir: URL!
     private var key: Data!
 
-    override func setUp() {
-        super.setUp()
+    override func setUpWithError() throws {
+        try super.setUpWithError()
         tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try! FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         key = CryptoEngine.generateRandomBytes(count: 32)!
     }
 
@@ -20,10 +20,10 @@ final class CryptoStreamingTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func writeTestFile(size: Int) -> URL {
+    private func writeTestFile(size: Int) throws -> URL {
         let url = tempDir.appendingPathComponent(UUID().uuidString)
         let data = CryptoEngine.generateRandomBytes(count: size) ?? Data(repeating: 0xAB, count: size)
-        try! data.write(to: url)
+        try data.write(to: url)
         return url
     }
 
@@ -31,7 +31,7 @@ final class CryptoStreamingTests: XCTestCase {
 
     func testStreamingEncryptDecryptRoundTrip() throws {
         let size = VaultCoreConstants.streamingThreshold + 1024
-        let sourceURL = writeTestFile(size: size)
+        let sourceURL = try writeTestFile(size: size)
         let originalData = try Data(contentsOf: sourceURL)
 
         let encrypted = try CryptoEngine.encryptForStaging(sourceURL, with: key)
@@ -43,7 +43,7 @@ final class CryptoStreamingTests: XCTestCase {
 
     func testSingleShotEncryptDecryptAtThreshold() throws {
         let size = VaultCoreConstants.streamingThreshold
-        let sourceURL = writeTestFile(size: size)
+        let sourceURL = try writeTestFile(size: size)
         let originalData = try Data(contentsOf: sourceURL)
 
         let encrypted = try CryptoEngine.encryptForStaging(sourceURL, with: key)
@@ -55,7 +55,7 @@ final class CryptoStreamingTests: XCTestCase {
 
     func testStreamingEncryptDecryptOneByteOverThreshold() throws {
         let size = VaultCoreConstants.streamingThreshold + 1
-        let sourceURL = writeTestFile(size: size)
+        let sourceURL = try writeTestFile(size: size)
         let originalData = try Data(contentsOf: sourceURL)
 
         let encrypted = try CryptoEngine.encryptForStaging(sourceURL, with: key)
@@ -66,7 +66,7 @@ final class CryptoStreamingTests: XCTestCase {
     }
 
     func testEncryptDecryptEmptyFile() throws {
-        let sourceURL = writeTestFile(size: 0)
+        let sourceURL = try writeTestFile(size: 0)
 
         let encrypted = try CryptoEngine.encryptForStaging(sourceURL, with: key)
         XCTAssertFalse(CryptoEngine.isStreamingFormat(encrypted))
@@ -77,7 +77,7 @@ final class CryptoStreamingTests: XCTestCase {
     }
 
     func testEncryptDecryptOneByte() throws {
-        let sourceURL = writeTestFile(size: 1)
+        let sourceURL = try writeTestFile(size: 1)
         let originalData = try Data(contentsOf: sourceURL)
 
         let encrypted = try CryptoEngine.encryptForStaging(sourceURL, with: key)
@@ -92,7 +92,7 @@ final class CryptoStreamingTests: XCTestCase {
         let chunkSize = VaultCoreConstants.streamingChunkSize
         let size = chunkSize * 4 + 100
         XCTAssertTrue(size > VaultCoreConstants.streamingThreshold)
-        let sourceURL = writeTestFile(size: size)
+        let sourceURL = try writeTestFile(size: size)
         let originalData = try Data(contentsOf: sourceURL)
 
         let encrypted = try CryptoEngine.encryptForStaging(sourceURL, with: key)
@@ -106,7 +106,7 @@ final class CryptoStreamingTests: XCTestCase {
 
     func testStreamingToHandleRoundTrip() throws {
         let size = VaultCoreConstants.streamingThreshold + 512
-        let sourceURL = writeTestFile(size: size)
+        let sourceURL = try writeTestFile(size: size)
         let originalData = try Data(contentsOf: sourceURL)
 
         let encryptedURL = tempDir.appendingPathComponent("encrypted.bin")
@@ -124,7 +124,7 @@ final class CryptoStreamingTests: XCTestCase {
 
     func testStreamingToHandleSmallFile() throws {
         let size = 512
-        let sourceURL = writeTestFile(size: size)
+        let sourceURL = try writeTestFile(size: size)
         let originalData = try Data(contentsOf: sourceURL)
 
         let encryptedURL = tempDir.appendingPathComponent("encrypted_small.bin")
@@ -150,7 +150,7 @@ final class CryptoStreamingTests: XCTestCase {
         XCTAssertEqual(decryptedSingle, smallData)
 
         // Streaming
-        let largeURL = writeTestFile(size: VaultCoreConstants.streamingThreshold + 256)
+        let largeURL = try writeTestFile(size: VaultCoreConstants.streamingThreshold + 256)
         let originalLarge = try Data(contentsOf: largeURL)
         let streaming = try CryptoEngine.encryptForStaging(largeURL, with: key)
         let decryptedStreaming = try CryptoEngine.decryptStaged(streaming, with: key)
@@ -164,7 +164,7 @@ final class CryptoStreamingTests: XCTestCase {
                      VaultCoreConstants.streamingChunkSize * 3 + 99]
 
         for size in sizes {
-            let sourceURL = writeTestFile(size: size)
+            let sourceURL = try writeTestFile(size: size)
             let encrypted = try CryptoEngine.encryptForStaging(sourceURL, with: key)
             let predicted = CryptoEngine.encryptedContentSize(forFileOfSize: size)
             XCTAssertEqual(predicted, encrypted.count, "Size prediction mismatch for file size \(size)")
@@ -175,7 +175,7 @@ final class CryptoStreamingTests: XCTestCase {
 
     func testStreamingFromHandleToFileRoundTrip() throws {
         let size = VaultCoreConstants.streamingThreshold + 2048
-        let sourceURL = writeTestFile(size: size)
+        let sourceURL = try writeTestFile(size: size)
         let originalData = try Data(contentsOf: sourceURL)
 
         // Encrypt to streaming format
@@ -205,7 +205,7 @@ final class CryptoStreamingTests: XCTestCase {
     // MARK: - Error Cases
 
     func testWrongKeyDecryptionFails() throws {
-        let sourceURL = writeTestFile(size: 256)
+        let sourceURL = try writeTestFile(size: 256)
         let encrypted = try CryptoEngine.encryptForStaging(sourceURL, with: key)
 
         let wrongKey = CryptoEngine.generateRandomBytes(count: 32)!
@@ -236,7 +236,7 @@ final class CryptoStreamingTests: XCTestCase {
 
     func testTruncatedChunkDataThrows() throws {
         // Encrypt a file to get valid streaming data, then truncate it
-        let sourceURL = writeTestFile(size: VaultCoreConstants.streamingThreshold + 512)
+        let sourceURL = try writeTestFile(size: VaultCoreConstants.streamingThreshold + 512)
         let encrypted = try CryptoEngine.encryptForStaging(sourceURL, with: key)
         XCTAssertTrue(CryptoEngine.isStreamingFormat(encrypted))
 
@@ -249,7 +249,7 @@ final class CryptoStreamingTests: XCTestCase {
     }
 
     func testCorruptedChunkContentThrows() throws {
-        let sourceURL = writeTestFile(size: VaultCoreConstants.streamingThreshold + 512)
+        let sourceURL = try writeTestFile(size: VaultCoreConstants.streamingThreshold + 512)
         var encrypted = try CryptoEngine.encryptForStaging(sourceURL, with: key)
         XCTAssertTrue(CryptoEngine.isStreamingFormat(encrypted))
 
@@ -260,8 +260,8 @@ final class CryptoStreamingTests: XCTestCase {
         XCTAssertThrowsError(try CryptoEngine.decryptStreaming(encrypted, with: key))
     }
 
-    func testInvalidKeyLengthThrows() {
-        let sourceURL = writeTestFile(size: 100)
+    func testInvalidKeyLengthThrows() throws {
+        let sourceURL = try writeTestFile(size: 100)
         let badKeys: [Data] = [
             Data(repeating: 0xAA, count: 16),
             Data(repeating: 0xAA, count: 64),
@@ -315,7 +315,7 @@ final class CryptoStreamingTests: XCTestCase {
     func testMultiChunkStreamingIntegrity() throws {
         // 3MB+ file → multiple 256KB chunks
         let size = VaultCoreConstants.streamingChunkSize * 12 + 137
-        let sourceURL = writeTestFile(size: size)
+        let sourceURL = try writeTestFile(size: size)
         let originalData = try Data(contentsOf: sourceURL)
 
         let encrypted = try CryptoEngine.encryptForStaging(sourceURL, with: key)
@@ -331,7 +331,7 @@ final class CryptoStreamingTests: XCTestCase {
     func testDecryptStagedFileToURLStreamingFormat() throws {
         // Encrypt a large file with streaming format via encryptFileStreamingToHandle
         let size = VaultCoreConstants.streamingThreshold + 2048
-        let sourceURL = writeTestFile(size: size)
+        let sourceURL = try writeTestFile(size: size)
         let originalData = try Data(contentsOf: sourceURL)
 
         let encryptedURL = tempDir.appendingPathComponent("staged.enc")
@@ -351,7 +351,7 @@ final class CryptoStreamingTests: XCTestCase {
     func testDecryptStagedFileToURLSingleShotFormat() throws {
         // Encrypt a small file with single-shot format via encryptFileStreamingToHandle
         let size = 512
-        let sourceURL = writeTestFile(size: size)
+        let sourceURL = try writeTestFile(size: size)
         let originalData = try Data(contentsOf: sourceURL)
 
         let encryptedURL = tempDir.appendingPathComponent("staged_small.enc")
@@ -368,7 +368,7 @@ final class CryptoStreamingTests: XCTestCase {
     }
 
     func testDecryptStagedFileToURLWrongKeyThrows() throws {
-        let sourceURL = writeTestFile(size: VaultCoreConstants.streamingThreshold + 512)
+        let sourceURL = try writeTestFile(size: VaultCoreConstants.streamingThreshold + 512)
 
         let encryptedURL = tempDir.appendingPathComponent("staged_wrongkey.enc")
         FileManager.default.createFile(atPath: encryptedURL.path, contents: nil)

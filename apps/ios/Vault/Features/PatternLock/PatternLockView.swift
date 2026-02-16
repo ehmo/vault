@@ -23,6 +23,16 @@ struct PatternLockView: View {
         UIAccessibility.isVoiceOverRunning
     }
 
+    private var patternGridOpacity: Double {
+        if isVoiceOverActive {
+            return 0.3
+        } else if isProcessing {
+            return 0.5
+        } else {
+            return 1
+        }
+    }
+
     var body: some View {
         VStack(spacing: 40) {
             Spacer()
@@ -70,7 +80,7 @@ struct PatternLockView: View {
             )
             .frame(width: 280, height: 280)
             .disabled(isProcessing)
-            .opacity(isVoiceOverActive ? 0.3 : (isProcessing ? 0.5 : 1))
+            .opacity(patternGridOpacity)
             .accessibilityIdentifier("unlock_pattern_grid")
 
             // Error message — overlay so it never shifts the grid
@@ -193,17 +203,16 @@ struct PatternLockView: View {
             }
 
             // Check if this pattern creates a new vault and if the user is at the free limit
-            if !subscriptionManager.isPremium, let key = derivedKey {
-                if !VaultStorage.shared.vaultExists(for: key) {
-                    let vaultCount = VaultStorage.shared.existingVaultCount()
-                    if !subscriptionManager.canCreateVault(currentCount: vaultCount) {
-                        await MainActor.run {
-                            isProcessing = false
-                            patternState.reset()
-                            showingPaywall = true
-                        }
-                        return
+            if !subscriptionManager.isPremium, let key = derivedKey,
+               !VaultStorage.shared.vaultExists(for: key) {
+                let vaultCount = VaultStorage.shared.existingVaultCount()
+                if !subscriptionManager.canCreateVault(currentCount: vaultCount) {
+                    await MainActor.run {
+                        isProcessing = false
+                        patternState.reset()
+                        showingPaywall = true
                     }
+                    return
                 }
             }
 

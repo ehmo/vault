@@ -28,8 +28,8 @@ final class PatternSetupCoordinatorTests: XCTestCase {
         let coordinator = makeCoordinator(
             deriveKey: { _, _ in self.dummyKey },
             vaultExists: { _ in false },
-            saveIndex: { _, _ in },
-            saveRecoveryPhrase: { _, _, _, _ in }
+            saveIndex: { _, _ in /* No-op */ },
+            saveRecoveryPhrase: { _, _, _, _ in /* No-op */ }
         )
 
         let result = await coordinator.savePattern(dummyPattern, gridSize: dummyGridSize, phrase: dummyPhrase)
@@ -45,8 +45,8 @@ final class PatternSetupCoordinatorTests: XCTestCase {
         let coordinator = makeCoordinator(
             deriveKey: { _, _ in self.dummyKey },
             vaultExists: { _ in true },
-            saveIndex: { _, _ in },
-            saveRecoveryPhrase: { _, _, _, _ in }
+            saveIndex: { _, _ in /* No-op */ },
+            saveRecoveryPhrase: { _, _, _, _ in /* No-op */ }
         )
 
         let result = await coordinator.savePattern(dummyPattern, gridSize: dummyGridSize, phrase: dummyPhrase)
@@ -62,8 +62,8 @@ final class PatternSetupCoordinatorTests: XCTestCase {
         let coordinator = makeCoordinator(
             deriveKey: { _, _ in throw NSError(domain: "test", code: 1, userInfo: [NSLocalizedDescriptionKey: "derivation failed"]) },
             vaultExists: { _ in false },
-            saveIndex: { _, _ in },
-            saveRecoveryPhrase: { _, _, _, _ in }
+            saveIndex: { _, _ in /* No-op */ },
+            saveRecoveryPhrase: { _, _, _, _ in /* No-op */ }
         )
 
         let result = await coordinator.savePattern(dummyPattern, gridSize: dummyGridSize, phrase: dummyPhrase)
@@ -80,7 +80,7 @@ final class PatternSetupCoordinatorTests: XCTestCase {
             deriveKey: { _, _ in self.dummyKey },
             vaultExists: { _ in false },
             saveIndex: { _, _ in throw NSError(domain: "test", code: 2, userInfo: [NSLocalizedDescriptionKey: "save failed"]) },
-            saveRecoveryPhrase: { _, _, _, _ in }
+            saveRecoveryPhrase: { _, _, _, _ in /* No-op */ }
         )
 
         let result = await coordinator.savePattern(dummyPattern, gridSize: dummyGridSize, phrase: dummyPhrase)
@@ -96,7 +96,7 @@ final class PatternSetupCoordinatorTests: XCTestCase {
         let coordinator = makeCoordinator(
             deriveKey: { _, _ in self.dummyKey },
             vaultExists: { _ in false },
-            saveIndex: { _, _ in },
+            saveIndex: { _, _ in /* No-op */ },
             saveRecoveryPhrase: { _, _, _, _ in throw NSError(domain: "test", code: 3, userInfo: [NSLocalizedDescriptionKey: "phrase failed"]) }
         )
 

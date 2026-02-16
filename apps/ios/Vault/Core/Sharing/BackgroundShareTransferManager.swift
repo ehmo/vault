@@ -140,7 +140,7 @@ final class BackgroundShareTransferManager {
     private(set) var currentMessage: String = ""
     private var progressTask: Task<Void, Never>?
 
-    private init() {}
+    private init() { /* No-op */ }
 
     // MARK: - External Integration
 

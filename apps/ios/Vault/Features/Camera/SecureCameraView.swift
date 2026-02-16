@@ -47,7 +47,7 @@ struct SecureCameraView: View {
                             .frame(width: 44, height: 44)
                     }
                     .accessibilityIdentifier("camera_flash")
-                    .accessibilityLabel("Flash \(flashMode == .auto ? "auto" : flashMode == .on ? "on" : "off")")
+                    .accessibilityLabel("Flash \(flashAccessibilityLabel)")
                     .accessibilityHint("Cycles through auto, on, and off")
 
                     // Capture button
@@ -112,6 +112,16 @@ struct SecureCameraView: View {
 
     // MARK: - Flash
 
+    private var flashAccessibilityLabel: String {
+        if flashMode == .auto {
+            return "auto"
+        } else if flashMode == .on {
+            return "on"
+        } else {
+            return "off"
+        }
+    }
+
     private var flashIcon: String {
         switch flashMode {
         case .auto: return "bolt.badge.automatic"
@@ -152,13 +162,13 @@ struct SecureCameraView: View {
 struct CameraPreviewView: UIViewRepresentable {
     let session: AVCaptureSession
 
-    func makeUIView(context: Context) -> CameraPreviewUIView {
+    func makeUIView(context _: Context) -> CameraPreviewUIView {
         let view = CameraPreviewUIView()
         view.previewLayer.session = session
         return view
     }
 
-    func updateUIView(_ uiView: CameraPreviewUIView, context: Context) {
+    func updateUIView(_ _uiView: CameraPreviewUIView, context _: Context) {
         // Session is set in makeUIView; layout handled by layoutSubviews
     }
 }
@@ -177,7 +187,7 @@ final class CameraPreviewUIView: UIView {
         previewLayer.videoGravity = .resizeAspectFill
     }
 
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 }

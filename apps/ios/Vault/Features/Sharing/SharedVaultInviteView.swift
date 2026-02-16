@@ -45,7 +45,7 @@ struct SharedVaultInviteView: View {
                 Text("Shared Vault")
                     .font(.headline)
                 Spacer()
-                Button("Cancel") { }.opacity(0)
+                Button("Cancel") { /* Invisible spacer button */ }.opacity(0)
             }
             .padding(.horizontal)
             .padding(.vertical, 12)
@@ -198,7 +198,7 @@ struct SharedVaultInviteView: View {
         .padding(.top, 60)
     }
 
-    private func iCloudUnavailableView(_ status: CKAccountStatus) -> some View {
+    private func iCloudUnavailableView(_ _status: CKAccountStatus) -> some View {
         VStack(spacing: 16) {
             Image(systemName: "icloud.slash")
                 .font(.system(size: 48)).foregroundStyle(.vaultSecondaryText)

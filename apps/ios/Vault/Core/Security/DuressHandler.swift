@@ -11,7 +11,7 @@ actor DuressHandler {
     private let secureEnclave = SecureEnclaveManager.shared
     private let storage = VaultStorage.shared
 
-    private init() {}
+    private init() { /* No-op */ }
 
     // MARK: - Duress Pattern Setup
 

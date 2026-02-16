@@ -20,7 +20,7 @@ struct PatternValidationFeedbackView: View {
                 }
             }
 
-            // Warnings (only if no errors)
+            // Warnings and complexity score (only if no errors)
             if result.errors.isEmpty {
                 ForEach(Array(result.warnings.prefix(2).enumerated()), id: \.offset) { _, warning in
                     HStack {
@@ -30,10 +30,8 @@ struct PatternValidationFeedbackView: View {
                             .font(.caption)
                     }
                 }
-            }
 
-            // Complexity score
-            if result.errors.isEmpty {
+                // Complexity score
                 let description = PatternValidator.shared.complexityDescription(for: result.metrics.complexityScore)
                 HStack {
                     Image(systemName: "shield.fill")

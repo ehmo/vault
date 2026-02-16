@@ -46,7 +46,8 @@ final class SVDFSerializerTests: XCTestCase {
     }
 
     func testBuildFullManifest() throws {
-        let id1 = UUID(), id2 = UUID()
+        let id1 = UUID()
+        let id2 = UUID()
         let files = [makeFile(id: id1, name: "a.jpg"), makeFile(id: id2, name: "b.jpg")]
         let (data, _) = try SVDFSerializer.buildFull(
             files: files, metadata: makeMetadata(), shareKey: shareKey
@@ -114,7 +115,8 @@ final class SVDFSerializerTests: XCTestCase {
     // MARK: - Incremental Delete
 
     func testBuildIncrementalDelete() throws {
-        let id1 = UUID(), id2 = UUID()
+        let id1 = UUID()
+        let id2 = UUID()
         let files = [makeFile(id: id1, name: "a.jpg"), makeFile(id: id2, name: "b.jpg")]
         let (priorData, priorManifest) = try SVDFSerializer.buildFull(
             files: files, metadata: makeMetadata(), shareKey: shareKey

@@ -24,7 +24,7 @@ struct SecureTextField: View {
 
 /// Overlay that uses secure text field technique to prevent screenshots
 struct SecureOverlay: UIViewRepresentable {
-    func makeUIView(context: Context) -> UIView {
+    func makeUIView(context _: Context) -> UIView {
         let view = UIView()
         view.backgroundColor = .clear
         view.isUserInteractionEnabled = false
@@ -40,7 +40,7 @@ struct SecureOverlay: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ uiView: UIView, context: Context) {}
+    func updateUIView(_ _uiView: UIView, context _: Context) { /* No update needed */ }
 }
 
 #Preview {

@@ -55,13 +55,13 @@ struct SecureImageViewer: View {
         .onDisappear(perform: cleanup)
         .alert("Export File?", isPresented: $showingExportConfirmation) {
             Button("Export", role: .destructive) { exportFile() }
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) { /* No-op */ }
         } message: {
             Text("This will save the file outside the vault. It will no longer be protected.")
         }
         .alert("Delete File?", isPresented: $showingDeleteConfirmation) {
             Button("Delete", role: .destructive) { deleteFile() }
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) { /* No-op */ }
         } message: {
             Text("This file will be permanently deleted from the vault.")
         }
@@ -72,7 +72,7 @@ struct SecureImageViewer: View {
             if onDelete != nil {
                 Button("Delete", role: .destructive) { showingDeleteConfirmation = true }
             }
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) { /* No-op */ }
         }
         .onChange(of: shareURL) { _, url in
             guard let url else { return }
@@ -222,7 +222,7 @@ struct QuickLookPreview: UIViewControllerRepresentable {
         return controller
     }
 
-    func updateUIViewController(_ uiViewController: QLPreviewController, context: Context) {}
+    func updateUIViewController(_ _uiViewController: QLPreviewController, context _: Context) { /* No update needed */ }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(url: url)
@@ -235,9 +235,9 @@ struct QuickLookPreview: UIViewControllerRepresentable {
             self.url = url
         }
 
-        func numberOfPreviewItems(in controller: QLPreviewController) -> Int { 1 }
+        func numberOfPreviewItems(in _controller: QLPreviewController) -> Int { 1 }
 
-        func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
+        func previewController(_ _controller: QLPreviewController, previewItemAt _index: Int) -> QLPreviewItem {
             url as QLPreviewItem
         }
     }

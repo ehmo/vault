@@ -98,7 +98,7 @@ final class iCloudBackupManager {
         case complete = "Backup complete"
     }
 
-    func performBackup(with key: Data, onProgress: @escaping (BackupStage) -> Void, onUploadProgress: @escaping (Double) -> Void = { _ in }) async throws {
+    func performBackup(with key: Data, onProgress: @escaping (BackupStage) -> Void, onUploadProgress: @escaping (Double) -> Void = { _ in /* No-op */ }) async throws {
         Self.logger.info("[backup] Starting v2 multi-blob backup...")
 
         // Wait for iCloud
@@ -178,7 +178,7 @@ final class iCloudBackupManager {
     /// Blobs:   [idLen(2B) | blobId(var) | dataLen(8B) | data(var)] × blobCount
     /// Indexes: [nameLen(2B) | fileName(var) | dataLen(4B) | data(var)] × indexCount
     /// ```
-    private func packBackupPayload(index: VaultStorage.VaultIndex, key: Data) throws -> Data {
+    private func packBackupPayload(index: VaultStorage.VaultIndex, key _: Data) throws -> Data {
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         var payload = Data()
 
@@ -486,14 +486,13 @@ final class iCloudBackupManager {
                 try await privateDatabase.save(currentRecord)
                 return
             } catch let error as CKError {
-                if error.code == .serverRecordChanged, attempt < maxRetries {
-                    if let serverRecord = try? await privateDatabase.record(for: currentRecord.recordID) {
-                        for key in currentRecord.allKeys() {
-                            serverRecord[key] = currentRecord[key]
-                        }
-                        currentRecord = serverRecord
-                        continue
+                if error.code == .serverRecordChanged, attempt < maxRetries,
+                   let serverRecord = try? await privateDatabase.record(for: currentRecord.recordID) {
+                    for key in currentRecord.allKeys() {
+                        serverRecord[key] = currentRecord[key]
                     }
+                    currentRecord = serverRecord
+                    continue
                 }
 
                 if Self.isRetryable(error) && attempt < maxRetries {
@@ -593,7 +592,7 @@ final class iCloudBackupManager {
                 }
             }
             do {
-                try await self.performBackup(with: capturedKey, onProgress: { _ in }, onUploadProgress: { _ in })
+                try await self.performBackup(with: capturedKey, onProgress: { _ in /* No-op */ }, onUploadProgress: { _ in /* No-op */ })
                 await MainActor.run {
                     UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastBackupTimestamp")
                 }
@@ -692,7 +691,7 @@ final class iCloudBackupManager {
     // MARK: - v2 Chunked Restore
 
     /// Restores a v2 backup (chunked payload with all blobs + index files).
-    private func restoreV2(record: CKRecord, metadata: BackupMetadata, key: Data) async throws {
+    private func restoreV2(record _: CKRecord, metadata: BackupMetadata, key: Data) async throws {
         guard let backupId = metadata.backupId,
               let chunkCount = metadata.chunkCount, chunkCount > 0 else {
             throw iCloudError.downloadFailed

@@ -59,16 +59,16 @@ struct PatternSerializer {
         let deltaRow = toRow - fromRow
         let deltaCol = toCol - fromCol
 
-        switch (deltaRow, deltaCol) {
-        case (let dr, let dc) where dr < 0 && dc == 0: return .up
-        case (let dr, let dc) where dr < 0 && dc > 0: return .upRight
-        case (let dr, let dc) where dr == 0 && dc > 0: return .right
-        case (let dr, let dc) where dr > 0 && dc > 0: return .downRight
-        case (let dr, let dc) where dr > 0 && dc == 0: return .down
-        case (let dr, let dc) where dr > 0 && dc < 0: return .downLeft
-        case (let dr, let dc) where dr == 0 && dc < 0: return .left
-        case (let dr, let dc) where dr < 0 && dc < 0: return .upLeft
-        default: return .same
+        switch (deltaRow.signum(), deltaCol.signum()) {
+        case (-1,  0): return .up
+        case (-1,  1): return .upRight
+        case ( 0,  1): return .right
+        case ( 1,  1): return .downRight
+        case ( 1,  0): return .down
+        case ( 1, -1): return .downLeft
+        case ( 0, -1): return .left
+        case (-1, -1): return .upLeft
+        default:       return .same
         }
     }
 

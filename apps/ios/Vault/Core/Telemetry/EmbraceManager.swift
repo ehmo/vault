@@ -3,10 +3,10 @@ import EmbraceIO
 import os
 
 // File-scoped sensitive keywords to avoid actor isolation issues in Swift 6
-private let SensitiveKeywords: [String] = [
+private let sensitiveKeywords: [String] = [
     "key", "pattern", "phrase", "salt", "password", "secret", "token"
 ]
-private let TelemetryLogger = Logger(subsystem: "app.vaultaire.ios", category: "Embrace")
+private let telemetryLogger = Logger(subsystem: "app.vaultaire.ios", category: "Embrace")
 
 /// Status codes matching the former Sentry SpanStatus values used by call sites.
 enum SpanStatus {
@@ -25,27 +25,27 @@ enum SpanStatus {
 ///
 /// SAFETY: `@unchecked Sendable` — the underlying Embrace span is thread-safe.
 final class SpanHandle: @unchecked Sendable {
-    private let _setTag: (_ value: String, _ key: String) -> Void
-    private let _finish: (_ status: SpanStatus) -> Void
-    fileprivate let _createChild: (_ name: String, _ desc: String) -> SpanHandle
+    private let setTagHandler: (_ value: String, _ key: String) -> Void
+    private let finishHandler: (_ status: SpanStatus) -> Void
+    fileprivate let createChildHandler: (_ name: String, _ desc: String) -> SpanHandle
 
     fileprivate init(
         setTag: @escaping (_ value: String, _ key: String) -> Void,
         finish: @escaping (_ status: SpanStatus) -> Void,
         createChild: @escaping (_ name: String, _ desc: String) -> SpanHandle
     ) {
-        self._setTag = setTag
-        self._finish = finish
-        self._createChild = createChild
+        self.setTagHandler = setTag
+        self.finishHandler = finish
+        self.createChildHandler = createChild
     }
 
-    func setTag(value: String, key: String) { _setTag(value, key) }
-    func finish(status: SpanStatus = .ok) { _finish(status) }
+    func setTag(value: String, key: String) { setTagHandler(value, key) }
+    func finish(status: SpanStatus = .ok) { finishHandler(status) }
 
     static var noop: SpanHandle {
         SpanHandle(
-            setTag: { _, _ in },
-            finish: { _ in },
+            setTag: { _, _ in /* No-op */ },
+            finish: { _ in /* No-op */ },
             createChild: { _, _ in .noop }
         )
     }
@@ -67,7 +67,7 @@ final class EmbraceManager: @unchecked Sendable {
     /// Once Embrace SDK is initialized it cannot be re-initialized. This
     /// prevents a double-setup crash when the user toggles analytics off then on.
     private var hasSetup = false
-    private init() {}
+    private init() { /* No-op */ }
 
     // MARK: - Start / Stop
 
@@ -91,7 +91,7 @@ final class EmbraceManager: @unchecked Sendable {
         } catch {
             self.isStarted = false
             self.hasSetup = false
-            TelemetryLogger.error("[EmbraceManager] Setup failed: \(error.localizedDescription, privacy: .public)")
+            telemetryLogger.error("[EmbraceManager] Setup failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -158,7 +158,7 @@ final class EmbraceManager: @unchecked Sendable {
     }
 
     nonisolated func startSpan(parent: SpanHandle, operation: String, description: String) -> SpanHandle {
-        parent._createChild(operation, description)
+        parent.createChildHandler(operation, description)
     }
 
     // MARK: - Convenience: Errors
@@ -226,7 +226,7 @@ final class EmbraceManager: @unchecked Sendable {
 
     @inline(__always) static func containsSensitive(_ value: String) -> Bool {
         let lower = value.lowercased()
-        return SensitiveKeywords.contains { lower.contains($0) }
+        return sensitiveKeywords.contains { lower.contains($0) }
     }
 
     private static func scrubProperties(_ data: [String: Any]?) -> [String: String]? {
@@ -245,7 +245,7 @@ final class EmbraceManager: @unchecked Sendable {
 
     private func emitStartupHealthSignal(trigger: String) {
         guard let client = Embrace.client else {
-            TelemetryLogger.error("[EmbraceManager] No client after start trigger=\(trigger, privacy: .public)")
+            telemetryLogger.error("[EmbraceManager] No client after start trigger=\(trigger, privacy: .public)")
             return
         }
 

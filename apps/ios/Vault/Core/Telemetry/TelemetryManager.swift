@@ -4,7 +4,7 @@ import TelemetryDeck
 final class TelemetryManager {
     static let shared = TelemetryManager()
     private var isInitialized = false
-    private init() {}
+    private init() { /* No-op */ }
 
     func start() {
         guard !isInitialized else { return }

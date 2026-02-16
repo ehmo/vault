@@ -155,12 +155,11 @@ final class ShareViewController: UIViewController {
         let isPremium = UserDefaults(suiteName: VaultCoreConstants.appGroupIdentifier)?
             .bool(forKey: VaultCoreConstants.isPremiumKey) ?? false
 
-        if !isPremium {
-            if counts.images > VaultCoreConstants.freeMaxImages ||
-               counts.videos > VaultCoreConstants.freeMaxVideos ||
-               counts.files > VaultCoreConstants.freeMaxFiles {
-                throw StagedImportError.freeTierLimitExceeded
-            }
+        if !isPremium,
+           counts.images > VaultCoreConstants.freeMaxImages ||
+           counts.videos > VaultCoreConstants.freeMaxVideos ||
+           counts.files > VaultCoreConstants.freeMaxFiles {
+            throw StagedImportError.freeTierLimitExceeded
         }
 
         // Create batch

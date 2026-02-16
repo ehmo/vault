@@ -41,7 +41,7 @@ struct GlobalSettings: Codable, Sendable {
     var showPatternFeedback: Bool
     var iCloudBackupEnabled: Bool
 
-    static var `default`: GlobalSettings {
+    static var defaultSettings: GlobalSettings {
         GlobalSettings(
             gridSize: 4,
             showPatternFeedback: false,

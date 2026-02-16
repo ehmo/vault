@@ -41,7 +41,7 @@ struct JoinVaultView: View {
                 Text("Join Shared Vault")
                     .font(.headline)
                 Spacer()
-                Button("Cancel") { }.opacity(0)
+                Button("Cancel") { /* Invisible spacer button */ }.opacity(0)
             }
             .padding(.horizontal)
             .padding(.vertical, 12)

@@ -27,7 +27,7 @@ final class ShareSyncManager {
     private var debounceTask: Task<Void, Never>?
     private let debounceInterval: TimeInterval = 30
 
-    private init() {}
+    private init() { /* No-op */ }
 
     // MARK: - Trigger Sync
 

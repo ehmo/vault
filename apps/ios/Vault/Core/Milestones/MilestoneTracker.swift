@@ -13,7 +13,7 @@ final class MilestoneTracker {
     @UserDefaultsBacked(key: "milestone_firstExport", defaultValue: false)
     var hasSeenFirstExport: Bool
 
-    private init() {}
+    private init() { /* No-op */ }
 
     /// Returns a milestone message if this is a first-time event, nil otherwise.
     func checkFirstFile(totalCount: Int) -> String? {

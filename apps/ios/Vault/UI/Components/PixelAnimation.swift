@@ -157,7 +157,10 @@ extension PixelAnimation {
 
 private extension UIColor {
     func lighter(by amount: CGFloat) -> UIColor {
-        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        var h: CGFloat = 0
+        var s: CGFloat = 0
+        var b: CGFloat = 0
+        var a: CGFloat = 0
         getHue(&h, saturation: &s, brightness: &b, alpha: &a)
         return UIColor(hue: h, saturation: s * (1 - amount), brightness: min(b + amount, 1.0), alpha: a)
     }
