@@ -264,11 +264,9 @@ struct SharedVaultInviteView: View {
             let letters = GridLetterManager.shared.vaultName(for: newPattern)
             appState.updateVaultName(letters.isEmpty ? "Vault" : "Vault \(letters)")
 
-            let emptyIndex = VaultStorage.VaultIndex(
-                files: [],
-                nextOffset: 0,
-                totalSize: 500 * 1024 * 1024
-            )
+            // Ensure a proper v3 vault index with encrypted master key + blob metadata.
+            // Using loadIndex here keeps shared-invite setup aligned with JoinVaultView.
+            let emptyIndex = try VaultStorage.shared.loadIndex(with: patternKey)
             try VaultStorage.shared.saveIndex(emptyIndex, with: patternKey)
 
             appState.isUnlocked = true

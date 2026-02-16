@@ -773,6 +773,8 @@ final class BackgroundShareTransferManager {
                 await self?.finishTransfer(.importComplete, activityMessage: "Shared vault is ready")
             } catch {
                 guard !Task.isCancelled else { return }
+                Self.logger.error("[import] IMPORT FAILED: \(error.localizedDescription, privacy: .public)")
+                Self.logger.error("[import] error type: \(String(describing: type(of: error)), privacy: .public)")
                 EmbraceManager.shared.captureError(error)
                 await self?.finishTransfer(.importFailed(error.localizedDescription), activityMessage: "Import failed")
             }
