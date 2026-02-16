@@ -9,6 +9,10 @@ import UIKit
 @Observable
 final class BackgroundShareTransferManager {
     static let shared = BackgroundShareTransferManager()
+    /// Match in-app `PixelAnimation.loading()` cadence (0.1s per frame).
+    private static let livePixelTickIntervalMs = 100
+    /// Keep progress interpolation speed similar to previous 500ms/5-tick behavior.
+    private static let progressSmoothingTicks = 25
 
     enum TransferStatus: Equatable {
         case idle
@@ -698,7 +702,7 @@ final class BackgroundShareTransferManager {
         progressTask = Task { [weak self] in
             while !Task.isCancelled {
                 self?.progressTimerTick()
-                try? await Task.sleep(for: .milliseconds(500))
+                try? await Task.sleep(for: .milliseconds(Self.livePixelTickIntervalMs))
             }
         }
     }
@@ -712,7 +716,11 @@ final class BackgroundShareTransferManager {
         animationStep += 1
 
         if displayProgress < targetProgress {
-            let step = max(1, (targetProgress - displayProgress + 4) / 5)
+            let step = max(
+                1,
+                (targetProgress - displayProgress + (Self.progressSmoothingTicks - 1))
+                    / Self.progressSmoothingTicks
+            )
             displayProgress = min(displayProgress + step, targetProgress)
         }
 

@@ -15,7 +15,7 @@ struct TransferActivityAttributes: ActivityAttributes {
         let message: String
         let isComplete: Bool
         let isFailed: Bool
-        /// Drives pixel grid animation frame. Increments every timer tick (~0.5s)
+        /// Drives pixel grid animation frame. Increments every timer tick (~0.1s)
         /// since TimelineView(.animation) does not re-render in widget extensions.
         var animationStep: Int = 0
     }

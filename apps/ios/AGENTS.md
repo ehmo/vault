@@ -80,6 +80,7 @@ Required sections — missing any one causes Xcode to fail silently or at build 
 - `uploading()` and `downloading()` factory methods were removed — they had inconsistent patterns/brightness
 - Trail effect requires `Timer.publish` + `.onReceive`, NOT `TimelineView` (which resets view tree and kills in-flight animations)
 - When adding a new loader anywhere, use `PixelAnimation.loading(size: N)` — nothing else
+- Dynamic Island frame cadence must also be 0.1s: `BackgroundShareTransferManager` must advance `animationStep` every 100ms to match in-app loader speed. Slower ticks (e.g., 500ms) make `LivePixelGrid` appear laggy.
 
 ## Pattern Board Consistency (MANDATORY)
 
