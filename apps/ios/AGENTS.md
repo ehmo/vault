@@ -161,6 +161,7 @@ All pattern grid screens MUST behave identically. There are two categories:
 - **ASC CLI output flag**: Use `--output json` (not `--json`) for `asc` commands like `asc builds list`/`asc builds info`.
 - **TestFlight group assignment**: Do not assume a group named "Internal Testers" is internal; check `asc testflight beta-groups list` and run `asc builds add-groups` when `Internal = false`.
 - **ASC build indexing lag**: Right after upload, `asc builds latest --version <N>` can return "no pre-release version found." Poll `asc builds list --sort -uploadedDate --limit 20` until the new version appears, then wait for `processingState = VALID` before `add-groups`.
+- **ASC indexing timing**: Newly uploaded builds can stay `not-found` for 1-3 minutes, then appear already `VALID`. Keep polling `asc builds list --sort -uploadedDate --limit 20` instead of failing early.
 - **BGProcessing upload continuation**: Register `BGTaskScheduler` identifier `app.vaultaire.ios.share-upload.resume` at launch, include it in `BGTaskSchedulerPermittedIdentifiers`, enable `UIBackgroundModes = processing`, and always call `setTaskCompleted(success:)` on every completion path (success/failure/expiration).
 - **Auto-resume entry points**: Do not rely on a manual "Resume Upload" button only. Trigger `resumePendingUploadIfNeeded` when vault key becomes available (vault unlock / VaultView open) and when app returns active.
 - **Parallel chunk downloads**: `downloadChunksParallel` uses bounded TaskGroup (max 4), order-preserving reassembly via `[Int: Data]` dictionary
