@@ -2,6 +2,9 @@ import Foundation
 import os.log
 
 private let shareSyncLogger = Logger(subsystem: "app.vaultaire.ios", category: "ShareSync")
+/// Incremental sync currently re-encrypts uncached files in-memory.
+/// Keep this bounded to avoid jetsam when a very large file is added.
+private let maxInMemoryReencryptBytes = 256 * 1024 * 1024
 
 /// Manages background sync of vault data to all active share recipients.
 /// Debounces file changes (30s) and uploads to all share vault IDs.
@@ -238,6 +241,14 @@ final class ShareSyncManager {
 
         for entry in filesToEncrypt {
             do {
+                if entry.size > maxInMemoryReencryptBytes {
+                    skippedFiles += 1
+                    let name = entry.filename ?? entry.fileId.uuidString
+                    shareSyncLogger.warning(
+                        "Skipping oversized file \(name, privacy: .public) (\(entry.size / (1024 * 1024))MB) during incremental sync"
+                    )
+                    continue
+                }
                 let fileIdStr = entry.fileId.uuidString
 
                 // Check cache for already-encrypted content

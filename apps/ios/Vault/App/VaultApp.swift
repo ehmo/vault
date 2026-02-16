@@ -343,6 +343,20 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // Write notification icon to app group so the share extension can use it
         LocalNotificationManager.shared.warmNotificationIcon()
 
+        // If iOS terminated the previous upload process (jetsam/watchdog),
+        // emit a breadcrumb on next launch with the last known phase.
+        if let marker = BackgroundShareTransferManager.consumeStaleUploadLifecycleMarker() {
+            let ageSeconds = Int(Date().timeIntervalSince(marker.timestamp))
+            EmbraceManager.shared.addBreadcrumb(
+                category: "share.upload.previous_run_terminated",
+                data: [
+                    "phase": marker.phase,
+                    "shareVaultId": marker.shareVaultId,
+                    "ageSeconds": ageSeconds
+                ]
+            )
+        }
+
         return true
     }
 

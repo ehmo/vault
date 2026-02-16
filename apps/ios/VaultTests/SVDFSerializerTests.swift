@@ -5,12 +5,17 @@ final class SVDFSerializerTests: XCTestCase {
 
     private let shareKey = CryptoEngine.generateRandomBytes(count: 32)!
 
-    private func makeFile(id: UUID = UUID(), name: String = "test.jpg", content: Data? = nil) -> SharedVaultData.SharedFile {
+    private func makeFile(
+        id: UUID = UUID(),
+        name: String = "test.jpg",
+        size: Int = 100,
+        content: Data? = nil
+    ) -> SharedVaultData.SharedFile {
         SharedVaultData.SharedFile(
             id: id,
             filename: name,
             mimeType: "image/jpeg",
-            size: 100,
+            size: size,
             encryptedContent: content ?? Data("encrypted-\(name)".utf8),
             createdAt: Date(timeIntervalSince1970: 1700000000),
             encryptedThumbnail: Data("thumb".utf8)
@@ -161,5 +166,74 @@ final class SVDFSerializerTests: XCTestCase {
         XCTAssertEqual(manifest.count, 0)
         let header = try SVDFSerializer.parseHeader(from: data)
         XCTAssertEqual(header.fileCount, 0)
+    }
+
+    func testBuildFullThrowsForOversizedFileSizeField() throws {
+        let oversized = makeFile(
+            name: "big.bin",
+            size: Int(UInt32.max) + 1,
+            content: Data(repeating: 0xAB, count: 16)
+        )
+
+        XCTAssertThrowsError(
+            try SVDFSerializer.buildFull(
+                files: [oversized],
+                metadata: makeMetadata(),
+                shareKey: shareKey
+            )
+        )
+    }
+
+    func testBuildFullThrowsForOversizedFilenameField() throws {
+        let longName = String(repeating: "a", count: Int(UInt16.max) + 1)
+        let file = makeFile(name: longName, content: Data(repeating: 0xCD, count: 16))
+
+        XCTAssertThrowsError(
+            try SVDFSerializer.buildFull(
+                files: [file],
+                metadata: makeMetadata(),
+                shareKey: shareKey
+            )
+        )
+    }
+
+    func testBuildFullStreamingFromPlaintextRoundTrip() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let plaintextURL = tempDir.appendingPathComponent("source.bin")
+        let sourceData = Data(repeating: 0x42, count: 256 * 1024)
+        try sourceData.write(to: plaintextURL)
+
+        let svdfURL = tempDir.appendingPathComponent("vault.svdf")
+        let metadata = makeMetadata()
+        let createdAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let source = SVDFSerializer.StreamingSourceFile(
+            id: UUID(),
+            filename: "source.bin",
+            mimeType: "application/octet-stream",
+            originalSize: sourceData.count,
+            createdAt: createdAt,
+            encryptedThumbnail: nil,
+            plaintextContentURL: plaintextURL
+        )
+
+        let (_, fileIds) = try SVDFSerializer.buildFullStreamingFromPlaintext(
+            to: svdfURL,
+            fileCount: 1,
+            forEachFile: { _ in source },
+            metadata: metadata,
+            shareKey: shareKey
+        )
+
+        let svdfData = try Data(contentsOf: svdfURL)
+        let decoded = try SVDFSerializer.deserialize(from: svdfData, shareKey: shareKey)
+
+        XCTAssertEqual(fileIds.count, 1)
+        XCTAssertEqual(decoded.files.count, 1)
+        XCTAssertEqual(decoded.files[0].filename, "source.bin")
+        XCTAssertEqual(decoded.files[0].size, sourceData.count)
     }
 }

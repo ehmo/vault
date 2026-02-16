@@ -54,6 +54,19 @@ enum SVDFSerializer {
         // 26 bytes of reserved padding to reach 64
     }
 
+    /// Source file description for zero-copy share packaging.
+    /// `plaintextContentURL` points to a decrypted temporary file that will be
+    /// re-encrypted directly into the SVDF output stream.
+    struct StreamingSourceFile: Sendable {
+        let id: UUID
+        let filename: String
+        let mimeType: String
+        let originalSize: Int
+        let createdAt: Date
+        let encryptedThumbnail: Data?
+        let plaintextContentURL: URL
+    }
+
     // MARK: - Build Full
 
     /// Builds a complete SVDF blob from scratch.
@@ -75,7 +88,7 @@ enum SVDFSerializer {
 
         for file in files {
             let entryStart = output.count
-            let entry = encodeFileEntry(file)
+            let entry = try encodeFileEntry(file)
             output.append(entry)
             manifest.append(FileManifestEntry(
                 id: file.id.uuidString,
@@ -96,14 +109,18 @@ enum SVDFSerializer {
         let metadataOffset = output.count
         output.append(encryptedMetadata)
 
+        let headerFileCount = try checkedUInt32(files.count, field: "fileCount")
+        let headerManifestSize = try checkedUInt32(encryptedManifest.count, field: "manifestSize")
+        let headerMetadataSize = try checkedUInt32(encryptedMetadata.count, field: "metadataSize")
+
         // Write header
         writeHeader(
             into: &output,
-            fileCount: UInt32(files.count),
+            fileCount: headerFileCount,
             manifestOffset: UInt64(manifestOffset),
-            manifestSize: UInt32(encryptedManifest.count),
+            manifestSize: headerManifestSize,
             metadataOffset: UInt64(metadataOffset),
-            metadataSize: UInt32(encryptedMetadata.count)
+            metadataSize: headerMetadataSize
         )
 
         return (output, manifest)
@@ -146,7 +163,7 @@ enum SVDFSerializer {
         for i in 0..<fileCount {
             let file = try forEachFile(i)
             let entryOffset = handle.offsetInFile
-            let entrySize = writeFileEntryStreaming(file, to: handle)
+            let entrySize = try writeFileEntryStreaming(file, to: handle)
             manifest.append(FileManifestEntry(
                 id: file.id.uuidString,
                 offset: Int(entryOffset),
@@ -167,16 +184,92 @@ enum SVDFSerializer {
         let metadataOffset = handle.offsetInFile
         handle.write(encryptedMetadata)
 
+        let headerFileCount = try checkedUInt32(fileCount, field: "fileCount")
+        let headerManifestSize = try checkedUInt32(encryptedManifest.count, field: "manifestSize")
+        let headerMetadataSize = try checkedUInt32(encryptedMetadata.count, field: "metadataSize")
+
         // Seek back and write the real header
         handle.seek(toFileOffset: 0)
         var headerData = Data(count: headerSize)
         writeHeader(
             into: &headerData,
-            fileCount: UInt32(fileCount),
+            fileCount: headerFileCount,
             manifestOffset: UInt64(manifestOffset),
-            manifestSize: UInt32(encryptedManifest.count),
+            manifestSize: headerManifestSize,
             metadataOffset: UInt64(metadataOffset),
-            metadataSize: UInt32(encryptedMetadata.count)
+            metadataSize: headerMetadataSize
+        )
+        handle.write(headerData)
+
+        return (manifest, fileIds)
+    }
+
+    /// Builds a complete SVDF file by streaming plaintext files through
+    /// `CryptoEngine.encryptFileStreamingToHandle` directly into the output.
+    /// This avoids loading large file contents into memory during share creation.
+    static func buildFullStreamingFromPlaintext(
+        to fileURL: URL,
+        fileCount: Int,
+        forEachFile: (Int) throws -> StreamingSourceFile,
+        didWriteFile: ((Int, StreamingSourceFile) -> Void)? = nil,
+        metadata: SharedVaultData.SharedVaultMetadata,
+        shareKey: Data
+    ) throws -> (manifest: [FileManifestEntry], fileIds: [String]) {
+        FileManager.default.createFile(atPath: fileURL.path, contents: nil)
+        let handle = try FileHandle(forWritingTo: fileURL)
+        defer { try? handle.close() }
+
+        // Write zeroed header placeholder
+        handle.write(Data(count: headerSize))
+
+        var manifest: [FileManifestEntry] = []
+        var fileIds: [String] = []
+        manifest.reserveCapacity(fileCount)
+        fileIds.reserveCapacity(fileCount)
+
+        for i in 0..<fileCount {
+            let file = try forEachFile(i)
+            let entryOffset = handle.offsetInFile
+            let entrySize = try writeFileEntryStreamingFromPlaintext(
+                file,
+                to: handle,
+                shareKey: shareKey
+            )
+            manifest.append(FileManifestEntry(
+                id: file.id.uuidString,
+                offset: Int(entryOffset),
+                size: entrySize
+            ))
+            fileIds.append(file.id.uuidString)
+            didWriteFile?(i, file)
+        }
+
+        // Encrypt and write manifest
+        let manifestJSON = try JSONEncoder().encode(manifest)
+        let encryptedManifest = try CryptoEngine.encrypt(manifestJSON, with: shareKey)
+        let manifestOffset = handle.offsetInFile
+        handle.write(encryptedManifest)
+
+        // Encrypt and write metadata
+        let metadataJSON = try JSONEncoder().encode(metadata)
+        let encryptedMetadata = try CryptoEngine.encrypt(metadataJSON, with: shareKey)
+        let metadataOffset = handle.offsetInFile
+        handle.write(encryptedMetadata)
+
+        let headerFileCount = try checkedUInt32(fileCount, field: "fileCount")
+        let headerManifestSize = try checkedUInt32(encryptedManifest.count, field: "manifestSize")
+        let headerMetadataSize = try checkedUInt32(encryptedMetadata.count, field: "metadataSize")
+
+        // Seek back and write the real header
+        handle.seek(toFileOffset: 0)
+        var headerData = Data(count: headerSize)
+        writeHeader(
+            into: &headerData,
+            fileCount: headerFileCount,
+            manifestOffset: UInt64(manifestOffset),
+            manifestSize: headerManifestSize,
+            metadataOffset: UInt64(metadataOffset),
+            metadataSize: headerMetadataSize
         )
         handle.write(headerData)
 
@@ -218,7 +311,7 @@ enum SVDFSerializer {
         // Append new file entries
         for file in newFiles {
             let entryStart = output.count
-            let entry = encodeFileEntry(file)
+            let entry = try encodeFileEntry(file)
             output.append(entry)
             manifest.append(FileManifestEntry(
                 id: file.id.uuidString,
@@ -241,14 +334,18 @@ enum SVDFSerializer {
         let metadataOffset = output.count
         output.append(encryptedMetadata)
 
+        let headerFileCount = try checkedUInt32(activeCount, field: "fileCount")
+        let headerManifestSize = try checkedUInt32(encryptedManifest.count, field: "manifestSize")
+        let headerMetadataSize = try checkedUInt32(encryptedMetadata.count, field: "metadataSize")
+
         // Rewrite header
         writeHeader(
             into: &output,
-            fileCount: UInt32(activeCount),
+            fileCount: headerFileCount,
             manifestOffset: UInt64(manifestOffset),
-            manifestSize: UInt32(encryptedManifest.count),
+            manifestSize: headerManifestSize,
             metadataOffset: UInt64(metadataOffset),
-            metadataSize: UInt32(encryptedMetadata.count)
+            metadataSize: headerMetadataSize
         )
 
         return (output, manifest)
@@ -339,7 +436,7 @@ enum SVDFSerializer {
     /// + mimeTypeLen(1) + mimeType + originalSize(4) + createdAt(8)
     /// + thumbSize(4) + thumbData + contentSize(4) + contentData
     /// ```
-    private static func encodeFileEntry(_ file: SharedVaultData.SharedFile) -> Data {
+    private static func encodeFileEntry(_ file: SharedVaultData.SharedFile) throws -> Data {
         var entry = Data()
 
         // Placeholder for entrySize (will overwrite)
@@ -352,7 +449,7 @@ enum SVDFSerializer {
 
         // Filename
         let filenameData = Data(file.filename.utf8)
-        entry.appendUInt16(UInt16(filenameData.count))
+        entry.appendUInt16(try checkedUInt16(filenameData.count, field: "filenameLength"))
         entry.append(filenameData)
 
         // MIME type
@@ -361,22 +458,22 @@ enum SVDFSerializer {
         entry.append(mimeData.prefix(255))
 
         // Original size
-        entry.appendUInt32(UInt32(file.size))
+        entry.appendUInt32(try checkedUInt32(file.size, field: "fileOriginalSize"))
 
         // Created at (Unix timestamp as Double)
         entry.appendFloat64(file.createdAt.timeIntervalSince1970)
 
         // Thumbnail
         let thumb = file.encryptedThumbnail ?? Data()
-        entry.appendUInt32(UInt32(thumb.count))
+        entry.appendUInt32(try checkedUInt32(thumb.count, field: "thumbnailSize"))
         entry.append(thumb)
 
         // Content
-        entry.appendUInt32(UInt32(file.encryptedContent.count))
+        entry.appendUInt32(try checkedUInt32(file.encryptedContent.count, field: "encryptedContentSize"))
         entry.append(file.encryptedContent)
 
         // Write total entry size
-        let totalSize = UInt32(entry.count)
+        let totalSize = try checkedUInt32(entry.count, field: "entrySize")
         entry.replaceSubrange(sizePos..<(sizePos + 4), with: totalSize.littleEndianBytes)
 
         return entry
@@ -389,16 +486,20 @@ enum SVDFSerializer {
     private static func writeFileEntryStreaming(
         _ file: SharedVaultData.SharedFile,
         to handle: FileHandle
-    ) -> Int {
+    ) throws -> Int {
         // Build the small header fields into a buffer (typically < 1KB)
         let filenameData = Data(file.filename.utf8)
         let mimeData = Data(file.mimeType.utf8).prefix(255)
         let thumb = file.encryptedThumbnail ?? Data()
+        let filenameLength = try checkedUInt16(filenameData.count, field: "filenameLength")
+        let originalSize = try checkedUInt32(file.size, field: "fileOriginalSize")
+        let thumbnailSize = try checkedUInt32(thumb.count, field: "thumbnailSize")
+        let encryptedContentSize = try checkedUInt32(file.encryptedContent.count, field: "encryptedContentSize")
 
         // Calculate total entry size upfront
         let headerFieldsSize = 4 + 16 + 2 + filenameData.count + 1 + mimeData.count
             + 4 + 8 + 4 + thumb.count + 4
-        let totalSize = UInt32(headerFieldsSize + file.encryptedContent.count)
+        let totalSize = try checkedUInt32(headerFieldsSize + file.encryptedContent.count, field: "entrySize")
 
         var header = Data()
         header.reserveCapacity(headerFieldsSize)
@@ -408,24 +509,84 @@ enum SVDFSerializer {
         let uuidBytes = withUnsafeBytes(of: file.id.uuid) { Data($0) }
         header.append(uuidBytes)
 
-        header.appendUInt16(UInt16(filenameData.count))
+        header.appendUInt16(filenameLength)
         header.append(filenameData)
 
         header.append(UInt8(min(mimeData.count, 255)))
         header.append(mimeData)
 
-        header.appendUInt32(UInt32(file.size))
+        header.appendUInt32(originalSize)
         header.appendFloat64(file.createdAt.timeIntervalSince1970)
 
-        header.appendUInt32(UInt32(thumb.count))
+        header.appendUInt32(thumbnailSize)
         header.append(thumb)
 
-        header.appendUInt32(UInt32(file.encryptedContent.count))
+        header.appendUInt32(encryptedContentSize)
 
         // Write header fields, then content directly — content is NOT copied
         // into the header buffer, saving ~largest_file_size of peak memory.
         handle.write(header)
         handle.write(file.encryptedContent)
+
+        return Int(totalSize)
+    }
+
+    private static func writeFileEntryStreamingFromPlaintext(
+        _ file: StreamingSourceFile,
+        to handle: FileHandle,
+        shareKey: Data
+    ) throws -> Int {
+        let filenameData = Data(file.filename.utf8)
+        let mimeData = Data(file.mimeType.utf8).prefix(255)
+        let thumb = file.encryptedThumbnail ?? Data()
+        let filenameLength = try checkedUInt16(filenameData.count, field: "filenameLength")
+        let originalSize = try checkedUInt32(file.originalSize, field: "fileOriginalSize")
+        let thumbnailSize = try checkedUInt32(thumb.count, field: "thumbnailSize")
+
+        // Compute encrypted payload length before writing the header.
+        let encryptedContentCount = CryptoEngine.encryptedContentSize(forFileOfSize: file.originalSize)
+        let encryptedContentSize = try checkedUInt32(
+            encryptedContentCount,
+            field: "encryptedContentSize"
+        )
+
+        let headerFieldsSize = 4 + 16 + 2 + filenameData.count + 1 + mimeData.count
+            + 4 + 8 + 4 + thumb.count + 4
+        let totalSize = try checkedUInt32(
+            headerFieldsSize + encryptedContentCount,
+            field: "entrySize"
+        )
+
+        var header = Data()
+        header.reserveCapacity(headerFieldsSize)
+
+        header.appendUInt32(totalSize)
+
+        let uuidBytes = withUnsafeBytes(of: file.id.uuid) { Data($0) }
+        header.append(uuidBytes)
+
+        header.appendUInt16(filenameLength)
+        header.append(filenameData)
+
+        header.append(UInt8(min(mimeData.count, 255)))
+        header.append(mimeData)
+
+        header.appendUInt32(originalSize)
+        header.appendFloat64(file.createdAt.timeIntervalSince1970)
+
+        header.appendUInt32(thumbnailSize)
+        header.append(thumb)
+
+        header.appendUInt32(encryptedContentSize)
+
+        handle.write(header)
+
+        // Stream-encrypt plaintext directly into SVDF output.
+        try CryptoEngine.encryptFileStreamingToHandle(
+            from: file.plaintextContentURL,
+            to: handle,
+            with: shareKey
+        )
 
         return Int(totalSize)
     }
@@ -518,6 +679,28 @@ enum SVDFSerializer {
         // Bytes 34-63 reserved (zeroed from initial Data(count:))
     }
 
+    // MARK: - Numeric Bounds
+
+    private static func checkedUInt16(_ value: Int, field: String) throws -> UInt16 {
+        guard value >= 0 else {
+            throw SVDFError.negativeField(field: field, value: value)
+        }
+        guard value <= Int(UInt16.max) else {
+            throw SVDFError.fieldTooLarge(field: field, value: value, max: Int(UInt16.max))
+        }
+        return UInt16(value)
+    }
+
+    private static func checkedUInt32(_ value: Int, field: String) throws -> UInt32 {
+        guard value >= 0 else {
+            throw SVDFError.negativeField(field: field, value: value)
+        }
+        guard value <= Int(UInt32.max) else {
+            throw SVDFError.fieldTooLarge(field: field, value: value, max: Int(UInt32.max))
+        }
+        return UInt32(value)
+    }
+
     // MARK: - Errors
 
     enum SVDFError: Error, LocalizedError {
@@ -525,6 +708,8 @@ enum SVDFSerializer {
         case invalidMagic
         case invalidManifest
         case invalidEntry
+        case fieldTooLarge(field: String, value: Int, max: Int)
+        case negativeField(field: String, value: Int)
 
         var errorDescription: String? {
             switch self {
@@ -532,6 +717,10 @@ enum SVDFSerializer {
             case .invalidMagic: return "Not an SVDF v4 file"
             case .invalidManifest: return "Could not read SVDF manifest"
             case .invalidEntry: return "Corrupted file entry in SVDF"
+            case .fieldTooLarge(let field, let value, let max):
+                return "File metadata is too large for sharing (\(field)=\(value), max \(max))."
+            case .negativeField(let field, let value):
+                return "File metadata is invalid for sharing (\(field)=\(value))."
             }
         }
     }

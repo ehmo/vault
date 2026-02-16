@@ -34,6 +34,12 @@ final class BackgroundShareTransferManager {
         let createdAt: Date
     }
 
+    struct UploadLifecycleMarker: Codable {
+        let phase: String
+        let shareVaultId: String
+        let timestamp: Date
+    }
+
     private nonisolated static let pendingDir: URL = {
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("pending_upload", isDirectory: true)
@@ -46,6 +52,7 @@ final class BackgroundShareTransferManager {
 
     /// 24-hour TTL for pending uploads
     private nonisolated static let pendingTTL: TimeInterval = 24 * 60 * 60
+    private nonisolated static let uploadLifecycleKey = "share.upload.lifecycle.marker"
 
     nonisolated static func savePendingUpload(_ state: PendingUploadState, svdfData: Data) throws {
         try JSONEncoder().encode(state).write(to: stateURL)
@@ -71,6 +78,39 @@ final class BackgroundShareTransferManager {
     nonisolated static func clearPendingUpload() {
         try? FileManager.default.removeItem(at: stateURL)
         try? FileManager.default.removeItem(at: svdfURL)
+    }
+
+    nonisolated static func setUploadLifecycleMarker(phase: String, shareVaultId: String) {
+        let marker = UploadLifecycleMarker(
+            phase: phase,
+            shareVaultId: shareVaultId,
+            timestamp: Date()
+        )
+        if let data = try? JSONEncoder().encode(marker) {
+            UserDefaults.standard.set(data, forKey: uploadLifecycleKey)
+        }
+    }
+
+    nonisolated static func clearUploadLifecycleMarker() {
+        UserDefaults.standard.removeObject(forKey: uploadLifecycleKey)
+    }
+
+    /// Returns a prior unfinished upload marker and clears it.
+    /// If the marker is too old, it is discarded and nil is returned.
+    nonisolated static func consumeStaleUploadLifecycleMarker(
+        maxAge: TimeInterval = 24 * 60 * 60
+    ) -> UploadLifecycleMarker? {
+        defer { clearUploadLifecycleMarker() }
+        guard
+            let data = UserDefaults.standard.data(forKey: uploadLifecycleKey),
+            let marker = try? JSONDecoder().decode(UploadLifecycleMarker.self, from: data)
+        else {
+            return nil
+        }
+        guard Date().timeIntervalSince(marker.timestamp) <= maxAge else {
+            return nil
+        }
+        return marker
     }
 
     var hasPendingUpload: Bool {
@@ -162,6 +202,7 @@ final class BackgroundShareTransferManager {
 
         activeTask = Task.detached(priority: .userInitiated) { [weak self] in
             defer {
+                Self.clearUploadLifecycleMarker()
                 Task { @MainActor in UIApplication.shared.endBackgroundTask(bgTaskId) }
             }
             do {
@@ -169,6 +210,7 @@ final class BackgroundShareTransferManager {
                 var phaseStart = uploadStart
 
                 let shareVaultId = CloudKitSharingManager.generateShareVaultId()
+                Self.setUploadLifecycleMarker(phase: "key_derivation", shareVaultId: shareVaultId)
                 let shareKey = try KeyDerivation.deriveShareKey(from: capturedPhrase)
                 Self.logger.info("[upload-telemetry] PBKDF2 key derivation: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - phaseStart))s")
                 phaseStart = CFAbsoluteTimeGetCurrent()
@@ -196,7 +238,6 @@ final class BackgroundShareTransferManager {
                 let activeFiles = index.files.filter { !$0.isDeleted }
                 let fileCount = activeFiles.count
 
-                let capturedIndex = index
                 let capturedMasterKey = masterKey
                 let capturedShareKey = shareKey
 
@@ -205,13 +246,20 @@ final class BackgroundShareTransferManager {
                     sharedAt: Date()
                 )
 
-                // Stream SVDF construction to disk — each file is decrypted,
-                // re-encrypted, written to the SVDF file, then freed.
-                // Peak memory: O(largest_file) instead of O(total_vault_size).
+                // Stream SVDF construction to disk. Each file is decrypted to a
+                // temp file and re-encrypted directly into the SVDF writer, which
+                // avoids full-file decrypted+encrypted Data buffers in memory.
                 let syncCache = ShareSyncCache(shareVaultId: shareVaultId)
+                var pendingTempURLForCleanup: URL?
+                defer {
+                    if let pendingTempURLForCleanup {
+                        try? FileManager.default.removeItem(at: pendingTempURLForCleanup)
+                    }
+                }
 
+                Self.setUploadLifecycleMarker(phase: "encrypting", shareVaultId: shareVaultId)
                 Self.logger.info("[upload-telemetry] streaming \(fileCount) files to SVDF...")
-                let svdfResult = try SVDFSerializer.buildFullStreaming(
+                let svdfResult = try SVDFSerializer.buildFullStreamingFromPlaintext(
                     to: Self.svdfURL,
                     fileCount: fileCount,
                     forEachFile: { i in
@@ -219,50 +267,39 @@ final class BackgroundShareTransferManager {
                         let entry = activeFiles[i]
                         return try autoreleasepool {
                             let fileStart = CFAbsoluteTimeGetCurrent()
-
-                            // Scope content tightly — freed after encrypt, before
-                            // SharedFile is created. Prevents holding decrypted +
-                            // encrypted simultaneously longer than necessary.
-                            let header: CryptoEngine.EncryptedFileHeader
-                            let reencrypted: Data
-                            let contentSizeKB: Int
-                            let readElapsed: Double
-                            let encryptElapsed: Double
-                            do {
-                                let (h, content) = try VaultStorage.shared.retrieveFileContent(
-                                    entry: entry, index: capturedIndex, masterKey: capturedMasterKey
-                                )
-                                header = h
-                                contentSizeKB = content.count / 1024
-                                readElapsed = CFAbsoluteTimeGetCurrent() - fileStart
-                                reencrypted = try CryptoEngine.encrypt(content, with: capturedShareKey)
-                                encryptElapsed = CFAbsoluteTimeGetCurrent() - fileStart - readElapsed
-                            } // content freed here — large file data released before thumbnail/cache work
+                            let (header, plaintextURL) = try VaultStorage.shared.retrieveFileToTempURL(
+                                id: entry.fileId,
+                                with: capturedVaultKey
+                            )
+                            pendingTempURLForCleanup = plaintextURL
+                            let plainSize = Int(header.originalSize)
+                            let readElapsed = CFAbsoluteTimeGetCurrent() - fileStart
 
                             var encryptedThumb: Data? = nil
                             if let thumbData = entry.thumbnailData {
                                 let decryptedThumb = try CryptoEngine.decrypt(thumbData, with: capturedMasterKey)
                                 encryptedThumb = try CryptoEngine.encrypt(decryptedThumb, with: capturedShareKey)
+                                if let encryptedThumb {
+                                    try? syncCache.saveEncryptedThumb(header.fileId.uuidString, data: encryptedThumb)
+                                }
                             }
 
-                            Self.logger.info("[upload-telemetry] file[\(i)] \(header.originalFilename, privacy: .public) (\(contentSizeKB)KB): read=\(String(format: "%.2f", readElapsed))s encrypt=\(String(format: "%.2f", encryptElapsed))s")
+                            Self.logger.info("[upload-telemetry] file[\(i)] \(header.originalFilename, privacy: .public) (\(plainSize / 1024)KB): decrypt-to-temp=\(String(format: "%.2f", readElapsed))s")
 
-                            // Cache encrypted data for future incremental syncs
-                            try? syncCache.saveEncryptedFile(header.fileId.uuidString, data: reencrypted)
-                            if let thumb = encryptedThumb {
-                                try? syncCache.saveEncryptedThumb(header.fileId.uuidString, data: thumb)
-                            }
-
-                            return SharedVaultData.SharedFile(
+                            return SVDFSerializer.StreamingSourceFile(
                                 id: header.fileId,
                                 filename: header.originalFilename,
                                 mimeType: header.mimeType,
-                                size: Int(header.originalSize),
-                                encryptedContent: reencrypted,
+                                originalSize: plainSize,
                                 createdAt: header.createdAt,
-                                encryptedThumbnail: encryptedThumb
+                                encryptedThumbnail: encryptedThumb,
+                                plaintextContentURL: plaintextURL
                             )
                         }
+                    },
+                    didWriteFile: { _, file in
+                        try? FileManager.default.removeItem(at: file.plaintextContentURL)
+                        pendingTempURLForCleanup = nil
                     },
                     metadata: metadata,
                     shareKey: capturedShareKey
@@ -299,6 +336,7 @@ final class BackgroundShareTransferManager {
                 try JSONEncoder().encode(pendingState).write(to: Self.stateURL)
                 Self.logger.info("[upload-telemetry] pending upload state saved to disk")
 
+                Self.setUploadLifecycleMarker(phase: "uploading", shareVaultId: shareVaultId)
                 Self.logger.info("[upload-telemetry] starting CloudKit upload (\(encodedData.count / (1024 * 1024))MB)...")
                 try await CloudKitSharingManager.shared.uploadSharedVault(
                     shareVaultId: shareVaultId,
@@ -324,8 +362,10 @@ final class BackgroundShareTransferManager {
                 Self.logger.info("[upload-telemetry] total elapsed so far: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - uploadStart))s")
                 phaseStart = CFAbsoluteTimeGetCurrent()
 
-                // Finalize sync cache for future incremental syncs
-                // (encrypted files already cached during streaming build)
+                Self.setUploadLifecycleMarker(phase: "finalizing", shareVaultId: shareVaultId)
+                // Finalize sync cache for future incremental syncs.
+                // The SVDF snapshot is cached immediately; per-file encrypted
+                // content is filled lazily on later incremental syncs.
                 try syncCache.saveSVDF(encodedData)
                 let chunkHashes = ShareSyncCache.computeChunkHashes(encodedData)
                 let currentFileIds = Set(svdfResult.fileIds)
@@ -405,9 +445,14 @@ final class BackgroundShareTransferManager {
 
         activeTask = Task.detached(priority: .userInitiated) { [weak self] in
             defer {
+                Self.clearUploadLifecycleMarker()
                 Task { @MainActor in UIApplication.shared.endBackgroundTask(bgTaskId) }
             }
             do {
+                Self.setUploadLifecycleMarker(
+                    phase: "resume_checking_chunks",
+                    shareVaultId: capturedPending.shareVaultId
+                )
                 await self?.setTargetProgress(2, message: "Checking uploaded chunks...")
 
                 // Query CloudKit for already-uploaded chunks
@@ -430,6 +475,10 @@ final class BackgroundShareTransferManager {
 
                 Self.logger.info("[resume] uploading \(missingChunks.count) missing chunks")
                 await self?.setTargetProgress(5, message: "Uploading remaining chunks...")
+                Self.setUploadLifecycleMarker(
+                    phase: "resume_uploading",
+                    shareVaultId: capturedPending.shareVaultId
+                )
 
                 try await CloudKitSharingManager.shared.uploadChunksParallel(
                     shareVaultId: capturedPending.shareVaultId,
@@ -445,6 +494,10 @@ final class BackgroundShareTransferManager {
 
                 guard !Task.isCancelled else { return }
                 await self?.setTargetProgress(90, message: "Saving manifest...")
+                Self.setUploadLifecycleMarker(
+                    phase: "resume_saving_manifest",
+                    shareVaultId: capturedPending.shareVaultId
+                )
 
                 // Save manifest (may already exist — saveWithRetry handles serverRecordChanged)
                 try await CloudKitSharingManager.shared.saveManifest(
