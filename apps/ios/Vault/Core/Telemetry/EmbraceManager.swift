@@ -60,7 +60,11 @@ final class SpanHandle: @unchecked Sendable {
 /// Embrace SDK APIs.
 final class EmbraceManager: @unchecked Sendable {
     static let shared = EmbraceManager()
+    /// Tracks user intent (analytics enabled/disabled).
     private var isStarted = false
+    /// Once Embrace SDK is initialized it cannot be re-initialized. This
+    /// prevents a double-setup crash when the user toggles analytics off then on.
+    private var hasSetup = false
     private init() {}
 
     // MARK: - Start / Stop
@@ -69,6 +73,8 @@ final class EmbraceManager: @unchecked Sendable {
     func start() {
         guard !self.isStarted else { return }
         self.isStarted = true
+        guard !self.hasSetup else { return }
+        self.hasSetup = true
         Task.detached(priority: .utility) {
             do {
                 try Embrace
@@ -86,6 +92,8 @@ final class EmbraceManager: @unchecked Sendable {
     func stop() {
         guard self.isStarted else { return }
         // Embrace has no close/stop API — it runs for the app's lifetime.
+        // We only clear the intent flag; hasSetup stays true to prevent
+        // double-initialization if the user re-enables analytics.
         self.isStarted = false
     }
 
@@ -158,15 +166,22 @@ final class EmbraceManager: @unchecked Sendable {
     // MARK: - Convenience: Breadcrumbs
 
     func addBreadcrumb(category: String, message: String? = nil, data: [String: Any]? = nil) {
-        let text: String
+        var text: String
         if let message, !message.isEmpty {
             text = "\(category): \(message)"
         } else {
             text = category
         }
-        let scrubbed = Self.containsSensitive(text) ? "[REDACTED]" : text
-        let properties = Self.scrubProperties(data) ?? [:]
-        Embrace.client?.add(event: .breadcrumb(scrubbed, properties: properties))
+        // Embrace 6.x breadcrumbs don't support properties — fold key data into the message.
+        if let data, !data.isEmpty {
+            let scrubbed = Self.scrubProperties(data) ?? [:]
+            let pairs = scrubbed.sorted(by: { $0.key < $1.key })
+                .map { "\($0.key)=\($0.value)" }
+                .joined(separator: " ")
+            text += " [\(pairs)]"
+        }
+        let final = Self.containsSensitive(text) ? "[REDACTED]" : text
+        Embrace.client?.add(event: .breadcrumb(final))
     }
 
     // MARK: - Scrubbing
