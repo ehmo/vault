@@ -76,60 +76,79 @@ enum ImportIngestor {
         vaultKey: Data
     ) async -> (imported: Int, failed: Int, failureReason: String?) {
         var imported = 0
+        var skipped = 0
         var failed = 0
         var failureReason: String?
 
         for file in batch.files {
+            // If the .enc file is missing, this file was already imported in a
+            // previous attempt (we delete .enc after each successful import).
+            // Count as skipped, not failed — batch cleanup should still proceed.
+            guard StagedImportManager.encryptedFileURL(
+                batchId: batch.batchId,
+                fileId: file.fileId
+            ) != nil else {
+                skipped += 1
+                continue
+            }
+
+            // Wrap each file in autoreleasepool to release UIKit/Foundation
+            // temporaries (CGImage, UIImage, AVAsset) between files — prevents
+            // memory accumulation across large batches.
             do {
-                // Get encrypted file URL (never loads entire file into memory)
-                guard let encryptedURL = StagedImportManager.encryptedFileURL(
-                    batchId: batch.batchId,
-                    fileId: file.fileId
-                ) else {
-                    importIngestorLogger.error("Encrypted file not found: \(file.fileId, privacy: .public)")
-                    failed += 1
-                    continue
+                try autoreleasepool {
+                    // Decrypt directly to temp file — streaming format uses ~256KB peak,
+                    // single-shot loads only small files (≤1MB) into memory
+                    let tempURL = FileManager.default.temporaryDirectory
+                        .appendingPathComponent("\(file.fileId.uuidString)_import")
+                        .appendingPathExtension(URL(string: file.filename)?.pathExtension ?? "dat")
+                    try CryptoEngine.decryptStagedFileToURL(
+                        from: StagedImportManager.encryptedFileURL(batchId: batch.batchId, fileId: file.fileId)!,
+                        to: tempURL,
+                        with: vaultKey
+                    )
+
+                    // Decrypt thumbnail if share extension provided one (always small)
+                    var thumbnailData: Data?
+                    if file.hasThumbnail,
+                       let encThumb = StagedImportManager.readEncryptedThumbnail(
+                           batchId: batch.batchId, fileId: file.fileId
+                       ) {
+                        thumbnailData = try? CryptoEngine.decrypt(encThumb, with: vaultKey)
+                    }
+
+                    // Generate thumbnail from temp file if share extension didn't provide one
+                    if thumbnailData == nil {
+                        thumbnailData = generateThumbnailSync(for: tempURL, mimeType: file.mimeType)
+                    }
+
+                    // Store via VaultStorage (streams to blob, ~256KB peak)
+                    _ = try VaultStorage.shared.storeFileFromURL(
+                        tempURL,
+                        filename: file.filename,
+                        mimeType: file.mimeType,
+                        with: vaultKey,
+                        thumbnailData: thumbnailData
+                    )
+
+                    try? FileManager.default.removeItem(at: tempURL)
                 }
 
-                // Decrypt directly to temp file — streaming format uses ~256KB peak memory,
-                // single-shot loads only small files (≤1MB) into memory
-                let tempURL = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("\(file.fileId.uuidString)_import")
-                    .appendingPathExtension(URL(string: file.filename)?.pathExtension ?? "dat")
-                try CryptoEngine.decryptStagedFileToURL(from: encryptedURL, to: tempURL, with: vaultKey)
+                // Mark file as imported by deleting its .enc (and .thumb.enc).
+                // On crash + retry, this file will be skipped above.
+                StagedImportManager.deleteEncryptedFile(batchId: batch.batchId, fileId: file.fileId)
 
-                // Decrypt thumbnail if available from share extension (always small, safe in memory)
-                var thumbnailData: Data?
-                if file.hasThumbnail,
-                   let encThumb = StagedImportManager.readEncryptedThumbnail(
-                       batchId: batch.batchId,
-                       fileId: file.fileId
-                   ) {
-                    thumbnailData = try? CryptoEngine.decrypt(encThumb, with: vaultKey)
-                }
-
-                // Generate thumbnail if the share extension didn't provide one
-                if thumbnailData == nil {
-                    thumbnailData = await generateThumbnail(for: tempURL, mimeType: file.mimeType)
-                }
-
-                // Store via VaultStorage using URL-based API (streams to blob)
-                _ = try VaultStorage.shared.storeFileFromURL(
-                    tempURL,
-                    filename: file.filename,
-                    mimeType: file.mimeType,
-                    with: vaultKey,
-                    thumbnailData: thumbnailData
-                )
-
-                try? FileManager.default.removeItem(at: tempURL)
                 imported += 1
                 importIngestorLogger.info("Imported file \(imported)/\(batch.files.count): \(file.filename, privacy: .public)")
             } catch {
                 failed += 1
                 failureReason = error.localizedDescription
-                importIngestorLogger.error("Failed to import file \(file.fileId, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                importIngestorLogger.error("Failed to import \(file.fileId, privacy: .public): \(error.localizedDescription, privacy: .public)")
             }
+        }
+
+        if skipped > 0 {
+            importIngestorLogger.info("Batch \(batch.batchId, privacy: .public): skipped \(skipped) already-imported files")
         }
 
         return (imported, failed, failureReason)
@@ -137,9 +156,9 @@ enum ImportIngestor {
 
     // MARK: - Thumbnail Generation
 
-    /// Generates a thumbnail from the decrypted temp file for files
-    /// where the share extension didn't provide one (e.g. videos).
-    private static func generateThumbnail(for fileURL: URL, mimeType: String) async -> Data? {
+    /// Generates a thumbnail synchronously from the decrypted temp file.
+    /// Runs inside autoreleasepool so UIImage/CGImage temporaries are released.
+    private static func generateThumbnailSync(for fileURL: URL, mimeType: String) -> Data? {
         if mimeType.hasPrefix("image/") {
             return FileUtilities.generateThumbnail(fromFileURL: fileURL)
         } else if mimeType.hasPrefix("video/") {

@@ -122,6 +122,14 @@ enum StagedImportManager {
         return fileURL
     }
 
+    /// Returns the URL of an encrypted thumbnail in a batch, or nil if it doesn't exist.
+    static func encryptedThumbnailURL(batchId: UUID, fileId: UUID) -> URL? {
+        guard let batchURL = batchDirectory(for: batchId) else { return nil }
+        let fileURL = batchURL.appendingPathComponent("\(fileId.uuidString).thumb.enc")
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return nil }
+        return fileURL
+    }
+
     /// Reads encrypted file data for a specific file in a batch.
     static func readEncryptedFile(batchId: UUID, fileId: UUID) -> Data? {
         guard let batchURL = batchDirectory(for: batchId) else { return nil }
@@ -134,6 +142,17 @@ enum StagedImportManager {
         guard let batchURL = batchDirectory(for: batchId) else { return nil }
         let fileURL = batchURL.appendingPathComponent("\(fileId.uuidString).thumb.enc")
         return try? Data(contentsOf: fileURL)
+    }
+
+    /// Deletes the .enc and .thumb.enc files for a single file in a batch.
+    /// Used by ImportIngestor to mark individual files as imported, enabling
+    /// crash-resilient incremental progress.
+    static func deleteEncryptedFile(batchId: UUID, fileId: UUID) {
+        guard let batchURL = batchDirectory(for: batchId) else { return }
+        let encURL = batchURL.appendingPathComponent("\(fileId.uuidString).enc")
+        let thumbURL = batchURL.appendingPathComponent("\(fileId.uuidString).thumb.enc")
+        try? fm.removeItem(at: encURL)
+        try? fm.removeItem(at: thumbURL)
     }
 
     // MARK: - Cleanup

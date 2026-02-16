@@ -156,11 +156,12 @@ final class ImportIngestorTests: XCTestCase {
 
     // MARK: - Missing File Handling
 
-    func testMissingEncryptedFileCountsAsFailed() async throws {
+    func testMissingEncryptedFileIsSkippedAsAlreadyImported() async throws {
         let (batchURL, batchId) = try StagedImportManager.createBatch()
         let fileId = UUID()
 
-        // Create manifest referencing a file that doesn't exist on disk
+        // Create manifest referencing a file that doesn't exist on disk.
+        // Missing .enc = already imported in a previous attempt (incremental progress).
         let meta = StagedFileMetadata(
             fileId: fileId,
             filename: "ghost.dat",
@@ -175,7 +176,8 @@ final class ImportIngestorTests: XCTestCase {
 
         let result = await ImportIngestor.processPendingImports(for: key)
         XCTAssertEqual(result.imported, 0)
-        XCTAssertEqual(result.failed, 1)
+        XCTAssertEqual(result.failed, 0, "Missing .enc means already imported, not failed")
+        XCTAssertEqual(result.batchesCleaned, 1, "Batch with all files skipped should be cleaned up")
     }
 
     // MARK: - Thumbnail Decryption
