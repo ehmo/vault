@@ -19,6 +19,7 @@ struct VaultSettingsView: View {
     @State private var showingDuressConfirmation = false
     @State private var isDuressVault = false
     @State private var pendingDuressValue = false
+    @State private var activeUploadCount = 0
     @State private var fileCount = 0
     @State private var storageUsed: Int64 = 0
     @State private var showingPaywall = false
@@ -102,8 +103,12 @@ struct VaultSettingsView: View {
 
             // Duress
             Section {
-                if isSharedVault || activeShareCount > 0 {
-                    Text("Shared vaults cannot be set as duress vaults")
+                if Self.shouldDisableDuressForSharing(
+                    isSharedVault: isSharedVault,
+                    activeShareCount: activeShareCount,
+                    activeUploadCount: activeUploadCount
+                ) {
+                    Text("Vaults with active sharing cannot be set as duress vaults")
                         .foregroundStyle(.vaultSecondaryText)
                 } else if !subscriptionManager.canCreateDuressVault() {
                     Button("Use as duress vault") {
@@ -197,7 +202,12 @@ struct VaultSettingsView: View {
             Text("⚠️ EXTREMELY DESTRUCTIVE ⚠️\n\nWhen this pattern is entered, ALL OTHER VAULTS will be PERMANENTLY DESTROYED with no warning or confirmation.\n\nThis includes:\n• All files in other vaults\n• All recovery phrases for other vaults\n• No way to undo this action\n\nOnly use this if you understand you may lose important data under duress.\n\nAre you absolutely sure?")
         }
         .onChange(of: isDuressVault) { oldValue, newValue in
-            guard !isSharedVault, activeShareCount == 0 else {
+            let duressDisabledBySharing = Self.shouldDisableDuressForSharing(
+                isSharedVault: isSharedVault,
+                activeShareCount: activeShareCount,
+                activeUploadCount: activeUploadCount
+            )
+            guard !duressDisabledBySharing else {
                 isDuressVault = oldValue
                 return
             }
@@ -305,12 +315,28 @@ struct VaultSettingsView: View {
                 let totalSize = files.reduce(0) { $0 + Int64($1.size) }
                 
                 // Check if this is the duress vault
-                let isDuress = await DuressHandler.shared.isDuressKey(key)
+                let ownerFingerprint = KeyDerivation.keyFingerprint(from: key)
+                let duressInitiallyEnabled = await DuressHandler.shared.isDuressKey(key)
 
                 // Load sharing info
                 let index = try VaultStorage.shared.loadIndex(with: key)
                 let shared = index.isSharedVault ?? false
                 let shareCount = index.activeShares?.count ?? 0
+                let activeUploadJobs = await MainActor.run {
+                    ShareUploadManager.shared.jobs(forOwnerFingerprint: ownerFingerprint)
+                        .filter { $0.canTerminate }
+                }
+                let uploadCount = activeUploadJobs.count
+                let sharingDisablesDuress = Self.shouldDisableDuressForSharing(
+                    isSharedVault: shared,
+                    activeShareCount: shareCount,
+                    activeUploadCount: uploadCount
+                )
+                if duressInitiallyEnabled && sharingDisablesDuress {
+                    await DuressHandler.shared.clearDuressVault()
+                    vaultSettingsLogger.info("Cleared duress because this vault has active sharing")
+                }
+                let isDuress = duressInitiallyEnabled && !sharingDisablesDuress
 
                 await MainActor.run {
                     fileCount = files.count
@@ -318,15 +344,25 @@ struct VaultSettingsView: View {
                     isDuressVault = isDuress
                     isSharedVault = shared
                     activeShareCount = shareCount
+                    activeUploadCount = uploadCount
                 }
             } catch {
                 vaultSettingsLogger.error("Failed to load vault statistics: \(error.localizedDescription, privacy: .public)")
                 await MainActor.run {
                     fileCount = 0
                     storageUsed = 0
+                    activeUploadCount = 0
                 }
             }
         }
+    }
+
+    static func shouldDisableDuressForSharing(
+        isSharedVault: Bool,
+        activeShareCount: Int,
+        activeUploadCount: Int
+    ) -> Bool {
+        isSharedVault || activeShareCount > 0 || activeUploadCount > 0
     }
     
     private static let byteCountFormatter: ByteCountFormatter = {

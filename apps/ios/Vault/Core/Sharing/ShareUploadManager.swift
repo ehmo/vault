@@ -273,6 +273,13 @@ final class ShareUploadManager {
         maxOpens: Int?,
         allowDownloads: Bool = true
     ) {
+        Task {
+            if await DuressHandler.shared.isDuressKey(vaultKey) {
+                await DuressHandler.shared.clearDuressVault()
+                Self.logger.info("Cleared duress vault designation before starting share upload")
+            }
+        }
+
         let ownerFingerprint = KeyDerivation.keyFingerprint(from: vaultKey)
         let shareVaultId = CloudKitSharingManager.generateShareVaultId()
         let jobId = UUID().uuidString.lowercased()

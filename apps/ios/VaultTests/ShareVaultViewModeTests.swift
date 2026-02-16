@@ -52,6 +52,36 @@ final class ShareVaultViewModeTests: XCTestCase {
         XCTAssertTrue(ShareVaultView.shouldDisplayUploadJob(makeUploadJob(status: .uploading)))
     }
 
+    func testDuressDisabledForReceivedSharedVault() {
+        XCTAssertTrue(
+            VaultSettingsView.shouldDisableDuressForSharing(
+                isSharedVault: true,
+                activeShareCount: 0,
+                activeUploadCount: 0
+            )
+        )
+    }
+
+    func testDuressDisabledForActiveShares() {
+        XCTAssertTrue(
+            VaultSettingsView.shouldDisableDuressForSharing(
+                isSharedVault: false,
+                activeShareCount: 1,
+                activeUploadCount: 0
+            )
+        )
+    }
+
+    func testDuressDisabledForActiveUploads() {
+        XCTAssertTrue(
+            VaultSettingsView.shouldDisableDuressForSharing(
+                isSharedVault: false,
+                activeShareCount: 0,
+                activeUploadCount: 1
+            )
+        )
+    }
+
     private func assert(_ mode: ShareVaultView.ViewMode, matches expected: ShareVaultView.ViewMode) {
         switch (mode, expected) {
         case (.loading, .loading),
