@@ -44,8 +44,12 @@ final class SpanHandle: @unchecked Sendable {
 
     static var noop: SpanHandle {
         SpanHandle(
-            setTag: { _, _ in /* No-op */ },
-            finish: { _ in /* No-op */ },
+            setTag: { _, _ in
+                // No-op: stub span ignores tags
+            },
+            finish: { _ in
+                // No-op: stub span ignores finish
+            },
             createChild: { _, _ in .noop }
         )
     }

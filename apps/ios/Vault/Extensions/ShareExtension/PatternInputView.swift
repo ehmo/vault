@@ -324,8 +324,8 @@ final class PatternInputView: UIView {
 
 extension PatternInputView: UIGestureRecognizerDelegate {
     func gestureRecognizer(
-        _ _gestureRecognizer: UIGestureRecognizer,
-        shouldRecognizeSimultaneouslyWith _otherGestureRecognizer: UIGestureRecognizer
+        _ _: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith _: UIGestureRecognizer
     ) -> Bool {
         false // Don't allow the sheet's pan gesture to run alongside ours
     }

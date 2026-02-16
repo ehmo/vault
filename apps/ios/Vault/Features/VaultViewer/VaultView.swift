@@ -497,7 +497,7 @@ struct PhotoPicker: UIViewControllerRepresentable {
         return picker
     }
 
-    func updateUIViewController(_ _uiViewController: PHPickerViewController, context _: Context) { /* No update needed */ }
+    func updateUIViewController(_ _: PHPickerViewController, context _: Context) { /* No update needed */ }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(onPhotosSelected: onPhotosSelected)

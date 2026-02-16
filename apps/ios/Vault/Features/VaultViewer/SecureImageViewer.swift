@@ -222,7 +222,7 @@ struct QuickLookPreview: UIViewControllerRepresentable {
         return controller
     }
 
-    func updateUIViewController(_ _uiViewController: QLPreviewController, context _: Context) { /* No update needed */ }
+    func updateUIViewController(_ _: QLPreviewController, context _: Context) { /* No update needed */ }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(url: url)
@@ -235,9 +235,9 @@ struct QuickLookPreview: UIViewControllerRepresentable {
             self.url = url
         }
 
-        func numberOfPreviewItems(in _controller: QLPreviewController) -> Int { 1 }
+        func numberOfPreviewItems(in _: QLPreviewController) -> Int { 1 }
 
-        func previewController(_ _controller: QLPreviewController, previewItemAt _index: Int) -> QLPreviewItem {
+        func previewController(_ _: QLPreviewController, previewItemAt _: Int) -> QLPreviewItem {
             url as QLPreviewItem
         }
     }

@@ -40,7 +40,7 @@ struct SecureOverlay: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ _uiView: UIView, context _: Context) { /* No update needed */ }
+    func updateUIView(_ _: UIView, context _: Context) { /* No update needed */ }
 }
 
 #Preview {

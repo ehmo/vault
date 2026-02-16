@@ -98,7 +98,9 @@ final class iCloudBackupManager {
         case complete = "Backup complete"
     }
 
-    func performBackup(with key: Data, onProgress: @escaping (BackupStage) -> Void, onUploadProgress: @escaping (Double) -> Void = { _ in /* No-op */ }) async throws {
+    func performBackup(with key: Data, onProgress: @escaping (BackupStage) -> Void, onUploadProgress: @escaping (Double) -> Void = { _ in
+        // No-op: default ignores progress
+    }) async throws {
         Self.logger.info("[backup] Starting v2 multi-blob backup...")
 
         // Wait for iCloud
@@ -592,7 +594,15 @@ final class iCloudBackupManager {
                 }
             }
             do {
-                try await self.performBackup(with: capturedKey, onProgress: { _ in /* No-op */ }, onUploadProgress: { _ in /* No-op */ })
+                try await self.performBackup(
+                    with: capturedKey,
+                    onProgress: { _ in
+                        // No-op: auto-backup ignores progress
+                    },
+                    onUploadProgress: { _ in
+                        // No-op: auto-backup ignores upload progress
+                    }
+                )
                 await MainActor.run {
                     UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastBackupTimestamp")
                 }

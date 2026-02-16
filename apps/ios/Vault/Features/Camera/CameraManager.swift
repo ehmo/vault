@@ -528,7 +528,7 @@ private final class PhotoCaptureProcessor: NSObject, AVCapturePhotoCaptureDelega
         super.init()
     }
 
-    func photoOutput(_ _output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+    func photoOutput(_ _: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         if let error = error {
             completion(requestedPhotoSettings.uniqueID, .failure(error))
             return
@@ -540,7 +540,7 @@ private final class PhotoCaptureProcessor: NSObject, AVCapturePhotoCaptureDelega
         completion(requestedPhotoSettings.uniqueID, .success(data))
     }
 
-    func photoOutput(_ _output: AVCapturePhotoOutput, didFinishCaptureFor _resolvedSettings: AVCaptureResolvedPhotoSettings, error _: Error?) {
+    func photoOutput(_ _: AVCapturePhotoOutput, didFinishCaptureFor _: AVCaptureResolvedPhotoSettings, error _: Error?) {
         // Nothing extra; lifecycle managed by owner clearing reference
     }
 }

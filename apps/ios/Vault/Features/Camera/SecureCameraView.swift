@@ -168,7 +168,7 @@ struct CameraPreviewView: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ _uiView: CameraPreviewUIView, context _: Context) {
+    func updateUIView(_ _: CameraPreviewUIView, context _: Context) {
         // Session is set in makeUIView; layout handled by layoutSubviews
     }
 }

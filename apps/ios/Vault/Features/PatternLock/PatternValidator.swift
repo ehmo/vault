@@ -186,7 +186,7 @@ final class PatternValidator {
         return isIncreasing || isDecreasing
     }
 
-    private func isCommonLetter(_ _pattern: [Int], gridSize _: Int) -> Bool {
+    private func isCommonLetter(_ _: [Int], gridSize _: Int) -> Bool {
         return false
     }
 
