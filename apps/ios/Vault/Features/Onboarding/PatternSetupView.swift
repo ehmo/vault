@@ -340,7 +340,7 @@ struct PatternSetupView: View {
                 switch result {
                 case .success(let key):
                     patternSetupLogger.debug("Pattern saved successfully")
-                    SentryManager.shared.addBreadcrumb(category: "onboarding.complete", data: ["gridSize": patternState.gridSize])
+                    EmbraceManager.shared.addBreadcrumb(category: "onboarding.complete", data: ["gridSize": patternState.gridSize])
 
                     isSaving = false
                     appState.currentVaultKey = key

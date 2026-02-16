@@ -51,7 +51,7 @@ enum ImportIngestor {
                 let deleted = StagedImportManager.incrementRetryOrDelete(batchId: batch.batchId)
                 if deleted {
                     batchesCleaned += 1
-                    SentryManager.shared.captureError(
+                    EmbraceManager.shared.captureError(
                         NSError(
                             domain: "ImportIngestor",
                             code: 1,

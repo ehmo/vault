@@ -52,7 +52,7 @@
 		015000003 /* JoinVaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 015000002 /* JoinVaultView.swift */; };
 		016000001 /* LocalNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016000000 /* LocalNotificationManager.swift */; };
 		016000003 /* BackgroundShareTransferManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016000002 /* BackgroundShareTransferManager.swift */; };
-		017000001 /* SentryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017000000 /* SentryManager.swift */; };
+		017000001 /* EmbraceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017000000 /* EmbraceManager.swift */; };
 		018000001 /* TelemetryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018000000 /* TelemetryManager.swift */; };
 		018000003 /* AnalyticsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018000002 /* AnalyticsManager.swift */; };
 		019000001 /* AnalyticsConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000000 /* AnalyticsConsentView.swift */; };
@@ -79,7 +79,7 @@
 		39EACFA92F29E64000FA7EC2 /* VAULT_COLLISION_PROTECTION.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACFA82F29E64000FA7EC2 /* VAULT_COLLISION_PROTECTION.md */; };
 		39EACFAB2F29EDB600FA7EC2 /* DURESS_VAULT_IMPROVEMENTS.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACFAA2F29EDB600FA7EC2 /* DURESS_VAULT_IMPROVEMENTS.md */; };
 		39EACFAD2F2AC5C500FA7EC2 /* GridLetterManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39EACFAC2F2AC5C500FA7EC2 /* GridLetterManager.swift */; };
-		6D5554047A7544D7954CEF9B /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = E8320F0CD52C4885B07B350E /* Sentry */; };
+		6D5554047A7544D7954CEF9B /* EmbraceIO in Frameworks */ = {isa = PBXBuildFile; productRef = E8320F0CD52C4885B07B350E /* EmbraceIO */; };
 		A1B2C3D4E5F64789A1B2C3D4 /* TelemetryDeck in Frameworks */ = {isa = PBXBuildFile; productRef = F1E2D3C4B5A647890123ABCD /* TelemetryDeck */; };
 		LA0000001 /* TransferActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = LA0000000 /* TransferActivityAttributes.swift */; };
 		LA0000003 /* TransferActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = LA0000000 /* TransferActivityAttributes.swift */; };
@@ -218,7 +218,7 @@
 		015000002 /* JoinVaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinVaultView.swift; sourceTree = "<group>"; };
 		016000000 /* LocalNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNotificationManager.swift; sourceTree = "<group>"; };
 		016000002 /* BackgroundShareTransferManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundShareTransferManager.swift; sourceTree = "<group>"; };
-		017000000 /* SentryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentryManager.swift; sourceTree = "<group>"; };
+		017000000 /* EmbraceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbraceManager.swift; sourceTree = "<group>"; };
 		018000000 /* TelemetryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryManager.swift; sourceTree = "<group>"; };
 		018000002 /* AnalyticsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsManager.swift; sourceTree = "<group>"; };
 		019000000 /* AnalyticsConsentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsConsentView.swift; sourceTree = "<group>"; };
@@ -300,7 +300,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6D5554047A7544D7954CEF9B /* Sentry in Frameworks */,
+				6D5554047A7544D7954CEF9B /* EmbraceIO in Frameworks */,
 				A1B2C3D4E5F64789A1B2C3D4 /* TelemetryDeck in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -441,7 +441,7 @@
 		0100000026 /* Telemetry */ = {
 			isa = PBXGroup;
 			children = (
-				017000000 /* SentryManager.swift */,
+				017000000 /* EmbraceManager.swift */,
 				018000000 /* TelemetryManager.swift */,
 				018000002 /* AnalyticsManager.swift */,
 			);
@@ -690,7 +690,7 @@
 				01100000F0 /* Frameworks */,
 				011000100 /* Resources */,
 				LA000000E /* Embed Foundation Extensions */,
-				1B6F904DF6C54504915C2F83 /* Upload Debug Symbols to Sentry */,
+				EB000000DF6C54504915C2F8 /* Upload dSYMs to Embrace */,
 			);
 			buildRules = (
 			);
@@ -700,7 +700,7 @@
 			);
 			name = Vault;
 			packageProductDependencies = (
-				E8320F0CD52C4885B07B350E /* Sentry */,
+				E8320F0CD52C4885B07B350E /* EmbraceIO */,
 				F1E2D3C4B5A647890123ABCD /* TelemetryDeck */,
 			);
 			productName = Vault;
@@ -794,7 +794,7 @@
 			);
 			mainGroup = 089000000000;
 			packageReferences = (
-				E5E387BF1AA14DDCA8D53E3C /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
+				E5E387BF1AA14DDCA8D53E3C /* XCRemoteSwiftPackageReference "embrace-apple-sdk" */,
 				A9B8C7D6E5F4A3B2C1D0E9F8 /* XCRemoteSwiftPackageReference "SwiftSDK" */,
 				393FA1132F3C632C00DF030B /* XCRemoteSwiftPackageReference "DebugSwift" */,
 			);
@@ -851,7 +851,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		1B6F904DF6C54504915C2F83 /* Upload Debug Symbols to Sentry */ = {
+		EB000000DF6C54504915C2F8 /* Upload dSYMs to Embrace */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -860,12 +860,12 @@
 			inputPaths = (
 				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}",
 			);
-			name = "Upload Debug Symbols to Sentry";
+			name = "Upload dSYMs to Embrace";
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# This script is responsible for uploading debug symbols and source context for Sentry.\nif which sentry-cli >/dev/null; then\n  export SENTRY_ORG=wraxle\n  export SENTRY_PROJECT=vault\n  ERROR=$(sentry-cli debug-files upload --include-sources \"$DWARF_DSYM_FOLDER_PATH\" 2>&1 >/dev/null)\n  if [ ! $? -eq 0 ]; then\n    echo \"warning: sentry-cli - $ERROR\"\n  fi\nelse\n  echo \"warning: sentry-cli not installed, download from https://github.com/getsentry/sentry-cli/releases\"\nfi\n";
+			shellScript = "# Upload dSYM files to Embrace for crash symbolication.\nEMBRACE_ID=ehz4q\nEMBRACE_TOKEN=9bba685da2e34a409e2d5059712a8da4\nBUILD_DIR=${DWARF_DSYM_FOLDER_PATH}\nif [ -d \"$BUILD_DIR\" ]; then\n  for dsym in \"$BUILD_DIR\"/*.dSYM; do\n    zip -r \"${dsym}.zip\" \"$dsym\" 2>/dev/null\n    curl -s -X POST \"https://symbols.embrace.io/upload\" \\\n      -F \"app_id=$EMBRACE_ID\" \\\n      -F \"token=$EMBRACE_TOKEN\" \\\n      -F \"dsym=@${dsym}.zip\" || echo \"warning: Embrace dSYM upload failed for $dsym\"\n    rm -f \"${dsym}.zip\"\n  done\nelse\n  echo \"warning: dSYM folder not found at $BUILD_DIR\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -940,7 +940,7 @@
 				SL0000005 /* SharedVaultInviteView.swift in Sources */,
 				016000001 /* LocalNotificationManager.swift in Sources */,
 				016000003 /* BackgroundShareTransferManager.swift in Sources */,
-				017000001 /* SentryManager.swift in Sources */,
+				017000001 /* EmbraceManager.swift in Sources */,
 				018000001 /* TelemetryManager.swift in Sources */,
 				018000003 /* AnalyticsManager.swift in Sources */,
 				019000001 /* AnalyticsConsentView.swift in Sources */,
@@ -1454,21 +1454,21 @@
 				minimumVersion = 2.0.0;
 			};
 		};
-		E5E387BF1AA14DDCA8D53E3C /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+		E5E387BF1AA14DDCA8D53E3C /* XCRemoteSwiftPackageReference "embrace-apple-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/getsentry/sentry-cocoa/";
+			repositoryURL = "https://github.com/embrace-io/embrace-apple-sdk";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 8.0.0;
+				minimumVersion = 6.0.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		E8320F0CD52C4885B07B350E /* Sentry */ = {
+		E8320F0CD52C4885B07B350E /* EmbraceIO */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = E5E387BF1AA14DDCA8D53E3C /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
-			productName = Sentry;
+			package = E5E387BF1AA14DDCA8D53E3C /* XCRemoteSwiftPackageReference "embrace-apple-sdk" */;
+			productName = EmbraceIO;
 		};
 		F1E2D3C4B5A647890123ABCD /* TelemetryDeck */ = {
 			isa = XCSwiftPackageProductDependency;

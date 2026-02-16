@@ -97,7 +97,7 @@ final class CloudKitSharingManager {
         ownerFingerprint: String,
         onProgress: ((Int, Int) -> Void)? = nil
     ) async throws {
-        let transaction = SentryManager.shared.startTransaction(name: "share.upload", operation: "share.upload")
+        let transaction = EmbraceManager.shared.startTransaction(name: "share.upload", operation: "share.upload")
         let ckStart = CFAbsoluteTimeGetCurrent()
 
         // Pre-flight: verify iCloud account is available or temporarily unavailable (signed in, syncing)
@@ -142,7 +142,7 @@ final class CloudKitSharingManager {
                 totalChunks: totalChunks
             )
         } catch {
-            SentryManager.shared.captureError(error)
+            EmbraceManager.shared.captureError(error)
             transaction.finish(status: .internalError)
             throw error
         }
@@ -261,7 +261,7 @@ final class CloudKitSharingManager {
         phrase: String,
         onProgress: ((Int, Int) -> Void)? = nil
     ) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
-        let transaction = SentryManager.shared.startTransaction(name: "share.download", operation: "share.download")
+        let transaction = EmbraceManager.shared.startTransaction(name: "share.download", operation: "share.download")
         let phraseVaultId = Self.vaultId(from: phrase)
         let shareKey = try KeyDerivation.deriveShareKey(from: phrase)
 
@@ -274,7 +274,7 @@ final class CloudKitSharingManager {
             transaction.finish(status: .notFound)
             throw CloudKitSharingError.vaultNotFound
         } catch {
-            SentryManager.shared.captureError(error)
+            EmbraceManager.shared.captureError(error)
             transaction.finish(status: .internalError)
             throw CloudKitSharingError.downloadFailed(error)
         }

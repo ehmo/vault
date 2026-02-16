@@ -198,7 +198,7 @@ struct SecureImageViewer: View {
             do {
                 try VaultStorage.shared.deleteFile(id: file.id, with: key)
             } catch {
-                SentryManager.shared.captureError(error)
+                EmbraceManager.shared.captureError(error)
             }
             await MainActor.run {
                 onDelete?(file.id)

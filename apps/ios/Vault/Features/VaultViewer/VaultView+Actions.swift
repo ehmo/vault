@@ -181,7 +181,7 @@ extension VaultView {
                     self.masterKey = result.masterKey
                     self.files = items
                     self.isLoading = false
-                    SentryManager.shared.addBreadcrumb(category: "vault.opened", data: ["fileCount": items.count])
+                    EmbraceManager.shared.addBreadcrumb(category: "vault.opened", data: ["fileCount": items.count])
                 }
             } catch {
                 #if DEBUG
@@ -368,7 +368,7 @@ extension VaultView {
                     if Task.isCancelled { break }
                     failedCount += 1
                     lastErrorReason = error.localizedDescription
-                    SentryManager.shared.addBreadcrumb(
+                    EmbraceManager.shared.addBreadcrumb(
                         category: "import.failed",
                         data: ["index": index, "isVideo": isVideo, "error": "\(error)"]
                     )

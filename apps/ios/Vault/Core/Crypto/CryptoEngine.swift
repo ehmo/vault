@@ -28,7 +28,7 @@ enum CryptoEngine {
         guard key.count == 32 else {
             #if !EXTENSION
             Task { @MainActor in
-                SentryManager.shared.captureError(CryptoError.keyGenerationFailed)
+                EmbraceManager.shared.captureError(CryptoError.keyGenerationFailed)
             }
             #endif
             throw CryptoError.keyGenerationFailed
@@ -61,7 +61,7 @@ enum CryptoEngine {
         guard key.count == 32 else {
             #if !EXTENSION
             Task { @MainActor in
-                SentryManager.shared.captureError(CryptoError.keyGenerationFailed)
+                EmbraceManager.shared.captureError(CryptoError.keyGenerationFailed)
             }
             #endif
             throw CryptoError.keyGenerationFailed
@@ -241,7 +241,7 @@ enum CryptoEngine {
         guard data.count > 4 else {
             #if !EXTENSION
             Task { @MainActor in
-                SentryManager.shared.captureError(CryptoError.invalidData)
+                EmbraceManager.shared.captureError(CryptoError.invalidData)
             }
             #endif
             throw CryptoError.invalidData

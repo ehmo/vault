@@ -86,7 +86,7 @@ struct ContentView: View {
             if appState.isMaestroTestMode { return }
             #endif
             logger.info("Screenshot detected, locking vault")
-            SentryManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "screenshot"])
+            EmbraceManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "screenshot"])
             appState.screenshotDetected = true
             Task {
                 try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
@@ -101,7 +101,7 @@ struct ContentView: View {
             guard let screen = notification.object as? UIScreen else { return }
             if screen.isCaptured {
                 logger.info("Screen recording detected, locking vault")
-                SentryManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "recording"])
+                EmbraceManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "recording"])
                 appState.lockVault()
             }
         }
@@ -112,7 +112,7 @@ struct ContentView: View {
             #endif
             if appState.suppressLockForShareSheet { return }
             logger.debug("App resigning active, locking vault")
-            SentryManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "background"])
+            EmbraceManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "background"])
             appState.lockVault()
         }
         #if DEBUG

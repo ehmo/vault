@@ -28,14 +28,14 @@ extension VaultView {
                     Group {
                         if fileFilter == .media {
                             PhotosGridView(files: group.media, masterKey: masterKey, onSelect: { file, _ in
-                                SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
+                                EmbraceManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                                 let globalIndex = visible.mediaIndexById[file.id] ?? 0
                                 selectedPhotoIndex = globalIndex
                             }, onDelete: isSharedVault ? nil : deleteFileById,
                                isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
                         } else {
                             FilesGridView(files: group.items, onSelect: { file in
-                                SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
+                                EmbraceManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                                 selectedFile = file
                             }, onDelete: isSharedVault ? nil : deleteFileById,
                                masterKey: masterKey,
@@ -63,13 +63,13 @@ extension VaultView {
         switch fileFilter {
         case .media:
             PhotosGridView(files: visible.media, masterKey: masterKey, onSelect: { file, index in
-                SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
+                EmbraceManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                 selectedPhotoIndex = index
             }, onDelete: isSharedVault ? nil : deleteFileById,
                isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
         default:
             FilesGridView(files: visible.all, onSelect: { file in
-                SentryManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
+                EmbraceManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                 selectedFile = file
             }, onDelete: isSharedVault ? nil : deleteFileById,
                masterKey: masterKey,

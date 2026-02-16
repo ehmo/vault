@@ -367,7 +367,7 @@ final class BackgroundShareTransferManager {
                    case .uploadFailed(let inner) = ckError {
                     Self.logger.error("[upload-telemetry] inner CK error: \(inner.localizedDescription, privacy: .public)")
                 }
-                SentryManager.shared.captureError(error)
+                EmbraceManager.shared.captureError(error)
                 await self?.finishTransfer(.uploadFailed(error.localizedDescription), activityMessage: "Upload failed")
             }
         }
@@ -501,7 +501,7 @@ final class BackgroundShareTransferManager {
             } catch {
                 guard !Task.isCancelled else { return }
                 Self.logger.error("[resume] RESUME FAILED: \(error.localizedDescription, privacy: .public)")
-                SentryManager.shared.captureError(error)
+                EmbraceManager.shared.captureError(error)
                 await self?.finishTransfer(.uploadFailed(error.localizedDescription), activityMessage: "Resume failed")
             }
         }
@@ -598,7 +598,7 @@ final class BackgroundShareTransferManager {
                 await self?.finishTransfer(.importComplete, activityMessage: "Shared vault is ready")
             } catch {
                 guard !Task.isCancelled else { return }
-                SentryManager.shared.captureError(error)
+                EmbraceManager.shared.captureError(error)
                 await self?.finishTransfer(.importFailed(error.localizedDescription), activityMessage: "Import failed")
             }
         }

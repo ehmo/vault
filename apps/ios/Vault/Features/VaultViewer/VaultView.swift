@@ -314,11 +314,11 @@ struct VaultView: View {
         }
         .onChange(of: searchText) { _, newValue in
             if !newValue.isEmpty {
-                SentryManager.shared.addBreadcrumb(category: "search.used")
+                EmbraceManager.shared.addBreadcrumb(category: "search.used")
             }
         }
         .onChange(of: fileFilter) { _, _ in
-            SentryManager.shared.addBreadcrumb(category: "filter.changed")
+            EmbraceManager.shared.addBreadcrumb(category: "filter.changed")
         }
         .onChange(of: showingSettings) { _, isShowing in
             if !isShowing {

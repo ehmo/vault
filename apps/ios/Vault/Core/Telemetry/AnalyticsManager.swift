@@ -13,7 +13,7 @@ final class AnalyticsManager {
     func startIfEnabled() {
         guard isEnabled else { return }
         Task.detached(priority: .utility) {
-            await SentryManager.shared.start()
+            await EmbraceManager.shared.start()
             TelemetryManager.shared.start()
         }
     }
@@ -24,12 +24,12 @@ final class AnalyticsManager {
             // Run all SDK initialization off the main thread to avoid blocking
             // UI during the analytics → paywall transition.
             Task.detached(priority: .utility) {
-                await SentryManager.shared.start()
+                await EmbraceManager.shared.start()
                 TelemetryManager.shared.start()
             }
         } else {
             Task { @MainActor in
-                SentryManager.shared.stop()
+                EmbraceManager.shared.stop()
                 TelemetryManager.shared.stop()
             }
         }

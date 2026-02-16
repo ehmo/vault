@@ -52,7 +52,7 @@ final class ShareSyncManager {
     // MARK: - Sync Implementation
 
     private func performSync(vaultKey: Data) async {
-        let transaction = SentryManager.shared.startTransaction(name: "share.sync", operation: "share.sync")
+        let transaction = EmbraceManager.shared.startTransaction(name: "share.sync", operation: "share.sync")
 
         // Load index and check for active shares
         let index: VaultStorage.VaultIndex
@@ -60,7 +60,7 @@ final class ShareSyncManager {
             index = try VaultStorage.shared.loadIndex(with: vaultKey)
         } catch {
             syncStatus = .error("Failed to load vault: \(error.localizedDescription)")
-            SentryManager.shared.captureError(error)
+            EmbraceManager.shared.captureError(error)
             transaction.finish(status: .internalError)
             return
         }

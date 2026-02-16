@@ -136,7 +136,7 @@ final class AppState {
     func unlockWithPattern(_ pattern: [Int], gridSize: Int = 5, precomputedKey: Data? = nil) async -> Bool {
         Self.logger.debug("unlockWithPattern called, pattern length: \(pattern.count), gridSize: \(gridSize)")
 
-        let transaction = SentryManager.shared.startTransaction(name: "vault.unlock", operation: "vault.unlock")
+        let transaction = EmbraceManager.shared.startTransaction(name: "vault.unlock", operation: "vault.unlock")
         transaction.setTag(value: "\(gridSize)", key: "gridSize")
 
         isLoading = true
@@ -153,7 +153,7 @@ final class AppState {
                 // Run delay and key derivation concurrently: total time = max(1.5s, derivation)
                 async let delayTask: Void = Task.sleep(nanoseconds: 1_500_000_000)
 
-                let keySpan = SentryManager.shared.startSpan(parent: transaction, operation: "crypto.key_derivation", description: "PBKDF2 key derivation")
+                let keySpan = EmbraceManager.shared.startSpan(parent: transaction, operation: "crypto.key_derivation", description: "PBKDF2 key derivation")
                 async let keyTask = KeyDerivation.deriveKey(from: pattern, gridSize: gridSize)
 
                 key = try await keyTask
@@ -164,7 +164,7 @@ final class AppState {
             Self.logger.trace("Key derived successfully")
 
             // Check if this is a duress pattern
-            let duressSpan = SentryManager.shared.startSpan(parent: transaction, operation: "security.duress_check", description: "Check duress key")
+            let duressSpan = EmbraceManager.shared.startSpan(parent: transaction, operation: "security.duress_check", description: "Check duress key")
             if await DuressHandler.shared.isDuressKey(key) {
                 Self.logger.info("Duress key detected")
                 await DuressHandler.shared.triggerDuress(preservingKey: key)
@@ -179,7 +179,7 @@ final class AppState {
             isLoading = false
 
             // Check if this is a shared vault
-            let indexSpan = SentryManager.shared.startSpan(parent: transaction, operation: "storage.index_load", description: "Load vault index")
+            let indexSpan = EmbraceManager.shared.startSpan(parent: transaction, operation: "storage.index_load", description: "Load vault index")
             if let index = try? VaultStorage.shared.loadIndex(with: key) {
                 isSharedVault = index.isSharedVault ?? false
                 let fileCount = index.files.filter { !$0.isDeleted }.count
@@ -223,7 +223,7 @@ final class AppState {
     func lockVault() {
         Self.logger.debug("lockVault() called")
 
-        SentryManager.shared.addBreadcrumb(category: "vault.locked")
+        EmbraceManager.shared.addBreadcrumb(category: "vault.locked")
 
         // Clear the key reference (Data is a value type; resetBytes on a copy is a no-op)
         currentVaultKey = nil
@@ -331,7 +331,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        // Initialize analytics (Sentry + TelemetryDeck) if user opted in
+        // Initialize analytics (Embrace + TelemetryDeck) if user opted in
         AnalyticsManager.shared.startIfEnabled()
 
         UNUserNotificationCenter.current().delegate = self

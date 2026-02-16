@@ -223,18 +223,18 @@ struct VaultSettingsView: View {
 
     private func setAsDuressVault() {
         guard let key = appState.currentVaultKey else { return }
-        SentryManager.shared.addBreadcrumb(category: "settings.duressToggled")
+        EmbraceManager.shared.addBreadcrumb(category: "settings.duressToggled")
         Task {
             do {
                 try await DuressHandler.shared.setAsDuressVault(key: key)
             } catch {
-                SentryManager.shared.captureError(error)
+                EmbraceManager.shared.captureError(error)
             }
         }
     }
 
     private func removeDuressVault() {
-        SentryManager.shared.addBreadcrumb(category: "settings.duressToggled")
+        EmbraceManager.shared.addBreadcrumb(category: "settings.duressToggled")
         Task {
             await DuressHandler.shared.clearDuressVault()
         }
@@ -281,7 +281,7 @@ struct VaultSettingsView: View {
     
     private func regenerateRecoveryPhrase() {
         guard let key = appState.currentVaultKey else { return }
-        SentryManager.shared.addBreadcrumb(category: "settings.phraseRegenerated")
+        EmbraceManager.shared.addBreadcrumb(category: "settings.phraseRegenerated")
         Task {
             do {
                 _ = try await RecoveryPhraseManager.shared.regenerateRecoveryPhrase(for: key)
@@ -914,7 +914,7 @@ struct ChangePatternView: View {
                 
                 vaultSettingsLogger.debug("Old recovery data deleted")
                 
-                SentryManager.shared.addBreadcrumb(category: "settings.patternChanged")
+                EmbraceManager.shared.addBreadcrumb(category: "settings.patternChanged")
 
                 // 6. Update app state with new key
                 await MainActor.run {

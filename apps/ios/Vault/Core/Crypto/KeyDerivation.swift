@@ -15,7 +15,7 @@ final class KeyDerivation {
 
     static nonisolated func deriveKey(from pattern: [Int], gridSize: Int = 5) async throws -> Data {
         #if !EXTENSION
-        let span = SentryManager.shared.startTransaction(name: "crypto.pbkdf2", operation: "crypto.pbkdf2")
+        let span = EmbraceManager.shared.startTransaction(name: "crypto.pbkdf2", operation: "crypto.pbkdf2")
         span.setTag(value: "600000", key: "iterations")
         #endif
 
@@ -35,7 +35,7 @@ final class KeyDerivation {
             salt = try await SecureEnclaveManager.shared.getDeviceSalt()
         } catch {
             #if !EXTENSION
-            SentryManager.shared.captureError(error)
+            EmbraceManager.shared.captureError(error)
             span.finish(status: .internalError)
             #endif
             throw error
@@ -57,7 +57,7 @@ final class KeyDerivation {
             return derivedKey
         } catch {
             #if !EXTENSION
-            SentryManager.shared.captureError(error)
+            EmbraceManager.shared.captureError(error)
             span.finish(status: .internalError)
             #endif
             throw error
@@ -68,7 +68,7 @@ final class KeyDerivation {
 
     #if !EXTENSION
     static nonisolated func deriveKey(from recoveryPhrase: String) throws -> Data {
-        let span = SentryManager.shared.startTransaction(name: "crypto.pbkdf2_recovery", operation: "crypto.pbkdf2_recovery")
+        let span = EmbraceManager.shared.startTransaction(name: "crypto.pbkdf2_recovery", operation: "crypto.pbkdf2_recovery")
         span.setTag(value: "800000", key: "iterations")
 
         // Normalize the phrase
@@ -104,7 +104,7 @@ final class KeyDerivation {
             span.finish(status: .ok)
             return derivedKey
         } catch {
-            SentryManager.shared.captureError(error)
+            EmbraceManager.shared.captureError(error)
             span.finish(status: .internalError)
             throw error
         }
@@ -160,7 +160,7 @@ final class KeyDerivation {
     /// Unlike pattern-based keys, share keys use a fixed salt so they can be
     /// derived identically on any device with the same phrase.
     static func deriveShareKey(from phrase: String) throws -> Data {
-        let span = SentryManager.shared.startTransaction(name: "crypto.pbkdf2_share", operation: "crypto.pbkdf2_share")
+        let span = EmbraceManager.shared.startTransaction(name: "crypto.pbkdf2_share", operation: "crypto.pbkdf2_share")
         span.setTag(value: "800000", key: "iterations")
 
         let normalized = normalizeSharePhrase(phrase)
@@ -179,7 +179,7 @@ final class KeyDerivation {
             span.finish(status: .ok)
             return derivedKey
         } catch {
-            SentryManager.shared.captureError(error)
+            EmbraceManager.shared.captureError(error)
             span.finish(status: .internalError)
             throw error
         }

@@ -361,7 +361,7 @@ final class VaultStorage {
     }
 
     private func _loadIndex(with key: Data) throws -> VaultIndex {
-        let span = SentryManager.shared.startTransaction(name: "storage.index_load", operation: "storage.index_load")
+        let span = EmbraceManager.shared.startTransaction(name: "storage.index_load", operation: "storage.index_load")
         defer { span.finish(status: .ok) }
 
         #if DEBUG
@@ -480,7 +480,7 @@ final class VaultStorage {
     }
 
     private func _saveIndex(_ index: VaultIndex, with key: Data) throws {
-        let span = SentryManager.shared.startTransaction(name: "storage.index_save", operation: "storage.index_save")
+        let span = EmbraceManager.shared.startTransaction(name: "storage.index_save", operation: "storage.index_save")
         defer { span.finish(status: .ok) }
 
         #if DEBUG
@@ -624,7 +624,7 @@ final class VaultStorage {
     // MARK: - File Operations
 
     func storeFile(data: Data, filename: String, mimeType: String, with key: Data, thumbnailData: Data? = nil, duration: TimeInterval? = nil) throws -> UUID {
-        let span = SentryManager.shared.startTransaction(name: "storage.store_file", operation: "storage.store_file")
+        let span = EmbraceManager.shared.startTransaction(name: "storage.store_file", operation: "storage.store_file")
         span.setTag(value: "\(data.count / 1024)", key: "fileSizeKB")
         span.setTag(value: mimeType, key: "mimeType")
 
@@ -967,7 +967,7 @@ final class VaultStorage {
     }
 
     func retrieveFile(id: UUID, with key: Data) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
-        let span = SentryManager.shared.startTransaction(name: "storage.retrieve_file", operation: "storage.retrieve_file")
+        let span = EmbraceManager.shared.startTransaction(name: "storage.retrieve_file", operation: "storage.retrieve_file")
         ensureBlobReady()
         let index = try loadIndex(with: key)
 
@@ -1172,7 +1172,7 @@ final class VaultStorage {
     }
 
     func listFiles(with key: Data) throws -> [VaultFileEntry] {
-        let span = SentryManager.shared.startTransaction(name: "storage.list_files", operation: "storage.list_files")
+        let span = EmbraceManager.shared.startTransaction(name: "storage.list_files", operation: "storage.list_files")
         defer { span.finish(status: .ok) }
         let index = try loadIndex(with: key)
         
@@ -1218,7 +1218,7 @@ final class VaultStorage {
     /// Returns the master key and file entries without decrypting thumbnails.
     /// Use this for lazy thumbnail loading — thumbnails are decrypted on-demand per cell.
     func listFilesLightweight(with key: Data) throws -> (masterKey: Data, files: [LightweightFileEntry]) {
-        let span = SentryManager.shared.startTransaction(name: "storage.list_files_lightweight", operation: "storage.list_files_lightweight")
+        let span = EmbraceManager.shared.startTransaction(name: "storage.list_files_lightweight", operation: "storage.list_files_lightweight")
         defer { span.finish(status: .ok) }
 
         let index = try loadIndex(with: key)
