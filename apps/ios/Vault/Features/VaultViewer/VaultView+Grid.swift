@@ -187,29 +187,27 @@ extension VaultView {
     // MARK: - Import Progress
 
     var importingProgressContent: some View {
-        VStack(spacing: 24) {
-            PixelAnimation.loading(size: 60)
+        let progress = max(0, min(transferManager.displayProgress, 100))
+        return VStack(spacing: 20) {
+            VaultSyncIndicator(style: .loading, message: "Downloading shared vault...")
 
-            Text("Downloading shared vault...")
-                .font(.title3)
-                .fontWeight(.medium)
+            VStack(spacing: 8) {
+                ProgressView(value: Double(progress), total: 100)
+                    .tint(.accentColor)
 
-            if transferManager.displayProgress > 0 {
-                VStack(spacing: 8) {
-                    ProgressView(value: Double(transferManager.displayProgress), total: 100)
-                        .tint(.accentColor)
-                        .padding(.horizontal, 40)
-
-                    Text("\(transferManager.displayProgress)%")
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(.vaultSecondaryText)
-                }
+                Text("\(progress)%")
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(.vaultSecondaryText)
             }
 
             Text(transferManager.currentMessage)
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.vaultSecondaryText)
+                .multilineTextAlignment(.center)
         }
+        .padding(24)
+        .frame(maxWidth: 360)
+        .vaultGlassBackground(cornerRadius: 16)
         .accessibilityIdentifier("vault_import_progress")
     }
 
