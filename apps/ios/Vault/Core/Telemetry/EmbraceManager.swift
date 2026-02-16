@@ -74,17 +74,18 @@ final class EmbraceManager: @unchecked Sendable {
         guard !self.isStarted else { return }
         self.isStarted = true
         guard !self.hasSetup else { return }
-        self.hasSetup = true
-        Task.detached(priority: .utility) {
-            do {
-                try Embrace
-                    .setup(options: Embrace.Options(
-                        appId: "ehz4q"
-                    ))
-                    .start()
-            } catch {
-                print("[EmbraceManager] Setup failed: \(error.localizedDescription)")
-            }
+        do {
+            // Embrace enforces queue preconditions during setup; run on MainActor.
+            try Embrace
+                .setup(options: Embrace.Options(
+                    appId: "ehz4q"
+                ))
+                .start()
+            self.hasSetup = true
+        } catch {
+            self.isStarted = false
+            self.hasSetup = false
+            print("[EmbraceManager] Setup failed: \(error.localizedDescription)")
         }
     }
 

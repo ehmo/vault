@@ -158,3 +158,4 @@ All pattern grid screens MUST behave identically. There are two categories:
 - **Parallel chunk downloads**: `downloadChunksParallel` uses bounded TaskGroup (max 4), order-preserving reassembly via `[Int: Data]` dictionary
 - **Structured logging**: Subsystem `"app.vaultaire.ios"`, category = class name. `Self.logger` for actors/classes, file-level `let` for `@MainActor` classes with `nonisolated` methods. Levels: trace (sensitive), debug (routine), info (notable), warning (non-fatal), error (failures)
 - **TestFlight CLI upload**: Requires App Store Connect API key (.p8). Without it, export IPA locally + use Xcode Organizer to upload.
+- **Embrace init thread affinity**: `Embrace.setup(...).start()` must run on `@MainActor` / main queue. Calling it from `Task.detached` can trigger `dispatch_assert_queue` crashes (`HangCaptureService.init`) when analytics is enabled during onboarding.
