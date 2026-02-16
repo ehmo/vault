@@ -12,8 +12,8 @@ final class AnalyticsManager {
 
     func startIfEnabled() {
         guard isEnabled else { return }
-        Task.detached(priority: .utility) {
-            await EmbraceManager.shared.start()
+        Task(priority: .utility) { @MainActor in
+            EmbraceManager.shared.start()
             TelemetryManager.shared.start()
         }
     }
@@ -21,10 +21,10 @@ final class AnalyticsManager {
     func setEnabled(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: Self.key)
         if enabled {
-            // Run all SDK initialization off the main thread to avoid blocking
-            // UI during the analytics → paywall transition.
-            Task.detached(priority: .utility) {
-                await EmbraceManager.shared.start()
+            // Embrace setup/start must run on MainActor to satisfy SDK queue
+            // preconditions and ensure Embrace.client is initialized.
+            Task(priority: .utility) { @MainActor in
+                EmbraceManager.shared.start()
                 TelemetryManager.shared.start()
             }
         } else {
@@ -35,4 +35,3 @@ final class AnalyticsManager {
         }
     }
 }
-
