@@ -24,8 +24,8 @@ struct LivePixelGrid: View {
     /// Matches PixelAnimation.loading() pattern.
     private static let path = [1, 2, 3, 6, 9, 8, 7, 4]
 
-    /// Trail length matching in-app animationDuration/timerInterval ratio (0.3/0.1 = 3 trailing cells).
-    private static let trailOpacities: [Double] = [1.0, 0.55, 0.25, 0.08]
+    /// Approximate in-app fade overlap (head + 2 trailing cells).
+    private static let trailOpacities: [Double] = [1.0, 0.66, 0.33]
 
     var body: some View {
         let opacityMap = cellOpacities()

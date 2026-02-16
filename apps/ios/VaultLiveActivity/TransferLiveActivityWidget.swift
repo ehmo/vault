@@ -15,12 +15,7 @@ struct TransferLiveActivityWidget: Widget {
             DynamicIsland {
                 // Expanded regions
                 DynamicIslandExpandedRegion(.leading) {
-                    animatedPixelGrid(
-                        baseStep: context.state.animationStep,
-                        size: 36,
-                        pixelSize: 8,
-                        spacing: 2
-                    )
+                    animatedPixelGrid(size: 36, pixelSize: 8, spacing: 2)
                     .padding(.leading, 4)
                 }
 
@@ -56,12 +51,7 @@ struct TransferLiveActivityWidget: Widget {
                     .padding(.horizontal, 4)
                 }
             } compactLeading: {
-                animatedPixelGrid(
-                    baseStep: context.state.animationStep,
-                    size: 20,
-                    pixelSize: 4.5,
-                    spacing: 1
-                )
+                animatedPixelGrid(size: 20, pixelSize: 4.5, spacing: 1)
             } compactTrailing: {
                 if context.state.isComplete {
                     Image(systemName: "checkmark.circle.fill")
@@ -80,12 +70,7 @@ struct TransferLiveActivityWidget: Widget {
                         .foregroundStyle(.secondary)
                 }
             } minimal: {
-                animatedPixelGrid(
-                    baseStep: context.state.animationStep,
-                    size: 16,
-                    pixelSize: 3.5,
-                    spacing: 0.5
-                )
+                animatedPixelGrid(size: 16, pixelSize: 3.5, spacing: 0.5)
             }
         }
     }
@@ -95,12 +80,7 @@ struct TransferLiveActivityWidget: Widget {
     @ViewBuilder
     private func lockScreenView(context: ActivityViewContext<TransferActivityAttributes>) -> some View {
         HStack(spacing: 12) {
-            animatedPixelGrid(
-                baseStep: context.state.animationStep,
-                size: 36,
-                pixelSize: 8,
-                spacing: 2
-            )
+            animatedPixelGrid(size: 36, pixelSize: 8, spacing: 2)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(context.state.message)
@@ -152,19 +132,14 @@ struct TransferLiveActivityWidget: Widget {
     /// Keep the loader animating continuously even when ActivityKit coalesces
     /// ContentState updates while progress is unchanged.
     @ViewBuilder
-    private func animatedPixelGrid(
-        baseStep: Int,
-        size: CGFloat,
-        pixelSize: CGFloat,
-        spacing: CGFloat
-    ) -> some View {
+    private func animatedPixelGrid(size: CGFloat, pixelSize: CGFloat, spacing: CGFloat) -> some View {
         TimelineView(.animation(minimumInterval: livePixelTickInterval, paused: false)) { timeline in
             let timelineStep = Int(
                 (timeline.date.timeIntervalSinceReferenceDate / livePixelTickInterval)
                     .rounded(.down)
             )
             LivePixelGrid(
-                animationStep: baseStep + timelineStep,
+                animationStep: timelineStep,
                 size: size,
                 pixelSize: pixelSize,
                 spacing: spacing
