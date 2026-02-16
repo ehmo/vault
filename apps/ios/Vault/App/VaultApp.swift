@@ -32,15 +32,29 @@ struct VaultApp: App {
                 .environment(SubscriptionManager.shared)
                 .onAppear {
                     appState.applyAppearanceToAllWindows()
+                    BackgroundShareTransferManager.shared.resumePendingUploadIfNeeded(trigger: "app_on_appear")
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                     // Re-apply when app becomes active — catches system appearance changes
                     appState.applyAppearanceToAllWindows()
+                    BackgroundShareTransferManager.shared.resumePendingUploadIfNeeded(trigger: "did_become_active")
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIWindow.didBecomeKeyNotification)) { _ in
                     // Re-apply when any new window becomes key — catches fullScreenCovers,
                     // sheets, and alerts which create new UIWindows
                     appState.applyAppearanceToAllWindows()
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    switch newPhase {
+                    case .background:
+                        if BackgroundShareTransferManager.shared.hasPendingUpload {
+                            BackgroundShareTransferManager.shared.scheduleBackgroundResumeTask(earliestIn: 15)
+                        }
+                    case .active:
+                        BackgroundShareTransferManager.shared.resumePendingUploadIfNeeded(trigger: "scene_active")
+                    default:
+                        break
+                    }
                 }
                 .onOpenURL { url in
                     deepLinkHandler.handle(url)
@@ -88,6 +102,9 @@ final class AppState {
     init() {
         appearanceMode = Self.loadAppearanceMode()
         checkFirstLaunch()
+        BackgroundShareTransferManager.shared.setVaultKeyProvider { [weak self] in
+            self?.currentVaultKey
+        }
     }
 
     private static func loadAppearanceMode() -> AppAppearanceMode {
@@ -199,6 +216,8 @@ final class AppState {
                 hasPendingImports = true
             }
 
+            BackgroundShareTransferManager.shared.resumePendingUploadIfNeeded(trigger: "vault_unlocked")
+
             transaction.finish(status: .ok)
 
             Self.logger.info("Vault unlocked: name=\(self.vaultName, privacy: .public), shared=\(self.isSharedVault)")
@@ -276,6 +295,7 @@ final class AppState {
         vaultName = "Test Vault"
         isUnlocked = true
         isLoading = false
+        BackgroundShareTransferManager.shared.resumePendingUploadIfNeeded(trigger: "maestro_unlock")
 
         // Seed test files if requested
         if ProcessInfo.processInfo.arguments.contains("-MAESTRO_SEED_FILES") {
@@ -342,6 +362,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
         // Write notification icon to app group so the share extension can use it
         LocalNotificationManager.shared.warmNotificationIcon()
+
+        // Register once at launch so iOS can wake the app to continue pending uploads.
+        BackgroundShareTransferManager.shared.registerBackgroundProcessingTask()
 
         // If iOS terminated the previous upload process (jetsam/watchdog),
         // emit a breadcrumb on next launch with the last known phase.

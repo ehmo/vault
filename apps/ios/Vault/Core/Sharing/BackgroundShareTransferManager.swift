@@ -1,4 +1,5 @@
 import ActivityKit
+import BackgroundTasks
 import Foundation
 import os.log
 import UIKit
@@ -9,6 +10,7 @@ import UIKit
 @Observable
 final class BackgroundShareTransferManager {
     static let shared = BackgroundShareTransferManager()
+    nonisolated static let backgroundResumeTaskIdentifier = "app.vaultaire.ios.share-upload.resume"
     /// Match in-app `PixelAnimation.loading()` cadence (0.1s per frame).
     private static let livePixelTickIntervalMs = 100
     /// Keep progress interpolation speed similar to previous 500ms/5-tick behavior.
@@ -127,8 +129,10 @@ final class BackgroundShareTransferManager {
 
     private var activeTask: Task<Void, Never>?
     private var currentActivity: Activity<TransferActivityAttributes>?
+    private var currentBGProcessingTask: BGProcessingTask?
     private var currentBgTaskId: UIBackgroundTaskIdentifier = .invalid
     private var isUploadOperation: Bool = true
+    private var vaultKeyProvider: (() -> Data?)?
 
     private var targetProgress: Int = 0
     private(set) var displayProgress: Int = 0
@@ -137,6 +141,95 @@ final class BackgroundShareTransferManager {
     private var progressTask: Task<Void, Never>?
 
     private init() {}
+
+    // MARK: - External Integration
+
+    func setVaultKeyProvider(_ provider: @escaping () -> Data?) {
+        vaultKeyProvider = provider
+    }
+
+    func registerBackgroundProcessingTask() {
+        let identifier = Self.backgroundResumeTaskIdentifier
+        let success = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: nil) { task in
+            guard let processingTask = task as? BGProcessingTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            Task { @MainActor in
+                BackgroundShareTransferManager.shared.handleBackgroundProcessingTask(processingTask)
+            }
+        }
+
+        if success {
+            Self.logger.info("[bg-task] Registered \(identifier, privacy: .public)")
+        } else {
+            Self.logger.error("[bg-task] Failed to register \(identifier, privacy: .public)")
+        }
+    }
+
+    func scheduleBackgroundResumeTask(earliestIn seconds: TimeInterval = 15) {
+        guard hasPendingUpload else { return }
+
+        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.backgroundResumeTaskIdentifier)
+
+        let request = BGProcessingTaskRequest(identifier: Self.backgroundResumeTaskIdentifier)
+        request.requiresNetworkConnectivity = true
+        request.requiresExternalPower = false
+        request.earliestBeginDate = Date(timeIntervalSinceNow: seconds)
+
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            Self.logger.info("[bg-task] Scheduled upload resume task in ~\(Int(seconds))s")
+        } catch {
+            Self.logger.error("[bg-task] Failed to schedule resume task: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    func resumePendingUploadIfNeeded(trigger: String) {
+        guard hasPendingUpload else { return }
+        guard activeTask == nil else { return }
+        if case .uploading = status { return }
+        guard let key = vaultKeyProvider?() else {
+            Self.logger.debug("[resume-auto] trigger=\(trigger, privacy: .public) skipped: vault locked")
+            return
+        }
+        Self.logger.info("[resume-auto] trigger=\(trigger, privacy: .public) starting resume")
+        resumePendingUpload(vaultKey: key)
+    }
+
+    private func handleBackgroundProcessingTask(_ task: BGProcessingTask) {
+        Self.logger.info("[bg-task] Processing task started")
+        currentBGProcessingTask = task
+        scheduleBackgroundResumeTask(earliestIn: 60)
+
+        task.expirationHandler = { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                Self.logger.warning("[bg-task] Processing task expired — cancelling active upload")
+                self.activeTask?.cancel()
+                self.activeTask = nil
+                self.completeBackgroundProcessingTask(success: false)
+            }
+        }
+
+        guard hasPendingUpload else {
+            completeBackgroundProcessingTask(success: true)
+            return
+        }
+
+        if activeTask != nil {
+            Self.logger.info("[bg-task] Upload already active, waiting for completion")
+            return
+        }
+
+        guard let key = vaultKeyProvider?() else {
+            Self.logger.info("[bg-task] Pending upload exists but vault is locked; deferring")
+            completeBackgroundProcessingTask(success: false)
+            return
+        }
+
+        resumePendingUpload(vaultKey: key)
+    }
 
     // MARK: - Background Task Management
 
@@ -147,6 +240,15 @@ final class BackgroundShareTransferManager {
         if taskId != .invalid {
             UIApplication.shared.endBackgroundTask(taskId)
         }
+    }
+
+    private func cancelBackgroundResumeTaskRequest() {
+        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.backgroundResumeTaskIdentifier)
+    }
+
+    private func completeBackgroundProcessingTask(success: Bool) {
+        currentBGProcessingTask?.setTaskCompleted(success: success)
+        currentBGProcessingTask = nil
     }
 
     /// Begins an iOS background task with a standardized expiration handler.
@@ -341,6 +443,7 @@ final class BackgroundShareTransferManager {
                 // SVDF data already at Self.svdfURL from streaming build
                 try JSONEncoder().encode(pendingState).write(to: Self.stateURL)
                 Self.logger.info("[upload-telemetry] pending upload state saved to disk")
+                await self?.scheduleBackgroundResumeTask(earliestIn: 15)
 
                 Self.setUploadLifecycleMarker(phase: "uploading", shareVaultId: shareVaultId)
                 Self.logger.info("[upload-telemetry] starting CloudKit upload (\(encodedData.count / (1024 * 1024))MB)...")
@@ -414,6 +517,7 @@ final class BackgroundShareTransferManager {
                     Self.logger.error("[upload-telemetry] inner CK error: \(inner.localizedDescription, privacy: .public)")
                 }
                 EmbraceManager.shared.captureError(error)
+                await self?.scheduleBackgroundResumeTask(earliestIn: 30)
                 await self?.finishTransfer(.uploadFailed(error.localizedDescription), activityMessage: "Upload failed")
             }
         }
@@ -484,6 +588,7 @@ final class BackgroundShareTransferManager {
                     phase: "resume_uploading",
                     shareVaultId: capturedPending.shareVaultId
                 )
+                await self?.scheduleBackgroundResumeTask(earliestIn: 15)
 
                 try await CloudKitSharingManager.shared.uploadChunksFromFile(
                     shareVaultId: capturedPending.shareVaultId,
@@ -562,6 +667,7 @@ final class BackgroundShareTransferManager {
                 guard !Task.isCancelled else { return }
                 Self.logger.error("[resume] RESUME FAILED: \(error.localizedDescription, privacy: .public)")
                 EmbraceManager.shared.captureError(error)
+                await self?.scheduleBackgroundResumeTask(earliestIn: 30)
                 await self?.finishTransfer(.uploadFailed(error.localizedDescription), activityMessage: "Resume failed")
             }
         }
@@ -803,9 +909,15 @@ final class BackgroundShareTransferManager {
         switch newStatus {
         case .uploadComplete:
             success = true
+            cancelBackgroundResumeTaskRequest()
             LocalNotificationManager.shared.sendUploadComplete()
         case .uploadFailed:
             success = false
+            if hasPendingUpload {
+                scheduleBackgroundResumeTask(earliestIn: 30)
+            } else {
+                cancelBackgroundResumeTaskRequest()
+            }
             LocalNotificationManager.shared.sendUploadFailed()
         case .importComplete:
             success = true
@@ -817,6 +929,7 @@ final class BackgroundShareTransferManager {
             success = false
         }
         endLiveActivity(success: success, message: activityMessage)
+        completeBackgroundProcessingTask(success: success)
     }
 
     // MARK: - Control
@@ -828,6 +941,7 @@ final class BackgroundShareTransferManager {
         status = .idle
         endLiveActivity(success: false, message: "Transfer cancelled")
         endBackgroundExecution()
+        completeBackgroundProcessingTask(success: false)
     }
 
     func reset() {
