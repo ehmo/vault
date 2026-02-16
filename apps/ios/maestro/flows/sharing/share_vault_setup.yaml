@@ -46,3 +46,14 @@ appId: app.vaultaire.ios
 - assertVisible:
     id: "share_upload_row"
     optional: true
+
+# Regression: while uploads are active, "Share with someone new" should stay
+# on the new-share form (not snap back to manage screen).
+- tapOn:
+    id: "share_new_share"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1200
+- assertVisible:
+    id: "share_generate_phrase"
+    optional: true

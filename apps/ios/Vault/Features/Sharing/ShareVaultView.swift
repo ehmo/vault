@@ -153,21 +153,24 @@ struct ShareVaultView: View {
     }
 
     private func updateModeForCurrentData() {
-        guard case .loading = mode else {
-            if case .iCloudUnavailable = mode { return }
-            if case .error = mode { return }
-            if !uploadJobs.isEmpty || !activeShares.isEmpty {
-                mode = .manageShares
-            } else {
-                mode = .newShare
-            }
-            return
-        }
+        mode = Self.resolveMode(
+            currentMode: mode,
+            hasShareData: !uploadJobs.isEmpty || !activeShares.isEmpty
+        )
+    }
 
-        if !uploadJobs.isEmpty || !activeShares.isEmpty {
-            mode = .manageShares
-        } else {
-            mode = .newShare
+    static func resolveMode(currentMode: ViewMode, hasShareData: Bool) -> ViewMode {
+        switch currentMode {
+        case .loading:
+            return hasShareData ? .manageShares : .newShare
+        case .manageShares:
+            return hasShareData ? .manageShares : .newShare
+        case .newShare:
+            // Keep user in manual "share with someone new" flow even while
+            // uploads/shares are changing in the background.
+            return .newShare
+        case .iCloudUnavailable, .error:
+            return currentMode
         }
     }
 
@@ -327,6 +330,7 @@ struct ShareVaultView: View {
                 mode = .newShare
             }
             .buttonStyle(.bordered)
+            .accessibilityIdentifier("share_new_share")
 
             Button(role: .destructive) {
                 Task { await stopAllSharing() }
