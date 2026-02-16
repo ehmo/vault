@@ -11,8 +11,9 @@ private let vaultAccent = Color(red: 0.384, green: 0.275, blue: 0.918)
 /// Since widget extensions don't support continuous implicit animations, we compute the trail explicitly:
 /// the head cell at full opacity plus 3 trailing cells at decreasing opacity.
 ///
-/// Animation is driven by `animationStep` from ContentState updates
-/// because `TimelineView(.animation)` does not re-render in widget extensions.
+/// Animation step can be provided by ContentState and/or advanced by an outer
+/// TimelineView in the widget to keep motion continuous when ActivityKit
+/// throttles state updates.
 struct LivePixelGrid: View {
     let animationStep: Int
     var size: CGFloat = 20

@@ -4,6 +4,7 @@ import WidgetKit
 
 /// App accent color hardcoded for widget extension (no access to main app's asset catalog).
 private let vaultAccent = Color(red: 0.384, green: 0.275, blue: 0.918)
+private let livePixelTickInterval: TimeInterval = 0.1
 
 struct TransferLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
@@ -14,8 +15,8 @@ struct TransferLiveActivityWidget: Widget {
             DynamicIsland {
                 // Expanded regions
                 DynamicIslandExpandedRegion(.leading) {
-                    LivePixelGrid(
-                        animationStep: context.state.animationStep,
+                    animatedPixelGrid(
+                        baseStep: context.state.animationStep,
                         size: 36,
                         pixelSize: 8,
                         spacing: 2
@@ -55,8 +56,8 @@ struct TransferLiveActivityWidget: Widget {
                     .padding(.horizontal, 4)
                 }
             } compactLeading: {
-                LivePixelGrid(
-                    animationStep: context.state.animationStep,
+                animatedPixelGrid(
+                    baseStep: context.state.animationStep,
                     size: 20,
                     pixelSize: 4.5,
                     spacing: 1
@@ -79,8 +80,8 @@ struct TransferLiveActivityWidget: Widget {
                         .foregroundStyle(.secondary)
                 }
             } minimal: {
-                LivePixelGrid(
-                    animationStep: context.state.animationStep,
+                animatedPixelGrid(
+                    baseStep: context.state.animationStep,
                     size: 16,
                     pixelSize: 3.5,
                     spacing: 0.5
@@ -94,8 +95,8 @@ struct TransferLiveActivityWidget: Widget {
     @ViewBuilder
     private func lockScreenView(context: ActivityViewContext<TransferActivityAttributes>) -> some View {
         HStack(spacing: 12) {
-            LivePixelGrid(
-                animationStep: context.state.animationStep,
+            animatedPixelGrid(
+                baseStep: context.state.animationStep,
                 size: 36,
                 pixelSize: 8,
                 spacing: 2
@@ -145,6 +146,29 @@ struct TransferLiveActivityWidget: Widget {
                 .animation(.default, value: context.state.progress)
         } else {
             ProgressView()
+        }
+    }
+
+    /// Keep the loader animating continuously even when ActivityKit coalesces
+    /// ContentState updates while progress is unchanged.
+    @ViewBuilder
+    private func animatedPixelGrid(
+        baseStep: Int,
+        size: CGFloat,
+        pixelSize: CGFloat,
+        spacing: CGFloat
+    ) -> some View {
+        TimelineView(.animation(minimumInterval: livePixelTickInterval, paused: false)) { timeline in
+            let timelineStep = Int(
+                (timeline.date.timeIntervalSinceReferenceDate / livePixelTickInterval)
+                    .rounded(.down)
+            )
+            LivePixelGrid(
+                animationStep: baseStep + timelineStep,
+                size: size,
+                pixelSize: pixelSize,
+                spacing: spacing
+            )
         }
     }
 }

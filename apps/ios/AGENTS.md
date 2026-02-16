@@ -81,6 +81,7 @@ Required sections — missing any one causes Xcode to fail silently or at build 
 - Trail effect requires `Timer.publish` + `.onReceive`, NOT `TimelineView` (which resets view tree and kills in-flight animations)
 - When adding a new loader anywhere, use `PixelAnimation.loading(size: N)` — nothing else
 - Dynamic Island frame cadence must also be 0.1s: `BackgroundShareTransferManager` must advance `animationStep` every 100ms to match in-app loader speed. Slower ticks (e.g., 500ms) make `LivePixelGrid` appear laggy.
+- Dynamic Island loader must animate via widget-side `TimelineView(.animation(minimumInterval: 0.1))` and treat `animationStep` as a base offset. Relying only on ActivityKit `ContentState` updates can appear frozen when updates are coalesced between percentage changes.
 
 ## Pattern Board Consistency (MANDATORY)
 
