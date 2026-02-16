@@ -1,0 +1,120 @@
+Implement the following plan:
+
+# Replace Sentry with Embrace iOS SDK
+
+## Context
+
+Sentry's crash reporting missed the OOM jetsam kill during vault sharing — we had to manually dig through Console.app logs. Embrace is mobile-native and captures full session data including memory pressure and jetsam events. This plan completely removes Sentry and replaces it with Embrace SDK 6.x.
+
+## Scope
+
+**18 files reference Sentry.** The migration is mechanical: replace `SentryManager` internals with Embrace equivalents, keep the same call sites.
+
+## Strategy: Facade Swap
+
+Keep `SentryManager.swift` renamed to `EmbraceManager.swift` with identical public API. All 17 consumer files continue calling the same methods (`startTransaction`, `captureError`, `addBreadcrumb`, etc.) — only the manager's internals change. This minimizes diff and risk.
+
+## Steps
+
+### 1. Remove Sentry SPM dependency
+- `apps/ios/Vault.xcodeproj/project.pbxproj`: Remove package reference to `https://github.com/getsentry/sentry-cocoa/`, product dependency entries, and framework link
+- Delete `apps/ios/Vault.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` Sentry entry (will regenerate)
+
+### 2. Add Embrace SPM dependency
+- Add package: `https://github.com/embrace-io/embrace-apple-sdk` (6.x, iOS 13+)
+- Link products: `EmbraceIO`, `EmbraceCrash`
+
+### 3. Remove Sentry build phase
+- Delete "Upload Debug Symbols to Sentry" run script phase from pbxproj (lines 854-869)
+
+### 4. Add Embrace dSYM upload build phase
+- New run script: Embrace symbol upload using `embrace_symbol_upload` tool
+- Needs: `EMBRACE_ID` and `EMBRACE_TOKEN` env vars
+
+### 5. Delete Sentry config file
+- Delete `apps/ios/.sentryclirc`
+
+### 6. Rewrite `SentryManager.swift` → `EmbraceManager.swift`
+
+Rename file. Replace internals. Keep same public API shape:
+
+| Current (Sentry) | New (Embrace) |
+|---|---|
+| `import Sentry` | `import EmbraceIO` |
+| `SentrySDK.start { options in ... }` | `try Embrace.setup(options: .init(appId: "...", crashReporter: EmbraceCrashReporter())).start()` |
+| `SentrySDK.close()` | `// Embrace has no close — noop` |
+| `startTransaction(name:operation:) -> Span` | `Embrace.client?.buildSpan(name:).startSpan()` — return custom `SpanHandle` wrapper |
+| `startSpan(parent:operation:description:) -> Span` | `Embrace.client?.buildSpan(name:).setParent(parent).startSpan()` |
+| `captureError(_ error:)` | `Embrace.client?.log("error", severity: .error, attributes: [...])` |
+| `addBreadcrumb(category:message:data:level:)` | `Embrace.client?.add(event: .breadcrumb(message, properties: data))` |
+
+**Span wrapper**: Create a lightweight `SpanHandle` protocol/struct that wraps Embrace's `Span` and exposes `.finish(status:)` and `.setTag(value:key:)` so call sites don't change.
+
+**Privacy scrubbing**: Port the keyword scrubbing to filter breadcrumb properties and span attributes before passing to Embrace.
+
+### 7. Update `AnalyticsManager.swift`
+- `SentryManager` → `EmbraceManager` (3 references)
+
+### 8. Update all 16 consumer files
+- Find-and-replace `SentryManager.shared` → `EmbraceManager.shared`
+- No logic changes needed — same method signatures
+
+Files:
+- `App/VaultApp.swift`
+- `App/ContentView.swift`
+- `Core/Crypto/CryptoEngine.swift`
+- `Core/Crypto/KeyDerivation.swift`
+- `Core/Storage/VaultStorage.swift`
+- `Core/Storage/ImportIngestor.swift`
+- `Core/Sharing/CloudKitSharingManager.swift`
+- `Core/Sharing/ShareSyncManager.swift`
+- `Core/Sharing/BackgroundShareTransferManager.swift`
+- `Features/VaultViewer/VaultView.swift`
+- `Features/VaultViewer/VaultView+Actions.swift`
+- `Features/VaultViewer/VaultView+Grid.swift`
+- `Features/VaultViewer/FullScreenPhotoViewer.swift`
+- `Features/VaultViewer/SecureImageViewer.swift`
+- `Features/Settings/VaultSettingsView.swift`
+- `Features/Onboarding/PatternSetupView.swift`
+
+### 9. Update CLAUDE.md telemetry references
+- Update any Sentry references in project CLAUDE.md files
+
+## SpanHandle Wrapper Design
+
+```swift
+/// Wraps Embrace Span to match existing call-site API
+final class SpanHandle {
+    private let span: any OpenTelemetryApi.Span
+
+    func setTag(value: String, key: String) {
+        span.setAttribute(key: key, value: value)
+    }
+
+    func finish(status: SpanStatus = .ok) {
+        span.end(statusCode: status.otelCode)
+    }
+}
+```
+
+This keeps all 30+ `.setTag()` and `.finish(status:)` call sites unchanged.
+
+## Verification
+
+1. **Build succeeds** — no `import Sentry` references remain
+2. `grep -r "Sentry" apps/ios/Vault/` returns zero hits (except comments if any)
+3. `grep -r "sentryclirc" apps/ios/` returns zero hits
+4. Embrace initializes on launch (check console for Embrace log output)
+5. Breadcrumbs and spans appear in Embrace dashboard
+6. Crash reporting works (force a test crash in debug)
+
+## Credentials (provided)
+
+- **App ID**: `ehz4q`
+- **Metrics API Key**: `8ef48271c2ca4f9f901290c9c39e2d1d`
+- **Symbol Upload Token**: `9bba685da2e34a409e2d5059712a8da4`
+
+dSYM upload build phase will use the symbol upload token directly.
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
