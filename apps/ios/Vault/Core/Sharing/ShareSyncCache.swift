@@ -92,6 +92,15 @@ final class ShareSyncCache: Sendable {
         try data.write(to: svdfURL, options: .atomic)
     }
 
+    /// Copies an SVDF blob from disk without loading it fully into memory.
+    func saveSVDF(from sourceURL: URL) throws {
+        try ensureDirectories()
+        if FileManager.default.fileExists(atPath: svdfURL.path) {
+            try FileManager.default.removeItem(at: svdfURL)
+        }
+        try FileManager.default.copyItem(at: sourceURL, to: svdfURL)
+    }
+
     // MARK: - Encrypted File Cache
 
     func hasEncryptedFile(_ fileId: String) -> Bool {
@@ -139,9 +148,29 @@ final class ShareSyncCache: Sendable {
         stride(from: 0, to: data.count, by: chunkSize).map { start in
             let end = min(start + chunkSize, data.count)
             let chunk = data[start..<end]
-            let hash = SHA256.hash(data: chunk)
-            return hash.map { String(format: "%02x", $0) }.joined()
+            return hexDigest(for: chunk)
         }
+    }
+
+    /// Computes SHA-256 hashes for each 2MB chunk by streaming from a file.
+    static func computeChunkHashes(from fileURL: URL, chunkSize: Int = 2 * 1024 * 1024) throws -> [String] {
+        let handle = try FileHandle(forReadingFrom: fileURL)
+        defer { try? handle.close() }
+
+        var hashes: [String] = []
+        while true {
+            let chunk = try handle.read(upToCount: chunkSize) ?? Data()
+            if chunk.isEmpty {
+                break
+            }
+            hashes.append(hexDigest(for: chunk))
+        }
+        return hashes
+    }
+
+    private static func hexDigest(for data: Data) -> String {
+        let hash = SHA256.hash(data: data)
+        return hash.map { String(format: "%02x", $0) }.joined()
     }
 
     /// Returns true if the deleted space ratio warrants a full rebuild.
@@ -151,4 +180,3 @@ final class ShareSyncCache: Sendable {
         return ratio > SVDFSerializer.compactionThreshold
     }
 }
-

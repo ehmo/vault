@@ -63,7 +63,8 @@ final class BackgroundShareTransferManager {
         try svdfData.write(to: svdfURL)
     }
 
-    nonisolated static func loadPendingUpload() -> (state: PendingUploadState, svdfData: Data)? {
+    /// Loads pending upload metadata only (does not read the SVDF blob into memory).
+    nonisolated static func loadPendingUploadState() -> PendingUploadState? {
         guard let stateData = try? Data(contentsOf: stateURL),
               let state = try? JSONDecoder().decode(PendingUploadState.self, from: stateData) else {
             return nil
@@ -73,10 +74,11 @@ final class BackgroundShareTransferManager {
             clearPendingUpload()
             return nil
         }
-        guard let svdfData = try? Data(contentsOf: svdfURL) else {
+        guard FileManager.default.fileExists(atPath: svdfURL.path) else {
+            clearPendingUpload()
             return nil
         }
-        return (state, svdfData)
+        return state
     }
 
     nonisolated static func clearPendingUpload() {
@@ -118,7 +120,7 @@ final class BackgroundShareTransferManager {
     }
 
     var hasPendingUpload: Bool {
-        Self.loadPendingUpload() != nil
+        Self.loadPendingUploadState() != nil
     }
 
     var status: TransferStatus = .idle
@@ -423,8 +425,14 @@ final class BackgroundShareTransferManager {
     /// chunks and only uploading the missing ones. Skips all crypto (PBKDF2, re-encryption,
     /// SVDF build) since those results are persisted to disk.
     func resumePendingUpload(vaultKey: Data?) {
-        guard let (pending, svdfData) = Self.loadPendingUpload() else {
+        guard let pending = Self.loadPendingUploadState() else {
             Self.logger.warning("[resume] No pending upload found")
+            return
+        }
+        let svdfFileURL = Self.svdfURL
+        guard FileManager.default.fileExists(atPath: svdfFileURL.path) else {
+            Self.logger.warning("[resume] Missing pending SVDF file")
+            Self.clearPendingUpload()
             return
         }
         guard let vaultKey else {
@@ -440,7 +448,7 @@ final class BackgroundShareTransferManager {
 
         let capturedVaultKey = vaultKey
         let capturedPending = pending
-        let capturedSvdfData = svdfData
+        let capturedSVDFFileURL = svdfFileURL
 
         let bgTaskId = beginProtectedTask(
             failureStatus: .uploadFailed("Resume interrupted — iOS suspended the app. You can try again."),
@@ -467,26 +475,20 @@ final class BackgroundShareTransferManager {
 
                 guard !Task.isCancelled else { return }
 
-                // Chunk the SVDF data and filter to missing chunks only
-                let chunkSize = 2 * 1024 * 1024
-                let allChunks: [(Int, Data)] = stride(from: 0, to: capturedSvdfData.count, by: chunkSize)
-                    .enumerated()
-                    .map { (index, start) in
-                        let end = min(start + chunkSize, capturedSvdfData.count)
-                        return (index, Data(capturedSvdfData[start..<end]))
-                    }
-                let missingChunks = allChunks.filter { !existingIndices.contains($0.0) }
+                // Compute missing indices without loading the SVDF file into memory.
+                let missingChunkIndices = (0..<capturedPending.totalChunks).filter { !existingIndices.contains($0) }
 
-                Self.logger.info("[resume] uploading \(missingChunks.count) missing chunks")
+                Self.logger.info("[resume] uploading \(missingChunkIndices.count) missing chunks")
                 await self?.setTargetProgress(5, message: "Uploading remaining chunks...")
                 Self.setUploadLifecycleMarker(
                     phase: "resume_uploading",
                     shareVaultId: capturedPending.shareVaultId
                 )
 
-                try await CloudKitSharingManager.shared.uploadChunksParallel(
+                try await CloudKitSharingManager.shared.uploadChunksFromFile(
                     shareVaultId: capturedPending.shareVaultId,
-                    chunks: missingChunks,
+                    fileURL: capturedSVDFFileURL,
+                    chunkIndices: missingChunkIndices,
                     onProgress: { current, total in
                         Task { @MainActor [weak self] in
                             guard let self else { return }
@@ -518,8 +520,9 @@ final class BackgroundShareTransferManager {
 
                 // Initialize sync cache
                 let syncCache = ShareSyncCache(shareVaultId: capturedPending.shareVaultId)
-                try syncCache.saveSVDF(capturedSvdfData)
-                let chunkHashes = ShareSyncCache.computeChunkHashes(capturedSvdfData)
+                try syncCache.saveSVDF(from: capturedSVDFFileURL)
+                let chunkHashes = try ShareSyncCache.computeChunkHashes(from: capturedSVDFFileURL)
+                let svdfFileSize = (try FileManager.default.attributesOfItem(atPath: capturedSVDFFileURL.path)[.size] as? NSNumber)?.intValue ?? 0
                 let currentFileIds = Set(capturedPending.sharedFileIds)
                 let syncState = ShareSyncCache.SyncState(
                     syncedFileIds: currentFileIds,
@@ -528,7 +531,7 @@ final class BackgroundShareTransferManager {
                     syncSequence: 1,
                     deletedFileIds: [],
                     totalDeletedBytes: 0,
-                    totalBytes: capturedSvdfData.count
+                    totalBytes: svdfFileSize
                 )
                 try syncCache.saveSyncState(syncState)
 

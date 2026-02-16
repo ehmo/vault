@@ -522,6 +522,65 @@ final class CloudKitSharingManager {
         }
     }
 
+    /// Uploads specific chunk indices by streaming each chunk directly from a file.
+    /// This avoids constructing a full in-memory `[Data]` chunk list for resume flows.
+    func uploadChunksFromFile(
+        shareVaultId: String,
+        fileURL: URL,
+        chunkIndices: [Int],
+        onProgress: ((Int, Int) -> Void)? = nil
+    ) async throws {
+        let uniqueSortedIndices = Array(Set(chunkIndices)).sorted()
+        let totalChunks = uniqueSortedIndices.count
+        guard totalChunks > 0 else { return }
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            var completed = 0
+            var inFlight = 0
+
+            for chunkIndex in uniqueSortedIndices {
+                if inFlight >= Self.maxConcurrentChunkOps {
+                    try await group.next()
+                    completed += 1
+                    inFlight -= 1
+                    onProgress?(completed, totalChunks)
+                }
+
+                group.addTask {
+                    let chunkData = try self.readChunk(
+                        from: fileURL,
+                        index: chunkIndex,
+                        chunkSize: self.chunkSize
+                    )
+                    try await self.saveChunkRecord(
+                        shareVaultId: shareVaultId,
+                        index: chunkIndex,
+                        data: chunkData
+                    )
+                }
+                inFlight += 1
+            }
+
+            for try await _ in group {
+                completed += 1
+                onProgress?(completed, totalChunks)
+            }
+        }
+    }
+
+    private func readChunk(from fileURL: URL, index: Int, chunkSize: Int) throws -> Data {
+        let handle = try FileHandle(forReadingFrom: fileURL)
+        defer { try? handle.close() }
+
+        let offset = UInt64(index * chunkSize)
+        try handle.seek(toOffset: offset)
+
+        guard let data = try handle.read(upToCount: chunkSize), !data.isEmpty else {
+            throw CloudKitSharingError.invalidData
+        }
+        return data
+    }
+
     /// Downloads chunk records in parallel with bounded concurrency.
     /// Reassembles chunks in index order after all downloads complete.
     private func downloadChunksParallel(
