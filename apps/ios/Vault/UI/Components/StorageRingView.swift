@@ -35,7 +35,7 @@ struct StorageRingView: View {
                     .font(.system(size: 8, weight: .bold, design: .rounded))
                     .foregroundStyle(ringColor)
             }
-            .frame(width: 26, height: 26)
+            .frame(width: 30, height: 30)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(fileCount) files, \(formattedBytes) used")

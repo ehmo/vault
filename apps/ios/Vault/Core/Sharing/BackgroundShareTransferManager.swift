@@ -197,56 +197,50 @@ final class BackgroundShareTransferManager {
                 let activeFiles = index.files.filter { !$0.isDeleted }
                 let fileCount = activeFiles.count
 
-                // Process files concurrently: read + re-encrypt in parallel
+                // Process files sequentially to avoid OOM — each file is fully
+                // decrypted + re-encrypted in memory, so unbounded concurrency
+                // with 32+ files would hold all decrypted content simultaneously.
                 let capturedIndex = index
                 let capturedMasterKey = masterKey
                 let capturedShareKey = shareKey
 
                 Self.logger.info("[upload-telemetry] re-encrypting \(fileCount) files...")
-                sharedFiles = try await withThrowingTaskGroup(
-                    of: (Int, SharedVaultData.SharedFile).self
-                ) { group in
-                    for (i, entry) in activeFiles.enumerated() {
-                        group.addTask {
-                            let fileStart = CFAbsoluteTimeGetCurrent()
-                            let (header, content) = try VaultStorage.shared.retrieveFileContent(
-                                entry: entry, index: capturedIndex, masterKey: capturedMasterKey
-                            )
-                            let readElapsed = CFAbsoluteTimeGetCurrent() - fileStart
-                            let reencrypted = try CryptoEngine.encrypt(content, with: capturedShareKey)
-                            let encryptElapsed = CFAbsoluteTimeGetCurrent() - fileStart - readElapsed
+                sharedFiles.reserveCapacity(fileCount)
+                for (i, entry) in activeFiles.enumerated() {
+                    guard !Task.isCancelled else { return }
+                    let file: SharedVaultData.SharedFile = try autoreleasepool {
+                        let fileStart = CFAbsoluteTimeGetCurrent()
+                        let (header, content) = try VaultStorage.shared.retrieveFileContent(
+                            entry: entry, index: capturedIndex, masterKey: capturedMasterKey
+                        )
+                        let readElapsed = CFAbsoluteTimeGetCurrent() - fileStart
+                        let reencrypted = try CryptoEngine.encrypt(content, with: capturedShareKey)
+                        let encryptElapsed = CFAbsoluteTimeGetCurrent() - fileStart - readElapsed
 
-                            var encryptedThumb: Data? = nil
-                            if let thumbData = entry.thumbnailData {
-                                let decryptedThumb = try CryptoEngine.decrypt(thumbData, with: capturedMasterKey)
-                                encryptedThumb = try CryptoEngine.encrypt(decryptedThumb, with: capturedShareKey)
-                            }
-
-                            Self.logger.info("[upload-telemetry] file[\(i)] \(header.originalFilename, privacy: .public) (\(content.count / 1024)KB): read=\(String(format: "%.2f", readElapsed))s encrypt=\(String(format: "%.2f", encryptElapsed))s")
-
-                            return (i, SharedVaultData.SharedFile(
-                                id: header.fileId,
-                                filename: header.originalFilename,
-                                mimeType: header.mimeType,
-                                size: Int(header.originalSize),
-                                encryptedContent: reencrypted,
-                                createdAt: header.createdAt,
-                                encryptedThumbnail: encryptedThumb
-                            ))
+                        var encryptedThumb: Data? = nil
+                        if let thumbData = entry.thumbnailData {
+                            let decryptedThumb = try CryptoEngine.decrypt(thumbData, with: capturedMasterKey)
+                            encryptedThumb = try CryptoEngine.encrypt(decryptedThumb, with: capturedShareKey)
                         }
-                    }
 
-                    var results: [(Int, SharedVaultData.SharedFile)] = []
-                    results.reserveCapacity(fileCount)
-                    for try await (i, file) in group {
-                        results.append((i, file))
-                        let encryptRange = encryptPhaseEnd - keyPhaseEnd
-                        let pct = fileCount > 0
-                            ? keyPhaseEnd + encryptRange * results.count / fileCount
-                            : encryptPhaseEnd
-                        await self?.setTargetProgress(pct, message: "Encrypting files...")
+                        Self.logger.info("[upload-telemetry] file[\(i)] \(header.originalFilename, privacy: .public) (\(content.count / 1024)KB): read=\(String(format: "%.2f", readElapsed))s encrypt=\(String(format: "%.2f", encryptElapsed))s")
+
+                        return SharedVaultData.SharedFile(
+                            id: header.fileId,
+                            filename: header.originalFilename,
+                            mimeType: header.mimeType,
+                            size: Int(header.originalSize),
+                            encryptedContent: reencrypted,
+                            createdAt: header.createdAt,
+                            encryptedThumbnail: encryptedThumb
+                        )
                     }
-                    return results.sorted { $0.0 < $1.0 }.map(\.1)
+                    sharedFiles.append(file)
+                    let encryptRange = encryptPhaseEnd - keyPhaseEnd
+                    let pct = fileCount > 0
+                        ? keyPhaseEnd + encryptRange * (i + 1) / fileCount
+                        : encryptPhaseEnd
+                    await self?.setTargetProgress(pct, message: "Encrypting files...")
                 }
                 Self.logger.info("[upload-telemetry] all files re-encrypted: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - phaseStart))s")
                 phaseStart = CFAbsoluteTimeGetCurrent()
@@ -557,21 +551,23 @@ final class BackgroundShareTransferManager {
 
                 for (i, file) in sharedVault.files.enumerated() {
                     guard !Task.isCancelled else { return }
-                    let decrypted = try CryptoEngine.decrypt(file.encryptedContent, with: shareKey)
-                    let thumbnailData = Self.resolveThumbnail(
-                        encryptedThumbnail: file.encryptedThumbnail,
-                        mimeType: file.mimeType,
-                        decryptedData: decrypted,
-                        shareKey: shareKey
-                    )
+                    try autoreleasepool {
+                        let decrypted = try CryptoEngine.decrypt(file.encryptedContent, with: shareKey)
+                        let thumbnailData = Self.resolveThumbnail(
+                            encryptedThumbnail: file.encryptedThumbnail,
+                            mimeType: file.mimeType,
+                            decryptedData: decrypted,
+                            shareKey: shareKey
+                        )
 
-                    _ = try VaultStorage.shared.storeFile(
-                        data: decrypted,
-                        filename: file.filename,
-                        mimeType: file.mimeType,
-                        with: capturedPatternKey,
-                        thumbnailData: thumbnailData
-                    )
+                        _ = try VaultStorage.shared.storeFile(
+                            data: decrypted,
+                            filename: file.filename,
+                            mimeType: file.mimeType,
+                            with: capturedPatternKey,
+                            thumbnailData: thumbnailData
+                        )
+                    }
 
                     let pct = downloadWeight + (fileCount > 0 ? importWeight * (i + 1) / fileCount : importWeight)
                     await self?.setTargetProgress(pct, message: "Importing files...")

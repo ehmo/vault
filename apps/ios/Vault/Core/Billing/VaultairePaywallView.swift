@@ -213,7 +213,7 @@ struct VaultairePaywallView: View {
             }
         }
         .padding(16)
-        .vaultGlassBackground()
+        .background(Color.vaultSurface, in: RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
