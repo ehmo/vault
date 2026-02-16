@@ -728,7 +728,10 @@ final class BackgroundShareTransferManager {
                 for (i, file) in sharedVault.files.enumerated() {
                     guard !Task.isCancelled else { return }
                     try autoreleasepool {
-                        let decrypted = try CryptoEngine.decrypt(file.encryptedContent, with: shareKey)
+                        // Shared payloads may be single-shot AES-GCM or VCSE streaming
+                        // ciphertext depending on source file size. Use staged decrypt so
+                        // large-file shares don't fail with CryptoKitError auth errors.
+                        let decrypted = try CryptoEngine.decryptStaged(file.encryptedContent, with: shareKey)
                         let thumbnailData = Self.resolveThumbnail(
                             encryptedThumbnail: file.encryptedThumbnail,
                             mimeType: file.mimeType,

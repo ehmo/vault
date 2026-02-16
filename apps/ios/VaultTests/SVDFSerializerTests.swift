@@ -236,4 +236,46 @@ final class SVDFSerializerTests: XCTestCase {
         XCTAssertEqual(decoded.files[0].filename, "source.bin")
         XCTAssertEqual(decoded.files[0].size, sourceData.count)
     }
+
+    func testBuildFullStreamingFromPlaintextLargeFileDecryptsWithDecryptStaged() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let plaintextURL = tempDir.appendingPathComponent("large-source.bin")
+        let sourceData = Data(repeating: 0x6A, count: (2 * 1024 * 1024) + 123)
+        try sourceData.write(to: plaintextURL)
+
+        let svdfURL = tempDir.appendingPathComponent("large-vault.svdf")
+        let metadata = makeMetadata()
+        let createdAt = Date(timeIntervalSince1970: 1_700_000_100)
+        let source = SVDFSerializer.StreamingSourceFile(
+            id: UUID(),
+            filename: "large-source.bin",
+            mimeType: "application/octet-stream",
+            originalSize: sourceData.count,
+            createdAt: createdAt,
+            encryptedThumbnail: nil,
+            plaintextContentURL: plaintextURL
+        )
+
+        _ = try SVDFSerializer.buildFullStreamingFromPlaintext(
+            to: svdfURL,
+            fileCount: 1,
+            forEachFile: { _ in source },
+            metadata: metadata,
+            shareKey: shareKey
+        )
+
+        let svdfData = try Data(contentsOf: svdfURL)
+        let decoded = try SVDFSerializer.deserialize(from: svdfData, shareKey: shareKey)
+        XCTAssertEqual(decoded.files.count, 1)
+
+        // Large shared payloads are VCSE streaming-encrypted and must be
+        // decrypted through staged/streaming-aware path.
+        let decrypted = try CryptoEngine.decryptStaged(decoded.files[0].encryptedContent, with: shareKey)
+        XCTAssertEqual(decrypted.count, sourceData.count)
+        XCTAssertEqual(decrypted, sourceData)
+    }
 }
