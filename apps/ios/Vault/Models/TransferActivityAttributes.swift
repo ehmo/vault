@@ -18,5 +18,8 @@ struct TransferActivityAttributes: ActivityAttributes {
         /// Drives pixel grid animation frame. Increments every timer tick (~0.1s)
         /// since TimelineView(.animation) does not re-render in widget extensions.
         var animationStep: Int = 0
+        /// Number of concurrent uploads represented by this activity.
+        /// `1` keeps backward-compatible behavior for single-transfer states.
+        var activeUploadCount: Int = 1
     }
 }

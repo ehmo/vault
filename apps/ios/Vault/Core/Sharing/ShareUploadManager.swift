@@ -1,0 +1,1137 @@
+import ActivityKit
+import BackgroundTasks
+import Foundation
+import os.log
+import UIKit
+
+/// Manages concurrent shared-vault uploads across all vaults.
+///
+/// Responsibilities:
+/// - Multiple concurrent upload jobs (same vault and cross-vault)
+/// - Per-job persistence for crash/background resume
+/// - Per-job cancellation/termination
+/// - Aggregate Live Activity / Dynamic Island status
+@MainActor
+@Observable
+final class ShareUploadManager {
+    static let shared = ShareUploadManager()
+
+    nonisolated static let backgroundResumeTaskIdentifier = "app.vaultaire.ios.share-upload.resume"
+    private nonisolated static let pendingTTL: TimeInterval = 24 * 60 * 60
+    private nonisolated static let activityTickMs = 100
+
+    enum UploadJobStatus: String, Codable {
+        case preparing
+        case uploading
+        case finalizing
+        case paused
+        case failed
+        case complete
+        case cancelled
+
+        var isRunning: Bool {
+            switch self {
+            case .preparing, .uploading, .finalizing:
+                return true
+            default:
+                return false
+            }
+        }
+    }
+
+    struct UploadJob: Identifiable, Equatable {
+        let id: String
+        let ownerFingerprint: String
+        let createdAt: Date
+        var shareVaultId: String
+        var phrase: String?
+        var status: UploadJobStatus
+        var progress: Int
+        var total: Int
+        var message: String
+        var errorMessage: String?
+
+        var canResume: Bool {
+            switch status {
+            case .failed, .paused:
+                return true
+            default:
+                return false
+            }
+        }
+
+        var canTerminate: Bool {
+            switch status {
+            case .complete, .cancelled:
+                return false
+            default:
+                return true
+            }
+        }
+    }
+
+    struct PendingUploadState: Codable {
+        let jobId: String
+        let shareVaultId: String
+        let phraseVaultId: String
+        let shareKeyData: Data
+        let policy: VaultStorage.SharePolicy
+        let ownerFingerprint: String
+        let totalChunks: Int
+        let sharedFileIds: [String]
+        let svdfManifest: [SVDFSerializer.FileManifestEntry]
+        let createdAt: Date
+        var lastProgress: Int
+        var lastMessage: String
+
+        enum CodingKeys: String, CodingKey {
+            case jobId
+            case shareVaultId
+            case phraseVaultId
+            case shareKeyData
+            case policy
+            case ownerFingerprint
+            case totalChunks
+            case sharedFileIds
+            case svdfManifest
+            case createdAt
+            case lastProgress
+            case lastMessage
+        }
+
+        init(
+            jobId: String,
+            shareVaultId: String,
+            phraseVaultId: String,
+            shareKeyData: Data,
+            policy: VaultStorage.SharePolicy,
+            ownerFingerprint: String,
+            totalChunks: Int,
+            sharedFileIds: [String],
+            svdfManifest: [SVDFSerializer.FileManifestEntry],
+            createdAt: Date,
+            lastProgress: Int,
+            lastMessage: String
+        ) {
+            self.jobId = jobId
+            self.shareVaultId = shareVaultId
+            self.phraseVaultId = phraseVaultId
+            self.shareKeyData = shareKeyData
+            self.policy = policy
+            self.ownerFingerprint = ownerFingerprint
+            self.totalChunks = totalChunks
+            self.sharedFileIds = sharedFileIds
+            self.svdfManifest = svdfManifest
+            self.createdAt = createdAt
+            self.lastProgress = lastProgress
+            self.lastMessage = lastMessage
+        }
+
+        /// Backward compatibility with legacy single-pending schema that had no
+        /// `jobId`, `lastProgress`, or `lastMessage`.
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            jobId = try c.decodeIfPresent(String.self, forKey: .jobId) ?? UUID().uuidString.lowercased()
+            shareVaultId = try c.decode(String.self, forKey: .shareVaultId)
+            phraseVaultId = try c.decode(String.self, forKey: .phraseVaultId)
+            shareKeyData = try c.decode(Data.self, forKey: .shareKeyData)
+            policy = try c.decode(VaultStorage.SharePolicy.self, forKey: .policy)
+            ownerFingerprint = try c.decode(String.self, forKey: .ownerFingerprint)
+            totalChunks = try c.decode(Int.self, forKey: .totalChunks)
+            sharedFileIds = try c.decode([String].self, forKey: .sharedFileIds)
+            svdfManifest = try c.decode([SVDFSerializer.FileManifestEntry].self, forKey: .svdfManifest)
+            createdAt = try c.decode(Date.self, forKey: .createdAt)
+            lastProgress = try c.decodeIfPresent(Int.self, forKey: .lastProgress) ?? 0
+            lastMessage = try c.decodeIfPresent(String.self, forKey: .lastMessage) ?? "Waiting to resume..."
+        }
+    }
+
+    private struct LegacyPendingUploadState: Codable {
+        let shareVaultId: String
+        let phraseVaultId: String
+        let shareKeyData: Data
+        let policy: VaultStorage.SharePolicy
+        let ownerFingerprint: String
+        let totalChunks: Int
+        let sharedFileIds: [String]
+        let svdfManifest: [SVDFSerializer.FileManifestEntry]
+        let createdAt: Date
+    }
+
+    var jobs: [UploadJob] = []
+
+    var hasPendingUpload: Bool {
+        !Self.loadAllPendingUploadStates().isEmpty
+    }
+
+    var runningUploadCount: Int {
+        jobs.reduce(into: 0) { count, job in
+            if job.status.isRunning { count += 1 }
+        }
+    }
+
+    private var jobsById: [String: UploadJob] = [:]
+    private var pendingStateByJobId: [String: PendingUploadState] = [:]
+    private var uploadTasks: [String: Task<Void, Never>] = [:]
+
+    private var currentBgTaskId: UIBackgroundTaskIdentifier = .invalid
+    private var currentBGProcessingTask: BGProcessingTask?
+
+    private var currentActivity: Activity<TransferActivityAttributes>?
+    private var activityTickTask: Task<Void, Never>?
+    private var activityAnimationStep: Int = 0
+
+    private var vaultKeyProvider: (() -> Data?)?
+
+    private nonisolated static let logger = Logger(subsystem: "app.vaultaire.ios", category: "ShareUpload")
+
+    private nonisolated static let pendingRootDir: URL = {
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("pending_uploads", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }()
+
+    private nonisolated static let legacyPendingDir: URL = {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("pending_upload", isDirectory: true)
+    }()
+
+    private init() {
+        migrateLegacyPendingIfNeeded()
+        bootstrapJobsFromPendingState()
+    }
+
+    // MARK: - Public API
+
+    func setVaultKeyProvider(_ provider: @escaping () -> Data?) {
+        vaultKeyProvider = provider
+    }
+
+    func jobs(forOwnerFingerprint ownerFingerprint: String?) -> [UploadJob] {
+        guard let ownerFingerprint else {
+            return jobs.sorted(by: { $0.createdAt > $1.createdAt })
+        }
+        return jobs
+            .filter { $0.ownerFingerprint == ownerFingerprint }
+            .sorted(by: { $0.createdAt > $1.createdAt })
+    }
+
+    func registerBackgroundProcessingTask() {
+        let identifier = Self.backgroundResumeTaskIdentifier
+        let success = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: nil) { task in
+            guard let processingTask = task as? BGProcessingTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            Task { @MainActor in
+                ShareUploadManager.shared.handleBackgroundProcessingTask(processingTask)
+            }
+        }
+
+        if success {
+            Self.logger.info("[bg-task] Registered \(identifier, privacy: .public)")
+        } else {
+            Self.logger.error("[bg-task] Failed to register \(identifier, privacy: .public)")
+        }
+    }
+
+    func scheduleBackgroundResumeTask(earliestIn seconds: TimeInterval = 15) {
+        guard hasPendingUpload else { return }
+
+        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.backgroundResumeTaskIdentifier)
+
+        let request = BGProcessingTaskRequest(identifier: Self.backgroundResumeTaskIdentifier)
+        request.requiresNetworkConnectivity = true
+        request.requiresExternalPower = false
+        request.earliestBeginDate = Date(timeIntervalSinceNow: seconds)
+
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            Self.logger.info("[bg-task] Scheduled upload resume task in ~\(Int(seconds))s")
+        } catch {
+            Self.logger.error("[bg-task] Failed to schedule resume task: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    func startBackgroundUpload(
+        vaultKey: Data,
+        phrase: String,
+        hasExpiration: Bool,
+        expiresAt: Date?,
+        hasMaxOpens: Bool,
+        maxOpens: Int?,
+        allowDownloads: Bool = true
+    ) {
+        let ownerFingerprint = KeyDerivation.keyFingerprint(from: vaultKey)
+        let shareVaultId = CloudKitSharingManager.generateShareVaultId()
+        let jobId = UUID().uuidString.lowercased()
+
+        let policy = VaultStorage.SharePolicy(
+            expiresAt: hasExpiration ? expiresAt : nil,
+            maxOpens: hasMaxOpens ? maxOpens : nil,
+            allowScreenshots: false,
+            allowDownloads: allowDownloads
+        )
+
+        let job = UploadJob(
+            id: jobId,
+            ownerFingerprint: ownerFingerprint,
+            createdAt: Date(),
+            shareVaultId: shareVaultId,
+            phrase: phrase,
+            status: .preparing,
+            progress: 0,
+            total: 100,
+            message: "Preparing vault...",
+            errorMessage: nil
+        )
+        upsertJob(job)
+
+        ensureBackgroundExecution()
+        startActivityTickerIfNeeded()
+
+        let capturedVaultKey = vaultKey
+        let capturedPhrase = phrase
+
+        let task = Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self else { return }
+            await self.runInitialUpload(
+                jobId: jobId,
+                shareVaultId: shareVaultId,
+                phrase: capturedPhrase,
+                vaultKey: capturedVaultKey,
+                ownerFingerprint: ownerFingerprint,
+                policy: policy
+            )
+        }
+        uploadTasks[jobId] = task
+    }
+
+    func resumePendingUploadsIfNeeded(trigger: String) {
+        guard hasPendingUpload else { return }
+        guard let key = vaultKeyProvider?() else {
+            Self.logger.debug("[resume-auto] trigger=\(trigger, privacy: .public) skipped: vault locked")
+            return
+        }
+        resumePendingUploads(vaultKey: key, trigger: trigger)
+    }
+
+    func resumePendingUploads(vaultKey: Data?, trigger: String = "manual") {
+        guard let vaultKey else {
+            Self.logger.warning("[resume] No vault key available")
+            return
+        }
+
+        let fingerprint = KeyDerivation.keyFingerprint(from: vaultKey)
+        let pendingStates = Self.loadAllPendingUploadStates().filter { $0.ownerFingerprint == fingerprint }
+        guard !pendingStates.isEmpty else {
+            Self.logger.debug("[resume] trigger=\(trigger, privacy: .public) no matching pending uploads")
+            return
+        }
+
+        for state in pendingStates {
+            if uploadTasks[state.jobId] != nil { continue }
+
+            if jobsById[state.jobId] == nil {
+                let restoredJob = UploadJob(
+                    id: state.jobId,
+                    ownerFingerprint: state.ownerFingerprint,
+                    createdAt: state.createdAt,
+                    shareVaultId: state.shareVaultId,
+                    phrase: nil,
+                    status: .paused,
+                    progress: state.lastProgress,
+                    total: 100,
+                    message: state.lastMessage,
+                    errorMessage: nil
+                )
+                upsertJob(restoredJob)
+            }
+
+            pendingStateByJobId[state.jobId] = state
+            startResumeTask(state: state, vaultKey: vaultKey)
+        }
+    }
+
+    func resumeUpload(jobId: String, vaultKey: Data?) {
+        guard let vaultKey else { return }
+        guard let state = Self.loadPendingUploadState(jobId: jobId) else { return }
+        pendingStateByJobId[jobId] = state
+        startResumeTask(state: state, vaultKey: vaultKey)
+    }
+
+    func cancelUpload(jobId: String) {
+        uploadTasks[jobId]?.cancel()
+        uploadTasks.removeValue(forKey: jobId)
+        pendingStateByJobId.removeValue(forKey: jobId)
+        Self.clearPendingUpload(jobId: jobId)
+
+        updateJob(jobId: jobId) { job in
+            job.status = .cancelled
+            job.message = "Upload terminated"
+            job.errorMessage = nil
+        }
+
+        teardownBackgroundExecutionIfIdle()
+        refreshActivityLifecycleAfterStatusChange()
+    }
+
+    // MARK: - Task runners
+
+    private func runInitialUpload(
+        jobId: String,
+        shareVaultId: String,
+        phrase: String,
+        vaultKey: Data,
+        ownerFingerprint: String,
+        policy: VaultStorage.SharePolicy
+    ) async {
+        defer {
+            uploadTasks.removeValue(forKey: jobId)
+            teardownBackgroundExecutionIfIdle()
+            refreshActivityLifecycleAfterStatusChange()
+            completeBackgroundProcessingTaskIfPossible()
+        }
+
+        do {
+            updateJob(jobId: jobId) { job in
+                job.status = .preparing
+                job.progress = 1
+                job.message = "Preparing vault..."
+            }
+
+            let shareKey = try KeyDerivation.deriveShareKey(from: phrase)
+            let phraseVaultId = KeyDerivation.shareVaultId(from: phrase)
+
+            let index = try VaultStorage.shared.loadIndex(with: vaultKey)
+            guard let encryptedMasterKey = index.encryptedMasterKey else {
+                throw VaultStorageError.corruptedData
+            }
+            let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey)
+            let activeFiles = index.files.filter { !$0.isDeleted }
+
+            let metadata = SharedVaultData.SharedVaultMetadata(
+                ownerFingerprint: ownerFingerprint,
+                sharedAt: Date()
+            )
+
+            let svdfURL = Self.svdfURL(jobId: jobId)
+            try Self.prepareJobDirectory(jobId: jobId)
+
+            updateJob(jobId: jobId) { job in
+                job.status = .preparing
+                job.progress = 5
+                job.message = "Encrypting files..."
+            }
+
+            var pendingTempURLForCleanup: URL?
+            defer {
+                if let pendingTempURLForCleanup {
+                    try? FileManager.default.removeItem(at: pendingTempURLForCleanup)
+                }
+            }
+
+            let svdfResult = try SVDFSerializer.buildFullStreamingFromPlaintext(
+                to: svdfURL,
+                fileCount: activeFiles.count,
+                forEachFile: { i in
+                    try Task.checkCancellation()
+                    let entry = activeFiles[i]
+                    return try autoreleasepool {
+                        let (header, plaintextURL) = try VaultStorage.shared.retrieveFileToTempURL(
+                            id: entry.fileId,
+                            with: vaultKey
+                        )
+                        pendingTempURLForCleanup = plaintextURL
+
+                        var encryptedThumb: Data? = nil
+                        if let thumbData = entry.thumbnailData {
+                            let decryptedThumb = try CryptoEngine.decrypt(thumbData, with: masterKey)
+                            encryptedThumb = try CryptoEngine.encrypt(decryptedThumb, with: shareKey)
+                        }
+
+                        return SVDFSerializer.StreamingSourceFile(
+                            id: header.fileId,
+                            filename: header.originalFilename,
+                            mimeType: header.mimeType,
+                            originalSize: Int(header.originalSize),
+                            createdAt: header.createdAt,
+                            encryptedThumbnail: encryptedThumb,
+                            plaintextContentURL: plaintextURL
+                        )
+                    }
+                },
+                didWriteFile: { _, file in
+                    try? FileManager.default.removeItem(at: file.plaintextContentURL)
+                    pendingTempURLForCleanup = nil
+                },
+                metadata: metadata,
+                shareKey: shareKey
+            )
+
+            let fileSize = Self.fileSize(of: svdfURL)
+            let chunkSize = 2 * 1024 * 1024
+            let totalChunks = max(1, (fileSize + chunkSize - 1) / chunkSize)
+
+            let pendingState = PendingUploadState(
+                jobId: jobId,
+                shareVaultId: shareVaultId,
+                phraseVaultId: phraseVaultId,
+                shareKeyData: shareKey,
+                policy: policy,
+                ownerFingerprint: ownerFingerprint,
+                totalChunks: totalChunks,
+                sharedFileIds: svdfResult.fileIds,
+                svdfManifest: svdfResult.manifest,
+                createdAt: Date(),
+                lastProgress: 5,
+                lastMessage: "Uploading vault..."
+            )
+            savePendingState(pendingState)
+
+            scheduleBackgroundResumeTask(earliestIn: 15)
+
+            updateJob(jobId: jobId) { job in
+                job.status = .uploading
+                job.progress = 5
+                job.message = "Uploading vault..."
+            }
+
+            try await CloudKitSharingManager.shared.uploadChunksFromFile(
+                shareVaultId: shareVaultId,
+                fileURL: svdfURL,
+                chunkIndices: Array(0..<totalChunks),
+                onProgress: { [weak self] current, total in
+                    Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        let pct = total > 0 ? 5 + (84 * current / total) : 89
+                        self.updateJob(jobId: jobId) { job in
+                            job.status = .uploading
+                            job.progress = max(job.progress, pct)
+                            job.message = "Uploading vault..."
+                        }
+                        self.updatePendingProgress(jobId: jobId, progress: pct, message: "Uploading vault...")
+                    }
+                }
+            )
+
+            try await CloudKitSharingManager.shared.saveManifest(
+                shareVaultId: shareVaultId,
+                phraseVaultId: phraseVaultId,
+                shareKey: shareKey,
+                policy: policy,
+                ownerFingerprint: ownerFingerprint,
+                totalChunks: totalChunks
+            )
+
+            updateJob(jobId: jobId) { job in
+                job.status = .finalizing
+                job.progress = 95
+                job.message = "Finalizing..."
+            }
+            updatePendingProgress(jobId: jobId, progress: 95, message: "Finalizing...")
+
+            let syncCache = ShareSyncCache(shareVaultId: shareVaultId)
+            try syncCache.saveSVDF(from: svdfURL)
+            let chunkHashes = try ShareSyncCache.computeChunkHashes(from: svdfURL)
+            let syncState = ShareSyncCache.SyncState(
+                syncedFileIds: Set(svdfResult.fileIds),
+                chunkHashes: chunkHashes,
+                manifest: svdfResult.manifest,
+                syncSequence: 1,
+                deletedFileIds: [],
+                totalDeletedBytes: 0,
+                totalBytes: fileSize
+            )
+            try syncCache.saveSyncState(syncState)
+
+            appendShareRecord(
+                shareVaultId: shareVaultId,
+                policy: policy,
+                shareKeyData: shareKey,
+                vaultKey: vaultKey
+            )
+
+            pendingStateByJobId.removeValue(forKey: jobId)
+            Self.clearPendingUpload(jobId: jobId)
+
+            updateJob(jobId: jobId) { job in
+                job.status = .complete
+                job.progress = 100
+                job.message = "Upload complete"
+                job.errorMessage = nil
+                job.phrase = nil
+            }
+
+            LocalNotificationManager.shared.sendUploadComplete()
+        } catch is CancellationError {
+            if let pendingState = pendingStateByJobId[jobId],
+               Self.loadPendingUploadState(jobId: pendingState.jobId) != nil {
+                updateJob(jobId: jobId) { job in
+                    job.status = .paused
+                    job.message = "Upload paused"
+                }
+                scheduleBackgroundResumeTask(earliestIn: 30)
+            } else {
+                updateJob(jobId: jobId) { job in
+                    job.status = .cancelled
+                    job.message = "Upload terminated"
+                }
+            }
+        } catch {
+            EmbraceManager.shared.captureError(error)
+            updateJob(jobId: jobId) { job in
+                job.status = .failed
+                job.errorMessage = error.localizedDescription
+                job.message = "Upload failed"
+            }
+            updatePendingProgress(jobId: jobId, progress: 0, message: "Upload failed")
+            scheduleBackgroundResumeTask(earliestIn: 30)
+            LocalNotificationManager.shared.sendUploadFailed()
+        }
+    }
+
+    private func startResumeTask(state: PendingUploadState, vaultKey: Data) {
+        guard uploadTasks[state.jobId] == nil else { return }
+        ensureBackgroundExecution()
+        startActivityTickerIfNeeded()
+
+        updateJob(jobId: state.jobId) { job in
+            job.status = .uploading
+            job.progress = max(job.progress, max(2, state.lastProgress))
+            job.message = "Checking uploaded chunks..."
+            job.errorMessage = nil
+        }
+
+        let task = Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self else { return }
+            await self.runResumeUpload(state: state, vaultKey: vaultKey)
+        }
+        uploadTasks[state.jobId] = task
+    }
+
+    private func runResumeUpload(state: PendingUploadState, vaultKey: Data) async {
+        defer {
+            uploadTasks.removeValue(forKey: state.jobId)
+            teardownBackgroundExecutionIfIdle()
+            refreshActivityLifecycleAfterStatusChange()
+            completeBackgroundProcessingTaskIfPossible()
+        }
+
+        do {
+            let svdfURL = Self.svdfURL(jobId: state.jobId)
+            guard FileManager.default.fileExists(atPath: svdfURL.path) else {
+                throw CloudKitSharingError.invalidData
+            }
+
+            updateJob(jobId: state.jobId) { job in
+                job.status = .uploading
+                job.progress = max(job.progress, 2)
+                job.message = "Checking uploaded chunks..."
+            }
+            updatePendingProgress(jobId: state.jobId, progress: 2, message: "Checking uploaded chunks...")
+
+            let existingIndices = try await CloudKitSharingManager.shared.existingChunkIndices(for: state.shareVaultId)
+            let missingIndices = (0..<state.totalChunks).filter { !existingIndices.contains($0) }
+
+            updateJob(jobId: state.jobId) { job in
+                job.status = .uploading
+                job.progress = max(job.progress, 5)
+                job.message = "Uploading remaining chunks..."
+            }
+            updatePendingProgress(jobId: state.jobId, progress: 5, message: "Uploading remaining chunks...")
+
+            try await CloudKitSharingManager.shared.uploadChunksFromFile(
+                shareVaultId: state.shareVaultId,
+                fileURL: svdfURL,
+                chunkIndices: missingIndices,
+                onProgress: { [weak self] current, total in
+                    Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        let pct = total > 0 ? 5 + (84 * current / total) : 89
+                        self.updateJob(jobId: state.jobId) { job in
+                            job.status = .uploading
+                            job.progress = max(job.progress, pct)
+                            job.message = "Uploading remaining chunks..."
+                        }
+                        self.updatePendingProgress(jobId: state.jobId, progress: pct, message: "Uploading remaining chunks...")
+                    }
+                }
+            )
+
+            try await CloudKitSharingManager.shared.saveManifest(
+                shareVaultId: state.shareVaultId,
+                phraseVaultId: state.phraseVaultId,
+                shareKey: state.shareKeyData,
+                policy: state.policy,
+                ownerFingerprint: state.ownerFingerprint,
+                totalChunks: state.totalChunks
+            )
+
+            updateJob(jobId: state.jobId) { job in
+                job.status = .finalizing
+                job.progress = 95
+                job.message = "Finalizing..."
+            }
+            updatePendingProgress(jobId: state.jobId, progress: 95, message: "Finalizing...")
+
+            let syncCache = ShareSyncCache(shareVaultId: state.shareVaultId)
+            try syncCache.saveSVDF(from: svdfURL)
+            let chunkHashes = try ShareSyncCache.computeChunkHashes(from: svdfURL)
+            let fileSize = Self.fileSize(of: svdfURL)
+
+            let syncState = ShareSyncCache.SyncState(
+                syncedFileIds: Set(state.sharedFileIds),
+                chunkHashes: chunkHashes,
+                manifest: state.svdfManifest,
+                syncSequence: 1,
+                deletedFileIds: [],
+                totalDeletedBytes: 0,
+                totalBytes: fileSize
+            )
+            try syncCache.saveSyncState(syncState)
+
+            appendShareRecord(
+                shareVaultId: state.shareVaultId,
+                policy: state.policy,
+                shareKeyData: state.shareKeyData,
+                vaultKey: vaultKey
+            )
+
+            pendingStateByJobId.removeValue(forKey: state.jobId)
+            Self.clearPendingUpload(jobId: state.jobId)
+
+            updateJob(jobId: state.jobId) { job in
+                job.status = .complete
+                job.progress = 100
+                job.message = "Upload complete"
+                job.errorMessage = nil
+            }
+
+            LocalNotificationManager.shared.sendUploadComplete()
+        } catch is CancellationError {
+            if Self.loadPendingUploadState(jobId: state.jobId) != nil {
+                updateJob(jobId: state.jobId) { job in
+                    job.status = .paused
+                    job.message = "Upload paused"
+                }
+                scheduleBackgroundResumeTask(earliestIn: 30)
+            } else {
+                updateJob(jobId: state.jobId) { job in
+                    job.status = .cancelled
+                    job.message = "Upload terminated"
+                }
+            }
+        } catch {
+            EmbraceManager.shared.captureError(error)
+            updateJob(jobId: state.jobId) { job in
+                job.status = .failed
+                job.errorMessage = error.localizedDescription
+                job.message = "Resume failed"
+            }
+            updatePendingProgress(jobId: state.jobId, progress: state.lastProgress, message: "Resume failed")
+            scheduleBackgroundResumeTask(earliestIn: 30)
+            LocalNotificationManager.shared.sendUploadFailed()
+        }
+    }
+
+    // MARK: - BG task handling
+
+    private func handleBackgroundProcessingTask(_ task: BGProcessingTask) {
+        currentBGProcessingTask = task
+        scheduleBackgroundResumeTask(earliestIn: 60)
+
+        task.expirationHandler = { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                Self.logger.warning("[bg-task] Processing task expired — cancelling uploads")
+                self.cancelAllRunningUploadsAsInterrupted()
+                self.completeBackgroundProcessingTask(success: false)
+            }
+        }
+
+        guard hasPendingUpload else {
+            completeBackgroundProcessingTask(success: true)
+            return
+        }
+
+        guard let key = vaultKeyProvider?() else {
+            completeBackgroundProcessingTask(success: false)
+            return
+        }
+
+        resumePendingUploads(vaultKey: key, trigger: "bg_task")
+    }
+
+    private func completeBackgroundProcessingTask(success: Bool) {
+        currentBGProcessingTask?.setTaskCompleted(success: success)
+        currentBGProcessingTask = nil
+    }
+
+    private func completeBackgroundProcessingTaskIfPossible() {
+        guard currentBGProcessingTask != nil else { return }
+        if uploadTasks.isEmpty {
+            completeBackgroundProcessingTask(success: !hasPendingUpload)
+        }
+    }
+
+    // MARK: - Background execution
+
+    private func ensureBackgroundExecution() {
+        guard currentBgTaskId == .invalid else { return }
+        currentBgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                Self.logger.warning("[upload] Background time expiring — cancelling uploads")
+                self.cancelAllRunningUploadsAsInterrupted()
+                self.endBackgroundExecution()
+            }
+        }
+    }
+
+    private func endBackgroundExecution() {
+        let taskId = currentBgTaskId
+        currentBgTaskId = .invalid
+        if taskId != .invalid {
+            UIApplication.shared.endBackgroundTask(taskId)
+        }
+    }
+
+    private func teardownBackgroundExecutionIfIdle() {
+        if uploadTasks.isEmpty {
+            endBackgroundExecution()
+        }
+    }
+
+    private func cancelAllRunningUploadsAsInterrupted() {
+        let runningIds = Array(uploadTasks.keys)
+        for id in runningIds {
+            uploadTasks[id]?.cancel()
+            updateJob(jobId: id) { job in
+                job.status = .failed
+                job.errorMessage = "Upload interrupted by iOS background limits"
+                job.message = "Upload interrupted"
+            }
+        }
+        scheduleBackgroundResumeTask(earliestIn: 30)
+    }
+
+    // MARK: - Live Activity
+
+    private func startActivityTickerIfNeeded() {
+        guard activityTickTask == nil else { return }
+
+        // End stale activities from previous runs.
+        for activity in Activity<TransferActivityAttributes>.activities {
+            Task { await activity.end(nil, dismissalPolicy: .immediate) }
+        }
+
+        let authInfo = ActivityAuthorizationInfo()
+        guard authInfo.areActivitiesEnabled else {
+            Self.logger.warning("Live Activities disabled")
+            return
+        }
+
+        let attributes = TransferActivityAttributes(transferType: .uploading)
+        let state = TransferActivityAttributes.ContentState(
+            progress: 0,
+            total: 100,
+            message: "Starting...",
+            isComplete: false,
+            isFailed: false,
+            animationStep: 0,
+            activeUploadCount: 1
+        )
+
+        do {
+            currentActivity = try Activity.request(
+                attributes: attributes,
+                content: ActivityContent(state: state, staleDate: nil, relevanceScore: 100),
+                pushType: nil
+            )
+        } catch {
+            Self.logger.error("Activity.request failed: \(error.localizedDescription, privacy: .public)")
+            currentActivity = nil
+        }
+
+        activityAnimationStep = 0
+        activityTickTask = Task { [weak self] in
+            while !Task.isCancelled {
+                if let self { self.tickActivity() }
+                try? await Task.sleep(for: .milliseconds(Self.activityTickMs))
+            }
+        }
+    }
+
+    private func stopActivityTicker() {
+        activityTickTask?.cancel()
+        activityTickTask = nil
+    }
+
+    private func refreshActivityLifecycleAfterStatusChange() {
+        if runningUploadCount > 0 {
+            startActivityTickerIfNeeded()
+            return
+        }
+
+        stopActivityTicker()
+
+        let hasFailed = jobs.contains { $0.status == .failed }
+        let hasPaused = jobs.contains { $0.status == .paused }
+        let isSuccess = !hasFailed && !hasPaused && !hasPendingUpload
+        let message: String
+        if isSuccess {
+            message = "All uploads complete"
+        } else if hasPaused {
+            message = "Uploads paused"
+        } else if hasFailed {
+            message = "Some uploads failed"
+        } else {
+            message = "Uploads stopped"
+        }
+        endActivity(success: isSuccess, message: message)
+    }
+
+    private func tickActivity() {
+        guard runningUploadCount > 0 else { return }
+        guard let activity = currentActivity else { return }
+
+        let runningJobs = jobs.filter { $0.status.isRunning }
+        guard !runningJobs.isEmpty else { return }
+
+        activityAnimationStep += 1
+        let progressSum = runningJobs.reduce(0) { $0 + max(0, min(100, $1.progress)) }
+        let avgProgress = progressSum / runningJobs.count
+        let message: String = runningJobs.count == 1
+            ? runningJobs[0].message
+            : "\(runningJobs.count) uploads in progress"
+
+        let state = TransferActivityAttributes.ContentState(
+            progress: avgProgress,
+            total: 100,
+            message: message,
+            isComplete: false,
+            isFailed: false,
+            animationStep: activityAnimationStep,
+            activeUploadCount: runningJobs.count
+        )
+
+        Task { await activity.update(.init(state: state, staleDate: nil)) }
+    }
+
+    private func endActivity(success: Bool, message: String) {
+        let activity = currentActivity
+        currentActivity = nil
+
+        let state = TransferActivityAttributes.ContentState(
+            progress: success ? 100 : 0,
+            total: 100,
+            message: message,
+            isComplete: success,
+            isFailed: !success,
+            animationStep: activityAnimationStep,
+            activeUploadCount: 0
+        )
+
+        Task {
+            await activity?.end(.init(state: state, staleDate: nil), dismissalPolicy: .after(.now + 5))
+        }
+    }
+
+    // MARK: - Job state helpers
+
+    private func upsertJob(_ job: UploadJob) {
+        jobsById[job.id] = job
+        jobs = jobsById.values.sorted { lhs, rhs in
+            if lhs.createdAt == rhs.createdAt { return lhs.id > rhs.id }
+            return lhs.createdAt > rhs.createdAt
+        }
+    }
+
+    private func updateJob(jobId: String, mutate: (inout UploadJob) -> Void) {
+        guard var job = jobsById[jobId] else { return }
+        mutate(&job)
+        upsertJob(job)
+        refreshActivityLifecycleAfterStatusChange()
+    }
+
+    private func appendShareRecord(
+        shareVaultId: String,
+        policy: VaultStorage.SharePolicy,
+        shareKeyData: Data,
+        vaultKey: Data
+    ) {
+        do {
+            var index = try VaultStorage.shared.loadIndex(with: vaultKey)
+            let exists = index.activeShares?.contains(where: { $0.id == shareVaultId }) ?? false
+            if !exists {
+                let record = VaultStorage.ShareRecord(
+                    id: shareVaultId,
+                    createdAt: Date(),
+                    policy: policy,
+                    lastSyncedAt: Date(),
+                    shareKeyData: shareKeyData,
+                    syncSequence: 1
+                )
+                if index.activeShares == nil {
+                    index.activeShares = []
+                }
+                index.activeShares?.append(record)
+                try VaultStorage.shared.saveIndex(index, with: vaultKey)
+            }
+        } catch {
+            Self.logger.error("Failed to append share record: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    // MARK: - Pending persistence
+
+    private func bootstrapJobsFromPendingState() {
+        let states = Self.loadAllPendingUploadStates()
+        for state in states {
+            pendingStateByJobId[state.jobId] = state
+
+            let restored = UploadJob(
+                id: state.jobId,
+                ownerFingerprint: state.ownerFingerprint,
+                createdAt: state.createdAt,
+                shareVaultId: state.shareVaultId,
+                phrase: nil,
+                status: .paused,
+                progress: state.lastProgress,
+                total: 100,
+                message: state.lastMessage,
+                errorMessage: nil
+            )
+            upsertJob(restored)
+        }
+    }
+
+    private func savePendingState(_ state: PendingUploadState) {
+        pendingStateByJobId[state.jobId] = state
+        do {
+            try Self.prepareJobDirectory(jobId: state.jobId)
+            let data = try JSONEncoder().encode(state)
+            try data.write(to: Self.stateURL(jobId: state.jobId), options: .atomic)
+        } catch {
+            Self.logger.error("Failed to save pending state: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func updatePendingProgress(jobId: String, progress: Int, message: String) {
+        guard var state = pendingStateByJobId[jobId] else { return }
+        state.lastProgress = max(0, min(100, progress))
+        state.lastMessage = message
+        savePendingState(state)
+    }
+
+    private nonisolated static func loadAllPendingUploadStates() -> [PendingUploadState] {
+        guard let contents = try? FileManager.default.contentsOfDirectory(
+            at: pendingRootDir,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ) else {
+            return []
+        }
+
+        var states: [PendingUploadState] = []
+        for dir in contents where dir.hasDirectoryPath {
+            let jobId = dir.lastPathComponent
+            guard let state = loadPendingUploadState(jobId: jobId) else {
+                clearPendingUpload(jobId: jobId)
+                continue
+            }
+            states.append(state)
+        }
+        return states
+    }
+
+    private nonisolated static func loadPendingUploadState(jobId: String) -> PendingUploadState? {
+        let stateURL = stateURL(jobId: jobId)
+        let svdfURL = svdfURL(jobId: jobId)
+
+        guard let data = try? Data(contentsOf: stateURL),
+              let state = try? JSONDecoder().decode(PendingUploadState.self, from: data) else {
+            return nil
+        }
+
+        guard Date().timeIntervalSince(state.createdAt) < pendingTTL else {
+            clearPendingUpload(jobId: jobId)
+            return nil
+        }
+
+        guard FileManager.default.fileExists(atPath: svdfURL.path) else {
+            clearPendingUpload(jobId: jobId)
+            return nil
+        }
+
+        return state
+    }
+
+    private nonisolated static func clearPendingUpload(jobId: String) {
+        try? FileManager.default.removeItem(at: jobDirectory(jobId: jobId))
+    }
+
+    private nonisolated static func prepareJobDirectory(jobId: String) throws {
+        try FileManager.default.createDirectory(
+            at: jobDirectory(jobId: jobId),
+            withIntermediateDirectories: true
+        )
+    }
+
+    private nonisolated static func jobDirectory(jobId: String) -> URL {
+        pendingRootDir.appendingPathComponent(jobId, isDirectory: true)
+    }
+
+    private nonisolated static func stateURL(jobId: String) -> URL {
+        jobDirectory(jobId: jobId).appendingPathComponent("state.json")
+    }
+
+    private nonisolated static func svdfURL(jobId: String) -> URL {
+        jobDirectory(jobId: jobId).appendingPathComponent("svdf_data.bin")
+    }
+
+    private nonisolated static func fileSize(of url: URL) -> Int {
+        (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.intValue ?? 0
+    }
+
+    private nonisolated func migrateLegacyPendingIfNeeded() {
+        let legacyStateURL = Self.legacyPendingDir.appendingPathComponent("state.json")
+        let legacySVDFURL = Self.legacyPendingDir.appendingPathComponent("svdf_data.bin")
+        guard FileManager.default.fileExists(atPath: legacyStateURL.path),
+              FileManager.default.fileExists(atPath: legacySVDFURL.path),
+              let data = try? Data(contentsOf: legacyStateURL),
+              let legacy = try? JSONDecoder().decode(LegacyPendingUploadState.self, from: data) else {
+            return
+        }
+
+        let migratedJobId = UUID().uuidString.lowercased()
+        let migrated = PendingUploadState(
+            jobId: migratedJobId,
+            shareVaultId: legacy.shareVaultId,
+            phraseVaultId: legacy.phraseVaultId,
+            shareKeyData: legacy.shareKeyData,
+            policy: legacy.policy,
+            ownerFingerprint: legacy.ownerFingerprint,
+            totalChunks: legacy.totalChunks,
+            sharedFileIds: legacy.sharedFileIds,
+            svdfManifest: legacy.svdfManifest,
+            createdAt: legacy.createdAt,
+            lastProgress: 0,
+            lastMessage: "Waiting to resume..."
+        )
+
+        do {
+            try Self.prepareJobDirectory(jobId: migratedJobId)
+            try JSONEncoder().encode(migrated).write(to: Self.stateURL(jobId: migratedJobId), options: .atomic)
+            try FileManager.default.copyItem(at: legacySVDFURL, to: Self.svdfURL(jobId: migratedJobId))
+            try? FileManager.default.removeItem(at: legacyStateURL)
+            try? FileManager.default.removeItem(at: legacySVDFURL)
+            try? FileManager.default.removeItem(at: Self.legacyPendingDir)
+            Self.logger.info("Migrated legacy pending upload to job \(migratedJobId, privacy: .public)")
+        } catch {
+            Self.logger.error("Failed to migrate legacy pending upload: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+}

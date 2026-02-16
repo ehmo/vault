@@ -32,12 +32,12 @@ struct VaultApp: App {
                 .environment(SubscriptionManager.shared)
                 .onAppear {
                     appState.applyAppearanceToAllWindows()
-                    BackgroundShareTransferManager.shared.resumePendingUploadIfNeeded(trigger: "app_on_appear")
+                    ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "app_on_appear")
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                     // Re-apply when app becomes active — catches system appearance changes
                     appState.applyAppearanceToAllWindows()
-                    BackgroundShareTransferManager.shared.resumePendingUploadIfNeeded(trigger: "did_become_active")
+                    ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "did_become_active")
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIWindow.didBecomeKeyNotification)) { _ in
                     // Re-apply when any new window becomes key — catches fullScreenCovers,
@@ -47,11 +47,11 @@ struct VaultApp: App {
                 .onChange(of: scenePhase) { _, newPhase in
                     switch newPhase {
                     case .background:
-                        if BackgroundShareTransferManager.shared.hasPendingUpload {
-                            BackgroundShareTransferManager.shared.scheduleBackgroundResumeTask(earliestIn: 15)
+                        if ShareUploadManager.shared.hasPendingUpload {
+                            ShareUploadManager.shared.scheduleBackgroundResumeTask(earliestIn: 15)
                         }
                     case .active:
-                        BackgroundShareTransferManager.shared.resumePendingUploadIfNeeded(trigger: "scene_active")
+                        ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "scene_active")
                     default:
                         break
                     }
@@ -106,6 +106,9 @@ final class AppState {
         BackgroundShareTransferManager.shared.setVaultKeyProvider { [weak self] in
             self?.currentVaultKey
         }
+        ShareUploadManager.shared.setVaultKeyProvider { [weak self] in
+            self?.currentVaultKey
+        }
     }
 
     private static func loadAppearanceMode() -> AppAppearanceMode {
@@ -133,7 +136,7 @@ final class AppState {
         try? await Task.sleep(nanoseconds: Self.unlockCeremonyDelayNanoseconds)
         isUnlocked = true
         isLoading = false
-        BackgroundShareTransferManager.shared.resumePendingUploadIfNeeded(trigger: "onboarding_completed")
+        ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "onboarding_completed")
     }
 
     func setAppearanceMode(_ mode: AppAppearanceMode) {
@@ -223,7 +226,7 @@ final class AppState {
                 hasPendingImports = true
             }
 
-            BackgroundShareTransferManager.shared.resumePendingUploadIfNeeded(trigger: "vault_unlocked")
+            ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "vault_unlocked")
 
             transaction.finish(status: .ok)
 
@@ -302,7 +305,7 @@ final class AppState {
         vaultName = "Test Vault"
         isUnlocked = true
         isLoading = false
-        BackgroundShareTransferManager.shared.resumePendingUploadIfNeeded(trigger: "maestro_unlock")
+        ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "maestro_unlock")
 
         // Seed test files if requested
         if ProcessInfo.processInfo.arguments.contains("-MAESTRO_SEED_FILES") {
@@ -371,7 +374,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         LocalNotificationManager.shared.warmNotificationIcon()
 
         // Register once at launch so iOS can wake the app to continue pending uploads.
-        BackgroundShareTransferManager.shared.registerBackgroundProcessingTask()
+        ShareUploadManager.shared.registerBackgroundProcessingTask()
 
         // If iOS terminated the previous upload process (jetsam/watchdog),
         // emit a breadcrumb on next launch with the last known phase.

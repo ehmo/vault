@@ -48,6 +48,7 @@
 		014000003 /* ShareSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014000002 /* ShareSyncManager.swift */; };
 		014000005 /* SVDFSerializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014000004 /* SVDFSerializer.swift */; };
 		014000007 /* ShareSyncCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014000006 /* ShareSyncCache.swift */; };
+		014000009 /* ShareUploadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014000008 /* ShareUploadManager.swift */; };
 		015000001 /* ShareVaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 015000000 /* ShareVaultView.swift */; };
 		015000003 /* JoinVaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 015000002 /* JoinVaultView.swift */; };
 		016000001 /* LocalNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016000000 /* LocalNotificationManager.swift */; };
@@ -214,6 +215,7 @@
 		014000002 /* ShareSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSyncManager.swift; sourceTree = "<group>"; };
 		014000004 /* SVDFSerializer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SVDFSerializer.swift; sourceTree = "<group>"; };
 		014000006 /* ShareSyncCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSyncCache.swift; sourceTree = "<group>"; };
+		014000008 /* ShareUploadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareUploadManager.swift; sourceTree = "<group>"; };
 		015000000 /* ShareVaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareVaultView.swift; sourceTree = "<group>"; };
 		015000002 /* JoinVaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinVaultView.swift; sourceTree = "<group>"; };
 		016000000 /* LocalNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNotificationManager.swift; sourceTree = "<group>"; };
@@ -423,6 +425,7 @@
 				014000002 /* ShareSyncManager.swift */,
 				014000004 /* SVDFSerializer.swift */,
 				014000006 /* ShareSyncCache.swift */,
+				014000008 /* ShareUploadManager.swift */,
 				SL0000000 /* ShareLinkEncoder.swift */,
 				SL0000002 /* DeepLinkHandler.swift */,
 				016000002 /* BackgroundShareTransferManager.swift */,
@@ -933,6 +936,7 @@
 				014000003 /* ShareSyncManager.swift in Sources */,
 				014000005 /* SVDFSerializer.swift in Sources */,
 				014000007 /* ShareSyncCache.swift in Sources */,
+				014000009 /* ShareUploadManager.swift in Sources */,
 				SL0000001 /* ShareLinkEncoder.swift in Sources */,
 				SL0000003 /* DeepLinkHandler.swift in Sources */,
 				015000001 /* ShareVaultView.swift in Sources */,

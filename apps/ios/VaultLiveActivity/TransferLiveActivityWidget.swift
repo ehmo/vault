@@ -29,8 +29,15 @@ struct TransferLiveActivityWidget: Widget {
                             .foregroundStyle(.red)
                             .font(.title2)
                     } else {
-                        progressText(context: context)
-                            .font(.title3.monospacedDigit())
+                        VStack(alignment: .trailing, spacing: 2) {
+                            if context.state.activeUploadCount > 1 {
+                                Text("\(context.state.activeUploadCount) uploads")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            progressText(context: context)
+                                .font(.title3.monospacedDigit())
+                        }
                     }
                 }
 
@@ -60,11 +67,17 @@ struct TransferLiveActivityWidget: Widget {
                     Image(systemName: "exclamationmark.circle.fill")
                         .foregroundStyle(.red)
                 } else if context.state.total > 0 {
-                    Text("\(context.state.progress)%")
-                        .foregroundStyle(.white)
-                        .font(.caption2.monospacedDigit())
-                        .contentTransition(.numericText())
-                        .animation(.default, value: context.state.progress)
+                    if context.state.activeUploadCount > 1 {
+                        Text("\(context.state.activeUploadCount)x \(context.state.progress)%")
+                            .foregroundStyle(.white)
+                            .font(.caption2.monospacedDigit())
+                    } else {
+                        Text("\(context.state.progress)%")
+                            .foregroundStyle(.white)
+                            .font(.caption2.monospacedDigit())
+                            .contentTransition(.numericText())
+                            .animation(.default, value: context.state.progress)
+                    }
                 } else {
                     Text("...")
                         .foregroundStyle(.secondary)
@@ -101,6 +114,12 @@ struct TransferLiveActivityWidget: Widget {
                         total: Double(context.state.total)
                     )
                     .tint(vaultAccent)
+
+                    if context.state.activeUploadCount > 1 {
+                        Text("\(context.state.activeUploadCount) uploads running")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 

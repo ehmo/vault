@@ -295,7 +295,7 @@ struct VaultView: View {
         }
         .task {
             loadVault()
-            transferManager.resumePendingUploadIfNeeded(trigger: "vault_view_task")
+            ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "vault_view_task")
         }
         .onChange(of: appState.currentVaultKey) { oldKey, newKey in
             // Cancel any in-flight imports immediately on vault key change
@@ -314,7 +314,7 @@ struct VaultView: View {
             }
 
             if newKey != nil {
-                transferManager.resumePendingUploadIfNeeded(trigger: "vault_key_changed")
+                ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "vault_key_changed")
             }
         }
         .onChange(of: searchText) { _, newValue in

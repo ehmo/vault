@@ -31,3 +31,18 @@ appId: app.vaultaire.ios
 - tapOn:
     id: "share_generate_phrase"
     optional: true
+
+# New multi-upload UI: phrase sheet + upload rows (optional because CloudKit
+# availability and simulator behavior can vary)
+- assertVisible:
+    text: "Share Phrase"
+    optional: true
+- tapOn:
+    id: "share_phrase_done"
+    optional: true
+- assertVisible:
+    id: "share_uploads_header"
+    optional: true
+- assertVisible:
+    id: "share_upload_row"
+    optional: true

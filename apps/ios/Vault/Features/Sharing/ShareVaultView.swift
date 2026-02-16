@@ -15,7 +15,6 @@ struct ShareVaultView: View {
         case loading
         case iCloudUnavailable(CKAccountStatus)
         case newShare
-        case uploading(phrase: String)
         case manageShares
         case error(String)
     }
@@ -28,20 +27,23 @@ struct ShareVaultView: View {
     @State private var allowDownloads = true
     @State private var isStopping = false
     @State private var estimatedUploadSize: Int?
-    @State private var uploadStatus: BackgroundShareTransferManager.TransferStatus = .idle
-    @State private var linkCopied = false
-    @State private var showDismissWarning = false
 
-    // Active shares data
+    // Active shares and jobs
     @State private var activeShares: [VaultStorage.ShareRecord] = []
+    @State private var uploadJobs: [ShareUploadManager.UploadJob] = []
+    @State private var currentOwnerFingerprint: String?
+
+    // Phrase display
+    @State private var activePhrase: String?
+    @State private var linkCopied = false
+
+    // Screen-awake policy while uploads are running and this screen is visible
+    @State private var didDisableIdleTimerForUploads = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Upload status indicator
-                    transferStatusBanner
-
                     switch mode {
                     case .loading:
                         loadingView
@@ -49,8 +51,6 @@ struct ShareVaultView: View {
                         iCloudUnavailableView(status)
                     case .newShare:
                         newShareSettingsView
-                    case .uploading(let phrase):
-                        uploadingView(phrase)
                     case .manageShares:
                         manageSharesView
                     case .error(let message):
@@ -65,25 +65,18 @@ struct ShareVaultView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
-                        if case .uploading = mode {
-                            showDismissWarning = true
-                        } else {
-                            dismiss()
-                        }
+                        dismiss()
                     }
                     .accessibilityIdentifier("share_cancel")
                 }
             }
         }
-        .interactiveDismissDisabled({
-            if case .uploading = mode { return true }
-            return false
-        }())
-        .alert("Save Your Phrase?", isPresented: $showDismissWarning) {
-            Button("Go Back", role: .cancel) { }
-            Button("Close", role: .destructive) { dismiss() }
-        } message: {
-            Text("This phrase won't be shown again. Make sure you've saved it.")
+        .sheet(item: Binding(
+            get: { activePhrase.map(SharePhraseSheetItem.init(phrase:)) },
+            set: { activePhrase = $0?.phrase }
+        )) { item in
+            phraseSheet(phrase: item.phrase)
+                .presentationDetents([.medium, .large])
         }
         .task {
             await initialize()
@@ -92,25 +85,21 @@ struct ShareVaultView: View {
             Task { await initialize() }
         }
         .task {
-            // Poll upload status while view is visible
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
-                let newStatus = BackgroundShareTransferManager.shared.status
-                if newStatus != uploadStatus {
-                    uploadStatus = newStatus
-                    // Don't navigate away when showing phrase — user needs to save it
-                    if case .uploadComplete = newStatus, case .uploading = mode {
-                        // Stay on uploading screen
-                    } else if case .uploadComplete = newStatus {
-                        await initialize()
-                    }
-                }
+                await refreshUploadJobs()
             }
         }
         .onChange(of: ShareSyncManager.shared.syncStatus) { _, newStatus in
             if case .upToDate = newStatus {
                 reloadActiveShares()
             }
+        }
+        .onAppear {
+            applyIdleTimerPolicy()
+        }
+        .onDisappear {
+            releaseIdleTimerPolicyIfNeeded()
         }
     }
 
@@ -128,12 +117,12 @@ struct ShareVaultView: View {
             return
         }
 
-        let transferStatus = BackgroundShareTransferManager.shared.status
-        uploadStatus = transferStatus
+        currentOwnerFingerprint = KeyDerivation.keyFingerprint(from: key)
 
         do {
             var index = try VaultStorage.shared.loadIndex(with: key)
             estimatedUploadSize = index.files.filter { !$0.isDeleted }.reduce(0) { $0 + $1.size }
+
             if var shares = index.activeShares, !shares.isEmpty {
                 // Check for consumed shares and remove them
                 let consumedMap = await CloudKitSharingManager.shared.consumedStatusByShareVaultIds(
@@ -145,14 +134,40 @@ struct ShareVaultView: View {
                     index.activeShares = shares.isEmpty ? nil : shares
                     try VaultStorage.shared.saveIndex(index, with: key)
                 }
-
                 activeShares = shares
-                mode = shares.isEmpty ? .newShare : .manageShares
+            } else {
+                activeShares = []
+            }
+
+            await refreshUploadJobs()
+            updateModeForCurrentData()
+        } catch {
+            mode = .error(error.localizedDescription)
+        }
+    }
+
+    private func refreshUploadJobs() async {
+        uploadJobs = ShareUploadManager.shared.jobs(forOwnerFingerprint: currentOwnerFingerprint)
+        applyIdleTimerPolicy()
+        updateModeForCurrentData()
+    }
+
+    private func updateModeForCurrentData() {
+        guard case .loading = mode else {
+            if case .iCloudUnavailable = mode { return }
+            if case .error = mode { return }
+            if !uploadJobs.isEmpty || !activeShares.isEmpty {
+                mode = .manageShares
             } else {
                 mode = .newShare
             }
-        } catch {
-            mode = .error(error.localizedDescription)
+            return
+        }
+
+        if !uploadJobs.isEmpty || !activeShares.isEmpty {
+            mode = .manageShares
+        } else {
+            mode = .newShare
         }
     }
 
@@ -204,13 +219,12 @@ struct ShareVaultView: View {
             Text("Share This Vault")
                 .font(.title2).fontWeight(.semibold)
 
-            Text("Generate a one-time share phrase. After your recipient uses it, it cannot be reused.")
+            Text("Generate one-time share phrases. You can start multiple uploads in parallel.")
                 .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
 
             // Policy settings
             VStack(spacing: 16) {
-                // Expiration
                 Toggle("Set expiration date", isOn: $hasExpiration)
                     .accessibilityIdentifier("share_expiration_toggle")
                 if hasExpiration {
@@ -228,7 +242,6 @@ struct ShareVaultView: View {
 
                 Divider()
 
-                // Max opens
                 Toggle("Limit number of opens", isOn: $hasMaxOpens)
                     .accessibilityIdentifier("share_max_opens_toggle")
                 if hasMaxOpens {
@@ -240,14 +253,12 @@ struct ShareVaultView: View {
 
                 Divider()
 
-                // Allow downloads
                 Toggle("Allow file exports", isOn: $allowDownloads)
                     .accessibilityIdentifier("share_allow_exports_toggle")
             }
             .padding()
             .vaultGlassBackground(cornerRadius: 12)
 
-            // Estimated size
             if let totalSize = estimatedUploadSize {
                 HStack {
                     Text("Estimated upload")
@@ -268,54 +279,46 @@ struct ShareVaultView: View {
         }
     }
 
-    private func uploadingView(_ phrase: String) -> some View {
-        VStack(spacing: 24) {
-            PhraseDisplayCard(phrase: phrase)
-
-            PhraseActionButtons(phrase: phrase)
-            shareLinkButtons(for: phrase)
-
-            // Upload status warning
-            if case .uploading = uploadStatus {
-                Label {
-                    Text("Keep this screen open until upload finishes. Closing may pause the upload.")
-                } icon: {
-                    Image(systemName: "exclamationmark.triangle")
-                }
-                .font(.subheadline)
-                .foregroundStyle(.vaultSecondaryText)
-                .multilineTextAlignment(.center)
-            }
-
-            Button("Done") {
-                showDismissWarning = true
-            }
-            .accessibilityIdentifier("share_done")
-            .vaultProminentButtonStyle()
-            .padding(.top)
-        }
-    }
-
     private var manageSharesView: some View {
-        VStack(spacing: 24) {
-            // Header
+        VStack(spacing: 20) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Shared with \(activeShares.count) \(activeShares.count == 1 ? "person" : "people")")
                         .font(.title3).fontWeight(.semibold)
 
-                    if let lastSync = ShareSyncManager.shared.lastSyncedAt {
-                        Text("Last synced: \(lastSync, style: .relative) ago")
-                            .font(.caption).foregroundStyle(.vaultSecondaryText)
+                    if !uploadJobs.isEmpty {
+                        Text("\(runningUploadCount) upload\(runningUploadCount == 1 ? "" : "s") running")
+                            .font(.caption)
+                            .foregroundStyle(.vaultSecondaryText)
                     }
                 }
                 Spacer()
                 syncStatusBadge
             }
 
-            // Share list
-            ForEach(activeShares) { share in
-                shareRow(share)
+            if !uploadJobs.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Uploads")
+                        .font(.headline)
+                        .foregroundStyle(.vaultSecondaryText)
+                        .accessibilityIdentifier("share_uploads_header")
+
+                    ForEach(uploadJobs) { job in
+                        uploadJobRow(job)
+                    }
+                }
+            }
+
+            if !activeShares.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Active Shares")
+                        .font(.headline)
+                        .foregroundStyle(.vaultSecondaryText)
+
+                    ForEach(activeShares) { share in
+                        shareRow(share)
+                    }
+                }
             }
 
             Divider()
@@ -339,6 +342,121 @@ struct ShareVaultView: View {
                 }
             }
             .disabled(isStopping)
+        }
+    }
+
+    private var runningUploadCount: Int {
+        uploadJobs.reduce(into: 0) { count, job in
+            if job.status.isRunning { count += 1 }
+        }
+    }
+
+    private func uploadJobRow(_ job: ShareUploadManager.UploadJob) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Share #\(job.shareVaultId.prefix(8))")
+                        .font(.headline)
+                    Text("Started \(job.createdAt, style: .relative) ago")
+                        .font(.caption)
+                        .foregroundStyle(.vaultSecondaryText)
+                }
+                Spacer()
+                uploadStatusBadge(job)
+            }
+
+            Text(job.message)
+                .font(.subheadline)
+                .foregroundStyle(.vaultSecondaryText)
+
+            ProgressView(value: Double(job.progress), total: Double(max(job.total, 1)))
+                .tint(.accentColor)
+
+            HStack {
+                Text("\(job.progress)%")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.vaultSecondaryText)
+                Spacer()
+                if let error = job.errorMessage, !error.isEmpty {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.vaultHighlight)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.trailing)
+                }
+            }
+
+            HStack(spacing: 10) {
+                if job.canResume {
+                    Button("Resume") {
+                        ShareUploadManager.shared.resumeUpload(jobId: job.id, vaultKey: appState.currentVaultKey)
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("share_upload_resume")
+                }
+
+                if let phrase = job.phrase {
+                    Button("Show Phrase") {
+                        activePhrase = phrase
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("share_upload_show_phrase")
+                }
+
+                Spacer()
+
+                if job.canTerminate {
+                    Button("Terminate", role: .destructive) {
+                        ShareUploadManager.shared.cancelUpload(jobId: job.id)
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("share_upload_terminate")
+                }
+            }
+        }
+        .padding()
+        .vaultGlassBackground(cornerRadius: 12)
+        .accessibilityIdentifier("share_upload_row")
+    }
+
+    @ViewBuilder
+    private func uploadStatusBadge(_ job: ShareUploadManager.UploadJob) -> some View {
+        switch job.status {
+        case .preparing, .uploading, .finalizing:
+            Text("Running")
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(Color.blue.opacity(0.2))
+                .clipShape(Capsule())
+        case .paused:
+            Text("Paused")
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(Color.orange.opacity(0.2))
+                .clipShape(Capsule())
+        case .failed:
+            Text("Failed")
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(Color.red.opacity(0.2))
+                .clipShape(Capsule())
+        case .complete:
+            Text("Complete")
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(Color.green.opacity(0.2))
+                .clipShape(Capsule())
+        case .cancelled:
+            Text("Stopped")
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(Color.gray.opacity(0.2))
+                .clipShape(Capsule())
         }
     }
 
@@ -392,62 +510,6 @@ struct ShareVaultView: View {
         .padding(.top, 60)
     }
 
-    // MARK: - Components
-
-    @ViewBuilder
-    private var transferStatusBanner: some View {
-        switch uploadStatus {
-        case .uploading(let progress, let total):
-            VaultSyncIndicator(
-                style: .uploading,
-                message: "Uploading shared vault...",
-                progress: (current: progress, total: total)
-            )
-            .padding()
-            .vaultGlassBackground(cornerRadius: 12)
-        case .uploadFailed(let error):
-            VStack(spacing: 8) {
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.circle.fill")
-                        .foregroundStyle(.red)
-                    Text("Upload Failed")
-                        .font(.subheadline.weight(.semibold))
-                    Spacer()
-                }
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.vaultSecondaryText)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                if BackgroundShareTransferManager.shared.hasPendingUpload {
-                    Button {
-                        BackgroundShareTransferManager.shared.resumePendingUpload(
-                            vaultKey: appState.currentVaultKey
-                        )
-                    } label: {
-                        Label("Resume Upload", systemImage: "arrow.clockwise")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                }
-            }
-            .padding()
-            .vaultGlassBackground(cornerRadius: 12)
-        case .uploadComplete:
-            HStack(spacing: 8) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text("Upload complete")
-                    .font(.subheadline.weight(.medium))
-                Spacer()
-            }
-            .padding()
-            .vaultGlassBackground(cornerRadius: 12)
-        default:
-            EmptyView()
-        }
-    }
-
     @ViewBuilder
     private var syncStatusBadge: some View {
         let status = ShareSyncManager.shared.syncStatus
@@ -480,6 +542,39 @@ struct ShareVaultView: View {
             .buttonStyle(.bordered)
             .controlSize(.mini)
             .disabled(isSyncing)
+        }
+    }
+
+    private func phraseSheet(phrase: String) -> some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    PhraseDisplayCard(phrase: phrase)
+                    PhraseActionButtons(phrase: phrase)
+                    shareLinkButtons(for: phrase)
+
+                    Label {
+                        Text("Save this phrase now. You can continue using the app while upload runs in the background.")
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle")
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(.vaultSecondaryText)
+                    .multilineTextAlignment(.center)
+                }
+                .padding()
+            }
+            .background(Color.vaultBackground.ignoresSafeArea())
+            .navigationTitle("Share Phrase")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        activePhrase = nil
+                    }
+                    .accessibilityIdentifier("share_phrase_done")
+                }
+            }
         }
     }
 
@@ -518,7 +613,6 @@ struct ShareVaultView: View {
                 guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                       let root = scene.keyWindow?.rootViewController else { return }
 
-                // Walk to topmost presented VC — rootViewController is already presenting this sheet
                 var presenter = root
                 while let presented = presenter.presentedViewController {
                     presenter = presented
@@ -550,7 +644,7 @@ struct ShareVaultView: View {
             return
         }
 
-        BackgroundShareTransferManager.shared.startBackgroundUpload(
+        ShareUploadManager.shared.startBackgroundUpload(
             vaultKey: vaultKey,
             phrase: phrase,
             hasExpiration: hasExpiration,
@@ -560,13 +654,18 @@ struct ShareVaultView: View {
             allowDownloads: allowDownloads
         )
 
-        mode = .uploading(phrase: phrase)
+        activePhrase = phrase
+        mode = .manageShares
+        Task { await refreshUploadJobs() }
     }
 
     private func reloadActiveShares() {
         guard let key = appState.currentVaultKey,
               let index = try? VaultStorage.shared.loadIndex(with: key),
-              let shares = index.activeShares, !shares.isEmpty else { return }
+              let shares = index.activeShares, !shares.isEmpty else {
+            activeShares = []
+            return
+        }
         activeShares = shares
     }
 
@@ -575,7 +674,7 @@ struct ShareVaultView: View {
 
         // Update local state first for instant UI response
         activeShares.removeAll { $0.id == share.id }
-        if activeShares.isEmpty {
+        if activeShares.isEmpty && uploadJobs.isEmpty {
             mode = .newShare
         }
 
@@ -600,6 +699,11 @@ struct ShareVaultView: View {
         isStopping = true
 
         do {
+            // Cancel all upload jobs for this vault first
+            for job in uploadJobs where job.canTerminate {
+                ShareUploadManager.shared.cancelUpload(jobId: job.id)
+            }
+
             // Immediately clear local shares so UI feels responsive
             var index = try VaultStorage.shared.loadIndex(with: key)
             let sharesToDelete = index.activeShares ?? []
@@ -607,6 +711,7 @@ struct ShareVaultView: View {
             try VaultStorage.shared.saveIndex(index, with: key)
 
             activeShares = []
+            uploadJobs = []
             mode = .newShare
             isStopping = false
 
@@ -617,6 +722,27 @@ struct ShareVaultView: View {
         } catch {
             isStopping = false
             mode = .error("Failed to stop sharing: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Idle timer
+
+    private func applyIdleTimerPolicy() {
+        let shouldDisable = uploadJobs.contains(where: { $0.status.isRunning })
+
+        if shouldDisable && !didDisableIdleTimerForUploads {
+            UIApplication.shared.isIdleTimerDisabled = true
+            didDisableIdleTimerForUploads = true
+        } else if !shouldDisable && didDisableIdleTimerForUploads {
+            UIApplication.shared.isIdleTimerDisabled = false
+            didDisableIdleTimerForUploads = false
+        }
+    }
+
+    private func releaseIdleTimerPolicyIfNeeded() {
+        if didDisableIdleTimerForUploads {
+            UIApplication.shared.isIdleTimerDisabled = false
+            didDisableIdleTimerForUploads = false
         }
     }
 
@@ -638,6 +764,11 @@ struct ShareVaultView: View {
         @unknown default: return "iCloud is not available"
         }
     }
+}
+
+private struct SharePhraseSheetItem: Identifiable {
+    let phrase: String
+    var id: String { phrase }
 }
 
 #Preview {
