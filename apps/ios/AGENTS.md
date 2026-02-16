@@ -160,6 +160,7 @@ All pattern grid screens MUST behave identically. There are two categories:
 - **ASC CLI builds filter**: In `asc` 0.28+, `asc builds list` no longer supports `--version`; use JSON output + `jq` filtering on `.attributes.version`.
 - **ASC CLI output flag**: Use `--output json` (not `--json`) for `asc` commands like `asc builds list`/`asc builds info`.
 - **TestFlight group assignment**: Do not assume a group named "Internal Testers" is internal; check `asc testflight beta-groups list` and run `asc builds add-groups` when `Internal = false`.
+- **ASC build indexing lag**: Right after upload, `asc builds latest --version <N>` can return "no pre-release version found." Poll `asc builds list --sort -uploadedDate --limit 20` until the new version appears, then wait for `processingState = VALID` before `add-groups`.
 - **Parallel chunk downloads**: `downloadChunksParallel` uses bounded TaskGroup (max 4), order-preserving reassembly via `[Int: Data]` dictionary
 - **Structured logging**: Subsystem `"app.vaultaire.ios"`, category = class name. `Self.logger` for actors/classes, file-level `let` for `@MainActor` classes with `nonisolated` methods. Levels: trace (sensitive), debug (routine), info (notable), warning (non-fatal), error (failures)
 - **TestFlight CLI upload**: Requires App Store Connect API key (.p8). Without it, export IPA locally + use Xcode Organizer to upload.
