@@ -140,17 +140,17 @@ enum SVDFSerializer {
         manifest.reserveCapacity(fileCount)
         fileIds.reserveCapacity(fileCount)
 
-        // Stream file entries one at a time — each SharedFile is encoded,
-        // written to disk, then freed before the next one is created.
+        // Stream file entries one at a time — each SharedFile is written
+        // directly to the FileHandle (no intermediate Data copy of content),
+        // then freed before the next one is created.
         for i in 0..<fileCount {
             let file = try forEachFile(i)
             let entryOffset = handle.offsetInFile
-            let entry = encodeFileEntry(file)
-            handle.write(entry)
+            let entrySize = writeFileEntryStreaming(file, to: handle)
             manifest.append(FileManifestEntry(
                 id: file.id.uuidString,
                 offset: Int(entryOffset),
-                size: entry.count
+                size: entrySize
             ))
             fileIds.append(file.id.uuidString)
         }
@@ -380,6 +380,54 @@ enum SVDFSerializer {
         entry.replaceSubrange(sizePos..<(sizePos + 4), with: totalSize.littleEndianBytes)
 
         return entry
+    }
+
+    /// Writes a file entry directly to a FileHandle without creating an intermediate
+    /// Data buffer for the content. This avoids copying the entire encryptedContent
+    /// (~49MB for large files) into a second buffer.
+    /// Returns the total bytes written.
+    private static func writeFileEntryStreaming(
+        _ file: SharedVaultData.SharedFile,
+        to handle: FileHandle
+    ) -> Int {
+        // Build the small header fields into a buffer (typically < 1KB)
+        let filenameData = Data(file.filename.utf8)
+        let mimeData = Data(file.mimeType.utf8).prefix(255)
+        let thumb = file.encryptedThumbnail ?? Data()
+
+        // Calculate total entry size upfront
+        let headerFieldsSize = 4 + 16 + 2 + filenameData.count + 1 + mimeData.count
+            + 4 + 8 + 4 + thumb.count + 4
+        let totalSize = UInt32(headerFieldsSize + file.encryptedContent.count)
+
+        var header = Data()
+        header.reserveCapacity(headerFieldsSize)
+
+        header.appendUInt32(totalSize)
+
+        let uuidBytes = withUnsafeBytes(of: file.id.uuid) { Data($0) }
+        header.append(uuidBytes)
+
+        header.appendUInt16(UInt16(filenameData.count))
+        header.append(filenameData)
+
+        header.append(UInt8(min(mimeData.count, 255)))
+        header.append(mimeData)
+
+        header.appendUInt32(UInt32(file.size))
+        header.appendFloat64(file.createdAt.timeIntervalSince1970)
+
+        header.appendUInt32(UInt32(thumb.count))
+        header.append(thumb)
+
+        header.appendUInt32(UInt32(file.encryptedContent.count))
+
+        // Write header fields, then content directly — content is NOT copied
+        // into the header buffer, saving ~largest_file_size of peak memory.
+        handle.write(header)
+        handle.write(file.encryptedContent)
+
+        return Int(totalSize)
     }
 
     private static func decodeFileEntry(_ data: Data) throws -> SharedVaultData.SharedFile {

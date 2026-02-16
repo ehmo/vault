@@ -219,12 +219,25 @@ final class BackgroundShareTransferManager {
                         let entry = activeFiles[i]
                         return try autoreleasepool {
                             let fileStart = CFAbsoluteTimeGetCurrent()
-                            let (header, content) = try VaultStorage.shared.retrieveFileContent(
-                                entry: entry, index: capturedIndex, masterKey: capturedMasterKey
-                            )
-                            let readElapsed = CFAbsoluteTimeGetCurrent() - fileStart
-                            let reencrypted = try CryptoEngine.encrypt(content, with: capturedShareKey)
-                            let encryptElapsed = CFAbsoluteTimeGetCurrent() - fileStart - readElapsed
+
+                            // Scope content tightly — freed after encrypt, before
+                            // SharedFile is created. Prevents holding decrypted +
+                            // encrypted simultaneously longer than necessary.
+                            let header: CryptoEngine.EncryptedFileHeader
+                            let reencrypted: Data
+                            let contentSizeKB: Int
+                            let readElapsed: Double
+                            let encryptElapsed: Double
+                            do {
+                                let (h, content) = try VaultStorage.shared.retrieveFileContent(
+                                    entry: entry, index: capturedIndex, masterKey: capturedMasterKey
+                                )
+                                header = h
+                                contentSizeKB = content.count / 1024
+                                readElapsed = CFAbsoluteTimeGetCurrent() - fileStart
+                                reencrypted = try CryptoEngine.encrypt(content, with: capturedShareKey)
+                                encryptElapsed = CFAbsoluteTimeGetCurrent() - fileStart - readElapsed
+                            } // content freed here — large file data released before thumbnail/cache work
 
                             var encryptedThumb: Data? = nil
                             if let thumbData = entry.thumbnailData {
@@ -232,7 +245,7 @@ final class BackgroundShareTransferManager {
                                 encryptedThumb = try CryptoEngine.encrypt(decryptedThumb, with: capturedShareKey)
                             }
 
-                            Self.logger.info("[upload-telemetry] file[\(i)] \(header.originalFilename, privacy: .public) (\(content.count / 1024)KB): read=\(String(format: "%.2f", readElapsed))s encrypt=\(String(format: "%.2f", encryptElapsed))s")
+                            Self.logger.info("[upload-telemetry] file[\(i)] \(header.originalFilename, privacy: .public) (\(contentSizeKB)KB): read=\(String(format: "%.2f", readElapsed))s encrypt=\(String(format: "%.2f", encryptElapsed))s")
 
                             // Cache encrypted data for future incremental syncs
                             try? syncCache.saveEncryptedFile(header.fileId.uuidString, data: reencrypted)
