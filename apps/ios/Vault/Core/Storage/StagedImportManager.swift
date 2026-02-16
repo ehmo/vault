@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Manifest Models
 
-struct StagedImportManifest: Codable {
+struct StagedImportManifest: Codable, Sendable {
     let batchId: UUID
     let keyFingerprint: String
     let timestamp: Date
@@ -11,7 +11,7 @@ struct StagedImportManifest: Codable {
     var retryCount: Int = 0
 }
 
-struct StagedFileMetadata: Codable {
+struct StagedFileMetadata: Codable, Sendable {
     let fileId: UUID
     let filename: String
     let mimeType: String

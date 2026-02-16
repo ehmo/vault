@@ -4,6 +4,9 @@ import UniformTypeIdentifiers
 import CommonCrypto
 import CryptoKit
 import UserNotifications
+import os.log
+
+private let shareExtensionLogger = Logger(subsystem: "app.vaultaire.ios", category: "ShareExtension")
 
 /// Share Extension that encrypts files from other apps and stages them for
 /// import into Vaultaire. The user draws their vault pattern to select the
@@ -141,22 +144,10 @@ final class ShareViewController: UIViewController {
     }
 
     private func encryptAndStage(with key: Data) async throws {
-        // Collect all attachments
-        var attachments: [(provider: NSItemProvider, utType: UTType)] = []
-        for item in receivedItems {
-            guard let providers = item.attachments else { continue }
-            for provider in providers {
-                if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
-                    attachments.append((provider, .image))
-                } else if provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier) {
-                    attachments.append((provider, .movie))
-                } else if provider.hasItemConformingToTypeIdentifier(UTType.data.identifier) {
-                    attachments.append((provider, .data))
-                }
-            }
-        }
-
-        guard !attachments.isEmpty else {
+        // First pass: count supported attachments without retaining an extra
+        // provider list for the full run.
+        let counts = ShareAttachmentProcessor.countSupportedAttachments(in: receivedItems)
+        guard counts.total > 0 else {
             throw StagedImportError.encryptionFailed
         }
 
@@ -165,13 +156,9 @@ final class ShareViewController: UIViewController {
             .bool(forKey: VaultCoreConstants.isPremiumKey) ?? false
 
         if !isPremium {
-            let imageCount = attachments.filter { $0.utType == .image }.count
-            let videoCount = attachments.filter { $0.utType == .movie }.count
-            let fileCount = attachments.filter { $0.utType == .data }.count
-
-            if imageCount > VaultCoreConstants.freeMaxImages ||
-               videoCount > VaultCoreConstants.freeMaxVideos ||
-               fileCount > VaultCoreConstants.freeMaxFiles {
+            if counts.images > VaultCoreConstants.freeMaxImages ||
+               counts.videos > VaultCoreConstants.freeMaxVideos ||
+               counts.files > VaultCoreConstants.freeMaxFiles {
                 throw StagedImportError.freeTierLimitExceeded
             }
         }
@@ -179,29 +166,53 @@ final class ShareViewController: UIViewController {
         // Create batch
         let (batchURL, batchId) = try StagedImportManager.createBatch()
         let fingerprint = KeyDerivation.keyFingerprint(from: key)
-        let total = attachments.count
+        let total = counts.total
         var fileMetadata: [StagedFileMetadata] = []
+        var processed = 0
 
-        for (index, attachment) in attachments.enumerated() {
-            await MainActor.run {
-                statusLabel.text = "Encrypting \(index + 1) of \(total) files..."
-                progressView.progress = Float(index) / Float(total)
-            }
-
-            let meta = try await processAttachment(
-                attachment.provider,
-                utType: attachment.utType,
-                key: key,
-                batchURL: batchURL
-            )
-            fileMetadata.append(meta)
-        }
-
-        // Release provider references — NSItemProvider may cache loaded representations
-        let sourceApp = receivedItems.first?.attributedContentText.map { _ in
+        let itemsQueue = ArraySlice(receivedItems)
+        let sourceApp = itemsQueue.first?.attributedContentText.map { _ in
             Bundle.main.bundleIdentifier
         } ?? nil
+        // Release controller-held references as soon as possible.
         receivedItems = []
+
+        for item in itemsQueue {
+            guard let providers = item.attachments else { continue }
+            for provider in providers {
+                guard let utType = ShareAttachmentProcessor.supportedType(for: provider) else { continue }
+                processed += 1
+                let startedAt = Date()
+                await MainActor.run {
+                    statusLabel.text = "Encrypting \(processed) of \(total) files..."
+                    progressView.progress = total > 0 ? Float(processed - 1) / Float(total) : 0
+                }
+
+                let meta = try await ShareAttachmentProcessor.processAttachment(
+                    provider,
+                    utType: utType,
+                    key: key,
+                    batchURL: batchURL
+                )
+                fileMetadata.append(meta)
+
+                // Checkpoint manifest after each file so an extension kill near
+                // completion still leaves importable staged progress.
+                let checkpoint = StagedImportManifest(
+                    batchId: batchId,
+                    keyFingerprint: fingerprint,
+                    timestamp: Date(),
+                    sourceAppBundleId: sourceApp,
+                    files: fileMetadata
+                )
+                try StagedImportManager.writeManifest(checkpoint, to: batchURL)
+
+                let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1000)
+                shareExtensionLogger.info(
+                    "Staged file \(processed)/\(total): \(meta.filename, privacy: .public), size=\(meta.originalSize) bytes, elapsed=\(elapsedMs)ms"
+                )
+            }
+        }
         let manifest = StagedImportManifest(
             batchId: batchId,
             keyFingerprint: fingerprint,
@@ -220,124 +231,6 @@ final class ShareViewController: UIViewController {
             progressView.progress = 1.0
             statusLabel.text = "Done!"
         }
-    }
-
-    private func processAttachment(
-        _ provider: NSItemProvider,
-        utType: UTType,
-        key: Data,
-        batchURL: URL
-    ) async throws -> StagedFileMetadata {
-        let fileId = UUID()
-
-        // Load file representation (file URL, not Data — memory safe for large files)
-        let (tempURL, filename, mimeType) = try await loadFile(from: provider, utType: utType)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let fileSize = (try? FileManager.default.attributesOfItem(atPath: tempURL.path)[.size] as? Int) ?? 0
-
-        // All synchronous work in autoreleasepool to free UIKit/Foundation temporaries
-        // between files, keeping peak memory under the ~120MB extension limit.
-        let (encryptedSize, hasThumbnail) = try autoreleasepool {
-            // Encrypt directly to output file — peak memory ~256KB instead of entire file
-            let encryptedURL = batchURL.appendingPathComponent("\(fileId.uuidString).enc")
-            FileManager.default.createFile(atPath: encryptedURL.path, contents: nil)
-            let outputHandle = try FileHandle(forWritingTo: encryptedURL)
-            defer { try? outputHandle.close() }
-            try CryptoEngine.encryptFileStreamingToHandle(from: tempURL, to: outputHandle, with: key)
-            let encSize = (try? FileManager.default.attributesOfItem(atPath: encryptedURL.path)[.size] as? Int) ?? 0
-
-            // Generate and encrypt thumbnail for images using CGImageSource
-            // (avoids loading full bitmap — peak memory ~200KB vs ~48MB for UIImage)
-            var hasThumb = false
-            if utType.conforms(to: .image), let thumbData = generateThumbnail(from: tempURL) {
-                let encThumb = try CryptoEngine.encrypt(thumbData, with: key)
-                try StagedImportManager.writeEncryptedThumbnail(encThumb, fileId: fileId, to: batchURL)
-                hasThumb = true
-            }
-
-            return (encSize, hasThumb)
-        }
-
-        return StagedFileMetadata(
-            fileId: fileId,
-            filename: filename,
-            mimeType: mimeType,
-            utType: utType.identifier,
-            originalSize: fileSize,
-            encryptedSize: encryptedSize,
-            hasThumbnail: hasThumbnail,
-            timestamp: Date()
-        )
-    }
-
-    private func loadFile(
-        from provider: NSItemProvider,
-        utType: UTType
-    ) async throws -> (url: URL, filename: String, mimeType: String) {
-        // Capture registered types and provider reference before the @Sendable closure.
-        // NSItemProvider is not Sendable but loadFileRepresentation is thread-safe.
-        let registeredTypes = provider.registeredTypeIdentifiers
-        nonisolated(unsafe) let unsafeProvider = provider
-        return try await withCheckedThrowingContinuation { continuation in
-            unsafeProvider.loadFileRepresentation(forTypeIdentifier: utType.identifier) { url, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                guard let url = url else {
-                    continuation.resume(throwing: StagedImportError.encryptionFailed)
-                    return
-                }
-
-                // Copy to a temp location since the provided URL may be deleted.
-                // Use UUID prefix to avoid collisions when sharing multiple files.
-                let tempDir = FileManager.default.temporaryDirectory
-                let tempURL = tempDir.appendingPathComponent("\(UUID().uuidString)_\(url.lastPathComponent)")
-                do {
-                    try FileManager.default.copyItem(at: url, to: tempURL)
-                } catch {
-                    continuation.resume(throwing: error)
-                    return
-                }
-
-                let filename = url.lastPathComponent
-
-                // Derive concrete MIME type from the file extension (UTType.image is
-                // abstract and has no preferredMIMEType). Fall back to the provider's
-                // registered types if the extension doesn't resolve.
-                let fileUTType = UTType(filenameExtension: url.pathExtension)
-                let mimeType = fileUTType?.preferredMIMEType
-                    ?? registeredTypes.lazy
-                        .compactMap { UTType($0)?.preferredMIMEType }
-                        .first
-                    ?? "application/octet-stream"
-
-                continuation.resume(returning: (tempURL, filename, mimeType))
-            }
-        }
-    }
-
-    /// Generates a thumbnail using ImageIO (CGImageSource), which reads only the
-    /// metadata and a downsampled version of the image — never the full bitmap.
-    /// Peak memory: ~200KB vs ~48MB+ for UIImage on a 12MP photo.
-    private func generateThumbnail(from url: URL) -> Data? {
-        let maxDimension: CGFloat = 200
-
-        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
-
-        let options: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxDimension,
-        ]
-
-        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
-            return nil
-        }
-
-        let uiImage = UIImage(cgImage: cgImage)
-        return uiImage.jpegData(compressionQuality: 0.6)
     }
 
     // MARK: - Notification
@@ -442,5 +335,153 @@ extension ShareViewController: PatternInputDelegate {
                 }
             }
         }
+    }
+}
+
+// MARK: - Attachment Processing
+
+private enum ShareAttachmentProcessor {
+
+    struct AttachmentCounts {
+        var total = 0
+        var images = 0
+        var videos = 0
+        var files = 0
+    }
+
+    static func supportedType(for provider: NSItemProvider) -> UTType? {
+        if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+            return .image
+        }
+        if provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier) {
+            return .movie
+        }
+        if provider.hasItemConformingToTypeIdentifier(UTType.data.identifier) {
+            return .data
+        }
+        return nil
+    }
+
+    static func countSupportedAttachments(in items: [NSExtensionItem]) -> AttachmentCounts {
+        var counts = AttachmentCounts()
+        for item in items {
+            guard let providers = item.attachments else { continue }
+            for provider in providers {
+                guard let type = supportedType(for: provider) else { continue }
+                counts.total += 1
+                if type == .image {
+                    counts.images += 1
+                } else if type == .movie {
+                    counts.videos += 1
+                } else {
+                    counts.files += 1
+                }
+            }
+        }
+        return counts
+    }
+
+    static func processAttachment(
+        _ provider: NSItemProvider,
+        utType: UTType,
+        key: Data,
+        batchURL: URL
+    ) async throws -> StagedFileMetadata {
+        let fileId = UUID()
+
+        // File representation loading is asynchronous and typically I/O bound.
+        let (tempURL, filename, mimeType) = try await loadFile(from: provider, utType: utType)
+        let fileSize = (try? FileManager.default.attributesOfItem(atPath: tempURL.path)[.size] as? Int) ?? 0
+
+        // Move all expensive sync work off the main actor to prevent share-extension
+        // watchdog kills during large multi-file batches.
+        return try await Task.detached(priority: .userInitiated) {
+            defer { try? FileManager.default.removeItem(at: tempURL) }
+
+            let (encryptedSize, hasThumbnail) = try autoreleasepool {
+                // Encrypt directly to output file — peak memory ~256KB instead of entire file.
+                let encryptedURL = batchURL.appendingPathComponent("\(fileId.uuidString).enc")
+                FileManager.default.createFile(atPath: encryptedURL.path, contents: nil)
+                let outputHandle = try FileHandle(forWritingTo: encryptedURL)
+                defer { try? outputHandle.close() }
+                try CryptoEngine.encryptFileStreamingToHandle(from: tempURL, to: outputHandle, with: key)
+                let encSize = (try? FileManager.default.attributesOfItem(atPath: encryptedURL.path)[.size] as? Int) ?? 0
+
+                // Generate and encrypt thumbnail for images using downsampled ImageIO.
+                var hasThumb = false
+                if utType.conforms(to: .image), let thumbData = generateThumbnail(from: tempURL) {
+                    let encThumb = try CryptoEngine.encrypt(thumbData, with: key)
+                    try StagedImportManager.writeEncryptedThumbnail(encThumb, fileId: fileId, to: batchURL)
+                    hasThumb = true
+                }
+
+                return (encSize, hasThumb)
+            }
+
+            return StagedFileMetadata(
+                fileId: fileId,
+                filename: filename,
+                mimeType: mimeType,
+                utType: utType.identifier,
+                originalSize: fileSize,
+                encryptedSize: encryptedSize,
+                hasThumbnail: hasThumbnail,
+                timestamp: Date()
+            )
+        }.value
+    }
+
+    private static func loadFile(
+        from provider: NSItemProvider,
+        utType: UTType
+    ) async throws -> (url: URL, filename: String, mimeType: String) {
+        let registeredTypes = provider.registeredTypeIdentifiers
+        nonisolated(unsafe) let unsafeProvider = provider
+        return try await withCheckedThrowingContinuation { continuation in
+            unsafeProvider.loadFileRepresentation(forTypeIdentifier: utType.identifier) { url, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                guard let url = url else {
+                    continuation.resume(throwing: StagedImportError.encryptionFailed)
+                    return
+                }
+
+                let tempDir = FileManager.default.temporaryDirectory
+                let tempURL = tempDir.appendingPathComponent("\(UUID().uuidString)_\(url.lastPathComponent)")
+                do {
+                    try FileManager.default.copyItem(at: url, to: tempURL)
+                } catch {
+                    continuation.resume(throwing: error)
+                    return
+                }
+
+                let filename = url.lastPathComponent
+                let fileUTType = UTType(filenameExtension: url.pathExtension)
+                let mimeType = fileUTType?.preferredMIMEType
+                    ?? registeredTypes.lazy.compactMap { UTType($0)?.preferredMIMEType }.first
+                    ?? "application/octet-stream"
+
+                continuation.resume(returning: (tempURL, filename, mimeType))
+            }
+        }
+    }
+
+    private static func generateThumbnail(from url: URL) -> Data? {
+        let maxDimension: CGFloat = 200
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxDimension,
+        ]
+
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+            return nil
+        }
+
+        return UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.6)
     }
 }

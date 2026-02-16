@@ -257,10 +257,8 @@ final class ImportIngestorTests: XCTestCase {
 
         // Try to process with a different key
         let wrongKey = CryptoEngine.generateRandomBytes(count: 32)!
-        let wrongFingerprint = KeyDerivation.keyFingerprint(from: wrongKey)
-
-        // The batch was staged for `fingerprint`, so using wrongKey means
-        // pendingBatches(for: wrongFingerprint) won't find it
+        // The batch was staged for the original key fingerprint, so using a
+        // different key means pendingBatches won't find it.
         let result = await ImportIngestor.processPendingImports(for: wrongKey)
         XCTAssertEqual(result.imported, 0)
         XCTAssertEqual(result.failed, 0, "Wrong fingerprint means batch not found, not failed")

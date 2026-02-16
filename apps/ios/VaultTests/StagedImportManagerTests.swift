@@ -50,6 +50,7 @@ final class StagedImportManagerTests: XCTestCase {
         )
     }
 
+    @discardableResult
     private func writeBatch(_ manifest: StagedImportManifest) throws -> URL {
         let batchURL = tempDir.appendingPathComponent(manifest.batchId.uuidString)
         try FileManager.default.createDirectory(at: batchURL, withIntermediateDirectories: true)
