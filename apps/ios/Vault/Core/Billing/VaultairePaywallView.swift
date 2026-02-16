@@ -222,9 +222,7 @@ struct VaultairePaywallView: View {
         .onTapGesture {
             withAnimation(.easeInOut(duration: 0.2)) {
                 selectedPlan = type
-                if type != .annual {
-                    trialEnabled = false
-                }
+                trialEnabled = type == .annual
             }
         }
         .accessibilityAddTraits(.isButton)

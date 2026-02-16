@@ -24,7 +24,6 @@ struct PendingImportBanner: View {
                     .tint(.white)
             } else {
                 Button("Import") {
-                    isImporting = true
                     onImport()
                 }
                 .font(.subheadline.weight(.semibold))

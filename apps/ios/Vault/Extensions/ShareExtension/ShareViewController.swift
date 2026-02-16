@@ -111,15 +111,33 @@ final class ShareViewController: UIViewController {
         statusLabel.isHidden = false
         progressView.isHidden = false
         progressView.progress = 0
+        setIdleTimerDisabled(true)
 
         Task {
             do {
                 try await encryptAndStage(with: key)
-                await MainActor.run { showSuccess() }
+                await MainActor.run {
+                    setIdleTimerDisabled(false)
+                    showSuccess()
+                }
             } catch {
-                await MainActor.run { showError() }
+                await MainActor.run {
+                    setIdleTimerDisabled(false)
+                    showError()
+                }
             }
         }
+    }
+
+    /// Prevents the device from sleeping while the extension is encrypting.
+    /// Uses KVC to access UIApplication.shared which is compile-time restricted
+    /// in extensions but fully functional at runtime.
+    private func setIdleTimerDisabled(_ disabled: Bool) {
+        guard let appClass = NSClassFromString("UIApplication") as? NSObject.Type else { return }
+        let selector = NSSelectorFromString("sharedApplication")
+        guard appClass.responds(to: selector),
+              let result = appClass.perform(selector)?.takeUnretainedValue() else { return }
+        (result as AnyObject).setValue(disabled, forKey: "idleTimerDisabled")
     }
 
     private func encryptAndStage(with key: Data) async throws {
