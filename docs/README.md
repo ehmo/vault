@@ -6,6 +6,8 @@ Vault is a secure file storage app for iOS with pattern-based encryption and pla
 
 | Document | Description |
 |----------|-------------|
+| [Overall Project Design](./overall-project-design.md) | Monorepo-level architecture, boundaries, build/release design |
+| [iOS App Design](./ios-app-design.md) | Current iOS architecture, data flows, background processing, and UX invariants |
 | [Architecture](./architecture.md) | System design, components, and data flow |
 | [Security Model](./security-model.md) | Encryption, key derivation, and threat model |
 | [Sharing](./sharing.md) | One-time phrase sharing with per-recipient controls |

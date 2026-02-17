@@ -40,6 +40,7 @@ bd sync               # Sync with git
 **Always**:
 - Use opus model for subagents
 - Track multi-session work in Beads; use TodoWrite for single-session tasks
+- Keep cross-project architecture/design docs in `docs/`; keep iOS feature-deep docs in `apps/ios/docs/`
 
 ## Landing the Plane (Session Completion)
 
