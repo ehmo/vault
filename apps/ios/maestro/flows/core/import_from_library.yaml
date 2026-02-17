@@ -20,5 +20,16 @@ appId: app.vaultaire.ios
     text: "Import from Library"
     optional: true
 
-# System photo picker appears — interaction varies by iOS version
-# The picker may not show imported media immediately
+# System photo picker appears.
+# Select a media tile, confirm with top-right checkmark, then verify vault exits empty state.
+- waitForAnimationToEnd
+- tapOn:
+    point: "12%,50%"
+- waitForAnimationToEnd
+- tapOn:
+    point: "90%,11%"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "vault_add_button"
+- assertNotVisible:
+    id: "vault_first_files"

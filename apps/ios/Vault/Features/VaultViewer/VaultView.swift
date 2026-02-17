@@ -333,6 +333,12 @@ struct VaultView: View {
                 checkSharedVaultStatus()
             }
         }
+        .onChange(of: showingPhotoPicker) { _, _ in
+            appState.suppressLockForShareSheet = showingPhotoPicker || showingFilePicker
+        }
+        .onChange(of: showingFilePicker) { _, _ in
+            appState.suppressLockForShareSheet = showingPhotoPicker || showingFilePicker
+        }
         .onChange(of: transferManager.status) { _, newStatus in
             if case .importComplete = newStatus {
                 loadVault()

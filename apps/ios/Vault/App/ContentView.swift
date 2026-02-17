@@ -105,13 +105,15 @@ struct ContentView: View {
                 appState.lockVault()
             }
         }
-        // Lock on background
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+        // Lock only when the app actually enters background.
+        // `willResignActive` also fires for transient system UI (e.g. import pickers),
+        // which can interrupt in-app file import flows.
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
             #if DEBUG
             if appState.isMaestroTestMode { return }
             #endif
             if appState.suppressLockForShareSheet { return }
-            logger.debug("App resigning active, locking vault")
+            logger.debug("App entered background, locking vault")
             EmbraceManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "background"])
             appState.lockVault()
         }
