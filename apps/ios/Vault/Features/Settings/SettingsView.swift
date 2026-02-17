@@ -956,22 +956,35 @@ struct RestoreFromBackupView: View {
     }
 
     private var restoreContentView: some View {
-        VStack(spacing: 16) {
-            if let info = backupInfo {
-                HStack(spacing: 12) {
-                    Image(systemName: "icloud.fill")
-                        .foregroundStyle(Color.accentColor)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Backup from \(info.formattedDate)")
-                            .font(.subheadline.weight(.medium))
-                        Text(info.formattedSize)
-                            .font(.caption)
-                            .foregroundStyle(.vaultSecondaryText)
+        VStack(spacing: 24) {
+            // Match pattern-screen scaffold used elsewhere:
+            // header -> spacer -> 280x280 grid -> spacer -> fixed feedback area.
+            VStack(spacing: 12) {
+                if let info = backupInfo {
+                    HStack(spacing: 12) {
+                        Image(systemName: "icloud.fill")
+                            .foregroundStyle(Color.accentColor)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Backup from \(info.formattedDate)")
+                                .font(.subheadline.weight(.medium))
+                            Text(info.formattedSize)
+                                .font(.caption)
+                                .foregroundStyle(.vaultSecondaryText)
+                        }
+                        Spacer(minLength: 0)
                     }
+                } else {
+                    Color.clear.frame(height: 34)
                 }
-                .padding(.horizontal)
-                .padding(.top, 8)
+
+                Text("Draw your pattern to decrypt the backup")
+                    .font(.subheadline)
+                    .foregroundStyle(.vaultSecondaryText)
+                    .multilineTextAlignment(.center)
+                    .frame(height: 44, alignment: .top)
             }
+
+            Spacer(minLength: 0)
 
             if isRestoring {
                 VStack(spacing: 12) {
@@ -979,40 +992,46 @@ struct RestoreFromBackupView: View {
                     Text(restoreStage ?? "Restoring...")
                         .font(.subheadline)
                         .foregroundStyle(.vaultSecondaryText)
+                        .multilineTextAlignment(.center)
                 }
-                .padding(.top, 40)
+                .frame(width: 280, height: 280)
+                .frame(maxWidth: .infinity)
             } else {
-                Text("Draw your pattern to decrypt the backup")
-                    .font(.subheadline)
-                    .foregroundStyle(.vaultSecondaryText)
-                    .multilineTextAlignment(.center)
-
                 PatternGridView(state: patternState, showFeedback: $showFeedback) { pattern in
                     performRestore(with: pattern)
                 }
                 .frame(width: 280, height: 280)
+                .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("restore_pattern_grid")
             }
+
+            Spacer(minLength: 0)
 
             if let errorMessage {
-                VStack(alignment: .leading, spacing: 4) {
-                    Label("Restore Failed", systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.red)
-                        .font(.subheadline.weight(.medium))
-                    Text(errorMessage)
-                        .foregroundStyle(.vaultSecondaryText)
-                        .font(.caption)
-                        .textSelection(.enabled)
-                }
-                .padding(.horizontal)
+                VStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("Restore Failed", systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                            .font(.subheadline.weight(.medium))
+                        Text(errorMessage)
+                            .foregroundStyle(.vaultSecondaryText)
+                            .font(.caption)
+                            .textSelection(.enabled)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                Button("Try Again") {
-                    resetForRetry()
+                    Button("Try Again") {
+                        resetForRetry()
+                    }
+                    .font(.subheadline)
                 }
-                .font(.subheadline)
+            } else {
+                Color.clear
+                    .frame(height: 80)
             }
-
-            Spacer()
         }
+        .padding(.horizontal)
+        .padding(.top, 8)
     }
 
     private func resetForRetry() {

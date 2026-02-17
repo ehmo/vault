@@ -96,6 +96,7 @@ All pattern grid screens MUST behave identically. There are two categories:
 - PatternLockView, ChangePatternView (verifyCurrent), RestoreFromBackupView
 - Minimal validation only (6-dot minimum)
 - No validation feedback/strength
+- Layout guard: keep the same scaffold (`header -> Spacer -> 280x280 grid -> Spacer -> bottom placeholder/error area`) so the pattern board stays in the same vertical position across screens.
 
 **When adding/modifying ANY pattern screen**: verify it matches the correct category above. Copy the FULL behavior — validation, feedback, errors, haptics, layout constraints — not just the data flow.
 
