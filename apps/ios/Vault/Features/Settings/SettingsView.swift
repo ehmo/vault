@@ -3,14 +3,6 @@ import CloudKit
 import StoreKit
 import os.log
 
-// MARK: - App Settings Destination
-
-enum AppSettingsDestination: Hashable {
-    case duressPattern
-    case iCloudBackup
-    case restoreBackup
-}
-
 private let settingsLogger = Logger(subsystem: "app.vaultaire.ios", category: "Settings")
 
 // MARK: - App Settings View
@@ -123,11 +115,6 @@ struct AppSettingsView: View {
 
                 Toggle("Help improve Vault", isOn: $analyticsEnabled)
                     .accessibilityIdentifier("app_analytics_toggle")
-
-                NavigationLink("Duress pattern") {
-                    DuressPatternSettingsView()
-                }
-                .accessibilityIdentifier("app_duress_pattern")
 
                 if subscriptionManager.canSyncWithICloud() {
                     NavigationLink("iCloud Backup") {
