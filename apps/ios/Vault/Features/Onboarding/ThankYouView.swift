@@ -9,15 +9,18 @@ struct ThankYouView: View {
                 VStack(spacing: 28) {
                     Spacer(minLength: 0)
 
-                    VStack(spacing: 12) {
+                    Image("VaultLogo")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 120, height: 120)
+                        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                        .shadow(color: .black.opacity(0.15), radius: 10, y: 5)
+                        .accessibilityHidden(true)
+
+                    VStack(spacing: 0) {
                         Text("Protected by Design")
                             .font(.title)
                             .fontWeight(.bold)
-                            .multilineTextAlignment(.center)
-
-                        Text("No accounts.\nNo personal data.\nNo backdoors.")
-                            .font(.title3)
-                            .foregroundStyle(.vaultSecondaryText)
                             .multilineTextAlignment(.center)
                     }
 
@@ -38,6 +41,12 @@ struct ThankYouView: View {
                             icon: "lock.shield",
                             title: "No backdoors",
                             description: "Only your pattern can decrypt your files."
+                        )
+
+                        FeatureRow(
+                            icon: "eye.slash.circle",
+                            title: "Hidden from all",
+                            description: "Nobody can tell how many vaults you have."
                         )
                     }
                     .padding(.horizontal)

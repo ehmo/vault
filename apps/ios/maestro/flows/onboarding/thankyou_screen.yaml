@@ -25,7 +25,11 @@ appId: app.vaultaire.ios
 
 # Verify Thank You screen content
 - assertVisible: "Protected by Design"
-- assertVisible: "No accounts\\.\\s*No personal data\\.\\s*No backdoors\\."
+- assertVisible: "No accounts"
+- assertVisible: "No way to spy"
+- assertVisible: "No backdoors"
+- assertVisible: "Hidden from all"
+- assertVisible: "Nobody can tell how many vaults you have\\."
 - assertVisible:
     id: "thankyou_continue"
 
