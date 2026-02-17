@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "455e376266ab",
+  "session_id": "9b7289fe-1187-481e-8f8a-9f2006fe0683",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-17T22:15:06.453209Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "b7cb5fb8-0353-40a7-9e18-93c3f115097a",
+  "checkpoint_transcript_start": 2174,
+  "transcript_lines_at_start": 2174,
+  "token_usage": {
+    "input_tokens": 15,
+    "cache_creation_tokens": 8318,
+    "cache_read_tokens": 1829942,
+    "output_tokens": 117,
+    "api_call_count": 13
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-17T22:15:06.000971Z",
+    "agent_lines": 0,
+    "human_added": 7,
+    "human_modified": 13,
+    "human_removed": 0,
+    "total_committed": 10,
+    "agent_percentage": 0
+  }
+}
