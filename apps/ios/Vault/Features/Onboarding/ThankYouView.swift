@@ -36,7 +36,7 @@ struct ThankYouView: View {
                 Text("Nobody can spy on your vault.")
                     .font(.headline)
 
-                Text("Only your pattern can decrypt your files — not us, not anyone else.")
+                Text("Only your pattern can decrypt your files - not us, not anyone else.")
                     .font(.subheadline)
                     .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
