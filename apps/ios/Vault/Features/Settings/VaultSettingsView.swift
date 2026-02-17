@@ -468,6 +468,7 @@ struct ChangePatternView: View {
     
     @State private var patternState = PatternState()
     @State private var flow = ChangePatternFlowState()
+    @State private var showSaveConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -712,19 +713,19 @@ struct ChangePatternView: View {
 
                 PhraseDisplayCard(phrase: newRecoveryPhrase)
                 
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.vaultHighlight)
-                    Text("Write this down immediately. You'll need it to recover your vault if you forget your pattern.")
-                        .font(.caption)
-                        .foregroundStyle(.vaultSecondaryText)
-                }
-
                 PhraseActionButtons(phrase: newRecoveryPhrase)
             }
             .padding()
             .background(Color.accentColor.opacity(0.1))
             .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Write this down", systemImage: "pencil")
+                Label("Store it somewhere safe", systemImage: "lock")
+                Label("Never share it with anyone", systemImage: "person.slash")
+            }
+            .font(.subheadline)
+            .foregroundStyle(.vaultSecondaryText)
         }
     }
 
@@ -773,13 +774,19 @@ struct ChangePatternView: View {
                 .disabled(isProcessing)
 
             case .complete:
-                Button(action: { dismiss() }) {
-                    Text("Done")
+                Button(action: { showSaveConfirmation = true }) {
+                    Text("I've saved it")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
                 }
                 .vaultProminentButtonStyle()
+                .alert("Are you sure?", isPresented: $showSaveConfirmation) {
+                    Button("Cancel", role: .cancel) { }
+                    Button("Yes, I've saved it") { dismiss() }
+                } message: {
+                    Text("This recovery phrase will NEVER be shown again. Make sure you've written it down and stored it safely.")
+                }
             }
         }
     }
