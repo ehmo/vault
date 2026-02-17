@@ -872,20 +872,26 @@ struct RestoreFromBackupView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if isCheckingBackup {
-                    ProgressView("Checking for backup...")
-                } else if noBackupFound {
-                    noBackupView
-                } else if restoreSuccess {
-                    successView
-                } else {
-                    restoreContentView
+            ZStack {
+                Color.vaultBackground.ignoresSafeArea()
+
+                Group {
+                    if isCheckingBackup {
+                        ProgressView("Checking for backup...")
+                    } else if noBackupFound {
+                        noBackupView
+                    } else if restoreSuccess {
+                        successView
+                    } else {
+                        restoreContentView
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
-            .background(Color.vaultBackground.ignoresSafeArea())
             .navigationTitle("Restore from Backup")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Color.vaultBackground, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
