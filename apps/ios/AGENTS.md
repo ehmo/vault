@@ -125,6 +125,7 @@ All pattern grid screens MUST behave identically. There are two categories:
 - **Background task expiration**: Use `MainActor.assumeIsolated` in handler, call `endBackgroundTask` synchronously. Store `bgTaskId` as property with idempotent helper.
 - **Transfer status UI**: Handle ALL non-idle enum cases, not just `.uploading`
 - **Maestro**: No `wait` (use `waitForAnimationToEnd`), no `clearInput` (use `eraseText`), no `../` in `addMedia` paths, `clearKeychain` triggers system dialog, `clearState` resets UserDefaults
+- **Maestro flow root**: In this monorepo, run Maestro from `apps/ios` and use paths like `maestro/flows/...`; root-level `maestro/flows/...` paths will fail.
 - **Maestro launch flakiness from system prompts**: iOS permission alerts (camera/notifications) can block helper waits and cause false negatives. In launch helpers, always include optional dismiss taps for `"Don.*Allow"` and `"OK"` before assertions.
 - **Maestro export confirmation variance**: Batch/file export may open share sheet directly without an intermediate `"Export"` confirmation button. Keep that confirmation tap optional in export flows.
 - **Maestro + TextEditor**: `TextEditor` accessibility IDs may not be discoverable by Maestro/XCTest in some SwiftUI sheets. Use coordinate taps (`point`) as fallback for input focus.
