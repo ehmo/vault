@@ -74,14 +74,9 @@ struct PhraseActionButtons: View {
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
         try? phrase.write(to: tempURL, atomically: true, encoding: .utf8)
 
-        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let root = scene.keyWindow?.rootViewController else { return }
-
-        let activityVC = UIActivityViewController(activityItems: [tempURL], applicationActivities: nil)
-        // Clean up temp file after share sheet dismisses
-        activityVC.completionWithItemsHandler = { _, _, _, _ in
+        ShareSheetHelper.present(items: [tempURL]) {
+            // Clean up temp file after share sheet dismisses
             try? FileManager.default.removeItem(at: tempURL)
         }
-        root.present(activityVC, animated: true)
     }
 }

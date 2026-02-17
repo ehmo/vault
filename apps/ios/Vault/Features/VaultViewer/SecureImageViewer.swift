@@ -262,19 +262,46 @@ struct QuickLookPreview: UIViewControllerRepresentable {
 /// Presents UIActivityViewController imperatively from the topmost view controller.
 /// Avoids _UIReparentingView warnings caused by UIViewControllerRepresentable inside .sheet().
 enum ShareSheetHelper {
+    @MainActor
     static func present(items: [Any], completion: (() -> Void)? = nil) {
-        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let root = scene.keyWindow?.rootViewController else { return }
-
-        var presenter = root
-        while let presented = presenter.presentedViewController {
-            presenter = presented
+        let scenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        guard let scene else {
+            completion?()
+            return
         }
+
+        let window = scene.windows.first(where: \.isKeyWindow)
+            ?? scene.windows.first(where: { !$0.isHidden && $0.alpha > 0 })
+        guard let root = window?.rootViewController else {
+            completion?()
+            return
+        }
+
+        let presenter = topPresenter(from: root)
 
         let activityVC = UIActivityViewController(activityItems: items, applicationActivities: nil)
         activityVC.completionWithItemsHandler = { _, _, _, _ in
             completion?()
         }
         presenter.present(activityVC, animated: true)
+    }
+
+    @MainActor
+    private static func topPresenter(from root: UIViewController) -> UIViewController {
+        if let presented = root.presentedViewController {
+            return topPresenter(from: presented)
+        }
+
+        if let nav = root as? UINavigationController, let visible = nav.visibleViewController {
+            return topPresenter(from: visible)
+        }
+
+        if let tab = root as? UITabBarController, let selected = tab.selectedViewController {
+            return topPresenter(from: selected)
+        }
+
+        return root
     }
 }

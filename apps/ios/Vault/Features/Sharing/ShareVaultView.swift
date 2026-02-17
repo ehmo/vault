@@ -625,20 +625,11 @@ struct ShareVaultView: View {
 
             Button {
                 guard let url = ShareLinkEncoder.shareURL(for: phrase) else { return }
-                guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                      let root = scene.keyWindow?.rootViewController else { return }
-
-                var presenter = root
-                while let presented = presenter.presentedViewController {
-                    presenter = presented
-                }
 
                 appState.suppressLockForShareSheet = true
-                let activityVC = UIActivityViewController(activityItems: [url.absoluteString], applicationActivities: nil)
-                activityVC.completionWithItemsHandler = { _, _, _, _ in
+                ShareSheetHelper.present(items: [url.absoluteString]) {
                     appState.suppressLockForShareSheet = false
                 }
-                presenter.present(activityVC, animated: true)
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "square.and.arrow.up")
