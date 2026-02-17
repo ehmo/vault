@@ -54,6 +54,8 @@ final class iCloudBackupManager {
     private static let maxConcurrent = 4
 
     private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "iCloudBackup")
+    @MainActor private var autoBackupTask: Task<Void, Never>?
+    @MainActor private var currentAutoBackupBgTaskId: UIBackgroundTaskIdentifier = .invalid
 
     private init() {
         container = CKContainer(identifier: "iCloud.app.vaultaire.shared")
@@ -563,9 +565,14 @@ final class iCloudBackupManager {
     /// Silently performs a backup if enabled and overdue (24h since last).
     /// Captures the vault key by value and wraps work in a background task
     /// so it survives the app being backgrounded. Fire-and-forget — no UI.
+    @MainActor
     func performBackupIfNeeded(with key: Data) {
         let defaults = UserDefaults.standard
         guard defaults.bool(forKey: "iCloudBackupEnabled") else { return }
+        guard autoBackupTask == nil else {
+            Self.logger.info("[auto-backup] Backup already running, skipping")
+            return
+        }
 
         let lastTimestamp = defaults.double(forKey: "lastBackupTimestamp")
         if lastTimestamp > 0 {
@@ -580,17 +587,23 @@ final class iCloudBackupManager {
         Self.logger.info("[auto-backup] Starting background backup")
 
         let capturedKey = key
+        var detachedTask: Task<Void, Never>?
+        var bgTaskId: UIBackgroundTaskIdentifier = .invalid
 
-        let bgTaskId = UIApplication.shared.beginBackgroundTask {
+        bgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
             Self.logger.warning("[auto-backup] Background time expired")
+            detachedTask?.cancel()
+            MainActor.assumeIsolated {
+                self?.finishAutoBackupRun(bgTaskId: bgTaskId)
+            }
         }
+        currentAutoBackupBgTaskId = bgTaskId
 
-        Task.detached(priority: .utility) {
+        detachedTask = Task.detached(priority: .utility) { [weak self] in
+            guard let self else { return }
             defer {
-                Task { @MainActor in
-                    if bgTaskId != .invalid {
-                        UIApplication.shared.endBackgroundTask(bgTaskId)
-                    }
+                Self.runMainSync {
+                    self.finishAutoBackupRun(bgTaskId: bgTaskId)
                 }
             }
             do {
@@ -608,7 +621,43 @@ final class iCloudBackupManager {
                 }
                 Self.logger.info("[auto-backup] Backup completed successfully")
             } catch {
+                if Task.isCancelled {
+                    Self.logger.warning("[auto-backup] Backup cancelled")
+                    return
+                }
                 Self.logger.error("[auto-backup] Backup failed: \(error)")
+            }
+        }
+        autoBackupTask = detachedTask
+    }
+
+    @MainActor
+    private func finishAutoBackupRun(bgTaskId: UIBackgroundTaskIdentifier) {
+        autoBackupTask = nil
+
+        if currentAutoBackupBgTaskId == bgTaskId {
+            currentAutoBackupBgTaskId = .invalid
+            if bgTaskId != .invalid {
+                UIApplication.shared.endBackgroundTask(bgTaskId)
+            }
+            return
+        }
+
+        if bgTaskId != .invalid {
+            UIApplication.shared.endBackgroundTask(bgTaskId)
+        }
+    }
+
+    nonisolated private static func runMainSync(_ block: @escaping @MainActor () -> Void) {
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                block()
+            }
+        } else {
+            DispatchQueue.main.sync {
+                MainActor.assumeIsolated {
+                    block()
+                }
             }
         }
     }

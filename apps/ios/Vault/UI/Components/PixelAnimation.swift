@@ -6,7 +6,7 @@ import Combine
 /// A 3x3 pixel grid that animates cells on/off in configurable patterns with glow effects.
 /// Ported from Pixel view, restyled for Vault's theme.
 ///
-/// The trail effect (matching the Dynamic Island's LivePixelGrid) is produced by animation overlap:
+/// The trail effect is produced by animation overlap:
 /// `animationDuration > timerInterval` means ~3 cells are visible at once as they fade out.
 /// This requires Timer.publish + onReceive — TimelineView re-evaluates its body on each tick,
 /// which disrupts in-flight implicit animations and breaks the trail.
@@ -124,14 +124,14 @@ private struct PixelAnimationCell: View {
 
 // MARK: - Factory Methods
 //
-// ALL presets MUST match the Dynamic Island's LivePixelGrid:
+// ALL presets MUST stay visually identical to the canonical in-app loader:
 //   - Pattern: perimeter walk [1,2,3,6,9,8,7,4]
 //   - brightness: 3, shadowBrightness: 2
 //   - timerInterval: 0.1, animationDuration: 0.3 (creates ~3-cell trail)
 // Only `size` varies between presets. Never create alternate patterns.
 
 extension PixelAnimation {
-    /// Standard loader — perimeter walk matching Dynamic Island LivePixelGrid.
+    /// Standard loader — perimeter walk canonical preset.
     /// Trail effect: animationDuration (0.3s) > timerInterval (0.1s) → ~3 cells visible at once.
     static func loading(size: CGFloat = 60) -> PixelAnimation {
         let scale = size / 80

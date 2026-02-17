@@ -6,7 +6,7 @@ set -euo pipefail
 #
 # Prerequisites:
 #   - Apple Distribution certificate installed in keychain
-#   - Provisioning profiles for all targets (Vault, ShareExtension, VaultLiveActivity)
+#   - Provisioning profiles for all targets (Vault, ShareExtension)
 #   - Release build configs set to manual signing with distribution profiles
 #   - ExportOptions.plist with app-store-connect method
 

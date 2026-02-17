@@ -47,7 +47,7 @@ System fonts only. No custom typefaces.
 
 ## Pixel Loader (Mandatory Spec)
 
-One pixel loader. Everywhere. Matches the Dynamic Island `LivePixelGrid`.
+One pixel loader. Everywhere. Use the in-app `PixelAnimation.loading` preset as the canonical spec.
 
 ### Canonical Configuration
 

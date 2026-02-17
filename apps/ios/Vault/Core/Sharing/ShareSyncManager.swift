@@ -1,5 +1,6 @@
 import Foundation
 import os.log
+import UIKit
 
 private let shareSyncLogger = Logger(subsystem: "app.vaultaire.ios", category: "ShareSync")
 /// Incremental sync currently re-encrypts uncached files in-memory.
@@ -7,7 +8,7 @@ private let shareSyncLogger = Logger(subsystem: "app.vaultaire.ios", category: "
 private let maxInMemoryReencryptBytes = 256 * 1024 * 1024
 
 /// Manages background sync of vault data to all active share recipients.
-/// Debounces file changes (30s) and uploads to all share vault IDs.
+/// Debounces file changes briefly and uploads to all active share vault IDs.
 @MainActor
 @Observable
 final class ShareSyncManager {
@@ -25,36 +26,82 @@ final class ShareSyncManager {
     var lastSyncedAt: Date?
 
     private var debounceTask: Task<Void, Never>?
-    private let debounceInterval: TimeInterval = 30
+    private var syncTask: Task<Void, Never>?
+    private var deferredSyncVaultKey: Data?
+    private var currentBgTaskId: UIBackgroundTaskIdentifier = .invalid
+    private let debounceInterval: TimeInterval = 5
 
     private init() { /* No-op */ }
 
     // MARK: - Trigger Sync
 
-    /// Called when vault files change. Debounces for 30 seconds, then syncs to all share targets.
+    /// Called when vault files change. Debounces briefly, then syncs to all share targets.
     func scheduleSync(vaultKey: Data) {
         debounceTask?.cancel()
         debounceTask = Task { [weak self] in
             do {
-                try await Task.sleep(nanoseconds: UInt64(30 * 1_000_000_000))
+                let delayNs = UInt64((self?.debounceInterval ?? 30) * 1_000_000_000)
+                try await Task.sleep(nanoseconds: delayNs)
             } catch {
                 return // Cancelled
             }
-            await self?.performSync(vaultKey: vaultKey)
+            await self?.requestSync(vaultKey: vaultKey)
         }
     }
 
     /// Immediately syncs vault data to all active share recipients.
     func syncNow(vaultKey: Data) {
         debounceTask?.cancel()
-        Task {
-            await performSync(vaultKey: vaultKey)
-        }
+        Task { await requestSync(vaultKey: vaultKey) }
     }
 
     // MARK: - Sync Implementation
 
+    private func requestSync(vaultKey: Data) async {
+        if syncTask != nil {
+            deferredSyncVaultKey = vaultKey
+            return
+        }
+
+        syncTask = Task { [weak self] in
+            guard let self else { return }
+            await self.performSync(vaultKey: vaultKey)
+            await self.runDeferredSyncIfNeeded()
+        }
+    }
+
+    private func runDeferredSyncIfNeeded() async {
+        while let nextVaultKey = deferredSyncVaultKey {
+            deferredSyncVaultKey = nil
+            await performSync(vaultKey: nextVaultKey)
+        }
+        syncTask = nil
+    }
+
+    private func beginBackgroundExecution() {
+        guard currentBgTaskId == .invalid else { return }
+        currentBgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                shareSyncLogger.warning("Background sync time expired")
+                self.syncTask?.cancel()
+                self.endBackgroundExecution()
+            }
+        }
+    }
+
+    private func endBackgroundExecution() {
+        let taskId = currentBgTaskId
+        currentBgTaskId = .invalid
+        if taskId != .invalid {
+            UIApplication.shared.endBackgroundTask(taskId)
+        }
+    }
+
     private func performSync(vaultKey: Data) async {
+        beginBackgroundExecution()
+        defer { endBackgroundExecution() }
+
         let transaction = EmbraceManager.shared.startTransaction(name: "share.sync", operation: "share.sync")
 
         // Load index and check for active shares

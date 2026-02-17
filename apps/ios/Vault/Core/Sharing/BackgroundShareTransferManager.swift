@@ -1,4 +1,3 @@
-import ActivityKit
 import BackgroundTasks
 import Foundation
 import os.log
@@ -11,10 +10,13 @@ import UIKit
 final class BackgroundShareTransferManager {
     static let shared = BackgroundShareTransferManager()
     nonisolated static let backgroundResumeTaskIdentifier = "app.vaultaire.ios.share-upload.resume"
-    /// Match in-app `PixelAnimation.loading()` cadence (0.1s per frame).
-    private static let livePixelTickIntervalMs = 100
-    /// Keep progress interpolation speed similar to previous 500ms/5-tick behavior.
+    /// Keep progress updates smooth while avoiding overly chatty UI updates.
+    private static let progressTickIntervalMs = 100
     private static let progressSmoothingTicks = 25
+    private nonisolated static let logger = Logger(
+        subsystem: "app.vaultaire.ios",
+        category: "BackgroundTransfer"
+    )
 
     enum TransferStatus: Equatable {
         case idle
@@ -128,7 +130,6 @@ final class BackgroundShareTransferManager {
     var status: TransferStatus = .idle
 
     private var activeTask: Task<Void, Never>?
-    private var currentActivity: Activity<TransferActivityAttributes>?
     private var currentBGProcessingTask: BGProcessingTask?
     private var currentBgTaskId: UIBackgroundTaskIdentifier = .invalid
     private var isUploadOperation: Bool = true
@@ -136,7 +137,6 @@ final class BackgroundShareTransferManager {
 
     private var targetProgress: Int = 0
     private(set) var displayProgress: Int = 0
-    private var animationStep: Int = 0
     private(set) var currentMessage: String = ""
     private var progressTask: Task<Void, Never>?
 
@@ -203,7 +203,7 @@ final class BackgroundShareTransferManager {
         scheduleBackgroundResumeTask(earliestIn: 60)
 
         task.expirationHandler = { [weak self] in
-            Task { @MainActor in
+            MainActor.assumeIsolated {
                 guard let self else { return }
                 Self.logger.warning("[bg-task] Processing task expired — cancelling active upload")
                 self.activeTask?.cancel()
@@ -266,7 +266,6 @@ final class BackgroundShareTransferManager {
                 self?.activeTask = nil
                 self?.stopProgressTimer()
                 self?.status = failureStatus
-                self?.endLiveActivity(success: false, message: "\(logTag.capitalized) interrupted")
                 self?.endBackgroundExecution()
             }
         }
@@ -289,7 +288,6 @@ final class BackgroundShareTransferManager {
         activeTask?.cancel()
         isUploadOperation = true
         status = .uploading(progress: 0, total: 100)
-        startLiveActivity(.uploading)
         startProgressTimer()
 
         // Capture everything by value
@@ -310,8 +308,12 @@ final class BackgroundShareTransferManager {
 
         activeTask = Task.detached(priority: .userInitiated) { [weak self] in
             defer {
-                Self.clearUploadLifecycleMarker()
-                Task { @MainActor in UIApplication.shared.endBackgroundTask(bgTaskId) }
+                Self.runMainSync {
+                    self?.finalizeDetachedTransferTask(
+                        bgTaskId: bgTaskId,
+                        clearUploadLifecycle: true
+                    )
+                }
             }
             do {
                 let uploadStart = CFAbsoluteTimeGetCurrent()
@@ -507,7 +509,7 @@ final class BackgroundShareTransferManager {
                 try VaultStorage.shared.saveIndex(updatedIndex, with: capturedVaultKey)
 
                 Self.clearPendingUpload()
-                await self?.finishTransfer(.uploadComplete, activityMessage: "Vault shared successfully")
+                await self?.finishTransfer(.uploadComplete)
             } catch {
                 guard !Task.isCancelled else { return }
                 Self.logger.error("[upload-telemetry] UPLOAD FAILED: \(error.localizedDescription, privacy: .public)")
@@ -518,7 +520,7 @@ final class BackgroundShareTransferManager {
                 }
                 EmbraceManager.shared.captureError(error)
                 await self?.scheduleBackgroundResumeTask(earliestIn: 30)
-                await self?.finishTransfer(.uploadFailed(error.localizedDescription), activityMessage: "Upload failed")
+                await self?.finishTransfer(.uploadFailed(error.localizedDescription))
             }
         }
     }
@@ -547,7 +549,6 @@ final class BackgroundShareTransferManager {
         activeTask?.cancel()
         isUploadOperation = true
         status = .uploading(progress: 0, total: 100)
-        startLiveActivity(.uploading)
         startProgressTimer()
 
         let capturedVaultKey = vaultKey
@@ -561,8 +562,12 @@ final class BackgroundShareTransferManager {
 
         activeTask = Task.detached(priority: .userInitiated) { [weak self] in
             defer {
-                Self.clearUploadLifecycleMarker()
-                Task { @MainActor in UIApplication.shared.endBackgroundTask(bgTaskId) }
+                Self.runMainSync {
+                    self?.finalizeDetachedTransferTask(
+                        bgTaskId: bgTaskId,
+                        clearUploadLifecycle: true
+                    )
+                }
             }
             do {
                 Self.setUploadLifecycleMarker(
@@ -662,13 +667,13 @@ final class BackgroundShareTransferManager {
                 }
 
                 Self.clearPendingUpload()
-                await self?.finishTransfer(.uploadComplete, activityMessage: "Vault shared successfully")
+                await self?.finishTransfer(.uploadComplete)
             } catch {
                 guard !Task.isCancelled else { return }
                 Self.logger.error("[resume] RESUME FAILED: \(error.localizedDescription, privacy: .public)")
                 EmbraceManager.shared.captureError(error)
                 await self?.scheduleBackgroundResumeTask(earliestIn: 30)
-                await self?.finishTransfer(.uploadFailed(error.localizedDescription), activityMessage: "Resume failed")
+                await self?.finishTransfer(.uploadFailed(error.localizedDescription))
             }
         }
     }
@@ -683,7 +688,6 @@ final class BackgroundShareTransferManager {
         activeTask?.cancel()
         isUploadOperation = false
         status = .importing
-        startLiveActivity(.downloading)
         startProgressTimer()
 
         // Unified progress: download = 0→95%, import = 95→99%
@@ -700,7 +704,12 @@ final class BackgroundShareTransferManager {
 
         activeTask = Task.detached(priority: .userInitiated) { [weak self] in
             defer {
-                Task { @MainActor in UIApplication.shared.endBackgroundTask(bgTaskId) }
+                Self.runMainSync {
+                    self?.finalizeDetachedTransferTask(
+                        bgTaskId: bgTaskId,
+                        clearUploadLifecycle: false
+                    )
+                }
             }
             do {
                 let result = try await CloudKitSharingManager.shared.downloadSharedVault(
@@ -773,13 +782,13 @@ final class BackgroundShareTransferManager {
                     Self.logger.warning("Failed to mark share claimed after import: \(error.localizedDescription, privacy: .public)")
                 }
 
-                await self?.finishTransfer(.importComplete, activityMessage: "Shared vault is ready")
+                await self?.finishTransfer(.importComplete)
             } catch {
                 guard !Task.isCancelled else { return }
                 Self.logger.error("[import] IMPORT FAILED: \(error.localizedDescription, privacy: .public)")
                 Self.logger.error("[import] error type: \(String(describing: type(of: error)), privacy: .public)")
                 EmbraceManager.shared.captureError(error)
-                await self?.finishTransfer(.importFailed(error.localizedDescription), activityMessage: "Import failed")
+                await self?.finishTransfer(.importFailed(error.localizedDescription))
             }
         }
     }
@@ -816,7 +825,6 @@ final class BackgroundShareTransferManager {
     private func startProgressTimer() {
         targetProgress = 0
         displayProgress = 0
-        animationStep = 0
         currentMessage = "Starting..."
         stopProgressTimer()
 
@@ -825,7 +833,7 @@ final class BackgroundShareTransferManager {
         progressTask = Task { [weak self] in
             while !Task.isCancelled {
                 self?.progressTimerTick()
-                try? await Task.sleep(for: .milliseconds(Self.livePixelTickIntervalMs))
+                try? await Task.sleep(for: .milliseconds(Self.progressTickIntervalMs))
             }
         }
     }
@@ -836,8 +844,6 @@ final class BackgroundShareTransferManager {
     }
 
     private func progressTimerTick() {
-        animationStep += 1
-
         if displayProgress < targetProgress {
             let step = max(
                 1,
@@ -853,70 +859,39 @@ final class BackgroundShareTransferManager {
             status = .uploading(progress: displayProgress, total: 100)
         }
 
-        let state = TransferActivityAttributes.ContentState(
-            progress: displayProgress,
-            total: 100,
-            message: currentMessage,
-            isComplete: false,
-            isFailed: false,
-            animationStep: animationStep
-        )
-        Task { await currentActivity?.update(.init(state: state, staleDate: nil)) }
     }
 
-    // MARK: - Live Activity
-
-    private nonisolated static let logger = Logger(subsystem: "app.vaultaire.ios", category: "LiveActivity")
-
-    private func startLiveActivity(_ type: TransferActivityAttributes.TransferType) {
-        // End any stale activities from previous runs
-        for activity in Activity<TransferActivityAttributes>.activities {
-            Self.logger.info("Ending stale activity: \(activity.id, privacy: .public)")
-            Task { await activity.end(nil, dismissalPolicy: .immediate) }
+    private func finalizeDetachedTransferTask(
+        bgTaskId: UIBackgroundTaskIdentifier,
+        clearUploadLifecycle: Bool
+    ) {
+        if clearUploadLifecycle {
+            Self.clearUploadLifecycleMarker()
         }
-
-        let authInfo = ActivityAuthorizationInfo()
-        Self.logger.info("areActivitiesEnabled: \(authInfo.areActivitiesEnabled), frequentPushesEnabled: \(authInfo.frequentPushesEnabled)")
-        guard authInfo.areActivitiesEnabled else {
-            Self.logger.warning("Live Activities not enabled — skipping")
-            return
-        }
-        let attributes = TransferActivityAttributes(transferType: type)
-        let state = TransferActivityAttributes.ContentState(
-            progress: 0, total: 100, message: "Starting...", isComplete: false, isFailed: false
-        )
-        let content = ActivityContent(
-            state: state,
-            staleDate: nil,
-            relevanceScore: 100
-        )
-        do {
-            currentActivity = try Activity.request(
-                attributes: attributes,
-                content: content,
-                pushType: nil
-            )
-            Self.logger.info("Activity started id=\(self.currentActivity?.id ?? "nil", privacy: .public), activityState=\(String(describing: self.currentActivity?.activityState), privacy: .public)")
-            Self.logger.info("Total active activities: \(Activity<TransferActivityAttributes>.activities.count)")
-        } catch {
-            Self.logger.error("Activity.request failed: \(error.localizedDescription, privacy: .public)")
+        activeTask = nil
+        if currentBgTaskId == bgTaskId {
+            endBackgroundExecution()
+        } else if bgTaskId != .invalid {
+            UIApplication.shared.endBackgroundTask(bgTaskId)
         }
     }
 
-    private func endLiveActivity(success: Bool, message: String) {
-        let activity = currentActivity
-        currentActivity = nil
-        let state = TransferActivityAttributes.ContentState(
-            progress: 0, total: 0, message: message, isComplete: success, isFailed: !success
-        )
-        Task {
-            await activity?.end(.init(state: state, staleDate: nil), dismissalPolicy: .after(.now + 5))
+    nonisolated private static func runMainSync(_ block: @escaping @MainActor () -> Void) {
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                block()
+            }
+        } else {
+            DispatchQueue.main.sync {
+                MainActor.assumeIsolated {
+                    block()
+                }
+            }
         }
     }
 
-    /// Finishes a transfer by stopping the timer, updating status, ending the Live Activity,
-    /// and firing the appropriate local notification. Called via `await self?.finishTransfer(...)`.
-    private func finishTransfer(_ newStatus: TransferStatus, activityMessage: String) {
+    /// Finishes a transfer by stopping the timer, updating status, and firing local notifications.
+    private func finishTransfer(_ newStatus: TransferStatus) {
         stopProgressTimer()
         status = newStatus
         let success: Bool
@@ -942,7 +917,6 @@ final class BackgroundShareTransferManager {
         default:
             success = false
         }
-        endLiveActivity(success: success, message: activityMessage)
         completeBackgroundProcessingTask(success: success)
     }
 
@@ -953,7 +927,6 @@ final class BackgroundShareTransferManager {
         activeTask = nil
         stopProgressTimer()
         status = .idle
-        endLiveActivity(success: false, message: "Transfer cancelled")
         endBackgroundExecution()
         completeBackgroundProcessingTask(success: false)
     }

@@ -1,6 +1,6 @@
 # iOS Agent Instructions
 
-iOS app for Vaultaire — secure photo vault with pattern lock, CloudKit sharing, Live Activities.
+iOS app for Vaultaire — secure photo vault with pattern lock and CloudKit sharing.
 
 ## Build
 
@@ -18,8 +18,8 @@ Check available simulators: `xcodebuild -showdestinations -scheme Vault`
 - **Team**: `UFV835UGV6`
 - **Deployment target**: iOS 17.0
 - **App group**: `group.app.vaultaire.ios`
-- **pbxproj ID conventions**: Short hex-style IDs (e.g., `001000000`, `LA0000000`). Use consistent prefix for new targets (`LA` = Live Activity, `SE` = Share Extension, `TS` = Tests, `SL` = Share Link, `UX` = UX additions).
-- **Existing extensions**: ShareExtension (share services), VaultLiveActivityExtension (Live Activity widget)
+- **pbxproj ID conventions**: Short hex-style IDs (e.g., `001000000`, `SE0000000`). Use consistent prefixes for new additions (`SE` = Share Extension, `TS` = Tests, `SL` = Share Link, `UX` = UX additions).
+- **Existing extensions**: ShareExtension (share services)
 
 ## Adding a Widget / App Extension Target to pbxproj
 
@@ -45,13 +45,6 @@ Required sections — missing any one causes Xcode to fail silently or at build 
 
 **Widget Info.plist**: Even with `GENERATE_INFOPLIST_FILE = YES`, WidgetKit extensions MUST have manual Info.plist with `NSExtension` → `NSExtensionPointIdentifier` = `com.apple.widgetkit-extension`. Without it, builds fine but fails to install (`IXErrorDomain Code: 2`).
 
-## ActivityKit / Live Activities
-
-- `NSSupportsLiveActivities = YES` in **main app's** Info.plist
-- Widget extensions: use `TimelineView(.animation(minimumInterval:))` not `Timer.publish()`
-- `Activity.request()` from main app, widget only provides UI via `ActivityConfiguration`
-- End activities with `.after(.now + 5)` dismissal policy
-
 ## Maestro E2E Tests
 
 **MANDATORY**: Every visual or UI change MUST include corresponding Maestro test updates. This is non-negotiable.
@@ -72,7 +65,7 @@ Required sections — missing any one causes Xcode to fail silently or at build 
 
 ## PixelAnimation (Loaders)
 
-**MANDATORY**: ALL pixel loaders MUST match the Dynamic Island's `LivePixelGrid` appearance. No exceptions.
+**MANDATORY**: ALL pixel loaders must use the same `PixelAnimation.loading(size:)` preset. No exceptions.
 
 - **Canonical preset**: `PixelAnimation.loading(size:)` — perimeter walk `[1,2,3,6,9,8,7,4]`, brightness 3, shadowBrightness 2, timerInterval 0.1, animationDuration 0.3
 - **Only vary size** — never create alternate patterns, brightness, or timing
@@ -80,8 +73,6 @@ Required sections — missing any one causes Xcode to fail silently or at build 
 - `uploading()` and `downloading()` factory methods were removed — they had inconsistent patterns/brightness
 - Trail effect requires `Timer.publish` + `.onReceive`, NOT `TimelineView` (which resets view tree and kills in-flight animations)
 - When adding a new loader anywhere, use `PixelAnimation.loading(size: N)` — nothing else
-- Dynamic Island frame cadence must also be 0.1s: `BackgroundShareTransferManager` must advance `animationStep` every 100ms to match in-app loader speed. Slower ticks (e.g., 500ms) make `LivePixelGrid` appear laggy.
-- Dynamic Island loader must animate via widget-side `TimelineView(.animation(minimumInterval: 0.1))`. Do not add app-driven `animationStep` ticks on top of timeline ticks in the widget (`baseStep + timelineStep`) because that changes perceived speed versus in-app `PixelAnimation.loading`.
 
 ## Pattern Board Consistency (MANDATORY)
 
@@ -120,7 +111,7 @@ All pattern grid screens MUST behave identically. There are two categories:
 - **@MainActor + Task{} = main thread work**: Use `Task.detached(priority: .userInitiated)` for crypto/I/O, explicit `await MainActor.run { }` for UI updates
 - **JSONEncoder base64-encodes Data**: Use `PropertyListEncoder(.binary)` for large binary payloads
 - **SharedVaultData versioning**: v1 = JSON + outer encryption, v2 = JSON no encryption, v3+ = binary plist. Auto-detect via `bplist` magic bytes
-- **Live Activity pixel grid**: `animationStep` must flow every timer tick — never gate on progress alone
+- **Progress timer loop**: for background-critical progress updates, prefer `Task.sleep` loops over RunLoop timers.
 - **Sharing source files**: Separate PBXBuildFile entries per target, `SWIFT_ACTIVE_COMPILATION_CONDITIONS = EXTENSION`, `#if !EXTENSION` guards
 - **Keychain sharing**: `kSecAttrAccessGroup: "group.app.vaultaire.ios"` + app group in extension entitlements
 - **Share extension Info.plist**: `NSExtensionPrincipalClass` must be module-qualified: `ShareExtension.ShareViewController`
@@ -168,7 +159,7 @@ All pattern grid screens MUST behave identically. There are two categories:
 - **ASC indexing timing**: Newly uploaded builds can stay `not-found` for 1-3 minutes, then appear already `VALID`. Keep polling `asc builds list --sort -uploadedDate --limit 20` instead of failing early.
 - **ASC group assignment verification**: After `asc builds add-groups`, verify membership with `asc testflight beta-groups relationships get --type builds`; `asc builds info` may not immediately reflect group linkage.
 - **BGProcessing upload continuation**: Register `BGTaskScheduler` identifier `app.vaultaire.ios.share-upload.resume` at launch, include it in `BGTaskSchedulerPermittedIdentifiers`, enable `UIBackgroundModes = processing`, and always call `setTaskCompleted(success:)` on every completion path (success/failure/expiration).
-- **Auto-resume entry points**: Do not rely on a manual "Resume Upload" button only. Trigger `resumePendingUploadIfNeeded` when vault key becomes available (vault unlock / VaultView open) and when app returns active.
+- **Auto-resume entry points**: Do not rely on a manual "Resume Upload" button only. Trigger `resumePendingUploadsIfNeeded` when vault key becomes available (vault unlock / VaultView open) and when app returns active.
 - **Shared-vault claim timing**: Never mark a join phrase as `claimed` during download. Only mark claimed after local import/index setup succeeds; otherwise interruption + retry can fail with `alreadyClaimed` and strand the recipient.
 - **Parallel chunk downloads**: `downloadChunksParallel` uses bounded TaskGroup (max 4), order-preserving reassembly via `[Int: Data]` dictionary
 - **Structured logging**: Subsystem `"app.vaultaire.ios"`, category = class name. `Self.logger` for actors/classes, file-level `let` for `@MainActor` classes with `nonisolated` methods. Levels: trace (sensitive), debug (routine), info (notable), warning (non-fatal), error (failures)
@@ -186,7 +177,7 @@ All pattern grid screens MUST behave identically. There are two categories:
 - **Multi-upload sharing architecture**: Use `ShareUploadManager` (separate from `BackgroundShareTransferManager` import flow) for concurrent upload jobs, per-job persistence (`Documents/pending_uploads/<jobId>/`), per-job cancel/resume, and owner-fingerprint filtering for cross-vault isolation.
 - **Share UI upload model**: Share screen should represent uploads as share-style rows with status badges/actions (`Resume`, `Terminate`, `Show Phrase`) instead of a single global upload banner/state.
 - **Share-screen idle timer rule**: While the Share Vault screen is visible, keep `UIApplication.shared.isIdleTimerDisabled = true` if any upload row is running; release it on stop/disappear.
-- **Dynamic Island multi-upload state**: Keep one aggregate Live Activity for uploads and include active upload count in `TransferActivityAttributes.ContentState` so compact/expanded regions can show parallel upload context.
+- **Multi-upload state source**: `ShareUploadManager` is the source of truth for concurrent uploads; keep all upload UI and background-resume behavior keyed from per-job state.
 - **Staged-import UX parity**: Reuse `VaultView.importProgress` + `localImportProgressContent` for staged imports too. `ImportIngestor` should emit per-file progress (including total importable count that excludes missing `.enc` files) so staged imports never regress to spinner-only feedback.
 - **Share screen mode stability**: Do not auto-force `.manageShares` on every background refresh tick when user manually switched to `.newShare`. Keep manual mode sticky and only auto-transition from `.loading`/`.manageShares` based on data presence.
 - **Terminate semantics for upload rows**: User-triggered terminate should hard-remove the job immediately (`terminateUpload`) instead of leaving a `.cancelled` row. Cancel task, clear pending disk payload, remove local share record, and run CloudKit/cache cleanup in background while suppressing post-cancel failure state/notifications.
@@ -197,6 +188,9 @@ All pattern grid screens MUST behave identically. There are two categories:
 - **Duress + sharing exclusivity**: Treat active uploads as sharing state (not just persisted `activeShares`). Disable duress whenever a vault is shared, already shared, or currently uploading, and auto-clear duress at share-start to prevent same-session policy bypass.
 - **Share-screen idle timer scope**: Idle timer policy for upload progress must be gated by explicit `ShareVaultView` visibility. Background refresh ticks can race with dismissal; never allow off-screen tasks to re-enable global no-sleep.
 - **Pending upload directory race**: `pending_uploads/<jobId>` can be created before `state.json` exists while SVDF is being built. Pending-state scans must ignore no-state directories (in-progress) instead of deleting them, or uploads can fail with missing `svdf_data.bin`.
+- **Upload finalization without key**: Persist `uploadFinished` in pending upload state after chunks + manifest are complete. If vault key is unavailable, pause and defer local share-record finalization instead of re-uploading chunks on every resume attempt.
+- **Detached-task cleanup rule**: For detached transfer/backup tasks, clear manager state and end background task on main queue via a synchronous helper (`runMainSync`) so completion paths don't leave stale `activeTask`/task IDs.
+- **No ActivityKit target**: Dynamic Island/Live Activity support was removed. Do not reintroduce `VaultLiveActivity` target, `TransferActivityAttributes`, or `NSSupportsLiveActivities` without an explicit product decision.
 - **Shared-vault join import UX**: `VaultView+Grid.importingProgressContent` should use a full-size `VaultSyncIndicator(style: .loading)` with always-visible progress track/percent and stage text (including 0% starting state) so deep-link join flow never appears as a single tiny stuck pixel.
 - **SwiftUI `.task(id:)` contract**: The `id` parameter must be `Equatable`. If a view mode enum has associated values, explicitly conform it to `Equatable` before using it as a task id.
 - **Maestro text matching**: `assertVisible.text` behaves as full-regex match in many cases. For substring assertions in long alert messages, use `.*<substring>.*`.

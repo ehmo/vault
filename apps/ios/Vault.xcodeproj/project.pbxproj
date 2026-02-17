@@ -82,12 +82,6 @@
 		39EACFAD2F2AC5C500FA7EC2 /* GridLetterManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39EACFAC2F2AC5C500FA7EC2 /* GridLetterManager.swift */; };
 		6D5554047A7544D7954CEF9B /* EmbraceIO in Frameworks */ = {isa = PBXBuildFile; productRef = E8320F0CD52C4885B07B350E /* EmbraceIO */; };
 		A1B2C3D4E5F64789A1B2C3D4 /* TelemetryDeck in Frameworks */ = {isa = PBXBuildFile; productRef = F1E2D3C4B5A647890123ABCD /* TelemetryDeck */; };
-		LA0000001 /* TransferActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = LA0000000 /* TransferActivityAttributes.swift */; };
-		LA0000003 /* TransferActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = LA0000000 /* TransferActivityAttributes.swift */; };
-		LA0000005 /* VaultLiveActivityBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = LA0000004 /* VaultLiveActivityBundle.swift */; };
-		LA0000007 /* TransferLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = LA0000006 /* TransferLiveActivityWidget.swift */; };
-		LA0000009 /* LivePixelGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = LA0000008 /* LivePixelGrid.swift */; };
-		LA000000B /* VaultLiveActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = LA000000A /* VaultLiveActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		SE0000001 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE0000000 /* ShareViewController.swift */; };
 		SE0000003 /* PatternInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE0000002 /* PatternInputView.swift */; };
 		SE0000005 /* CryptoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000000 /* CryptoEngine.swift */; };
@@ -136,13 +130,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		LA000000C /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 0100000000 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = LA0000010;
-			remoteInfo = VaultLiveActivityExtension;
-		};
 		SE0000020 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 0100000000 /* Project object */;
@@ -166,7 +153,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				LA000000B /* VaultLiveActivityExtension.appex in Embed Foundation Extensions */,
 				SE0000011 /* ShareExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
@@ -250,11 +236,6 @@
 		39EACFA82F29E64000FA7EC2 /* VAULT_COLLISION_PROTECTION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = VAULT_COLLISION_PROTECTION.md; sourceTree = "<group>"; };
 		39EACFAA2F29EDB600FA7EC2 /* DURESS_VAULT_IMPROVEMENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DURESS_VAULT_IMPROVEMENTS.md; sourceTree = "<group>"; };
 		39EACFAC2F2AC5C500FA7EC2 /* GridLetterManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridLetterManager.swift; sourceTree = "<group>"; };
-		LA0000000 /* TransferActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferActivityAttributes.swift; sourceTree = "<group>"; };
-		LA0000004 /* VaultLiveActivityBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultLiveActivityBundle.swift; sourceTree = "<group>"; };
-		LA0000006 /* TransferLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferLiveActivityWidget.swift; sourceTree = "<group>"; };
-		LA0000008 /* LivePixelGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivePixelGrid.swift; sourceTree = "<group>"; };
-		LA000000A /* VaultLiveActivityExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = VaultLiveActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		SE0000000 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		SE0000002 /* PatternInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternInputView.swift; sourceTree = "<group>"; };
 		SE000000C /* VaultCoreConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultCoreConstants.swift; sourceTree = "<group>"; };
@@ -309,13 +290,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		LA000000F0 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		SE00000F0 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -348,12 +322,11 @@
 		};
 		0100000002 /* Products */ = {
 			isa = PBXGroup;
-			children = (
-				088000000000 /* Vault.app */,
-				LA000000A /* VaultLiveActivityExtension.appex */,
-				SE0000010 /* ShareExtension.appex */,
-				TS0000010 /* VaultTests.xctest */,
-			);
+				children = (
+					088000000000 /* Vault.app */,
+					SE0000010 /* ShareExtension.appex */,
+					TS0000010 /* VaultTests.xctest */,
+				);
 			name = Products;
 			sourceTree = "<group>";
 		};
@@ -602,7 +575,6 @@
 		0100000050 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				LA0000000 /* TransferActivityAttributes.swift */,
 				012000000 /* VaultFile.swift */,
 				012000002 /* VaultMetadata.swift */,
 			);
@@ -623,21 +595,10 @@
 			children = (
 				392ACAC62F3FB9140059878A /* Products.storekit */,
 				0100000001 /* Vault */,
-				LA00000070 /* VaultLiveActivity */,
 				SE0000070 /* Vault/Extensions/ShareExtension */,
 				TS0000070 /* VaultTests */,
 				0100000002 /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		LA00000070 /* VaultLiveActivity */ = {
-			isa = PBXGroup;
-			children = (
-				LA0000004 /* VaultLiveActivityBundle.swift */,
-				LA0000006 /* TransferLiveActivityWidget.swift */,
-				LA0000008 /* LivePixelGrid.swift */,
-			);
-			path = VaultLiveActivity;
 			sourceTree = "<group>";
 		};
 		SE0000070 /* Vault/Extensions/ShareExtension */ = {
@@ -701,7 +662,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				LA000000D /* PBXTargetDependency */,
 				SE0000021 /* PBXTargetDependency */,
 			);
 			name = Vault;
@@ -712,23 +672,6 @@
 			productName = Vault;
 			productReference = 088000000000 /* Vault.app */;
 			productType = "com.apple.product-type.application";
-		};
-		LA0000010 /* VaultLiveActivityExtension */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = LA000F000 /* Build configuration list for PBXNativeTarget "VaultLiveActivityExtension" */;
-			buildPhases = (
-				LA00000E0 /* Sources */,
-				LA000000F0 /* Frameworks */,
-				LA0000100 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = VaultLiveActivityExtension;
-			productName = VaultLiveActivityExtension;
-			productReference = LA000000A /* VaultLiveActivityExtension.appex */;
-			productType = "com.apple.product-type.app-extension";
 		};
 		SE0000030 /* ShareExtension */ = {
 			isa = PBXNativeTarget;
@@ -778,9 +721,6 @@
 					0110000000 = {
 						CreatedOnToolsVersion = 15.0;
 					};
-					LA0000010 = {
-						CreatedOnToolsVersion = 15.0;
-					};
 					SE0000030 = {
 						CreatedOnToolsVersion = 15.0;
 					};
@@ -807,12 +747,11 @@
 			productRefGroup = 0100000002 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			targets = (
-				0110000000 /* Vault */,
-				LA0000010 /* VaultLiveActivityExtension */,
-				SE0000030 /* ShareExtension */,
-				TS0000040 /* VaultTests */,
-			);
+				targets = (
+					0110000000 /* Vault */,
+					SE0000030 /* ShareExtension */,
+					TS0000040 /* VaultTests */,
+				);
 		};
 /* End PBXProject section */
 
@@ -830,13 +769,6 @@
 				39EACFA72F29E52000FA7EC2 /* ENCRYPTION_ARCHITECTURE.md in Resources */,
 				39EACFA52F29B43C00FA7EC2 /* RECOVERY_QUICK_START.md in Resources */,
 				39EACFA92F29E64000FA7EC2 /* VAULT_COLLISION_PROTECTION.md in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		LA0000100 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -957,22 +889,10 @@
 				020000001 /* SubscriptionManager.swift in Sources */,
 				020000003 /* PaywallTrigger.swift in Sources */,
 				020000005 /* VaultairePaywallView.swift in Sources */,
-				LA0000001 /* TransferActivityAttributes.swift in Sources */,
 				SE0000013 /* VaultCoreConstants.swift in Sources */,
 				SE0000015 /* StagedImportManager.swift in Sources */,
 				SE0000017 /* ImportIngestor.swift in Sources */,
 				SE0000019 /* PendingImportBanner.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		LA00000E0 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				LA0000003 /* TransferActivityAttributes.swift in Sources */,
-				LA0000005 /* VaultLiveActivityBundle.swift in Sources */,
-				LA0000007 /* TransferLiveActivityWidget.swift in Sources */,
-				LA0000009 /* LivePixelGrid.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1020,11 +940,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		LA000000D /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = LA0000010 /* VaultLiveActivityExtension */;
-			targetProxy = LA000000C /* PBXContainerItemProxy */;
-		};
 		SE0000021 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = SE0000030 /* ShareExtension */;
@@ -1241,64 +1156,6 @@
 			};
 			name = Release;
 		};
-		LA000F001 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 63;
-				DEVELOPMENT_TEAM = UFV835UGV6;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = VaultLiveActivity/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = VaultLiveActivity;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios.VaultLiveActivity;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		LA000F002 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
-				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 63;
-				DEVELOPMENT_TEAM = UFV835UGV6;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = VaultLiveActivity/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = VaultLiveActivity;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios.VaultLiveActivity;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "VaultLiveActivity App Store";
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
 		SE000F001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1412,15 +1269,6 @@
 			buildConfigurations = (
 				011000F001 /* Debug */,
 				011000F002 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		LA000F000 /* Build configuration list for PBXNativeTarget "VaultLiveActivityExtension" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				LA000F001 /* Debug */,
-				LA000F002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
