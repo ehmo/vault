@@ -35,9 +35,6 @@ struct ContentView: View {
                 }
             }
             #endif
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: appState.isUnlocked)
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: appState.showOnboarding)
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: appState.isLoading)
 
             // Vault door unlock overlay
             if showUnlockTransition {

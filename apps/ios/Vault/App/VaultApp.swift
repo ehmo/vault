@@ -2,6 +2,7 @@ import SwiftUI
 import UserNotifications
 import CryptoKit
 import os.log
+import QuartzCore
 
 enum AppAppearanceMode: String, CaseIterable {
     case system
@@ -140,7 +141,10 @@ final class AppState {
     }
 
     func setAppearanceMode(_ mode: AppAppearanceMode) {
-        appearanceMode = mode
+        guard appearanceMode != mode else { return }
+        withAnimation(.none) {
+            appearanceMode = mode
+        }
         UserDefaults.standard.set(mode.rawValue, forKey: Self.appearanceModeKey)
         applyAppearanceToAllWindows()
     }
@@ -151,11 +155,22 @@ final class AppState {
     /// `.preferredColorScheme()` is intentionally not used.
     func applyAppearanceToAllWindows() {
         let style = effectiveInterfaceStyle
-        for scene in UIApplication.shared.connectedScenes {
-            guard let windowScene = scene as? UIWindowScene else { continue }
-            for window in windowScene.windows {
-                window.overrideUserInterfaceStyle = style
+        let backgroundColor = UIColor(named: "VaultBackground") ?? .systemBackground
+        UIView.performWithoutAnimation {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            for scene in UIApplication.shared.connectedScenes {
+                guard let windowScene = scene as? UIWindowScene else { continue }
+                for window in windowScene.windows {
+                    window.overrideUserInterfaceStyle = style
+                    // Keep window/root surfaces in the app theme to avoid transient black seams
+                    // during unlock and appearance switches.
+                    window.backgroundColor = backgroundColor
+                    window.rootViewController?.view.backgroundColor = backgroundColor
+                    window.layoutIfNeeded()
+                }
             }
+            CATransaction.commit()
         }
     }
 
