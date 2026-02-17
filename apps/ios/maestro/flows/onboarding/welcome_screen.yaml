@@ -14,7 +14,7 @@ appId: app.vaultaire.ios
 
 - assertVisible: "Welcome to Vaultaire"
 - assertVisible: "Each pattern creates a unique encrypted vault. Different patterns = different vaults."
-- assertVisible: "Nobody can tell how many vaults you have. Every pattern shows a vault."
+- assertVisible: "Nobody can tell how many vaults you have\\.\\s*Every pattern shows a vault\\."
 - assertVisible: "Your encryption keys are protected by your device's Secure Enclave."
 - assertVisible:
     id: "welcome_continue"

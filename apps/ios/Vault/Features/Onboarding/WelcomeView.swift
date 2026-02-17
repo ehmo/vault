@@ -51,7 +51,7 @@ struct WelcomeView: View {
                         FeatureRow(
                             icon: "eye.slash",
                             title: "True Plausible Deniability",
-                            description: "Nobody can tell how many vaults you have. Every pattern shows a vault."
+                            description: "Nobody can tell how many vaults you have.\nEvery pattern shows a vault."
                         )
 
                         FeatureRow(
