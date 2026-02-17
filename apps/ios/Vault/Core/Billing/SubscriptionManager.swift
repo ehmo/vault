@@ -50,6 +50,13 @@ final class SubscriptionManager {
         // Start listening for transactions immediately
         transactionListener = listenForTransactions()
 
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-MAESTRO_PREMIUM_OVERRIDE")
+            || ProcessInfo.processInfo.arguments.contains("MAESTRO_PREMIUM_OVERRIDE") {
+            UserDefaults.standard.set(true, forKey: Self.premiumOverrideKey)
+        }
+        #endif
+
         // Apply testing override on launch
         if UserDefaults.standard.bool(forKey: Self.premiumOverrideKey) {
             isPremium = true

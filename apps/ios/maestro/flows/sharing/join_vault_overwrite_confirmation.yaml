@@ -1,0 +1,52 @@
+appId: app.vaultaire.ios
+---
+# Verifies overwrite confirmation appears in join flow when selected pattern
+# maps to an existing vault, and user can cancel safely.
+- launchApp:
+    clearState: true
+    arguments:
+      MAESTRO_TEST: "true"
+      MAESTRO_PREMIUM_OVERRIDE: "true"
+      MAESTRO_FORCE_JOIN_OVERWRITE_ALERT: "true"
+
+# Dismiss any system alerts (e.g. Apple Account Verification)
+- tapOn:
+    text: "Not Now"
+    optional: true
+- tapOn:
+    text: "Not Now"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "vault_add_button"
+    timeout: 5000
+
+# Move to lock screen and open join flow
+- tapOn:
+    id: "vault_lock_button"
+- tapOn:
+    id: "unlock_join_link"
+
+# Enter phrase and continue to pattern setup
+- tapOn:
+    id: "join_phrase_input"
+- inputText: "overwrite confirmation test"
+- tapOn:
+    id: "join_vault_button"
+
+# Overwrite alert should appear
+- assertVisible: "Replace Existing Vault?"
+- assertVisible:
+    text: ".*Files are not merged.*"
+
+# Cancel should keep user in pattern setup
+- tapOn: "Cancel"
+- assertVisible:
+    text: "Set a Pattern"
+    optional: true
+
+# Exit
+- tapOn:
+    id: "join_cancel"
+    optional: true

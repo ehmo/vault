@@ -17,6 +17,10 @@ struct SharedVaultInviteView: View {
     @State private var patternStep: PatternStep = .create
     @State private var validationResult: PatternValidationResult?
     @State private var errorMessage: String?
+    @State private var showingOverwriteConfirmation = false
+    @State private var pendingOverwriteKey: Data?
+    @State private var existingVaultNameForOverwrite = "Vault"
+    @State private var existingFileCountForOverwrite = 0
 
     private var phrase: String {
         deepLinkHandler.pendingSharePhrase ?? ""
@@ -76,6 +80,21 @@ struct SharedVaultInviteView: View {
         }
         .premiumPaywall(isPresented: $showingPaywall)
         .interactiveDismissDisabled()
+        .alert("Replace Existing Vault?", isPresented: $showingOverwriteConfirmation) {
+            Button("Cancel", role: .cancel) {
+                pendingOverwriteKey = nil
+            }
+            Button("Replace Vault", role: .destructive) {
+                guard let key = pendingOverwriteKey else { return }
+                pendingOverwriteKey = nil
+                Task { await setupSharedVault(forceOverwrite: true, precomputedPatternKey: key) }
+            }
+        } message: {
+            Text(
+                "\(existingVaultNameForOverwrite) already exists with \(existingFileCountForOverwrite) file\(existingFileCountForOverwrite == 1 ? "" : "s"). "
+                + "Joining this shared vault will replace it. Files are not merged."
+            )
+        }
     }
 
     // MARK: - Views
@@ -249,7 +268,7 @@ struct SharedVaultInviteView: View {
         }
     }
 
-    private func setupSharedVault() async {
+    private func setupSharedVault(forceOverwrite: Bool = false, precomputedPatternKey: Data? = nil) async {
         let trimmedPhrase = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPhrase.isEmpty else {
             mode = .error("Invalid share link — no phrase found.")
@@ -257,7 +276,16 @@ struct SharedVaultInviteView: View {
         }
 
         do {
-            let patternKey = try await KeyDerivation.deriveKey(from: newPattern, gridSize: 5)
+            let patternKey = try await resolvePatternKey(precomputedPatternKey: precomputedPatternKey)
+
+            if VaultStorage.shared.vaultExists(for: patternKey), !forceOverwrite {
+                prepareOverwriteConfirmation(for: patternKey)
+                return
+            }
+
+            if forceOverwrite {
+                try await overwriteExistingVaultIfNeeded(patternKey: patternKey)
+            }
 
             appState.currentVaultKey = patternKey
             appState.currentPattern = newPattern
@@ -279,6 +307,37 @@ struct SharedVaultInviteView: View {
             )
         } catch {
             mode = .error("Failed to set up vault: \(error.localizedDescription)")
+        }
+    }
+
+    private func resolvePatternKey(precomputedPatternKey: Data?) async throws -> Data {
+        if let precomputedPatternKey {
+            return precomputedPatternKey
+        }
+        return try await KeyDerivation.deriveKey(from: newPattern, gridSize: 5)
+    }
+
+    private func prepareOverwriteConfirmation(for patternKey: Data) {
+        let letters = GridLetterManager.shared.vaultName(for: newPattern)
+        existingVaultNameForOverwrite = letters.isEmpty ? "Vault" : "Vault \(letters)"
+
+        if let index = try? VaultStorage.shared.loadIndex(with: patternKey) {
+            existingFileCountForOverwrite = index.files.filter { !$0.isDeleted }.count
+        } else {
+            existingFileCountForOverwrite = 0
+        }
+
+        pendingOverwriteKey = patternKey
+        showingOverwriteConfirmation = true
+    }
+
+    private func overwriteExistingVaultIfNeeded(patternKey: Data) async throws {
+        if VaultStorage.shared.vaultExists(for: patternKey) {
+            if await DuressHandler.shared.isDuressKey(patternKey) {
+                await DuressHandler.shared.clearDuressVault()
+            }
+            try VaultStorage.shared.deleteVaultIndex(for: patternKey)
+            try? await RecoveryPhraseManager.shared.deleteRecoveryData(for: patternKey)
         }
     }
 }

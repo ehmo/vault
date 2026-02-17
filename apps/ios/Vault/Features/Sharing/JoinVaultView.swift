@@ -1,6 +1,7 @@
 import SwiftUI
 import CloudKit
 import UIKit
+import CryptoKit
 
 struct JoinVaultView: View {
     @Environment(AppState.self) private var appState
@@ -15,12 +16,15 @@ struct JoinVaultView: View {
     // Pattern setup for shared vault
     @State private var patternState = PatternState()
     @State private var newPattern: [Int] = []
-    @State private var confirmPattern: [Int] = []
     @State private var patternStep: PatternStep = .create
     @State private var validationResult: PatternValidationResult?
     @State private var errorMessage: String?
+    @State private var showingOverwriteConfirmation = false
+    @State private var pendingOverwriteKey: Data?
+    @State private var existingVaultNameForOverwrite = "Vault"
+    @State private var existingFileCountForOverwrite = 0
 
-    enum ViewMode {
+    enum ViewMode: Equatable {
         case input
         case patternSetup
         case error(String)
@@ -71,6 +75,35 @@ struct JoinVaultView: View {
         .task {
             let status = await CloudKitSharingManager.shared.checkiCloudStatus()
             iCloudStatus = status
+        }
+        .task(id: mode) {
+            #if DEBUG
+            if mode == .patternSetup,
+               appState.isMaestroTestMode,
+               ProcessInfo.processInfo.arguments.contains("-MAESTRO_FORCE_JOIN_OVERWRITE_ALERT"),
+               !showingOverwriteConfirmation {
+                existingVaultNameForOverwrite = "Vault TEST"
+                existingFileCountForOverwrite = 2
+                let seed = Data("MAESTRO_JOIN_OVERWRITE_TEST_KEY".utf8)
+                pendingOverwriteKey = Data(SHA256.hash(data: seed))
+                showingOverwriteConfirmation = true
+            }
+            #endif
+        }
+        .alert("Replace Existing Vault?", isPresented: $showingOverwriteConfirmation) {
+            Button("Cancel", role: .cancel) {
+                pendingOverwriteKey = nil
+            }
+            Button("Replace Vault", role: .destructive) {
+                guard let key = pendingOverwriteKey else { return }
+                pendingOverwriteKey = nil
+                Task { await setupSharedVault(forceOverwrite: true, precomputedPatternKey: key) }
+            }
+        } message: {
+            Text(
+                "\(existingVaultNameForOverwrite) already exists with \(existingFileCountForOverwrite) file\(existingFileCountForOverwrite == 1 ? "" : "s"). "
+                + "Joining this shared vault will replace it. Files are not merged."
+            )
         }
         .premiumPaywall(isPresented: $showingPaywall)
     }
@@ -188,7 +221,6 @@ struct JoinVaultView: View {
                 Button("Start Over") {
                     patternStep = .create
                     newPattern = []
-                    confirmPattern = []
                     patternState.reset()
                     validationResult = nil
                     errorMessage = nil
@@ -259,7 +291,6 @@ struct JoinVaultView: View {
             if pattern == newPattern {
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
                 errorMessage = nil
-                confirmPattern = pattern
                 patternState.reset()
                 Task { await setupSharedVault() }
             } else {
@@ -274,12 +305,20 @@ struct JoinVaultView: View {
         }
     }
 
-    private func setupSharedVault() async {
+    private func setupSharedVault(forceOverwrite: Bool = false, precomputedPatternKey: Data? = nil) async {
         let trimmedPhrase = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
-            // Derive key from the pattern
-            let patternKey = try await KeyDerivation.deriveKey(from: newPattern, gridSize: 5)
+            let patternKey = try await resolvePatternKey(precomputedPatternKey: precomputedPatternKey)
+
+            if VaultStorage.shared.vaultExists(for: patternKey), !forceOverwrite {
+                prepareOverwriteConfirmation(for: patternKey)
+                return
+            }
+
+            if forceOverwrite {
+                try await overwriteExistingVaultIfNeeded(patternKey: patternKey)
+            }
 
             // Set app state so user can navigate the app
             appState.currentVaultKey = patternKey
@@ -303,6 +342,37 @@ struct JoinVaultView: View {
             )
         } catch {
             mode = .error("Failed to set up vault: \(error.localizedDescription)")
+        }
+    }
+
+    private func resolvePatternKey(precomputedPatternKey: Data?) async throws -> Data {
+        if let precomputedPatternKey {
+            return precomputedPatternKey
+        }
+        return try await KeyDerivation.deriveKey(from: newPattern, gridSize: 5)
+    }
+
+    private func prepareOverwriteConfirmation(for patternKey: Data) {
+        let letters = GridLetterManager.shared.vaultName(for: newPattern)
+        existingVaultNameForOverwrite = letters.isEmpty ? "Vault" : "Vault \(letters)"
+
+        if let index = try? VaultStorage.shared.loadIndex(with: patternKey) {
+            existingFileCountForOverwrite = index.files.filter { !$0.isDeleted }.count
+        } else {
+            existingFileCountForOverwrite = 0
+        }
+
+        pendingOverwriteKey = patternKey
+        showingOverwriteConfirmation = true
+    }
+
+    private func overwriteExistingVaultIfNeeded(patternKey: Data) async throws {
+        if VaultStorage.shared.vaultExists(for: patternKey) {
+            if await DuressHandler.shared.isDuressKey(patternKey) {
+                await DuressHandler.shared.clearDuressVault()
+            }
+            try VaultStorage.shared.deleteVaultIndex(for: patternKey)
+            try? await RecoveryPhraseManager.shared.deleteRecoveryData(for: patternKey)
         }
     }
 
