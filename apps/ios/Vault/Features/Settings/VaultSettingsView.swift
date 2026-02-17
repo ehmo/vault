@@ -468,35 +468,39 @@ struct ChangePatternView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                // Progress indicator
-                HStack(spacing: 8) {
-                    ForEach(0..<3) { index in
-                        Capsule()
-                            .fill(stepIndex >= index ? Color.accentColor : Color.vaultSecondaryText.opacity(0.3))
-                            .frame(width: 40, height: 4)
+                if step != .complete {
+                    // Progress indicator
+                    HStack(spacing: 8) {
+                        ForEach(0..<3) { index in
+                            Capsule()
+                                .fill(stepIndex >= index ? Color.accentColor : Color.vaultSecondaryText.opacity(0.3))
+                                .frame(width: 40, height: 4)
+                        }
                     }
+                    .padding(.top)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Step \(stepIndex + 1) of 3")
                 }
-                .padding(.top)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Step \(stepIndex + 1) of 3")
 
                 if isMaestroHookEnabled {
                     maestroChangePatternTestHooks
                 }
 
-                // Title and subtitle — fixed height prevents grid from shifting between steps
-                VStack(spacing: 8) {
-                    Text(stepTitle)
-                        .font(.title2)
-                        .fontWeight(.bold)
+                if step != .complete {
+                    // Title and subtitle — fixed height prevents grid from shifting between steps
+                    VStack(spacing: 8) {
+                        Text(stepTitle)
+                            .font(.title2)
+                            .fontWeight(.bold)
 
-                    Text(stepSubtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.vaultSecondaryText)
-                        .multilineTextAlignment(.center)
-                        .frame(height: 44, alignment: .top)
+                        Text(stepSubtitle)
+                            .font(.subheadline)
+                            .foregroundStyle(.vaultSecondaryText)
+                            .multilineTextAlignment(.center)
+                            .frame(height: 44, alignment: .top)
+                    }
+                    .padding(.horizontal)
                 }
-                .padding(.horizontal)
 
                 // Content based on step
                 switch step {
@@ -529,9 +533,11 @@ struct ChangePatternView: View {
                     .frame(height: 80)
 
                 case .complete:
-                    Spacer()
-                    completeSection
-                    Spacer()
+                    ScrollView {
+                        completeSection
+                            .padding(.vertical, 8)
+                    }
+                    .scrollIndicators(.hidden)
                 }
 
                 // Bottom buttons
@@ -699,12 +705,8 @@ struct ChangePatternView: View {
                     Text("Your New Recovery Phrase")
                         .font(.headline)
                 }
-                
-                Text(newRecoveryPhrase)
-                    .font(.body)
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .vaultGlassBackground(cornerRadius: 8)
+
+                PhraseDisplayCard(phrase: newRecoveryPhrase)
                 
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
