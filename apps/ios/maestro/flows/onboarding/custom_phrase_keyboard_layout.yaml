@@ -1,0 +1,44 @@
+appId: app.vaultaire.ios
+---
+# Verify onboarding custom recovery phrase layout remains usable with keyboard visible.
+# Uses a debug hook to force PatternSetupView directly to the recovery step.
+- launchApp:
+    clearState: true
+    arguments:
+      MAESTRO_FORCE_ONBOARDING_RECOVERY: "true"
+
+# Dismiss system alerts
+- tapOn:
+    text: "Not Now"
+    optional: true
+- tapOn:
+    text: "Not Now"
+    optional: true
+
+# Navigate through onboarding
+- tapOn:
+    id: "welcome_continue"
+- tapOn:
+    id: "permissions_continue"
+- tapOn:
+    id: "analytics_decline"
+- tapOn:
+    id: "paywall_skip"
+    optional: true
+- tapOn:
+    id: "thankyou_continue"
+
+# Recovery phrase step
+- assertVisible: "Recovery Phrase"
+- assertVisible:
+    id: "recovery_picker"
+- assertVisible:
+    id: "recovery_saved"
+
+# Focus custom phrase editor to bring keyboard up, then ensure action remains visible
+- tapOn:
+    id: "recovery_custom_phrase_input"
+- inputText: "an emperor slept gradually outside an found carpenter yellow"
+- assertVisible:
+    id: "recovery_saved"
+- assertVisible: "Recovery Phrase"

@@ -85,22 +85,51 @@ struct PatternSetupView: View {
                 .frame(height: 80)
 
             case .recovery:
-                Spacer()
-                recoverySection
-                Spacer()
+                recoveryScrollSection
             }
 
-            // Bottom buttons
-            bottomButtons
+            // Bottom buttons for pattern steps.
+            // Recovery action is pinned via safeAreaInset so it stays visible above keyboard.
+            if step != .recovery {
+                bottomButtons
+            }
         }
         .padding()
         .background(Color.vaultBackground.ignoresSafeArea())
+        .safeAreaInset(edge: .bottom) {
+            if step == .recovery {
+                bottomButtons
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+                    .background(Color.vaultBackground)
+            }
+        }
+        .toolbar {
+            if step == .recovery && useCustomPhrase {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        dismissKeyboard()
+                    }
+                }
+            }
+        }
         .overlay {
             if isSaving {
                 Color.black.opacity(0.3)
                     .ignoresSafeArea()
                     .overlay { ProgressView().tint(.white) }
             }
+        }
+        .onAppear {
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-MAESTRO_FORCE_ONBOARDING_RECOVERY") {
+                step = .recovery
+                useCustomPhrase = true
+                generatedPhrase = RecoveryPhraseGenerator.shared.generatePhrase()
+            }
+            #endif
         }
         .allowsHitTesting(!isSaving)
     }
@@ -165,6 +194,7 @@ struct PatternSetupView: View {
                         TextEditor(text: $customPhrase)
                             .scrollContentBackground(.hidden)
                             .autocorrectionDisabled()
+                            .accessibilityIdentifier("recovery_custom_phrase_input")
                             .onChange(of: customPhrase) { _, newValue in
                                 validateCustomPhrase(newValue)
                             }
@@ -221,6 +251,15 @@ struct PatternSetupView: View {
             .foregroundStyle(.vaultSecondaryText)
         }
         .padding(.horizontal)
+    }
+
+    private var recoveryScrollSection: some View {
+        ScrollView {
+            recoverySection
+                .padding(.top, 8)
+                .padding(.bottom, 12)
+        }
+        .scrollIndicators(.hidden)
     }
 
     private var bottomButtons: some View {
@@ -409,6 +448,15 @@ struct PatternSetupView: View {
             return
         }
         customPhraseValidation = RecoveryPhraseGenerator.shared.validatePhrase(phrase)
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
+        )
     }
 }
 
