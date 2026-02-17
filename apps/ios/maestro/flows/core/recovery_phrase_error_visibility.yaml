@@ -1,0 +1,37 @@
+appId: app.vaultaire.ios
+---
+# Regression: Recovery phrase errors must be visible/readable and styled consistently.
+- runFlow: ../helpers/launch_test_mode.yaml
+
+# Move to lock screen first
+- tapOn:
+    id: "vault_lock_button"
+- assertVisible: "Draw your pattern"
+
+# Open recovery phrase sheet
+- tapOn:
+    id: "unlock_recovery_link"
+- extendedWaitUntil:
+    visible: "Recovery"
+    timeout: 3000
+- assertVisible:
+    id: "unlock_recovery_phrase_input"
+
+# Submit an invalid phrase and verify visible error styling/content
+- tapOn:
+    id: "unlock_recovery_phrase_input"
+- inputText: "invalid recovery phrase for testing"
+- tapOn:
+    text: "Recover Vault"
+- extendedWaitUntil:
+    visible:
+      id: "unlock_recovery_error"
+    timeout: 6000
+- assertVisible:
+    text: "Recovery Failed"
+- assertVisible:
+    text: "Incorrect recovery phrase\\. Please check and try again\\."
+
+- tapOn:
+    id: "unlock_recovery_cancel"
+- assertVisible: "Draw your pattern"

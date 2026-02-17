@@ -274,15 +274,19 @@ struct RecoveryPhraseInputView: View {
                 .disabled(phrase.isEmpty || isProcessing)
 
                 if let error = errorMessage {
-                    HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.circle.fill")
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("Recovery Failed", systemImage: "exclamationmark.triangle.fill")
                             .foregroundStyle(.vaultHighlight)
+                            .font(.subheadline.weight(.medium))
                         Text(error)
+                            .foregroundStyle(.vaultSecondaryText)
                             .font(.caption)
-                            .foregroundStyle(.vaultHighlight)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding()
-                    .vaultGlassTintedBackground(tint: Color.vaultHighlight, cornerRadius: 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .vaultGlassBackground(cornerRadius: 12)
+                    .accessibilityIdentifier("unlock_recovery_error")
                 }
 
                 Spacer()
