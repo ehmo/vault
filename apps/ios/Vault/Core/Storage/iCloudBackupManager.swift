@@ -38,7 +38,7 @@ enum iCloudError: Error {
 /// v2: Multi-blob payload packed into 2MB chunks, includes all index files.
 ///     Only backs up used portions of each blob (0→cursor), dramatically
 ///     reducing backup size. Backward-compatible restore handles both formats.
-final class iCloudBackupManager {
+final class iCloudBackupManager: @unchecked Sendable {
     static let shared = iCloudBackupManager()
 
     private let container: CKContainer
@@ -115,20 +115,15 @@ final class iCloudBackupManager {
         try Task.checkCancellation()
         let index = try VaultStorage.shared.loadIndex(with: key)
 
-        // Pack all blobs (used portions only) + all index files
-        let payload = try packBackupPayload(index: index, key: key)
+        // Pack all blobs (used portions only) + all index files off-main.
+        let payload = try await packBackupPayloadOffMain(index: index, key: key)
         Self.logger.info("[backup] Payload packed: \(payload.count) bytes")
 
-        // Encrypt the payload
+        // Encrypt/checksum/chunk off-main to keep UI responsive even when called
+        // from settings-driven flows.
         onProgress(.encrypting)
         try Task.checkCancellation()
-        let encryptedPayload = try CryptoEngine.encrypt(payload, with: key)
-
-        // Compute checksum
-        let checksum = CryptoEngine.computeHMAC(for: encryptedPayload, with: key)
-
-        // Chunk into 2MB pieces
-        let chunks = chunkData(encryptedPayload)
+        let (encryptedPayload, checksum, chunks) = try await encryptAndPrepareChunksOffMain(payload, key: key)
         let backupId = UUID().uuidString
 
         let metadata = BackupMetadata(
@@ -171,6 +166,37 @@ final class iCloudBackupManager {
 
         onProgress(.complete)
         Self.logger.info("[backup] v2 backup complete (\(chunks.count) chunks, \(encryptedPayload.count / 1024)KB)")
+    }
+
+    private func packBackupPayloadOffMain(index: VaultStorage.VaultIndex, key: Data) async throws -> Data {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                do {
+                    let payload = try self.packBackupPayload(index: index, key: key)
+                    continuation.resume(returning: payload)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    private func encryptAndPrepareChunksOffMain(
+        _ payload: Data,
+        key: Data
+    ) async throws -> (encryptedPayload: Data, checksum: Data, chunks: [(Int, Data)]) {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let encryptedPayload = try CryptoEngine.encrypt(payload, with: key)
+                    let checksum = CryptoEngine.computeHMAC(for: encryptedPayload, with: key)
+                    let chunks = self.chunkData(encryptedPayload)
+                    continuation.resume(returning: (encryptedPayload, checksum, chunks))
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
     }
 
     // MARK: - Backup Payload Packing
@@ -625,6 +651,10 @@ final class iCloudBackupManager {
                     Self.logger.warning("[auto-backup] Backup cancelled")
                     return
                 }
+                EmbraceManager.shared.captureError(
+                    error,
+                    context: ["feature": "icloud_auto_backup"]
+                )
                 Self.logger.error("[auto-backup] Backup failed: \(error)")
             }
         }

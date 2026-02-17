@@ -359,11 +359,17 @@ final class AppState {
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(
         _ _: UIApplication,
+        willFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        // Start telemetry as early as possible for startup instrumentation.
+        AnalyticsManager.shared.startIfEnabled()
+        return true
+    }
+
+    func application(
+        _ _: UIApplication,
         didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        // Initialize analytics (Embrace + TelemetryDeck) if user opted in
-        AnalyticsManager.shared.startIfEnabled()
-
         UNUserNotificationCenter.current().delegate = self
 
         // Eagerly init VaultStorage so blob existence check (and potential background

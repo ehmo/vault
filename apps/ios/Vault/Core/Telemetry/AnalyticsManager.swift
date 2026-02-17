@@ -12,7 +12,7 @@ final class AnalyticsManager {
 
     func startIfEnabled() {
         guard isEnabled else { return }
-        Task(priority: .utility) { @MainActor in
+        runOnMain {
             EmbraceManager.shared.start()
             TelemetryManager.shared.start()
         }
@@ -20,17 +20,27 @@ final class AnalyticsManager {
 
     func setEnabled(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: Self.key)
-        if enabled {
-            // Embrace setup/start must run on MainActor to satisfy SDK queue
-            // preconditions and ensure Embrace.client is initialized.
-            Task(priority: .utility) { @MainActor in
+        runOnMain {
+            if enabled {
                 EmbraceManager.shared.start()
                 TelemetryManager.shared.start()
-            }
-        } else {
-            Task { @MainActor in
+            } else {
                 EmbraceManager.shared.stop()
                 TelemetryManager.shared.stop()
+            }
+        }
+    }
+
+    private func runOnMain(_ block: @escaping @MainActor () -> Void) {
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                block()
+            }
+        } else {
+            DispatchQueue.main.sync {
+                MainActor.assumeIsolated {
+                    block()
+                }
             }
         }
     }

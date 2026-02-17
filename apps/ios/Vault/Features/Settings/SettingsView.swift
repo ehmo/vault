@@ -622,7 +622,9 @@ struct iCloudBackupSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { onAppear() }
         .onReceive(NotificationCenter.default.publisher(for: .CKAccountChanged)) { _ in
-            Task { iCloudAvailable = await checkiCloudAvailable() }
+            Task { @MainActor in
+                iCloudAvailable = await checkiCloudAvailable()
+            }
         }
         .onChange(of: isBackupEnabled) { _, enabled in
             handleToggleChange(enabled)
@@ -654,7 +656,9 @@ struct iCloudBackupSettingsView: View {
             .padding(.top, 8)
 
             Button("Retry") {
-                Task { iCloudAvailable = await checkiCloudAvailable() }
+                Task { @MainActor in
+                    iCloudAvailable = await checkiCloudAvailable()
+                }
             }
             .foregroundStyle(.vaultSecondaryText)
         }
@@ -761,7 +765,7 @@ struct iCloudBackupSettingsView: View {
     }
 
     private func onAppear() {
-        Task {
+        Task { @MainActor in
             let available = await checkiCloudAvailable()
             iCloudAvailable = available
             if !available && isBackupEnabled {
@@ -775,10 +779,17 @@ struct iCloudBackupSettingsView: View {
     }
 
     private func handleToggleChange(_ enabled: Bool) {
-        guard enabled else { return }
+        guard enabled else {
+            backupTask?.cancel()
+            backupTask = nil
+            isBackingUp = false
+            backupStage = nil
+            UIApplication.shared.isIdleTimerDisabled = false
+            return
+        }
 
         // Check iCloud via CloudKit account status before allowing enable
-        Task {
+        Task { @MainActor in
             let available = await checkiCloudAvailable()
             guard available else {
                 isBackupEnabled = false
@@ -791,6 +802,7 @@ struct iCloudBackupSettingsView: View {
     }
 
     private func performBackup() {
+        guard !isBackingUp else { return }
         guard let key = appState.currentVaultKey else {
             errorMessage = "No vault key available"
             return
@@ -841,6 +853,10 @@ struct iCloudBackupSettingsView: View {
                     backupStage = nil
                 }
             } catch {
+                EmbraceManager.shared.captureError(
+                    error,
+                    context: ["feature": "icloud_backup_settings"]
+                )
                 await MainActor.run {
                     errorMessage = "\(error.localizedDescription)\n\nError type: \(type(of: error))\nDetails: \(error)"
                     isBackingUp = false
