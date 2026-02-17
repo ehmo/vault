@@ -12,6 +12,9 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
+            Color.vaultBackground
+                .ignoresSafeArea()
+
             Group {
                 if appState.showOnboarding {
                     OnboardingView()
