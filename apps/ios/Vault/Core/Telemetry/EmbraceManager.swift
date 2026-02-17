@@ -14,6 +14,7 @@ enum SpanStatus {
     case internalError
     case invalidArgument
     case notFound
+    case aborted
 }
 
 /// Lightweight wrapper around an Embrace span that preserves the existing
@@ -130,7 +131,7 @@ final class EmbraceManager: @unchecked Sendable {
                 switch status {
                 case .ok:
                     span.end()
-                case .internalError, .invalidArgument, .notFound:
+                case .internalError, .invalidArgument, .notFound, .aborted:
                     span.end(errorCode: .failure)
                 }
             },
@@ -151,7 +152,7 @@ final class EmbraceManager: @unchecked Sendable {
                         switch status {
                         case .ok:
                             childSpan.end()
-                        case .internalError, .invalidArgument, .notFound:
+                        case .internalError, .invalidArgument, .notFound, .aborted:
                             childSpan.end(errorCode: .failure)
                         }
                     },

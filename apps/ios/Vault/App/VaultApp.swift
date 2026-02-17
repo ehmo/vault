@@ -71,6 +71,9 @@ final class AppState {
     var isLoading = false
     var isSharedVault = false
     var screenshotDetected = false
+    /// Monotonically increasing counter; bumped on every `lockVault()`.
+    /// Unlock tasks check this to abort if the vault was locked mid-ceremony.
+    private(set) var lockGeneration: UInt64 = 0
     private(set) var vaultName: String = "Vault"
     var pendingImportCount = 0
     var hasPendingImports = false
@@ -149,10 +152,12 @@ final class AppState {
 
     func completeOnboarding() async {
         guard showOnboarding else { return }
+        let startGeneration = lockGeneration
         UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
         showOnboarding = false
         isLoading = true
         try? await Task.sleep(nanoseconds: Self.unlockCeremonyDelayNanoseconds)
+        guard lockGeneration == startGeneration else { return }
         isUnlocked = true
         isLoading = false
         ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "onboarding_completed")
@@ -208,6 +213,10 @@ final class AppState {
         let transaction = EmbraceManager.shared.startTransaction(name: "vault.unlock", operation: "vault.unlock")
         transaction.setTag(value: "\(gridSize)", key: "gridSize")
 
+        // Capture the lock generation before we start; if it changes during
+        // the ceremony, the vault was locked and we must abort.
+        let startGeneration = lockGeneration
+
         isLoading = true
 
         do {
@@ -230,6 +239,13 @@ final class AppState {
                 try? await delayTask
             }
 
+            // Abort if the vault was locked during the ceremony (e.g. app backgrounded)
+            guard lockGeneration == startGeneration else {
+                Self.logger.info("Vault locked during unlock ceremony, aborting")
+                transaction.finish(status: .aborted)
+                return false
+            }
+
             Self.logger.trace("Key derived successfully")
 
             // Check if this is a duress pattern
@@ -239,6 +255,13 @@ final class AppState {
                 await DuressHandler.shared.triggerDuress(preservingKey: key)
             }
             duressSpan.finish()
+
+            // Final generation check after duress (which can be async)
+            guard lockGeneration == startGeneration else {
+                Self.logger.info("Vault locked during unlock ceremony, aborting")
+                transaction.finish(status: .aborted)
+                return false
+            }
 
             currentVaultKey = key
             currentPattern = pattern
@@ -278,6 +301,11 @@ final class AppState {
         } catch {
             Self.logger.error("Error unlocking: \(error.localizedDescription, privacy: .public)")
             transaction.finish(status: .internalError)
+            // Abort if vault was locked during the ceremony
+            guard lockGeneration == startGeneration else {
+                Self.logger.info("Vault locked during unlock ceremony (error path), aborting")
+                return false
+            }
             isLoading = false
             // Still show as "unlocked" with empty vault - no error indication
             currentVaultKey = nil
@@ -296,11 +324,15 @@ final class AppState {
 
         EmbraceManager.shared.addBreadcrumb(category: "vault.locked")
 
+        // Bump generation so any in-flight unlock ceremony aborts
+        lockGeneration &+= 1
+
         // Clear the key reference (Data is a value type; resetBytes on a copy is a no-op)
         currentVaultKey = nil
         currentPattern = nil
         vaultName = "Vault"
         isUnlocked = false
+        isLoading = false
         isSharedVault = false
         screenshotDetected = false
         pendingImportCount = 0

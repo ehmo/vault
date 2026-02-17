@@ -10,6 +10,7 @@ struct VaultSettingsView: View {
 
     @State private var showingChangePattern = false
     @State private var showingRegeneratedPhrase = false
+    @State private var regenerateErrorMessage: String?
     @State private var showingDeleteConfirmation = false
     @State private var showingShareVault = false
     @State private var showingRegenerateConfirmation = false
@@ -195,6 +196,14 @@ struct VaultSettingsView: View {
         } message: {
             Text("Your current recovery phrase will no longer work. Write down the new phrase immediately.")
         }
+        .alert("Error", isPresented: Binding(
+            get: { regenerateErrorMessage != nil },
+            set: { if !$0 { regenerateErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { regenerateErrorMessage = nil }
+        } message: {
+            Text(regenerateErrorMessage ?? "An unexpected error occurred.")
+        }
         .alert("Enable Duress Vault?", isPresented: $showingDuressConfirmation) {
             Button("Cancel", role: .cancel) {
                 isDuressVault = !pendingDuressValue
@@ -298,14 +307,28 @@ struct VaultSettingsView: View {
         EmbraceManager.shared.addBreadcrumb(category: "settings.phraseRegenerated")
         Task {
             do {
-                _ = try await RecoveryPhraseManager.shared.regenerateRecoveryPhrase(for: key)
+                do {
+                    _ = try await RecoveryPhraseManager.shared.regenerateRecoveryPhrase(for: key)
+                } catch RecoveryError.vaultNotFound {
+                    // No existing recovery data — create fresh entry
+                    vaultSettingsLogger.info("No recovery data found, creating new recovery phrase")
+                    let newPhrase = RecoveryPhraseGenerator.shared.generatePhrase()
+                    try await RecoveryPhraseManager.shared.saveRecoveryPhrase(
+                        phrase: newPhrase,
+                        pattern: appState.currentPattern ?? [],
+                        gridSize: 5,
+                        patternKey: key
+                    )
+                }
                 vaultSettingsLogger.debug("Recovery phrase regenerated")
-                // Show the new phrase
                 await MainActor.run {
                     showingRegeneratedPhrase = true
                 }
             } catch {
                 vaultSettingsLogger.error("Failed to regenerate phrase: \(error.localizedDescription, privacy: .public)")
+                await MainActor.run {
+                    regenerateErrorMessage = "Failed to regenerate recovery phrase. Please try again."
+                }
             }
         }
     }
