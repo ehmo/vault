@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "762b4d3049b8",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 17,
+  "files_touched": [
+    "apps/ios/Vault/App/ContentView.swift",
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Features/PatternLock/PatternLockView.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
+    "apps/ios/Vault/Resources/Assets.xcassets/AccentColor.colorset/Contents.json",
+    "apps/ios/build/SourcePackages/checkouts/embrace-apple-sdk/Examples/Benchmarks/Benchmarks.xcodeproj/project.pbxproj",
+    "apps/ios/build/SourcePackages/checkouts/embrace-apple-sdk/Examples/Benchmarks/Benchmarks.xcodeproj/xcshareddata/xcbaselines/2A7143CF2E79E41600CCE829.xcbaseline/E59D7395-A687-4EB5-B658-4E1801CFE759.plist",
+    "apps/ios/build/SourcePackages/checkouts/embrace-apple-sdk/Examples/Benchmarks/Benchmarks.xcodeproj/xcshareddata/xcbaselines/2A7143CF2E79E41600CCE829.xcbaseline/Info.plist",
+    "apps/ios/build/SourcePackages/checkouts/embrace-apple-sdk/Examples/Benchmarks/Benchmarks.xcodeproj/xcshareddata/xcschemes/Benchmarks.xcscheme",
+    "apps/ios/build/SourcePackages/checkouts/embrace-apple-sdk/Examples/Benchmarks/Benchmarks.xcworkspace/contents.xcworkspacedata",
+    "apps/ios/build/SourcePackages/checkouts/embrace-apple-sdk/Examples/Benchmarks/Benchmarks.xcworkspace/xcshareddata/swiftpm/Package.resolved",
+    "apps/ios/build/SourcePackages/checkouts/embrace-apple-sdk/Examples/BrandGame-CocoaPods/BrandGame.xcodeproj/project.pbxproj",
+    "apps/ios/build/SourcePackages/checkouts/embrace-apple-sdk/Examples/BrandGame-CocoaPods/BrandGame.xcodeproj/xcshareddata/xcschemes/BrandGame.xcscheme",
+    "apps/ios/build/SourcePackages/checkouts/embrace-apple-sdk/Examples/BrandGame-CocoaPods/BrandGame.xcworkspace/contents.xcworkspacedata",
+    "apps/ios/build/SourcePackages/checkouts/embrace-apple-sdk/Examples/Embrace-tvOS-TestApp/Embrace-tvOS-TestApp.xcodeproj/project.pbxproj",
+    "apps/ios/build/SourcePackages/checkouts/embrace-apple-sdk/Examples/Embrace-tvOS-TestApp/Embrace-tvOS-TestApp.xcodeproj/xcshareddata/xcschemes/Embrace-tvOS-TestApp.xcscheme",
+    "apps/ios/build/SourcePackages/checkouts/embrace-apple-sdk/Examples/Embrace-watchOS-TestApp/Embrace-watchOS-TestApp.xcodeproj/project.pbxproj",
+    "apps/ios/docs/design-decisions.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/76/2b4d3049b8/0/metadata.json",
+      "transcript": "/76/2b4d3049b8/0/full.jsonl",
+      "context": "/76/2b4d3049b8/0/context.md",
+      "content_hash": "/76/2b4d3049b8/0/content_hash.txt",
+      "prompt": "/76/2b4d3049b8/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 229,
+    "cache_creation_tokens": 309333,
+    "cache_read_tokens": 17868106,
+    "output_tokens": 9416,
+    "api_call_count": 174
+  }
+}
