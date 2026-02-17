@@ -5,7 +5,9 @@ appId: app.vaultaire.ios
 
 # Open photo
 - tapOn:
-    index: 0
+    point: "20%, 34%"
+- assertVisible:
+    id: "viewer_done"
 
 # Actions -> Delete
 - tapOn:

@@ -5,7 +5,7 @@ appId: app.vaultaire.ios
 
 # Tap first photo in grid to open viewer
 - tapOn:
-    index: 0
+    point: "20%, 34%"
 
 # Verify viewer opened
 - assertVisible:

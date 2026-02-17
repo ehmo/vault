@@ -3,9 +3,13 @@ appId: app.vaultaire.ios
 # Cycle flash modes: auto -> on -> off -> auto
 - runFlow: ../helpers/launch_test_mode.yaml
 
-# Use empty state button to open camera
+# Open camera entry point from either non-empty or empty vault state
+- tapOn:
+    id: "vault_add_button"
+    optional: true
 - tapOn:
     id: "vault_first_files"
+    optional: true
 - tapOn:
     text: "Take Secure Photo"
 

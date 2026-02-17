@@ -36,7 +36,8 @@ appId: app.vaultaire.ios
 
 # Now on paywall step - test immediately after analytics init
 - assertVisible: "Unlock Vaultaire Pro"
-- assertVisible: "Subscribe"
+- assertVisible:
+    text: ".*(Subscribe|Try for 7 days).*"
 
 # Rapid-fire tapping immediately (no extra waits — stress test during analytics init)
 - tapOn: "Lifetime"
@@ -48,7 +49,8 @@ appId: app.vaultaire.ios
 - tapOn: "Monthly"
 - waitForAnimationToEnd:
     timeout: 1000
-- assertVisible: "Subscribe"
+- assertVisible:
+    text: ".*(Subscribe|Try for 7 days).*"
 
 - tapOn: "Annual"
 - tapOn: "Lifetime"
@@ -62,4 +64,5 @@ appId: app.vaultaire.ios
 - tapOn: "Monthly"
 - waitForAnimationToEnd:
     timeout: 1000
-- assertVisible: "Subscribe"
+- assertVisible:
+    text: ".*(Subscribe|Try for 7 days).*"

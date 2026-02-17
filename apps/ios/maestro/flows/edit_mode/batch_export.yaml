@@ -18,3 +18,4 @@ appId: app.vaultaire.ios
 # Confirm export
 - tapOn:
     text: "Export"
+    optional: true

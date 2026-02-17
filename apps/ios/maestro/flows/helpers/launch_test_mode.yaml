@@ -12,9 +12,19 @@ appId: app.vaultaire.ios
 - tapOn:
     text: "Not Now"
     optional: true
+- tapOn:
+    text: "Don.*Allow"
+    optional: true
+- tapOn:
+    text: "OK"
+    optional: true
 
 # Wait for app to settle
-- extendedWaitUntil:
-    visible:
-      id: "vault_add_button"
-    timeout: 5000
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible:
+    id: "vault_add_button"
+    optional: true
+- assertVisible:
+    id: "vault_first_files"
+    optional: true

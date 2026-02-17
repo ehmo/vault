@@ -14,6 +14,12 @@ appId: app.vaultaire.ios
 - tapOn:
     text: "Not Now"
     optional: true
+- tapOn:
+    text: "Don.*Allow"
+    optional: true
+- tapOn:
+    text: "OK"
+    optional: true
 
 - extendedWaitUntil:
     visible:

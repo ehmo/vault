@@ -5,7 +5,13 @@ appId: app.vaultaire.ios
 - runFlow: ../helpers/navigate_to_app_settings.yaml
 
 - assertVisible:
-    id: "app_appearance_picker"
+    id: "app_appearance_setting"
+
+- tapOn:
+    id: "app_appearance_setting"
+
+- assertVisible:
+    id: "appearance_light"
 
 - tapOn: "Light"
 - tapOn: "Dark"

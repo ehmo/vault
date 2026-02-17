@@ -37,8 +37,9 @@ appId: app.vaultaire.ios
 # Now on paywall step
 - assertVisible: "Unlock Vaultaire Pro"
 
-# Default is Annual - CTA should say "Subscribe" (trial text only when eligible)
-- assertVisible: "Subscribe"
+# Default is Annual - CTA may be trial copy or subscribe copy depending on eligibility.
+- assertVisible:
+    text: ".*(Subscribe|Try for 7 days).*"
 
 # Test 1: Tap Lifetime - CTA changes to "Purchase for"
 - tapOn: "Lifetime"
@@ -47,19 +48,21 @@ appId: app.vaultaire.ios
 - assertVisible:
     text: "Purchase for \\$29.99"
 
-# Test 2: Tap Monthly - CTA changes back to "Subscribe"
+# Test 2: Tap Monthly - CTA uses trial/subscription copy.
 - tapOn: "Monthly"
 - waitForAnimationToEnd:
     timeout: 1000
 - assertNotVisible:
     text: "Purchase for \\$29.99"
-- assertVisible: "Subscribe"
+- assertVisible:
+    text: ".*(Subscribe|Try for 7 days).*"
 
 # Test 3: Tap Annual
 - tapOn: "Annual"
 - waitForAnimationToEnd:
     timeout: 1000
-- assertVisible: "Subscribe"
+- assertVisible:
+    text: ".*(Subscribe|Try for 7 days).*"
 
 # Test 4: Switch back to Lifetime
 - tapOn: "Lifetime"
@@ -89,4 +92,5 @@ appId: app.vaultaire.ios
 - tapOn: "Monthly"
 - waitForAnimationToEnd:
     timeout: 1000
-- assertVisible: "Subscribe"
+- assertVisible:
+    text: ".*(Subscribe|Try for 7 days).*"

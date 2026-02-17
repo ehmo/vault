@@ -7,9 +7,13 @@ appId: app.vaultaire.ios
 - addMedia:
     - test-photo.jpg
 
-# In empty state, tap "Protect Your First Files" to show import options
+# Open import options from either non-empty or empty vault state
+- tapOn:
+    id: "vault_add_button"
+    optional: true
 - tapOn:
     id: "vault_first_files"
+    optional: true
 
 # Confirmation dialog appears — choose "Import from Library"
 - tapOn:
