@@ -145,6 +145,7 @@ All pattern grid screens MUST behave identically. There are two categories:
 - **ChangePattern completion readability**: On `.complete`, avoid rendering step indicator/title chrome and centered spacers that compress phrase content. Use a scroll-safe completion container and `PhraseDisplayCard` so long generated recovery phrases never truncate.
 - **Deterministic Change Pattern tests**: Simulator-only test hooks (`change_pattern_test_*`) are available in `ChangePatternView` for Maestro regression flows; they should never gate production behavior.
 - **Test target**: `@testable import Vault` with `TEST_HOST` pattern, TS prefix IDs. `xcrun simctl list devices available` before test runs.
+- **Simulator 404 recovery**: If `xcodebuild test` fails with `Unable to boot deleted device` even for a listed UUID, run `xcrun simctl shutdown all`, boot a concrete destination (`simctl boot <UUID>` + `bootstatus -b`), then rerun tests against that booted UUID.
 - **Streaming encryption**: `CryptoEngine.encryptStreaming(fileURL:originalSize:with:)` reads via FileHandle in 256KB chunks — use for any file >10MB to avoid peak memory spikes
 - **Streaming decrypt path**: For temp-file retrieval of VCSE content, parse header from `FileHandle` and stream-decrypt directly to output URL. Avoid loading whole encrypted entries into `Data` first.
 - **Share consumed-state lookups**: Fetch consumed states in batch (`consumedStatusByShareVaultIds`) for list/sync paths to avoid N+1 CloudKit/DB reads.
