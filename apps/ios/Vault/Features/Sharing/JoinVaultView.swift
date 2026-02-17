@@ -311,7 +311,7 @@ struct JoinVaultView: View {
         do {
             let patternKey = try await resolvePatternKey(precomputedPatternKey: precomputedPatternKey)
 
-            if VaultStorage.shared.vaultExists(for: patternKey), !forceOverwrite {
+            if VaultStorage.shared.vaultHasFiles(for: patternKey), !forceOverwrite {
                 prepareOverwriteConfirmation(for: patternKey)
                 return
             }

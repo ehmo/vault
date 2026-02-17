@@ -77,6 +77,27 @@ final class CloudKitSharingManager {
             .joined(separator: " ")
     }
 
+    /// Lightweight check: is this share phrase still available (not claimed, revoked, or missing)?
+    func checkPhraseAvailability(phrase: String) async -> Result<Void, CloudKitSharingError> {
+        let phraseVaultId = Self.vaultId(from: phrase)
+        let recordId = CKRecord.ID(recordName: phraseVaultId)
+        do {
+            let manifest = try await publicDatabase.record(for: recordId)
+            if let claimed = manifest["claimed"] as? Bool, claimed {
+                return .failure(.alreadyClaimed)
+            }
+            if let revoked = manifest["revoked"] as? Bool, revoked {
+                return .failure(.revoked)
+            }
+            return .success(())
+        } catch let error as CKError where error.code == .unknownItem {
+            return .failure(.vaultNotFound)
+        } catch {
+            // Network error — don't block the user; let them proceed
+            return .success(())
+        }
+    }
+
     // MARK: - Upload (Chunked)
 
     /// Uploads vault data to CloudKit in chunks for a specific share vault ID.

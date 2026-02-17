@@ -866,11 +866,11 @@ struct ChangePatternView: View {
                 // Pattern valid — don't show feedback yet (avoids brief flash before transition)
                 do {
                     let newKey = try await KeyDerivation.deriveKey(from: pattern, gridSize: patternState.gridSize)
-                    let vaultExists = VaultStorage.shared.vaultExists(for: newKey)
+                    let hasFiles = VaultStorage.shared.vaultHasFiles(for: newKey)
 
                     await MainActor.run {
-                        if vaultExists {
-                            vaultSettingsLogger.info("Pattern already used by another vault")
+                        if hasFiles {
+                            vaultSettingsLogger.info("Pattern already used by a vault with files")
                             flow.showError("This pattern is already used by another vault. Please choose a different pattern.")
                             patternState.reset()
                         } else {

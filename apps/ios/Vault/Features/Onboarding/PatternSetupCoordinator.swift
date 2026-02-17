@@ -5,7 +5,7 @@ struct PatternSetupCoordinator {
         try await KeyDerivation.deriveKey(from: pattern, gridSize: gridSize)
     }
     var vaultExists: (Data) -> Bool = { key in
-        VaultStorage.shared.vaultExists(for: key)
+        VaultStorage.shared.vaultHasFiles(for: key)
     }
     var saveIndex: (VaultStorage.VaultIndex, Data) throws -> Void = { index, key in
         try VaultStorage.shared.saveIndex(index, with: key)

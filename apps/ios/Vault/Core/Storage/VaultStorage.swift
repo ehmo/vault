@@ -1252,12 +1252,20 @@ final class VaultStorage {
     func vaultExists(for key: Data) -> Bool {
         let indexURL = indexURL(for: key)
         let exists = fileManager.fileExists(atPath: indexURL.path)
-        
+
         #if DEBUG
         print("🔍 [VaultStorage] Checking if vault exists for key hash \(key.hashValue): \(exists)")
         #endif
-        
+
         return exists
+    }
+
+    /// Returns true only when a vault index exists AND contains at least one non-deleted file.
+    /// Use this for collision checks where overwriting an empty vault is acceptable.
+    func vaultHasFiles(for key: Data) -> Bool {
+        guard vaultExists(for: key) else { return false }
+        guard let index = try? loadIndex(with: key) else { return false }
+        return index.files.contains(where: { !$0.isDeleted })
     }
     
     /// Change the vault key (pattern) without re-encrypting files
@@ -1271,12 +1279,16 @@ final class VaultStorage {
         print("🔑 [VaultStorage] New key hash: \(newKey.hashValue)")
         #endif
         
-        // Check if new key would overwrite an existing vault
-        if vaultExists(for: newKey) {
+        // Check if new key would overwrite an existing vault with actual files
+        if vaultHasFiles(for: newKey) {
             #if DEBUG
-            print("❌ [VaultStorage] Cannot change to this pattern - vault already exists!")
+            print("❌ [VaultStorage] Cannot change to this pattern - vault with files already exists!")
             #endif
             throw VaultStorageError.vaultAlreadyExists
+        }
+        // Clean up empty vault index at target key if it exists
+        if vaultExists(for: newKey) {
+            try? deleteVaultIndex(for: newKey)
         }
         
         // 1. Load index with old key

@@ -77,6 +77,14 @@ struct SharedVaultInviteView: View {
         .task {
             let status = await CloudKitSharingManager.shared.checkiCloudStatus()
             iCloudStatus = status
+
+            // Early check: is the phrase still available?
+            let trimmed = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return }
+            let result = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: trimmed)
+            if case .failure(let error) = result {
+                mode = .error(error.localizedDescription ?? "This invite is no longer available.")
+            }
         }
         .premiumPaywall(isPresented: $showingPaywall)
         .interactiveDismissDisabled()
@@ -278,7 +286,7 @@ struct SharedVaultInviteView: View {
         do {
             let patternKey = try await resolvePatternKey(precomputedPatternKey: precomputedPatternKey)
 
-            if VaultStorage.shared.vaultExists(for: patternKey), !forceOverwrite {
+            if VaultStorage.shared.vaultHasFiles(for: patternKey), !forceOverwrite {
                 prepareOverwriteConfirmation(for: patternKey)
                 return
             }
