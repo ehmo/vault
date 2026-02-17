@@ -66,7 +66,12 @@ struct ContentView: View {
         }
         .ignoresSafeArea(.keyboard)
         .onChange(of: appState.isUnlocked) { _, isUnlocked in
-            guard isUnlocked else { return }
+            guard isUnlocked else {
+                // Safety: ensure unlock overlay is dismissed when vault locks,
+                // even if the fade-out animation was interrupted.
+                showUnlockTransition = false
+                return
+            }
 
             // Trigger silent background backup if enabled and overdue
             if let key = appState.currentVaultKey {
@@ -80,6 +85,17 @@ struct ContentView: View {
                 withAnimation(.easeOut(duration: 0.9)) {
                     showUnlockTransition = false
                 }
+            }
+        }
+        // Safety: when the app becomes active, clear any stuck overlays.
+        // Covers edge cases where background suspension interrupts animations
+        // or leaves screenshotDetected stuck.
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            if !appState.isUnlocked {
+                showUnlockTransition = false
+            }
+            if appState.screenshotDetected && !appState.isUnlocked {
+                appState.screenshotDetected = false
             }
         }
         // Screenshot detection — locks vault when user takes a screenshot

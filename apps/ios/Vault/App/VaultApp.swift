@@ -195,7 +195,6 @@ final class AppState {
                     window.overrideUserInterfaceStyle = style
                     window.backgroundColor = resolvedColor
                     window.rootViewController?.view.backgroundColor = resolvedColor
-                    window.layoutIfNeeded()
                 }
             }
             CATransaction.commit()
