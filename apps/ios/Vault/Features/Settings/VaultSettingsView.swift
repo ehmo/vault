@@ -153,7 +153,12 @@ struct VaultSettingsView: View {
                 Text("Permanently deletes all files in this vault. This cannot be undone.")
             }
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.vaultBackground.ignoresSafeArea())
         .navigationTitle("Vault Settings")
+        .toolbarBackground(Color.vaultBackground, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Done") { dismiss() }
