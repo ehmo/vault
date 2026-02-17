@@ -369,11 +369,11 @@ This document captures key product decisions, trade-offs, and the reasoning behi
 | `vaultText` | `#2b2c34` (dark charcoal) | `#e8e8f0` (light grey) | Headlines, paragraphs, labels |
 | `vaultSecondaryText` | `#2b2c34` at 60% alpha | `#e8e8f0` at 60% alpha | Secondary labels, hints |
 | `vaultHighlight` | `#e45858` (coral red) | `#e45858` (coral red) | Warnings, destructive actions, duress indicators |
-| AccentColor | `#6246ea` (indigo-purple) | `#6246ea` (indigo-purple) | Links, buttons, interactive elements |
+| AccentColor | `#1F0D77` (deep indigo) | `#CCC3F8` (soft lavender) | Links, buttons, interactive elements |
 
 **Reasoning:**
 - Lavender background creates a calm, distinctive aesthetic distinct from stock iOS
-- Indigo-purple accent conveys security and trust without the overused blue
+- Deep indigo (light) / soft lavender (dark) accent conveys security and trust without the overused blue
 - Coral red highlight draws attention to warnings and destructive actions
 - High contrast between text and background in both modes for accessibility
 - System green kept for success states (checkmarks, active indicators)

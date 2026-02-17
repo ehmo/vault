@@ -36,13 +36,10 @@ struct VaultApp: App {
                     ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "app_on_appear")
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-                    // Re-apply when app becomes active — catches system appearance changes
                     appState.applyAppearanceToAllWindows()
                     ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "did_become_active")
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIWindow.didBecomeKeyNotification)) { _ in
-                    // Re-apply when any new window becomes key — catches fullScreenCovers,
-                    // sheets, and alerts which create new UIWindows
                     appState.applyAppearanceToAllWindows()
                 }
                 .onChange(of: scenePhase) { _, newPhase in
@@ -81,9 +78,6 @@ final class AppState {
     private(set) var appearanceMode: AppAppearanceMode
 
     /// The UIKit interface style for the current appearance mode.
-    /// Used exclusively via `window.overrideUserInterfaceStyle` — we do NOT use
-    /// SwiftUI's `.preferredColorScheme()` because it conflicts with UIKit overrides
-    /// and fails to revert from explicit (light/dark) back to system (.unspecified).
     var effectiveInterfaceStyle: UIUserInterfaceStyle {
         switch appearanceMode {
         case .system: .unspecified
@@ -91,6 +85,12 @@ final class AppState {
         case .dark: .dark
         }
     }
+
+
+    /// Background color resolved statically from the stored appearance mode at init.
+    /// Does NOT depend on the current trait collection, so it renders correctly on
+    /// the very first frame — before `overrideUserInterfaceStyle` is applied.
+    let launchBackgroundColor: Color
 
     private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "AppState")
     private static let appearanceModeKey = "appAppearanceMode"
@@ -102,7 +102,25 @@ final class AppState {
     #endif
 
     init() {
-        appearanceMode = Self.loadAppearanceMode()
+        let mode = Self.loadAppearanceMode()
+        appearanceMode = mode
+
+        // Resolve VaultBackground for the stored mode at init time, before any
+        // window or trait collection exists. For .system, use the dynamic color.
+        let baseColor = UIColor(named: "VaultBackground") ?? .systemBackground
+        switch mode {
+        case .light:
+            launchBackgroundColor = Color(
+                baseColor.resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))
+            )
+        case .dark:
+            launchBackgroundColor = Color(
+                baseColor.resolvedColor(with: UITraitCollection(userInterfaceStyle: .dark))
+            )
+        case .system:
+            launchBackgroundColor = Color.vaultBackground
+        }
+
         checkFirstLaunch()
         BackgroundShareTransferManager.shared.setVaultKeyProvider { [weak self] in
             self?.currentVaultKey
@@ -149,13 +167,25 @@ final class AppState {
         applyAppearanceToAllWindows()
     }
 
-    /// Applies the user's appearance mode to all UIKit windows, ensuring sheets,
-    /// fullScreenCovers, and alerts all respect the setting immediately.
-    /// This is the SOLE mechanism for appearance control — SwiftUI's
-    /// `.preferredColorScheme()` is intentionally not used.
+    /// Applies the user's appearance mode to all UIKit windows.
+    /// The navigation bar background is `.hidden` (transparent) so SwiftUI's
+    /// `Color.vaultBackground.ignoresSafeArea()` shows through — keeping the
+    /// nav bar area and content in the same SwiftUI render pass.
+    /// This method sets `overrideUserInterfaceStyle` and window background colors.
     func applyAppearanceToAllWindows() {
         let style = effectiveInterfaceStyle
-        let backgroundColor = UIColor(named: "VaultBackground") ?? .systemBackground
+        let baseColor = UIColor(named: "VaultBackground") ?? .systemBackground
+        let targetTraits: UITraitCollection
+        switch style {
+        case .light:
+            targetTraits = UITraitCollection(userInterfaceStyle: .light)
+        case .dark:
+            targetTraits = UITraitCollection(userInterfaceStyle: .dark)
+        default:
+            targetTraits = UITraitCollection.current
+        }
+        let resolvedColor = baseColor.resolvedColor(with: targetTraits)
+
         UIView.performWithoutAnimation {
             CATransaction.begin()
             CATransaction.setDisableActions(true)
@@ -163,10 +193,8 @@ final class AppState {
                 guard let windowScene = scene as? UIWindowScene else { continue }
                 for window in windowScene.windows {
                     window.overrideUserInterfaceStyle = style
-                    // Keep window/root surfaces in the app theme to avoid transient black seams
-                    // during unlock and appearance switches.
-                    window.backgroundColor = backgroundColor
-                    window.rootViewController?.view.backgroundColor = backgroundColor
+                    window.backgroundColor = resolvedColor
+                    window.rootViewController?.view.backgroundColor = resolvedColor
                     window.layoutIfNeeded()
                 }
             }
@@ -372,12 +400,57 @@ final class AppState {
 // MARK: - AppDelegate for Foreground Notifications
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    private var earlyAppearanceObserver: NSObjectProtocol?
+
     func application(
         _ _: UIApplication,
         willFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         // Start telemetry as early as possible for startup instrumentation.
         AnalyticsManager.shared.startIfEnabled()
+
+        // Force the app-wide tint to our AccentColor asset. On iOS 26+,
+        // the Liquid Glass system can override Color.accentColor with its
+        // own automatic tinting; setting the UIKit tint ensures consistency.
+        if let accent = UIColor(named: "AccentColor") {
+            UIView.appearance().tintColor = accent
+        }
+
+        // Make every UINavigationBar transparent by default. SwiftUI's
+        // `.toolbarBackground(.hidden)` does the same thing, but it only takes
+        // effect after the first layout pass — leaving a 1-2 frame flash of the
+        // default opaque bar background when a NavigationStack is first created
+        // (e.g. VaultView appearing during the unlock transition).
+        let transparentAppearance = UINavigationBarAppearance()
+        transparentAppearance.configureWithTransparentBackground()
+        UINavigationBar.appearance().standardAppearance = transparentAppearance
+        UINavigationBar.appearance().scrollEdgeAppearance = transparentAppearance
+        UINavigationBar.appearance().compactAppearance = transparentAppearance
+
+        // Apply the user's stored appearance override to every window as soon as
+        // it becomes key — BEFORE SwiftUI's .onAppear fires. This prevents the
+        // first-frame flash when the stored mode differs from the system default.
+        let mode = AppAppearanceMode(
+            rawValue: UserDefaults.standard.string(forKey: "appAppearanceMode") ?? ""
+        ) ?? .system
+        if mode != .system {
+            let style: UIUserInterfaceStyle = mode == .light ? .light : .dark
+            let baseColor = UIColor(named: "VaultBackground") ?? .systemBackground
+            let resolved = baseColor.resolvedColor(
+                with: UITraitCollection(userInterfaceStyle: style)
+            )
+            earlyAppearanceObserver = NotificationCenter.default.addObserver(
+                forName: UIWindow.didBecomeKeyNotification,
+                object: nil,
+                queue: .main
+            ) { notification in
+                guard let window = notification.object as? UIWindow else { return }
+                window.overrideUserInterfaceStyle = style
+                window.backgroundColor = resolved
+                window.rootViewController?.view.backgroundColor = resolved
+            }
+        }
+
         return true
     }
 

@@ -157,8 +157,7 @@ struct VaultSettingsView: View {
         .scrollContentBackground(.hidden)
         .background(Color.vaultBackground.ignoresSafeArea())
         .navigationTitle("Vault Settings")
-        .toolbarBackground(Color.vaultBackground, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Done") { dismiss() }

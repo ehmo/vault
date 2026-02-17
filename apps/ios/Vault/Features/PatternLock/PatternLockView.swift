@@ -296,8 +296,7 @@ struct RecoveryPhraseInputView: View {
             .background(Color.vaultBackground)
             .navigationTitle("Recovery")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(Color.vaultBackground, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

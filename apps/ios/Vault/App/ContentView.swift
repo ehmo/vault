@@ -12,7 +12,8 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Color.vaultBackground
+            // Static background: correct from frame 1, trait-independent.
+            appState.launchBackgroundColor
                 .ignoresSafeArea()
 
             Group {
@@ -22,8 +23,6 @@ struct ContentView: View {
                     LoadingView()
                 } else if appState.isUnlocked {
                     VaultView()
-                        .opacity(showUnlockTransition ? 0 : 1)
-                        .offset(y: showUnlockTransition ? 20 : 0)
                 } else {
                     PatternLockView()
                 }
@@ -36,19 +35,19 @@ struct ContentView: View {
             }
             #endif
 
-            // Vault door unlock overlay
-            if showUnlockTransition {
-                Color.vaultBackground
-                    .ignoresSafeArea()
-                    .overlay {
-                        Image(systemName: "shield.fill")
-                            .font(.system(size: 64))
-                            .foregroundStyle(Color.accentColor)
-                            .scaleEffect(showUnlockTransition ? 1.2 : 1.0)
-                            .opacity(showUnlockTransition ? 1 : 0)
-                    }
-                    .transition(.opacity)
-            }
+            // Vault door unlock overlay — always present, opacity-controlled.
+            // Using direct opacity instead of conditional insertion avoids
+            // a timing issue where the overlay never reaches full opacity.
+            Color.vaultBackground
+                .ignoresSafeArea()
+                .overlay {
+                    Image(systemName: "shield.fill")
+                        .font(.system(size: 64))
+                        .foregroundStyle(Color.accentColor)
+                        .scaleEffect(showUnlockTransition ? 1.2 : 1.0)
+                }
+                .opacity(showUnlockTransition ? 1 : 0)
+                .allowsHitTesting(showUnlockTransition)
 
             // Screenshot detected: full-screen overlay (covers UI before lock)
             if appState.screenshotDetected {
@@ -76,8 +75,11 @@ struct ContentView: View {
 
             guard !reduceMotion else { return }
             showUnlockTransition = true
-            withAnimation(.easeOut(duration: 0.9)) {
-                showUnlockTransition = false
+            // Delay one frame so the overlay renders at full opacity before fading.
+            DispatchQueue.main.async {
+                withAnimation(.easeOut(duration: 0.9)) {
+                    showUnlockTransition = false
+                }
             }
         }
         // Screenshot detection — locks vault when user takes a screenshot

@@ -264,8 +264,7 @@ struct AppSettingsView: View {
         .background(Color.vaultBackground.ignoresSafeArea())
         .navigationTitle("App Settings")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Color.vaultBackground, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .alert("Destroy All Data?", isPresented: $showingNuclearConfirmation) {
             Button("Cancel", role: .cancel) { /* No-op */ }
             Button("Destroy Everything", role: .destructive) {
@@ -449,8 +448,7 @@ struct AppearanceSettingsView: View {
         .background(Color.vaultBackground.ignoresSafeArea())
         .navigationTitle("Appearance")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Color.vaultBackground, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
     }
 }
 
@@ -510,8 +508,7 @@ struct DuressPatternSettingsView: View {
         .background(Color.vaultBackground.ignoresSafeArea())
         .navigationTitle("Duress Pattern")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Color.vaultBackground, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .task {
             hasDuressVault = await DuressHandler.shared.hasDuressVault
         }
@@ -630,8 +627,7 @@ struct iCloudBackupSettingsView: View {
         }
         .navigationTitle("iCloud Backup")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Color.vaultBackground, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .onAppear { onAppear() }
         .onReceive(NotificationCenter.default.publisher(for: .CKAccountChanged)) { _ in
             Task { @MainActor in

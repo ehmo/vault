@@ -242,8 +242,7 @@ struct VaultView: View {
                 }
             }
             .background(Color.vaultBackground.ignoresSafeArea())
-            .toolbarBackground(Color.vaultBackground, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .navigationTitle(appState.vaultName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
