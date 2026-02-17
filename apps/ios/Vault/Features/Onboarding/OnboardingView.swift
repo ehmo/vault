@@ -149,10 +149,14 @@ struct FeatureRow: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.headline)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
 
             Text(description)
                 .font(.subheadline)
                 .foregroundStyle(.vaultSecondaryText)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
