@@ -17,14 +17,15 @@ struct ThankYouView: View {
                 )
 
             VStack(spacing: 12) {
-                Text("Thank You for Trusting Us")
+                Text("Protected by Design")
                     .font(.title)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
 
-                Text("Now let's set up your first vault")
+                Text("No accounts. No personal data. No backdoors.")
                     .font(.title3)
                     .foregroundStyle(.vaultSecondaryText)
+                    .multilineTextAlignment(.center)
             }
 
             VStack(spacing: 8) {
@@ -32,10 +33,10 @@ struct ThankYouView: View {
                     .font(.title3)
                     .foregroundStyle(.vaultSecondaryText.opacity(0.6))
 
-                Text("Your privacy and security matter to us.")
+                Text("Nobody can spy on your vault.")
                     .font(.headline)
 
-                Text("We promise to always keep your personal information private and secure.")
+                Text("Only your pattern can decrypt your files — not us, not anyone else.")
                     .font(.subheadline)
                     .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
@@ -48,7 +49,7 @@ struct ThankYouView: View {
             Spacer()
 
             Button(action: onContinue) {
-                Text("Continue")
+                Text("Create My Secure Vault")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding()

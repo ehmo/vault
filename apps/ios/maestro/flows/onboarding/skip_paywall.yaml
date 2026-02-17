@@ -25,4 +25,4 @@ appId: app.vaultaire.ios
     optional: true
 
 # Thank You screen should appear
-- assertVisible: "Thank You for Trusting Us"
+- assertVisible: "Protected by Design"

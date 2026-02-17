@@ -24,8 +24,8 @@ appId: app.vaultaire.ios
     optional: true
 
 # Verify Thank You screen content
-- assertVisible: "Thank You for Trusting Us"
-- assertVisible: "Now let's set up your first vault"
+- assertVisible: "Protected by Design"
+- assertVisible: "No accounts. No personal data. No backdoors."
 - assertVisible:
     id: "thankyou_continue"
 
