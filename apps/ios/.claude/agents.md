@@ -1,3 +1,36 @@
+# TestFlight / App Store Connect Upload Rules
+
+## ITMS-90382: Upload Rate Limit
+
+App Store Connect enforces upload rate limits. If you hit ITMS-90382 ("Upload limit reached"), you MUST:
+
+1. **Increment the MARKETING_VERSION** (e.g., 1.0 -> 1.0.1), not just the build number
+2. Wait at least 1 day before retrying with the same version
+3. Also bump CURRENT_PROJECT_VERSION as usual
+
+When bumping for TestFlight:
+- Always bump CURRENT_PROJECT_VERSION (build number) for every upload
+- Bump MARKETING_VERSION if you hit rate limits or are doing a new release
+- Both values live in `Vault.xcodeproj/project.pbxproj`
+
+```bash
+# Bump build number
+sed -i '' 's/CURRENT_PROJECT_VERSION = 63;/CURRENT_PROJECT_VERSION = 64;/g' Vault.xcodeproj/project.pbxproj
+
+# Bump version (when hitting rate limits or new release)
+sed -i '' 's/MARKETING_VERSION = 1.0;/MARKETING_VERSION = 1.0.1;/g' Vault.xcodeproj/project.pbxproj
+```
+
+## Export Without Upload
+
+The `ExportOptions.plist` with `destination: upload` requires ASC credentials in the CLI session. Instead:
+1. Export using a plist WITHOUT `destination: upload` (use `/tmp/ExportOptionsLocal.plist`)
+2. Upload the IPA separately with `asc builds upload --app 6758529311 --ipa build/export/Vault.ipa`
+
+App ID: `6758529311`
+
+---
+
 # Swift Code Quality Rules (SonarQube)
 
 When writing or modifying Swift code in this project, follow these rules to prevent SonarQube issues.
