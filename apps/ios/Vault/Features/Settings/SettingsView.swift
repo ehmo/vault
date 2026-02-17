@@ -259,8 +259,13 @@ struct AppSettingsView: View {
                 Text("Permanently destroys all vaults and data. This cannot be undone.")
             }
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.vaultBackground.ignoresSafeArea())
         .navigationTitle("App Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color.vaultBackground, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .alert("Destroy All Data?", isPresented: $showingNuclearConfirmation) {
             Button("Cancel", role: .cancel) { /* No-op */ }
             Button("Destroy Everything", role: .destructive) {
@@ -439,8 +444,13 @@ struct AppearanceSettingsView: View {
                 }
             }
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.vaultBackground.ignoresSafeArea())
         .navigationTitle("Appearance")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color.vaultBackground, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
     }
 }
 
@@ -495,7 +505,13 @@ struct DuressPatternSettingsView: View {
             }
             .font(.subheadline)
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.vaultBackground.ignoresSafeArea())
         .navigationTitle("Duress Pattern")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color.vaultBackground, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .task {
             hasDuressVault = await DuressHandler.shared.hasDuressVault
         }
@@ -591,22 +607,31 @@ struct iCloudBackupSettingsView: View {
     }
 
     var body: some View {
-        Group {
-            if !iCloudAvailable {
-                iCloudUnavailableView
-            } else {
-                List {
-                    toggleSection
+        ZStack {
+            Color.vaultBackground.ignoresSafeArea()
 
-                    if isBackupEnabled {
-                        statusSection
-                        restoreSection
+            Group {
+                if !iCloudAvailable {
+                    iCloudUnavailableView
+                } else {
+                    List {
+                        toggleSection
+
+                        if isBackupEnabled {
+                            statusSection
+                            restoreSection
+                        }
                     }
+                    .listStyle(.insetGrouped)
+                    .scrollContentBackground(.hidden)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .navigationTitle("iCloud Backup")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color.vaultBackground, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .onAppear { onAppear() }
         .onReceive(NotificationCenter.default.publisher(for: .CKAccountChanged)) { _ in
             Task { @MainActor in
