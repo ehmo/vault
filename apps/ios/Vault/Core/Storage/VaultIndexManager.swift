@@ -190,11 +190,15 @@ final class VaultIndexManager {
 
     /// Extract and decrypt the master key from the vault index
     func getMasterKey(from index: VaultStorage.VaultIndex, vaultKey: VaultKey) throws -> Data {
+        indexLogger.info("[DEBUG] getMasterKey called - hasEncryptedMasterKey: \(index.encryptedMasterKey != nil)")
         guard let encryptedMasterKey = index.encryptedMasterKey else {
+            indexLogger.error("[DEBUG] encryptedMasterKey is nil - throwing corruptedData error")
             throw VaultStorageError.corruptedData
         }
 
+        indexLogger.info("[DEBUG] Decrypting master key...")
         let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey.rawBytes)
+        indexLogger.info("[DEBUG] Master key decrypted successfully, length: \(masterKey.count)")
 
         indexLogger.debug("Master key decrypted")
 

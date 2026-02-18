@@ -11,11 +11,11 @@
 
   :root {
     --bg: #20233c;
+    --surface: #323444;
     --text: #fffffe;
     --secondary-text: rgba(255, 255, 254, 0.5);
     --accent: #6e5cf9;
     --accent-light: rgba(110, 92, 249, 0.15);
-    --review-bg: rgba(255, 255, 255, 0.06);
   }
 
   body {
@@ -34,7 +34,6 @@
     background: var(--bg);
     border-radius: 44px;
     overflow: hidden;
-    position: relative;
     display: flex;
     flex-direction: column;
     box-shadow: 0 0 0 3px #555, 0 20px 60px rgba(0,0,0,0.5);
@@ -77,26 +76,28 @@
     border-radius: 2px;
   }
 
-  /* Content — pushed to bottom via flex */
-  .content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    padding: 0 24px;
-    padding-bottom: 12px;
-    overflow: hidden;
-  }
-
+  /* Title stays at top */
   .title {
     font-size: 26px;
     font-weight: 700;
     color: var(--text);
     text-align: center;
-    margin-bottom: 36px;
+    padding: 20px 24px 0;
+    flex-shrink: 0;
   }
 
-  /* Stat */
+  /* Spacer pushes card area down */
+  .spacer { flex: 1; }
+
+  /* Card area at bottom */
+  .card-area {
+    flex-shrink: 0;
+    padding: 0 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
   .stat-number {
     font-size: 38px;
     font-weight: 800;
@@ -129,41 +130,42 @@
     font-size: 14px;
     color: var(--secondary-text);
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
   }
 
-  /* Horizontally scrollable reviews */
+  /* Reviews container — surface-colored rounded rect like paywall cards */
+  .reviews-container {
+    width: 100%;
+    background: var(--surface);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+  }
+
   .reviews-scroll {
     display: flex;
-    gap: 12px;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
-    padding-bottom: 4px;
-    margin: 0 -24px;
-    padding-left: 24px;
-    padding-right: 24px;
   }
 
   .reviews-scroll::-webkit-scrollbar { display: none; }
 
   .review-card {
-    flex: 0 0 280px;
+    flex: 0 0 100%;
     scroll-snap-align: start;
-    background: var(--review-bg);
-    border-radius: 16px;
-    padding: 18px;
+    padding: 20px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    min-height: 170px;
+    min-height: 160px;
   }
 
   .review-text {
-    font-size: 13.5px;
+    font-size: 14px;
     color: rgba(255,255,254,0.75);
     line-height: 1.55;
-    margin-bottom: 14px;
+    margin-bottom: 16px;
   }
 
   .review-author {
@@ -199,7 +201,7 @@
     color: #f5c842;
   }
 
-  /* Scroll dots indicator */
+  /* Scroll dots */
   .scroll-dots {
     display: flex;
     justify-content: center;
@@ -219,7 +221,7 @@
 
   /* Button */
   .button-area {
-    padding: 16px 40px 48px;
+    padding: 20px 40px 48px;
     flex-shrink: 0;
   }
 
@@ -241,11 +243,11 @@
   /* Light mode */
   .phone-frame.light {
     --bg: #d1d1e9;
+    --surface: #fffffe;
     --text: #2b2c34;
     --secondary-text: rgba(43, 44, 52, 0.5);
     --accent: #6246ea;
     --accent-light: rgba(98, 70, 234, 0.12);
-    --review-bg: rgba(0, 0, 0, 0.05);
   }
 
   .phone-frame.light .review-text { color: rgba(43, 44, 52, 0.7); }
@@ -298,9 +300,11 @@
     </div>
   </div>
 
-  <div class="content">
-    <h1 class="title">Give us a rating</h1>
+  <h1 class="title">Give us a rating</h1>
 
+  <div class="spacer"></div>
+
+  <div class="card-area">
     <div class="stat-number">1M+ vaults<br>created</div>
 
     <div class="avatars">
@@ -311,58 +315,60 @@
 
     <p class="subtitle">by people like you</p>
 
-    <div class="reviews-scroll" id="reviewsScroll">
-      <div class="review-card">
-        <p class="review-text">"Finally a vault app that doesn't just hide files behind a PIN. Real encryption, no accounts, no cloud snooping. This is what privacy should look like."</p>
-        <div class="review-author">
-          <img class="author-avatar" src="https://i.pravatar.cc/72?img=12" alt="">
-          <div class="author-info">
-            <span class="author-name">PrivacyFirst_99</span>
-            <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+    <div class="reviews-container">
+      <div class="reviews-scroll" id="reviewsScroll">
+        <div class="review-card">
+          <p class="review-text">"Finally a vault app that doesn't just hide files behind a PIN. Real encryption, no accounts, no cloud snooping. This is what privacy should look like."</p>
+          <div class="review-author">
+            <img class="author-avatar" src="https://i.pravatar.cc/72?img=12" alt="">
+            <div class="author-info">
+              <span class="author-name">PrivacyFirst_99</span>
+              <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="review-card">
-        <p class="review-text">"The duress vault is genius. I can hand over my phone and nobody will ever know my real vault exists. Exactly what I needed for travel."</p>
-        <div class="review-author">
-          <img class="author-avatar" src="https://i.pravatar.cc/72?img=33" alt="">
-          <div class="author-info">
-            <span class="author-name">TravelSafe_Mike</span>
-            <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+        <div class="review-card">
+          <p class="review-text">"The duress vault is genius. I can hand over my phone and nobody will ever know my real vault exists. Exactly what I needed for travel."</p>
+          <div class="review-author">
+            <img class="author-avatar" src="https://i.pravatar.cc/72?img=33" alt="">
+            <div class="author-info">
+              <span class="author-name">TravelSafe_Mike</span>
+              <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="review-card">
-        <p class="review-text">"Love that there's no account, no email, nothing. Just draw a pattern and your vault is encrypted. Simple and actually secure."</p>
-        <div class="review-author">
-          <img class="author-avatar" src="https://i.pravatar.cc/72?img=47" alt="">
-          <div class="author-info">
-            <span class="author-name">SecureByDefault</span>
-            <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+        <div class="review-card">
+          <p class="review-text">"Love that there's no account, no email, nothing. Just draw a pattern and your vault is encrypted. Simple and actually secure."</p>
+          <div class="review-author">
+            <img class="author-avatar" src="https://i.pravatar.cc/72?img=47" alt="">
+            <div class="author-info">
+              <span class="author-name">SecureByDefault</span>
+              <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="review-card">
-        <p class="review-text">"Switched from Keepsafe after realizing they don't actually encrypt anything. Vaultaire uses AES-256 — the real deal. Never going back."</p>
-        <div class="review-author">
-          <img class="author-avatar" src="https://i.pravatar.cc/72?img=59" alt="">
-          <div class="author-info">
-            <span class="author-name">CryptoNerd_2025</span>
-            <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+        <div class="review-card">
+          <p class="review-text">"Switched from Keepsafe after realizing they don't actually encrypt anything. Vaultaire uses AES-256 — the real deal. Never going back."</p>
+          <div class="review-author">
+            <img class="author-avatar" src="https://i.pravatar.cc/72?img=59" alt="">
+            <div class="author-info">
+              <span class="author-name">CryptoNerd_2025</span>
+              <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="review-card">
-        <p class="review-text">"Clean UI, no ads, no upsell spam. The free tier is generous and Pro is worth every penny. Best vault app on the App Store."</p>
-        <div class="review-author">
-          <img class="author-avatar" src="https://i.pravatar.cc/72?img=68" alt="">
-          <div class="author-info">
-            <span class="author-name">MinimalistApps</span>
-            <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+        <div class="review-card">
+          <p class="review-text">"Clean UI, no ads, no upsell spam. The free tier is generous and Pro is worth every penny. Best vault app on the App Store."</p>
+          <div class="review-author">
+            <img class="author-avatar" src="https://i.pravatar.cc/72?img=68" alt="">
+            <div class="author-info">
+              <span class="author-name">MinimalistApps</span>
+              <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+            </div>
           </div>
         </div>
       </div>
@@ -389,11 +395,10 @@ function setTheme(theme) {
   event.target.classList.add('active');
 }
 
-// Update dots on scroll
 const scroll = document.getElementById('reviewsScroll');
 const dots = document.querySelectorAll('.dot');
 scroll.addEventListener('scroll', () => {
-  const idx = Math.round(scroll.scrollLeft / 292);
+  const idx = Math.round(scroll.scrollLeft / scroll.clientWidth);
   dots.forEach((d, i) => d.classList.toggle('active', i === idx));
 });
 </script>

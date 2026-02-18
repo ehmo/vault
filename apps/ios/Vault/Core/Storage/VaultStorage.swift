@@ -560,11 +560,17 @@ final class VaultStorage {
     /// Uses streaming encryption for large files (VCSE for files > 1MB).
     func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, duration: TimeInterval? = nil) throws -> UUID {
         ensureBlobReady()
+        Self.logger.info("[DEBUG] storeFileFromURL START - filename: \(filename), key hash: \(key.rawBytes.hashValue)")
         indexManager.indexLock.lock()
         defer { indexManager.indexLock.unlock() }
 
+        Self.logger.info("[DEBUG] Loading index...")
         var index = try loadIndex(with: key)
+        Self.logger.info("[DEBUG] Index loaded - files: \(index.files.count), hasMasterKey: \(index.encryptedMasterKey != nil), version: \(index.version)")
+        
+        Self.logger.info("[DEBUG] Getting master key...")
         let masterKey = try getMasterKey(from: index, vaultKey: key)
+        Self.logger.info("[DEBUG] Master key retrieved, length: \(masterKey.count)")
 
         // Build header (small — stays in memory)
         let fileId = UUID()
