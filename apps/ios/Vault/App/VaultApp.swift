@@ -174,31 +174,22 @@ final class AppState {
     }
 
     /// Applies the user's appearance mode to all UIKit windows.
-    /// The navigation bar background is `.hidden` (transparent) so SwiftUI's
-    /// `Color.vaultBackground.ignoresSafeArea()` shows through — keeping the
-    /// nav bar area and content in the same SwiftUI render pass.
-    /// This method sets `overrideUserInterfaceStyle` and window background colors.
+    /// Only sets `overrideUserInterfaceStyle` — SwiftUI's
+    /// `Color.vaultBackground.ignoresSafeArea()` handles the background color.
+    /// Setting `window.backgroundColor` at runtime causes a blank-screen flash
+    /// because SwiftUI views go transparent during trait-change re-layout.
     func applyAppearanceToAllWindows() {
         let style = effectiveInterfaceStyle
-        let baseColor = UIColor(named: "VaultBackground") ?? .systemBackground
-        let targetTraits: UITraitCollection
-        switch style {
-        case .light:
-            targetTraits = UITraitCollection(userInterfaceStyle: .light)
-        case .dark:
-            targetTraits = UITraitCollection(userInterfaceStyle: .dark)
-        default:
-            targetTraits = UITraitCollection.current
-        }
-        let resolvedColor = baseColor.resolvedColor(with: targetTraits)
 
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
         for scene in UIApplication.shared.connectedScenes {
             guard let windowScene = scene as? UIWindowScene else { continue }
             for window in windowScene.windows {
                 window.overrideUserInterfaceStyle = style
-                window.backgroundColor = resolvedColor
             }
         }
+        CATransaction.commit()
     }
 
 
@@ -476,14 +467,22 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             let resolved = baseColor.resolvedColor(
                 with: UITraitCollection(userInterfaceStyle: style)
             )
+            // Apply to each window once as it becomes key during launch.
+            // The observer removes itself after the first fire to avoid
+            // conflicting with runtime appearance changes from settings.
             earlyAppearanceObserver = NotificationCenter.default.addObserver(
                 forName: UIWindow.didBecomeKeyNotification,
                 object: nil,
                 queue: .main
-            ) { notification in
+            ) { [weak self] notification in
                 guard let window = notification.object as? UIWindow else { return }
                 window.overrideUserInterfaceStyle = style
                 window.backgroundColor = resolved
+                // Remove after first window — SwiftUI's .onAppear handles the rest
+                if let observer = self?.earlyAppearanceObserver {
+                    NotificationCenter.default.removeObserver(observer)
+                    self?.earlyAppearanceObserver = nil
+                }
             }
         }
 

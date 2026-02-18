@@ -136,7 +136,8 @@ extension VaultView {
                 Section("Filter") {
                     ForEach(FileFilter.allCases) { filter in
                         Button {
-                            viewModel.fileFilter = filter
+                            viewModel.setFileFilter(filter)
+                            EmbraceManager.shared.addBreadcrumb(category: "filter.changed")
                         } label: {
                             if viewModel.fileFilter == filter {
                                 Label(filter.rawValue, systemImage: "checkmark")

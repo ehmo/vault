@@ -53,10 +53,7 @@ final class VaultViewModel {
 
     var searchText = ""
     var sortOrder: SortOrder = .dateNewest
-    var fileFilter: FileFilter {
-        get { FileFilter(rawValue: UserDefaults.standard.string(forKey: "vaultFileFilter") ?? FileFilter.all.rawValue) ?? .all }
-        set { UserDefaults.standard.set(newValue.rawValue, forKey: "vaultFileFilter") }
-    }
+    var fileFilter: FileFilter = FileFilter(rawValue: UserDefaults.standard.string(forKey: "vaultFileFilter") ?? FileFilter.all.rawValue) ?? .all
 
     // MARK: - Toast
 
@@ -66,9 +63,7 @@ final class VaultViewModel {
 
     var transferManager = BackgroundShareTransferManager.shared
 
-    // MARK: - Cached Visible Files
-
-    private(set) var cachedVisibleFiles = VaultView.VisibleFiles(all: [], media: [], documents: [], mediaIndexById: [:])
+    // MARK: - Visible Files (computed from observed properties)
 
     // MARK: - Computed
 
@@ -76,9 +71,7 @@ final class VaultViewModel {
         sortOrder == .dateNewest || sortOrder == .dateOldest
     }
 
-    var fileOptimization: String {
-        UserDefaults.standard.string(forKey: "fileOptimization") ?? "optimized"
-    }
+    var fileOptimization: String = UserDefaults.standard.string(forKey: "fileOptimization") ?? "optimized"
 
     // MARK: - Init
 
@@ -137,8 +130,10 @@ final class VaultViewModel {
         )
     }
 
-    func recomputeVisibleFiles() {
-        cachedVisibleFiles = computeVisibleFiles()
+    /// Persists fileFilter to UserDefaults and updates the stored property.
+    func setFileFilter(_ filter: FileFilter) {
+        fileFilter = filter
+        UserDefaults.standard.set(filter.rawValue, forKey: "vaultFileFilter")
     }
 
     // MARK: - Load
@@ -191,7 +186,7 @@ final class VaultViewModel {
                     if !items.isEmpty && self.fileFilter == .all {
                         let hasNonMedia = items.contains { !$0.isMedia }
                         if !hasNonMedia {
-                            self.fileFilter = .media
+                            self.setFileFilter(.media)
                         }
                     }
 
@@ -919,9 +914,9 @@ final class VaultViewModel {
     func updateFilterAfterImport() {
         let hasNonMedia = files.contains { !$0.isMedia }
         if hasNonMedia && fileFilter == .media {
-            fileFilter = .all
+            setFileFilter(.all)
         } else if !hasNonMedia && fileFilter != .media {
-            fileFilter = .media
+            setFileFilter(.media)
         }
     }
 }

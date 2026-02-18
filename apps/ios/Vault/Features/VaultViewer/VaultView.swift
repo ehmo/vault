@@ -329,7 +329,7 @@ struct VaultView: View {
     }
 
     var body: some View {
-        let visible = viewModel.cachedVisibleFiles
+        let visible = viewModel.computeVisibleFiles()
         NavigationStack {
             navigationContent(visible: visible)
         }
@@ -337,27 +337,10 @@ struct VaultView: View {
         .task {
             viewModel.configure(appState: appState, subscriptionManager: subscriptionManager)
             viewModel.loadVault()
-            viewModel.recomputeVisibleFiles()
             ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "vault_view_task")
         }
         .onChange(of: appState.currentVaultKey) { oldKey, newKey in
             viewModel.handleVaultKeyChange(oldKey: oldKey, newKey: newKey)
-        }
-        .onChange(of: viewModel.files) { _, _ in
-            viewModel.recomputeVisibleFiles()
-        }
-        .onChange(of: viewModel.searchText) { _, newValue in
-            viewModel.recomputeVisibleFiles()
-            if !newValue.isEmpty {
-                EmbraceManager.shared.addBreadcrumb(category: "search.used")
-            }
-        }
-        .onChange(of: viewModel.sortOrder) { _, _ in
-            viewModel.recomputeVisibleFiles()
-        }
-        .onChange(of: viewModel.fileFilter) { _, _ in
-            viewModel.recomputeVisibleFiles()
-            EmbraceManager.shared.addBreadcrumb(category: "filter.changed")
         }
         .onChange(of: showingSettings) { _, isShowing in
             if !isShowing {
