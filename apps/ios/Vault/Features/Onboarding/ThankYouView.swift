@@ -9,13 +9,12 @@ struct ThankYouView: View {
                 VStack(spacing: 28) {
                     Spacer(minLength: 0)
 
-                    Image("VaultLogo")
+                    Image("ProtectedByDesignSeal")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 120, height: 120)
-                        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                        .shadow(color: .black.opacity(0.15), radius: 10, y: 5)
-                        .accessibilityHidden(true)
+                        .frame(width: 160, height: 160)
+                        .shadow(color: .black.opacity(0.2), radius: 12, y: 6)
+                        .accessibilityIdentifier("thankyou_seal_image")
 
                     VStack(spacing: 0) {
                         Text("Protected by Design")

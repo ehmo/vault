@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Vaultaire - Rating Screen Prototype</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #20233c;
+    --text: #fffffe;
+    --secondary-text: rgba(255, 255, 254, 0.5);
+    --accent: #6e5cf9;
+    --accent-light: rgba(110, 92, 249, 0.15);
+    --review-bg: rgba(255, 255, 255, 0.06);
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #111;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .phone-frame {
+    width: 393px;
+    height: 852px;
+    background: var(--bg);
+    border-radius: 44px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 0 3px #555, 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  .status-bar { height: 54px; flex-shrink: 0; }
+
+  /* Progress bar */
+  .progress-area {
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .back-btn {
+    color: var(--text);
+    font-size: 20px;
+    font-weight: 600;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    opacity: 0.7;
+  }
+
+  .progress-track {
+    flex: 1;
+    height: 3px;
+    background: rgba(255,255,254,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    width: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+
+  /* Content — pushed to bottom via flex */
+  .content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 0 24px;
+    padding-bottom: 12px;
+    overflow: hidden;
+  }
+
+  .title {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 36px;
+  }
+
+  /* Stat */
+  .stat-number {
+    font-size: 38px;
+    font-weight: 800;
+    color: var(--text);
+    text-align: center;
+    line-height: 1.15;
+    margin-bottom: 4px;
+  }
+
+  /* Overlapping avatars */
+  .avatars {
+    display: flex;
+    justify-content: center;
+    margin: 14px 0 6px;
+  }
+
+  .avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2.5px solid var(--bg);
+    margin-left: -10px;
+    object-fit: cover;
+    background: #3a3d55;
+  }
+
+  .avatar:first-child { margin-left: 0; }
+
+  .subtitle {
+    font-size: 14px;
+    color: var(--secondary-text);
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  /* Horizontally scrollable reviews */
+  .reviews-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    margin: 0 -24px;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  .reviews-scroll::-webkit-scrollbar { display: none; }
+
+  .review-card {
+    flex: 0 0 280px;
+    scroll-snap-align: start;
+    background: var(--review-bg);
+    border-radius: 16px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 170px;
+  }
+
+  .review-text {
+    font-size: 13.5px;
+    color: rgba(255,255,254,0.75);
+    line-height: 1.55;
+    margin-bottom: 14px;
+  }
+
+  .review-author {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .author-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #3a3d55;
+    flex-shrink: 0;
+  }
+
+  .author-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .author-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .stars {
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: #f5c842;
+  }
+
+  /* Scroll dots indicator */
+  .scroll-dots {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 14px;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,254,0.15);
+    transition: background 0.2s;
+  }
+
+  .dot.active { background: rgba(255,255,254,0.5); }
+
+  /* Button */
+  .button-area {
+    padding: 16px 40px 48px;
+    flex-shrink: 0;
+  }
+
+  .continue-btn {
+    width: 100%;
+    padding: 18px;
+    border-radius: 16px;
+    border: none;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--accent-light);
+    color: var(--accent);
+    transition: opacity 0.2s;
+  }
+
+  .continue-btn:active { opacity: 0.7; }
+
+  /* Light mode */
+  .phone-frame.light {
+    --bg: #d1d1e9;
+    --text: #2b2c34;
+    --secondary-text: rgba(43, 44, 52, 0.5);
+    --accent: #6246ea;
+    --accent-light: rgba(98, 70, 234, 0.12);
+    --review-bg: rgba(0, 0, 0, 0.05);
+  }
+
+  .phone-frame.light .review-text { color: rgba(43, 44, 52, 0.7); }
+  .phone-frame.light .stars { color: #c49a15; }
+  .phone-frame.light .avatar { border-color: var(--bg); }
+  .phone-frame.light .dot { background: rgba(43, 44, 52, 0.12); }
+  .phone-frame.light .dot.active { background: rgba(43, 44, 52, 0.35); }
+
+  /* Toggle */
+  .toggle-bar {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 100;
+  }
+
+  .toggle-bar button {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid #555;
+    background: #222;
+    color: #fff;
+    cursor: pointer;
+    font-size: 13px;
+  }
+
+  .toggle-bar button.active {
+    background: #6e5cf9;
+    border-color: #6e5cf9;
+  }
+</style>
+</head>
+<body>
+
+<div class="toggle-bar">
+  <button class="active" onclick="setTheme('dark')">Dark</button>
+  <button onclick="setTheme('light')">Light</button>
+</div>
+
+<div class="phone-frame" id="phone">
+  <div class="status-bar"></div>
+
+  <div class="progress-area">
+    <button class="back-btn">&#8249;</button>
+    <div class="progress-track">
+      <div class="progress-fill"></div>
+    </div>
+  </div>
+
+  <div class="content">
+    <h1 class="title">Give us a rating</h1>
+
+    <div class="stat-number">1M+ vaults<br>created</div>
+
+    <div class="avatars">
+      <img class="avatar" src="https://i.pravatar.cc/96?img=12" alt="">
+      <img class="avatar" src="https://i.pravatar.cc/96?img=33" alt="">
+      <img class="avatar" src="https://i.pravatar.cc/96?img=59" alt="">
+    </div>
+
+    <p class="subtitle">by people like you</p>
+
+    <div class="reviews-scroll" id="reviewsScroll">
+      <div class="review-card">
+        <p class="review-text">"Finally a vault app that doesn't just hide files behind a PIN. Real encryption, no accounts, no cloud snooping. This is what privacy should look like."</p>
+        <div class="review-author">
+          <img class="author-avatar" src="https://i.pravatar.cc/72?img=12" alt="">
+          <div class="author-info">
+            <span class="author-name">PrivacyFirst_99</span>
+            <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="review-card">
+        <p class="review-text">"The duress vault is genius. I can hand over my phone and nobody will ever know my real vault exists. Exactly what I needed for travel."</p>
+        <div class="review-author">
+          <img class="author-avatar" src="https://i.pravatar.cc/72?img=33" alt="">
+          <div class="author-info">
+            <span class="author-name">TravelSafe_Mike</span>
+            <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="review-card">
+        <p class="review-text">"Love that there's no account, no email, nothing. Just draw a pattern and your vault is encrypted. Simple and actually secure."</p>
+        <div class="review-author">
+          <img class="author-avatar" src="https://i.pravatar.cc/72?img=47" alt="">
+          <div class="author-info">
+            <span class="author-name">SecureByDefault</span>
+            <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="review-card">
+        <p class="review-text">"Switched from Keepsafe after realizing they don't actually encrypt anything. Vaultaire uses AES-256 — the real deal. Never going back."</p>
+        <div class="review-author">
+          <img class="author-avatar" src="https://i.pravatar.cc/72?img=59" alt="">
+          <div class="author-info">
+            <span class="author-name">CryptoNerd_2025</span>
+            <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="review-card">
+        <p class="review-text">"Clean UI, no ads, no upsell spam. The free tier is generous and Pro is worth every penny. Best vault app on the App Store."</p>
+        <div class="review-author">
+          <img class="author-avatar" src="https://i.pravatar.cc/72?img=68" alt="">
+          <div class="author-info">
+            <span class="author-name">MinimalistApps</span>
+            <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scroll-dots" id="scrollDots">
+      <div class="dot active"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+  </div>
+
+  <div class="button-area">
+    <button class="continue-btn">Continue</button>
+  </div>
+</div>
+
+<script>
+function setTheme(theme) {
+  document.getElementById('phone').classList.toggle('light', theme === 'light');
+  document.querySelectorAll('.toggle-bar button').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+// Update dots on scroll
+const scroll = document.getElementById('reviewsScroll');
+const dots = document.querySelectorAll('.dot');
+scroll.addEventListener('scroll', () => {
+  const idx = Math.round(scroll.scrollLeft / 292);
+  dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+});
+</script>
+</body>
+</html>

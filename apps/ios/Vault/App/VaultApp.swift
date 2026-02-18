@@ -532,7 +532,19 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             )
         }
 
+        // Register for memory warnings to track resource pressure events
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleMemoryWarning),
+            name: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil
+        )
+
         return true
+    }
+
+    @objc private func handleMemoryWarning() {
+        EmbraceManager.shared.logMemoryWarning()
     }
 
     /// Show notification banners even when app is in foreground.

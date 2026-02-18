@@ -2,6 +2,10 @@ import Foundation
 import CloudKit
 import CryptoKit
 import os.log
+import Network
+
+private let networkMonitor = NWPathMonitor()
+private var currentNetworkType: String = "unknown"
 
 enum CloudKitSharingError: Error, LocalizedError {
     case notAvailable
@@ -54,6 +58,25 @@ final class CloudKitSharingManager {
     private init() {
         container = CKContainer(identifier: "iCloud.app.vaultaire.shared")
         publicDatabase = container.publicCloudDatabase
+
+        // Start network monitoring
+        networkMonitor.pathUpdateHandler = { path in
+            if path.usesInterfaceType(.wifi) {
+                currentNetworkType = "wifi"
+            } else if path.usesInterfaceType(.cellular) {
+                currentNetworkType = "cellular"
+            } else if path.usesInterfaceType(.wiredEthernet) {
+                currentNetworkType = "ethernet"
+            } else {
+                currentNetworkType = path.status == .satisfied ? "other" : "offline"
+            }
+        }
+        networkMonitor.start(queue: DispatchQueue.global(qos: .background))
+    }
+
+    /// Returns current network type for telemetry.
+    private func getNetworkType() -> String {
+        currentNetworkType
     }
 
     // MARK: - Key & ID Derivation
@@ -140,7 +163,10 @@ final class CloudKitSharingManager {
         onProgress: ((Int, Int) -> Void)? = nil
     ) async throws {
         let transaction = EmbraceManager.shared.startTransaction(name: "share.upload", operation: "share.upload")
+        transaction.setTag(value: getNetworkType(), key: "network_type")
         let ckStart = CFAbsoluteTimeGetCurrent()
+        let startMemoryState = EmbraceManager.shared.getDeviceState()
+        transaction.setTag(value: startMemoryState.thermalState, key: "thermal_state_start")
 
         // Pre-flight: verify iCloud account is available or temporarily unavailable (signed in, syncing)
         let accountStatus = await checkiCloudStatus()

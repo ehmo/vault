@@ -2,6 +2,10 @@ import Foundation
 import StoreKit
 import os.log
 
+enum StoreKitError: Error {
+    case unknown
+}
+
 @MainActor
 @Observable
 final class SubscriptionManager {
@@ -121,25 +125,48 @@ final class SubscriptionManager {
     // MARK: - Purchase
 
     func purchase(_ product: Product) async throws -> Bool {
+        let span = EmbraceManager.shared.startTransaction(name: "subscription.purchase", operation: "subscription.purchase")
+        span.setTag(value: product.id, key: "product_id")
+        span.setTag(value: Self.isSandbox ? "sandbox" : "production", key: "environment")
+
         let result = try await product.purchase()
 
         switch result {
         case .success(let verification):
             guard let transaction = try? verification.payloadValue else {
+                EmbraceManager.shared.captureError(StoreKitError.unknown, context: [
+                    "action": "purchase_verification_failed",
+                    "product_id": product.id
+                ])
+                span.finish(status: .invalidArgument)
                 return false
             }
             purchasedProductIDs.insert(transaction.productID)
             await transaction.finish()
             refreshPremiumStatus()
+            EmbraceManager.shared.addBreadcrumb(category: "subscription.purchased", data: [
+                "product_id": transaction.productID,
+                "transaction_id": String(transaction.id)
+            ])
+            span.finish(status: .ok)
             return true
 
         case .userCancelled:
+            EmbraceManager.shared.addBreadcrumb(category: "subscription.cancelled", data: ["product_id": product.id])
+            span.finish(status: .aborted)
             return false
 
         case .pending:
+            EmbraceManager.shared.addBreadcrumb(category: "subscription.pending", data: ["product_id": product.id])
+            span.finish(status: .ok)
             return false
 
         @unknown default:
+            EmbraceManager.shared.captureError(StoreKitError.unknown, context: [
+                "action": "purchase_unknown_result",
+                "product_id": product.id
+            ])
+            span.finish(status: .internalError)
             return false
         }
     }

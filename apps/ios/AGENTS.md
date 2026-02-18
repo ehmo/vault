@@ -39,6 +39,7 @@ Get UUID: `xcrun simctl list devices available`
 - ALL `List`/`Form` screens need: `.listStyle(.insetGrouped)`, `.scrollContentBackground(.hidden)`, root `.background(Color.vaultBackground)`
 - Lock-screen sheets with text input: MUST use `.ignoresSafeArea(.keyboard)` on root
 - Pattern grid position: fixed heights only — subtitle `44pt`, feedback `80pt`, placeholder buttons with `.hidden()`
+- Onboarding hero/art images should live in `Assets.xcassets` with explicit 1x/2x/3x variants; avoid ad-hoc runtime scaling of source files
 
 ### Sharing & Uploads
 - Share extension: Run crypto/thumbnails off-main actor. Keep UI updates on main only

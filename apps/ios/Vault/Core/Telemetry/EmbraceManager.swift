@@ -280,4 +280,147 @@ final class EmbraceManager: @unchecked Sendable {
             )
         }
     }
+
+    // MARK: - Device State Monitoring
+
+    /// Captures a breadcrumb with current memory pressure and thermal state.
+    /// Call this when operations may be affected by resource constraints.
+    func logDeviceState(context: String) {
+        let thermalState = ProcessInfo.processInfo.thermalState
+        let thermalDescription: String
+        switch thermalState {
+        case .nominal: thermalDescription = "nominal"
+        case .fair: thermalDescription = "fair"
+        case .serious: thermalDescription = "serious"
+        case .critical: thermalDescription = "critical"
+        @unknown default: thermalDescription = "unknown"
+        }
+
+        let memoryInfo = captureMemoryInfo()
+
+        addBreadcrumb(
+            category: "device.state",
+            data: [
+                "context": context,
+                "thermal_state": thermalDescription,
+                "memory_used_mb": memoryInfo.usedMB,
+                "memory_total_mb": memoryInfo.totalMB,
+                "memory_pressure": memoryInfo.pressureLevel
+            ]
+        )
+
+        // Log critical states as warnings
+        if thermalState == .critical || thermalState == .serious {
+            Embrace.client?.log(
+                "thermal_pressure",
+                severity: .warn,
+                attributes: [
+                    "thermal_state": thermalDescription,
+                    "context": context
+                ],
+                stackTraceBehavior: .notIncluded
+            )
+        }
+    }
+
+    private func captureMemoryInfo() -> (usedMB: String, totalMB: String, pressureLevel: String) {
+        var info = mach_task_basic_info()
+        var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size)/4
+
+        let kerr: kern_return_t = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: 1) {
+                task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count)
+            }
+        }
+
+        if kerr == KERN_SUCCESS {
+            let usedBytes = info.resident_size
+            let totalBytes = info.virtual_size
+            let usedMB = Double(usedBytes) / 1024.0 / 1024.0
+            let totalMB = Double(totalBytes) / 1024.0 / 1024.0 / 1024.0 // Physical memory in GB
+
+            return (
+                usedMB: String(format: "%.1f", usedMB),
+                totalMB: String(format: "%.1f", totalMB),
+                pressureLevel: "normal"
+            )
+        }
+
+        return (usedMB: "unknown", totalMB: "unknown", pressureLevel: "unknown")
+    }
+
+    /// Captures a breadcrumb when memory warnings are received.
+    func logMemoryWarning() {
+        addBreadcrumb(category: "memory.warning", data: ["severity": "system"])
+        Embrace.client?.log(
+            "memory_warning",
+            severity: .warn,
+            attributes: [
+                "event": "did_receive_memory_warning",
+                "thermal_state": String(describing: ProcessInfo.processInfo.thermalState)
+            ],
+            stackTraceBehavior: .notIncluded
+        )
+    }
+
+    /// Tracks feature usage for adoption analytics.
+    func trackFeatureUsage(_ feature: String, context: [String: String]? = nil) {
+        var data: [String: Any] = ["feature": feature]
+        if let context = context {
+            data.merge(context) { (_, new) in new }
+        }
+        addBreadcrumb(category: "feature.used", data: data)
+    }
+
+    /// Tracks premium feature access attempts (both allowed and denied).
+    func trackPremiumFeature(_ feature: String, allowed: Bool, currentLimit: Int? = nil, maxLimit: Int? = nil) {
+        addBreadcrumb(
+            category: allowed ? "premium.feature_allowed" : "premium.feature_denied",
+            data: [
+                "feature": feature,
+                "is_premium": allowed,
+                "current_usage": currentLimit.map(String.init) ?? "N/A",
+                "max_limit": maxLimit.map(String.init) ?? "N/A"
+            ]
+        )
+    }
+
+    /// Tracks error recovery attempts.
+    func trackRecoveryAttempt(originalError: Error, recoveryAction: String, success: Bool) {
+        captureError(originalError, context: [
+            "recovery_action": recoveryAction,
+            "recovery_success": success
+        ])
+    }
+
+    /// Returns current device state for telemetry context.
+    func getDeviceState() -> (thermalState: String, memoryUsedMB: String) {
+        let thermalState = ProcessInfo.processInfo.thermalState
+        let thermalDescription: String
+        switch thermalState {
+        case .nominal: thermalDescription = "nominal"
+        case .fair: thermalDescription = "fair"
+        case .serious: thermalDescription = "serious"
+        case .critical: thermalDescription = "critical"
+        @unknown default: thermalDescription = "unknown"
+        }
+
+        var info = mach_task_basic_info()
+        var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size)/4
+        let kerr: kern_return_t = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: 1) {
+                task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count)
+            }
+        }
+
+        let usedMB: String
+        if kerr == KERN_SUCCESS {
+            let usedBytes = info.resident_size
+            usedMB = String(format: "%.1f", Double(usedBytes) / 1024.0 / 1024.0)
+        } else {
+            usedMB = "unknown"
+        }
+
+        return (thermalState: thermalDescription, memoryUsedMB: usedMB)
+    }
 }
