@@ -1,204 +1,16 @@
-/* ── Vaultaire Compare Pages ── */
-/* Shared CSS for all /compare/ pages */
+@import "../styles/site-shared.css";
 
-:root {
-  --bg: #20233C;
-  --surface: #323444;
-  --text: #E8E8F0;
-  --text-secondary: #9FA1B5;
-  --accent: #CCC3F8;
-  --highlight: #FF6F6F;
-  --accent-contrast: #20233C;
-  --header-bg: rgba(32, 35, 60, 0.8);
-  --header-border: rgba(204, 195, 248, 0.22);
-  --theme-button-bg: rgba(255, 255, 255, 0.08);
-  --theme-button-text: #E8E8F0;
-  --green: #57E37A;
-  --red: #FF6F6F;
-  --font-display: 'Space Grotesk', sans-serif;
-  --font-body: 'Plus Jakarta Sans', sans-serif;
-}
-
-:root[data-theme='light'] {
-  --bg: #D1D1E9;
-  --surface: #FFFFFE;
-  --text: #2B2C34;
-  --text-secondary: #6C6F88;
-  --accent: #1F0D77;
-  --highlight: #E45858;
-  --accent-contrast: #F8F8FF;
-  --header-bg: rgba(209, 209, 233, 0.86);
-  --header-border: rgba(31, 13, 119, 0.18);
-  --theme-button-bg: rgba(31, 13, 119, 0.09);
-  --theme-button-text: #1F0D77;
-  --green: #2E9E4D;
-  --red: #E45858;
-}
-
-* { box-sizing: border-box; margin: 0; padding: 0; }
+/* Compare section specific styles */
 
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-body);
   line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-  transition: background-color 240ms ease, color 240ms ease;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: -0.02em;
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
-
-a { text-decoration: none; color: inherit; transition: color 0.3s ease; }
-ul { list-style: none; }
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 24px;
-}
-
-/* ── Header / Nav ── */
-header {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  z-index: 1000;
-  background: var(--header-bg);
-  border-bottom: 1px solid var(--header-border);
-  backdrop-filter: blur(12px);
-  transition: background-color 240ms ease, border-color 240ms ease;
-}
-
-.nav-inner {
-  height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--text);
-  text-decoration: none;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.25rem;
-}
-
-.logo .logo-mark {
-  width: 28px; height: 28px;
-  border-radius: 8px;
-  box-shadow: 0 6px 14px color-mix(in srgb, var(--bg) 68%, transparent 32%);
-}
-
-.logo .logo-mark--light { display: none; }
-:root[data-theme='light'] .logo .logo-mark--dark { display: none; }
-:root[data-theme='light'] .logo .logo-mark--light { display: block; }
-
-.nav-links {
-  display: flex;
-  gap: 32px;
-}
-
-.nav-links a {
-  color: var(--text);
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  opacity: 0.8;
-  position: relative;
-}
-
-.nav-links a::after {
-  content: '';
-  position: absolute;
-  bottom: -5px; left: 0;
-  width: 0; height: 2px;
-  background: var(--accent);
-  transition: width 0.3s;
-}
-
-.nav-links a:hover::after { width: 100%; }
-
-.nav-cta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-/* ── Buttons ── */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px 36px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  position: relative;
-  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  border: none;
-  cursor: pointer;
-}
-
-.btn-primary {
-  background: var(--accent);
-  color: var(--accent-contrast);
-}
-
-.btn-primary::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateX(-100%);
-  transition: transform 0.4s;
-  z-index: 1;
-}
-
-.btn-primary:hover::before { transform: translateX(0); }
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(31, 13, 119, 0.3);
-}
-
-.btn-secondary {
-  background: transparent;
-  border: 2px solid var(--text);
-  color: var(--text);
-}
-
-.btn-secondary:hover {
-  background: var(--surface);
-  border-color: var(--accent);
-}
-
-.theme-toggle {
-  border: 1px solid var(--header-border);
-  background: var(--theme-button-bg);
-  color: var(--theme-button-text);
-  height: 44px; min-width: 44px;
-  padding: 0 14px;
-  border-radius: 999px;
-  font: 600 0.82rem var(--font-body);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease;
-}
-
-.theme-toggle:hover { transform: translateY(-1px); }
-.theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.theme-icon { font-size: 1rem; line-height: 1; }
 
 /* ── Breadcrumbs ── */
 .breadcrumbs {
@@ -234,8 +46,10 @@ header {
   margin-bottom: 24px;
 }
 
-.compare-hero .competitor-icon {
-  width: 72px; height: 72px;
+.compare-hero .competitor-icon,
+.compare-hero .vaultaire-icon {
+  width: 72px;
+  height: 72px;
   border-radius: 16px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
@@ -246,12 +60,6 @@ header {
   font-size: 1.5rem;
   color: var(--highlight);
   text-transform: uppercase;
-}
-
-.compare-hero .vaultaire-icon {
-  width: 72px; height: 72px;
-  border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .compare-hero h1 {
@@ -290,6 +98,7 @@ header {
   overflow-x: auto;
   margin: 0 -24px;
   padding: 0 24px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .compare-table {
@@ -348,15 +157,23 @@ header {
 }
 
 .check-yes {
-  color: var(--green);
+  color: #57E37A;
   font-weight: 700;
   font-size: 1.2rem;
 }
 
 .check-no {
-  color: var(--red);
+  color: #FF6F6F;
   font-weight: 700;
   font-size: 1.2rem;
+}
+
+:root[data-theme='light'] .check-yes {
+  color: #2E9E4D;
+}
+
+:root[data-theme='light'] .check-no {
+  color: #E45858;
 }
 
 .check-partial {
@@ -531,13 +348,14 @@ header {
 }
 
 .more-comparisons-grid a img {
-  width: 28px; height: 28px;
+  width: 28px;
+  height: 28px;
   border-radius: 6px;
 }
 
 /* ── Compare Landing Page (Grid of Cards) ── */
 .compare-landing-hero {
-  padding: 120px 0 48px;
+  padding: 104px 0 36px;
   text-align: center;
 }
 
@@ -578,7 +396,8 @@ header {
 }
 
 .compare-card img {
-  width: 56px; height: 56px;
+  width: 56px;
+  height: 56px;
   border-radius: 12px;
   flex-shrink: 0;
 }
@@ -673,56 +492,6 @@ header {
   margin-bottom: 16px;
 }
 
-/* ── Footer ── */
-footer {
-  background: color-mix(in srgb, var(--bg) 82%, #07080D 18%);
-  padding: 60px 0;
-  font-size: 0.9rem;
-  border-top: 1px solid color-mix(in srgb, var(--text) 14%, transparent 86%);
-}
-
-.footer-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 20px;
-}
-
-.footer-brand p {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  margin-top: 8px;
-}
-
-.footer-links a {
-  margin-left: 24px;
-  color: var(--accent);
-}
-
-.footer-links a:hover { color: var(--highlight); }
-
-.footer-compare {
-  width: 100%;
-  padding-top: 20px;
-  margin-top: 20px;
-  border-top: 1px solid color-mix(in srgb, var(--text) 8%, transparent 92%);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 20px;
-  justify-content: center;
-  font-size: 0.82rem;
-}
-
-.footer-compare a {
-  color: var(--text-secondary);
-  transition: color 0.2s;
-}
-
-.footer-compare a:hover {
-  color: var(--accent);
-}
-
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .pricing-grid {
@@ -731,22 +500,14 @@ footer {
 }
 
 @media (max-width: 768px) {
-  .container { padding: 0 16px; }
-  .nav-links { display: none; }
-  .theme-toggle #theme-label { display: none; }
-
-  .logo {
-    font-size: 1.1rem;
-  }
-
-  .logo .logo-mark {
-    width: 24px; height: 24px;
-    border-radius: 7px;
+  .compare-hero {
+    padding-top: 24px;
   }
 
   .compare-hero .competitor-icon,
   .compare-hero .vaultaire-icon {
-    width: 56px; height: 56px;
+    width: 56px;
+    height: 56px;
     border-radius: 12px;
   }
 
@@ -765,18 +526,33 @@ footer {
 
   .compare-card-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
+    padding-bottom: 56px;
+  }
+
+  .compare-card {
+    padding: 18px;
+    gap: 14px;
+  }
+
+  .compare-landing-hero {
+    padding-top: 96px;
+    padding-bottom: 28px;
+  }
+
+  .compare-landing-hero p {
+    font-size: 1rem;
   }
 
   .more-comparisons-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .footer-links a {
-    margin-left: 0;
-    margin-right: 20px;
+    grid-template-columns: 1fr;
   }
 
   .review-article {
     padding: 24px 0 60px;
+  }
+
+  .review-article .verdict-box {
+    padding: 22px;
   }
 }

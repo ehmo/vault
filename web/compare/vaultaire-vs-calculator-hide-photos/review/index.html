@@ -28,13 +28,15 @@
       <nav class="nav-links">
         <a href="../../../index.html">Home</a>
         <a href="../../../index.html#features">Features</a>
+        <a href="../../../index.html#how-it-works">How It Works</a>
         <a href="../../../index.html#security">Security</a>
         <a href="../../../manifesto/index.html">Manifesto</a>
+        <a href="../../../index.html#faq">FAQ</a>
         <a href="../../../compare/">Compare</a>
       </nav>
       <div class="nav-cta">
         <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
-          <span class="theme-icon" id="theme-icon">&#9788;</span>
+          <span class="theme-icon" id="theme-icon">☀︎</span>
           <span id="theme-label">Light</span>
         </button>
         <a href="https://apps.apple.com/app/vaultaire/id6740526623" class="btn btn-primary" style="padding: 12px 24px; font-size: 0.9rem;">Get App</a>
@@ -173,33 +175,8 @@
     </div>
   </footer>
 
-  <script>
-    (function () {
-      const root = document.documentElement;
-      const key = 'vaultaire-theme';
-      const preferred = window.matchMedia('(prefers-color-scheme: dark)');
-      const toggle = document.getElementById('theme-toggle');
-      const icon = document.getElementById('theme-icon');
-      const label = document.getElementById('theme-label');
-      function setTheme(theme, persist) {
-        root.dataset.theme = theme;
-        const isDark = theme === 'dark';
-        icon.textContent = isDark ? '\u2606' : '\u263D';
-        label.textContent = isDark ? 'Light' : 'Dark';
-        toggle.setAttribute('aria-pressed', String(!isDark));
-        toggle.setAttribute('aria-label', 'Switch to ' + (isDark ? 'light' : 'dark') + ' mode');
-        if (persist) localStorage.setItem(key, theme);
-      }
-      var saved = localStorage.getItem(key);
-      var hasOverride = saved === 'dark' || saved === 'light';
-      setTheme(hasOverride ? saved : (preferred.matches ? 'dark' : 'light'), false);
-      toggle.addEventListener('click', function () {
-        setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
-      });
-      preferred.addEventListener('change', function (e) {
-        if (!localStorage.getItem(key)) setTheme(e.matches ? 'dark' : 'light', false);
-      });
-    })();
-  </script>
+
+
+  <script src="../../../assets/theme-toggle.js"></script>
 </body>
 </html>

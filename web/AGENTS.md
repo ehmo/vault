@@ -35,13 +35,19 @@ Preview locally: `npx serve .` (after `npm run build`)
 ## Design Tokens
 
 Matches iOS app (`VaultTheme.swift`):
-- Background: `#D1D1E9` (light) / `#1A1B2E` (dark)
-- Surface: `#FFFFFE` (light) / `#2D2E3A` (dark)
+- Background: `#D1D1E9` (light) / `#20233C` (dark)
+- Surface: `#FFFFFE` (light) / `#323444` (dark)
 - Text: `#2B2C34` (light) / `#E8E8F0` (dark)
-- Accent: `#6246EA` (indigo-purple)
-- Highlight: `#E45858` (coral red)
+- Accent: `#1F0D77` (light) / `#CCC3F8` (dark)
+- Highlight: `#E45858` (light) / `#FF6F6F` (dark)
 
 Defined in `styles/input.css` as `@theme` variables, used as `bg-vault-bg`, `text-vault-text`, etc.
+
+## Shared Frontend Assets
+
+- Shared cross-page chrome styles live in `styles/site-shared.css` (header, nav, footer, buttons, responsive nav behavior).
+- Shared theme toggle behavior lives in `assets/theme-toggle.js` (`vaultaire-theme` localStorage key, `☀︎/☽` icon swap, `vaultaire-themechange` event).
+- Keep per-page `<style>` blocks focused on page-specific layout/content only.
 
 ## Deployment
 
@@ -52,6 +58,10 @@ Cloudflare Pages project `vaultaire-web`:
 
 Deploy manually: `npx wrangler pages deploy . --project-name vaultaire-web`
 
+Deployment notes:
+- Wrangler prints a unique deployment URL (for example `https://<hash>.vaultaire-web.pages.dev`) after each successful deploy.
+- In dirty git working trees, add `--commit-dirty=true` to silence wrangler's uncommitted-changes warning.
+
 ## AASA Requirements
 
 The `apple-app-site-association` file MUST:
@@ -59,3 +69,12 @@ The `apple-app-site-association` file MUST:
 - Have `Content-Type: application/json` (configured in `_headers`)
 - Be accessible without redirects
 - Contain the correct Team ID + Bundle ID: `UFV835UGV6.app.vaultaire.ios`
+
+## Brand Learnings
+
+- Use the iOS app logo assets directly in web pages: `/assets/vault-logo.png` for dark theme and `/assets/vault-logo-light.png` for light theme.
+- Keep product naming/casing consistent everywhere: `Vaultaire`.
+- Prefer explicit static links (`../terms/index.html`, `manifesto/index.html`) over router-style paths so pages work both on static hosts and direct file previews.
+- Reuse the exact home-page header/footer chrome (nav spacing, theme glyph toggle `☀︎/☽`, angular `Get App` button, footer brand block) across every page to avoid visual drift.
+- For nested compare pages (`/compare/<slug>/review/`), header nav links and shared script paths must use `../../../` depth; top-level compare pages use `../`, comparison detail pages use `../../`.
+- Keep compare-specific layout in `compare/styles.css`, but always import and rely on `styles/site-shared.css` for shared chrome so header/footer/theme behavior stays identical across pages.
