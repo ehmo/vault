@@ -14,6 +14,7 @@ struct AppSettingsView: View {
 
     @AppStorage("showPatternFeedback") private var showFeedback = true
     @AppStorage("analyticsEnabled") private var analyticsEnabled = false
+    @AppStorage("fileOptimization") private var fileOptimization = "optimized"
 
     @State private var showingNuclearConfirmation = false
     @State private var showingPaywall = false
@@ -140,6 +141,23 @@ struct AppSettingsView: View {
             }
             .onChange(of: analyticsEnabled) { _, newValue in
                 AnalyticsManager.shared.setEnabled(newValue)
+            }
+
+            // File Optimization
+            Section {
+                Picker("Import Quality", selection: $fileOptimization) {
+                    Text("Optimized").tag("optimized")
+                    Text("Original").tag("original")
+                }
+                .accessibilityIdentifier("app_file_optimization")
+            } header: {
+                Text("Storage")
+            } footer: {
+                if fileOptimization == "optimized" {
+                    Text("Reduces file sizes by up to 85%. Uses HEIC for images and HEVC for videos.")
+                } else {
+                    Text("Keeps files at original size and format. Uses significantly more storage.")
+                }
             }
 
             // Storage Management

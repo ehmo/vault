@@ -83,7 +83,7 @@ struct SharedVaultInviteView: View {
             guard !trimmed.isEmpty else { return }
             let result = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: trimmed)
             if case .failure(let error) = result {
-                mode = .error(error.localizedDescription ?? "This invite is no longer available.")
+                mode = .error(error.localizedDescription)
             }
         }
         .premiumPaywall(isPresented: $showingPaywall)

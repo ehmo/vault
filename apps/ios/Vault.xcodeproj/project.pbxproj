@@ -94,6 +94,7 @@
 		SE0000013 /* VaultCoreConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE000000C /* VaultCoreConstants.swift */; };
 		SE0000015 /* StagedImportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE000000E /* StagedImportManager.swift */; };
 		SE0000017 /* ImportIngestor.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE0000016 /* ImportIngestor.swift */; };
+		MO0000001 /* MediaOptimizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = MO0000000 /* MediaOptimizer.swift */; };
 		SE0000019 /* PendingImportBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE0000018 /* PendingImportBanner.swift */; };
 		SL0000001 /* ShareLinkEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = SL0000000 /* ShareLinkEncoder.swift */; };
 		SL0000003 /* DeepLinkHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = SL0000002 /* DeepLinkHandler.swift */; };
@@ -263,6 +264,7 @@
 		SE000000E /* StagedImportManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StagedImportManager.swift; sourceTree = "<group>"; };
 		SE0000010 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		SE0000016 /* ImportIngestor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportIngestor.swift; sourceTree = "<group>"; };
+		MO0000000 /* MediaOptimizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaOptimizer.swift; sourceTree = "<group>"; };
 		SE0000018 /* PendingImportBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingImportBanner.swift; sourceTree = "<group>"; };
 		SE000001A /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
 		SE000001C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -420,6 +422,7 @@
 				013000000 /* iCloudBackupManager.swift */,
 				SE000000E /* StagedImportManager.swift */,
 				SE0000016 /* ImportIngestor.swift */,
+				MO0000000 /* MediaOptimizer.swift */,
 			);
 			path = Storage;
 			sourceTree = "<group>";
@@ -1020,6 +1023,7 @@
 				SE0000013 /* VaultCoreConstants.swift in Sources */,
 				SE0000015 /* StagedImportManager.swift in Sources */,
 				SE0000017 /* ImportIngestor.swift in Sources */,
+				MO0000001 /* MediaOptimizer.swift in Sources */,
 				SE0000019 /* PendingImportBanner.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1236,7 +1240,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 75;
+				CURRENT_PROJECT_VERSION = 76;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = UFV835UGV6;
@@ -1257,12 +1261,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.1;
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-weak_framework",
-					MetricKit,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios;
+					PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1283,7 +1282,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 75;
+				CURRENT_PROJECT_VERSION = 76;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = UFV835UGV6;
@@ -1304,12 +1303,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.1;
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-weak_framework",
-					MetricKit,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios;
+					PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Vault App Store";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1327,7 +1321,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 75;
+				CURRENT_PROJECT_VERSION = 76;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
@@ -1359,7 +1353,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 75;
+				CURRENT_PROJECT_VERSION = 76;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
@@ -1391,7 +1385,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 75;
+				CURRENT_PROJECT_VERSION = 76;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1408,7 +1402,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 75;
+				CURRENT_PROJECT_VERSION = 76;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1424,7 +1418,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 75;
+				CURRENT_PROJECT_VERSION = 76;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1440,7 +1434,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 75;
+				CURRENT_PROJECT_VERSION = 76;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;

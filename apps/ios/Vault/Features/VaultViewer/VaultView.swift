@@ -108,6 +108,7 @@ struct VaultView: View {
     @State var isLoading = true
     @State var searchText = ""
     @AppStorage("vaultFileFilter") var fileFilter: FileFilter = .all
+    @AppStorage("fileOptimization") var fileOptimization = "optimized"
     @State var sortOrder: SortOrder = .dateNewest
     @State var isEditing = false
     @State var selectedIds: Set<UUID> = []

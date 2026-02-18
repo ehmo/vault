@@ -228,19 +228,33 @@ extension VaultView {
     func handleCapturedImage(_ imageData: Data) {
         guard !isSharedVault, let key = appState.currentVaultKey else { return }
         let currentMasterKey = self.masterKey
+        let optimizationMode = MediaOptimizer.Mode(rawValue: fileOptimization) ?? .optimized
 
         Task.detached(priority: .userInitiated) {
             do {
-                let filename = "IMG_\(Date().timeIntervalSince1970).jpg"
-                let thumbnail = FileUtilities.generateThumbnail(from: imageData)
-                let fileId = try VaultStorage.shared.storeFile(
-                    data: imageData,
-                    filename: filename,
-                    mimeType: "image/jpeg",
-                    with: key,
-                    thumbnailData: thumbnail
+                // Write camera data to temp file to avoid holding imageData + encrypted copy
+                let tempInputURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString)
+                    .appendingPathExtension("jpg")
+                try imageData.write(to: tempInputURL, options: [.atomic])
+
+                let (optimizedURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+                    fileURL: tempInputURL, mimeType: "image/jpeg", mode: optimizationMode
                 )
-                // Store encrypted thumbnail in cache
+                defer {
+                    if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
+                    try? FileManager.default.removeItem(at: tempInputURL)
+                }
+
+                let ext = mimeType == "image/heic" ? "heic" : "jpg"
+                let filename = "IMG_\(Date().timeIntervalSince1970).\(ext)"
+                let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
+                let thumbnail = FileUtilities.generateThumbnail(fromFileURL: optimizedURL)
+
+                let fileId = try VaultStorage.shared.storeFileFromURL(
+                    optimizedURL, filename: filename, mimeType: mimeType,
+                    with: key, thumbnailData: thumbnail
+                )
                 let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: currentMasterKey ?? key) }
                 if let encThumb {
                     await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
@@ -248,9 +262,9 @@ extension VaultView {
                 await MainActor.run {
                     self.files.append(VaultFileItem(
                         id: fileId,
-                        size: imageData.count,
+                        size: fileSize,
                         hasThumbnail: encThumb != nil,
-                        mimeType: "image/jpeg",
+                        mimeType: mimeType,
                         filename: filename,
                         createdAt: Date()
                     ))
@@ -296,6 +310,7 @@ extension VaultView {
         guard let key = appState.currentVaultKey else { return }
         let encryptionKey = self.masterKey ?? key
         let count = results.count
+        let optimizationMode = MediaOptimizer.Mode(rawValue: fileOptimization) ?? .optimized
 
         // Cancel any existing import before starting a new one
         activeImportTask?.cancel()
@@ -326,20 +341,29 @@ extension VaultView {
 
                         let ext = tempVideoURL.pathExtension.isEmpty ? "mov" : tempVideoURL.pathExtension
                         let mime = FileUtilities.mimeType(forExtension: ext)
-                        let mimeType = mime.hasPrefix("video/") ? mime : "video/quicktime"
-                        let filename = provider.suggestedName.map { name -> String in
+                        let sourceMimeType = mime.hasPrefix("video/") ? mime : "video/quicktime"
+
+                        let (optimizedURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+                            fileURL: tempVideoURL, mimeType: sourceMimeType, mode: optimizationMode
+                        )
+                        defer {
+                            if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
+                            try? FileManager.default.removeItem(at: tempVideoURL)
+                        }
+
+                        let baseFilename = provider.suggestedName.map { name -> String in
                             if (name as NSString).pathExtension.isEmpty { return name + ".\(ext)" }
                             return name
                         } ?? "VID_\(Date().timeIntervalSince1970)_\(index).\(ext)"
+                        let filename = wasOptimized ? MediaOptimizer.updatedFilename(baseFilename, newMimeType: mimeType) : baseFilename
 
-                        let metadata = await Self.generateVideoMetadata(from: tempVideoURL)
-                        let fileSize = (try? FileManager.default.attributesOfItem(atPath: tempVideoURL.path)[.size] as? Int) ?? 0
+                        let metadata = await Self.generateVideoMetadata(from: optimizedURL)
+                        let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
 
                         let fileId = try VaultStorage.shared.storeFileFromURL(
-                            tempVideoURL, filename: filename, mimeType: mimeType,
+                            optimizedURL, filename: filename, mimeType: mimeType,
                             with: key, thumbnailData: metadata.thumbnail, duration: metadata.duration
                         )
-                        try? FileManager.default.removeItem(at: tempVideoURL)
 
                         let encThumb = metadata.thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
                         if let encThumb {
@@ -356,7 +380,7 @@ extension VaultView {
                         }
                         successCount += 1
                     } else {
-                        // Load image via UIImage
+                        // Load image via UIImage → write to temp file → optimize
                         guard provider.canLoadObject(ofClass: UIImage.self) else {
                             failedCount += 1
                             lastErrorReason = "Unsupported file format"
@@ -371,21 +395,43 @@ extension VaultView {
                         }
                         guard !Task.isCancelled else { break }
 
-                        guard let image, let jpegData = image.jpegData(compressionQuality: 0.8) else {
+                        guard let image else {
                             failedCount += 1
                             lastErrorReason = "Could not convert image"
                             await MainActor.run { self.importProgress = (index + 1, count) }
                             continue
                         }
 
-                        let thumbnail = FileUtilities.generateThumbnail(from: jpegData)
-                        let filename = "IMG_\(Date().timeIntervalSince1970)_\(index).jpg"
-                        let mimeType = "image/jpeg"
+                        // Write to temp JPEG then optimize (avoids holding large Data + UIImage simultaneously)
+                        let tempInputURL = FileManager.default.temporaryDirectory
+                            .appendingPathComponent(UUID().uuidString)
+                            .appendingPathExtension("jpg")
+                        guard let jpegData = image.jpegData(compressionQuality: 0.8) else {
+                            failedCount += 1
+                            lastErrorReason = "Could not convert image"
+                            await MainActor.run { self.importProgress = (index + 1, count) }
+                            continue
+                        }
+                        try jpegData.write(to: tempInputURL, options: [.atomic])
+
+                        let (optimizedURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+                            fileURL: tempInputURL, mimeType: "image/jpeg", mode: optimizationMode
+                        )
+                        defer {
+                            if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
+                            try? FileManager.default.removeItem(at: tempInputURL)
+                        }
+
+                        let ext = mimeType == "image/heic" ? "heic" : "jpg"
+                        let filename = "IMG_\(Date().timeIntervalSince1970)_\(index).\(ext)"
+
+                        let thumbnail = FileUtilities.generateThumbnail(fromFileURL: optimizedURL)
+                        let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
 
                         guard !Task.isCancelled else { break }
 
-                        let fileId = try VaultStorage.shared.storeFile(
-                            data: jpegData, filename: filename, mimeType: mimeType,
+                        let fileId = try VaultStorage.shared.storeFileFromURL(
+                            optimizedURL, filename: filename, mimeType: mimeType,
                             with: key, thumbnailData: thumbnail
                         )
                         let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
@@ -395,7 +441,7 @@ extension VaultView {
                         await MainActor.run {
                             guard !Task.isCancelled else { return }
                             self.files.append(VaultFileItem(
-                                id: fileId, size: jpegData.count,
+                                id: fileId, size: fileSize,
                                 hasThumbnail: encThumb != nil, mimeType: mimeType,
                                 filename: filename, createdAt: Date()
                             ))
@@ -530,6 +576,7 @@ extension VaultView {
         let encryptionKey = self.masterKey ?? key
         let count = urls.count
         let showProgress = count > 1
+        let optimizationMode = MediaOptimizer.Mode(rawValue: fileOptimization) ?? .optimized
 
         // Cancel any existing import before starting a new one
         activeImportTask?.cancel()
@@ -552,17 +599,28 @@ extension VaultView {
                 }
                 defer { url.stopAccessingSecurityScopedResource() }
 
-                let filename = url.lastPathComponent
-                let mimeType = FileUtilities.mimeType(forExtension: url.pathExtension)
+                let originalFilename = url.lastPathComponent
+                let sourceMimeType = FileUtilities.mimeType(forExtension: url.pathExtension)
 
                 do {
+                    // Optimize media files (images + videos); non-media passes through
+                    let (optimizedURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+                        fileURL: url, mimeType: sourceMimeType, mode: optimizationMode
+                    )
+                    defer {
+                        if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
+                    }
+
+                    let filename = wasOptimized
+                        ? MediaOptimizer.updatedFilename(originalFilename, newMimeType: mimeType)
+                        : originalFilename
+
                     if mimeType.hasPrefix("video/") {
-                        // URL-based video import — avoids loading raw video into memory
-                        let metadata = await Self.generateVideoMetadata(from: url)
-                        let fileSize = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
+                        let metadata = await Self.generateVideoMetadata(from: optimizedURL)
+                        let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
 
                         let fileId = try VaultStorage.shared.storeFileFromURL(
-                            url, filename: filename, mimeType: mimeType,
+                            optimizedURL, filename: filename, mimeType: mimeType,
                             with: key, thumbnailData: metadata.thumbnail, duration: metadata.duration
                         )
                         let encThumb = metadata.thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
@@ -579,13 +637,13 @@ extension VaultView {
                             if showProgress { self.importProgress = (index + 1, count) }
                         }
                     } else {
-                        let fileSize = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
+                        let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
                         let thumbnail = mimeType.hasPrefix("image/")
-                            ? FileUtilities.generateThumbnail(fromFileURL: url)
+                            ? FileUtilities.generateThumbnail(fromFileURL: optimizedURL)
                             : nil
 
                         let fileId = try VaultStorage.shared.storeFileFromURL(
-                            url, filename: filename, mimeType: mimeType,
+                            optimizedURL, filename: filename, mimeType: mimeType,
                             with: key, thumbnailData: thumbnail
                         )
                         let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }

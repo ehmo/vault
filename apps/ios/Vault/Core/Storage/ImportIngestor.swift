@@ -127,18 +127,32 @@ enum ImportIngestor {
             // temporaries (CGImage, UIImage, AVAsset) between files — prevents
             // memory accumulation across large batches.
             do {
-                try autoreleasepool {
-                    // Decrypt directly to temp file — streaming format uses ~256KB peak,
-                    // single-shot loads only small files (≤1MB) into memory
-                    let tempURL = FileManager.default.temporaryDirectory
-                        .appendingPathComponent("\(file.fileId.uuidString)_import")
-                        .appendingPathExtension(URL(string: file.filename)?.pathExtension ?? "dat")
-                    try CryptoEngine.decryptStagedFileToURL(
-                        from: StagedImportManager.encryptedFileURL(batchId: batch.batchId, fileId: file.fileId)!,
-                        to: tempURL,
-                        with: vaultKey
-                    )
+                // Decrypt directly to temp file — streaming format uses ~256KB peak,
+                // single-shot loads only small files (≤1MB) into memory
+                let tempURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("\(file.fileId.uuidString)_import")
+                    .appendingPathExtension(URL(string: file.filename)?.pathExtension ?? "dat")
+                try CryptoEngine.decryptStagedFileToURL(
+                    from: StagedImportManager.encryptedFileURL(batchId: batch.batchId, fileId: file.fileId)!,
+                    to: tempURL,
+                    with: vaultKey
+                )
 
+                // Optimize media before storing (async — video export needs AVFoundation)
+                let optimizationModeStr = UserDefaults.standard.string(forKey: "fileOptimization") ?? "optimized"
+                let optimizationMode = MediaOptimizer.Mode(rawValue: optimizationModeStr) ?? .optimized
+
+                let (optimizedURL, optimizedMimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+                    fileURL: tempURL, mimeType: file.mimeType, mode: optimizationMode
+                )
+
+                let storedFilename = wasOptimized
+                    ? MediaOptimizer.updatedFilename(file.filename, newMimeType: optimizedMimeType)
+                    : file.filename
+
+                // Wrap thumbnail + store in autoreleasepool to release UIKit/Foundation
+                // temporaries (CGImage, UIImage) between files
+                try autoreleasepool {
                     // Decrypt thumbnail if share extension provided one (always small)
                     var thumbnailData: Data?
                     if file.hasThumbnail,
@@ -148,22 +162,23 @@ enum ImportIngestor {
                         thumbnailData = try? CryptoEngine.decrypt(encThumb, with: vaultKey)
                     }
 
-                    // Generate thumbnail from temp file if share extension didn't provide one
+                    // Generate thumbnail from optimized file if share extension didn't provide one
                     if thumbnailData == nil {
-                        thumbnailData = generateThumbnailSync(for: tempURL, mimeType: file.mimeType)
+                        thumbnailData = generateThumbnailSync(for: optimizedURL, mimeType: optimizedMimeType)
                     }
 
                     // Store via VaultStorage (streams to blob, ~256KB peak)
                     _ = try VaultStorage.shared.storeFileFromURL(
-                        tempURL,
-                        filename: file.filename,
-                        mimeType: file.mimeType,
+                        optimizedURL,
+                        filename: storedFilename,
+                        mimeType: optimizedMimeType,
                         with: vaultKey,
                         thumbnailData: thumbnailData
                     )
-
-                    try? FileManager.default.removeItem(at: tempURL)
                 }
+
+                if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
+                try? FileManager.default.removeItem(at: tempURL)
 
                 // Mark file as imported by deleting its .enc (and .thumb.enc).
                 // On crash + retry, this file will be skipped above.
