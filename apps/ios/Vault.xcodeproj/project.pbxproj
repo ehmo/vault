@@ -34,6 +34,8 @@
 		007000001 /* SecureCameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007000000 /* SecureCameraView.swift */; };
 		007000003 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007000002 /* CameraManager.swift */; };
 		008000001 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008000000 /* SettingsView.swift */; };
+		ASV000001 /* AppearanceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ASV000000 /* AppearanceSettingsView.swift */; };
+		DPV000001 /* DuressPatternSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DPV000000 /* DuressPatternSettingsView.swift */; };
 		008000003 /* VaultSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008000002 /* VaultSettingsView.swift */; };
 		008000005 /* RecoveryPhraseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008000004 /* RecoveryPhraseView.swift */; };
 		009000001 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009000000 /* OnboardingView.swift */; };
@@ -235,6 +237,8 @@
 		007000000 /* SecureCameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureCameraView.swift; sourceTree = "<group>"; };
 		007000002 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
 		008000000 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		ASV000000 /* AppearanceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsView.swift; sourceTree = "<group>"; };
+		DPV000000 /* DuressPatternSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuressPatternSettingsView.swift; sourceTree = "<group>"; };
 		008000002 /* VaultSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultSettingsView.swift; sourceTree = "<group>"; };
 		008000004 /* RecoveryPhraseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryPhraseView.swift; sourceTree = "<group>"; };
 		009000000 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
@@ -605,6 +609,8 @@
 			isa = PBXGroup;
 			children = (
 				008000000 /* SettingsView.swift */,
+				ASV000000 /* AppearanceSettingsView.swift */,
+				DPV000000 /* DuressPatternSettingsView.swift */,
 				008000002 /* VaultSettingsView.swift */,
 				008000004 /* RecoveryPhraseView.swift */,
 				39EACF9C2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md */,
@@ -1061,6 +1067,8 @@
 				007000001 /* SecureCameraView.swift in Sources */,
 				007000003 /* CameraManager.swift in Sources */,
 				008000001 /* SettingsView.swift in Sources */,
+				ASV000001 /* AppearanceSettingsView.swift in Sources */,
+				DPV000001 /* DuressPatternSettingsView.swift in Sources */,
 				008000003 /* VaultSettingsView.swift in Sources */,
 				008000005 /* RecoveryPhraseView.swift in Sources */,
 				009000001 /* OnboardingView.swift in Sources */,
