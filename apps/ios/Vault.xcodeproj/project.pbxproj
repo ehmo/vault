@@ -127,6 +127,20 @@
 		VV0000005 /* VaultView+FanMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000004 /* VaultView+FanMenu.swift */; };
 		VV0000007 /* VaultView+SharedVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000006 /* VaultView+SharedVault.swift */; };
 		VV0000009 /* VaultView+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000008 /* VaultView+Actions.swift */; };
+		UI0000001 /* BaseUITest.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000000 /* BaseUITest.swift */; };
+		UI0000003 /* XCUIElement+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000002 /* XCUIElement+Helpers.swift */; };
+		UI0000005 /* AccessibilityIDs.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000004 /* AccessibilityIDs.swift */; };
+		UI0000007 /* OnboardingScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000006 /* OnboardingScreen.swift */; };
+		UI0000009 /* PatternLockScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000008 /* PatternLockScreen.swift */; };
+		UI000000B /* VaultScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI000000A /* VaultScreen.swift */; };
+		UI000000D /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI000000C /* SettingsScreen.swift */; };
+		UI000000F /* RecoveryPhraseScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI000000E /* RecoveryPhraseScreen.swift */; };
+		UI0000011 /* ChangePatternScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000010 /* ChangePatternScreen.swift */; };
+		UI0000013 /* OnboardingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000012 /* OnboardingUITests.swift */; };
+		UI0000015 /* UnlockUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000014 /* UnlockUITests.swift */; };
+		UI0000017 /* VaultViewerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000016 /* VaultViewerUITests.swift */; };
+		UI0000019 /* SettingsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000018 /* SettingsUITests.swift */; };
+		UI000001B /* AppearanceUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI000001A /* AppearanceUITests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -138,6 +152,13 @@
 			remoteInfo = ShareExtension;
 		};
 		TS000000B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0100000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0110000000;
+			remoteInfo = Vault;
+		};
+		UI00000CB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 0100000000 /* Project object */;
 			proxyType = 1;
@@ -278,6 +299,21 @@
 		VV0000004 /* VaultView+FanMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+FanMenu.swift"; sourceTree = "<group>"; };
 		VV0000006 /* VaultView+SharedVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+SharedVault.swift"; sourceTree = "<group>"; };
 		VV0000008 /* VaultView+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Actions.swift"; sourceTree = "<group>"; };
+		UI0000020 /* VaultUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VaultUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		UI0000000 /* BaseUITest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaseUITest.swift; sourceTree = "<group>"; };
+		UI0000002 /* XCUIElement+Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCUIElement+Helpers.swift"; sourceTree = "<group>"; };
+		UI0000004 /* AccessibilityIDs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityIDs.swift; sourceTree = "<group>"; };
+		UI0000006 /* OnboardingScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingScreen.swift; sourceTree = "<group>"; };
+		UI0000008 /* PatternLockScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternLockScreen.swift; sourceTree = "<group>"; };
+		UI000000A /* VaultScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultScreen.swift; sourceTree = "<group>"; };
+		UI000000C /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
+		UI000000E /* RecoveryPhraseScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryPhraseScreen.swift; sourceTree = "<group>"; };
+		UI0000010 /* ChangePatternScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangePatternScreen.swift; sourceTree = "<group>"; };
+		UI0000012 /* OnboardingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingUITests.swift; sourceTree = "<group>"; };
+		UI0000014 /* UnlockUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnlockUITests.swift; sourceTree = "<group>"; };
+		UI0000016 /* VaultViewerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultViewerUITests.swift; sourceTree = "<group>"; };
+		UI0000018 /* SettingsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsUITests.swift; sourceTree = "<group>"; };
+		UI000001A /* AppearanceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -298,6 +334,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		TS00000F0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		UI00000F0 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -326,6 +369,7 @@
 					088000000000 /* Vault.app */,
 					SE0000010 /* ShareExtension.appex */,
 					TS0000010 /* VaultTests.xctest */,
+					UI0000020 /* VaultUITests.xctest */,
 				);
 			name = Products;
 			sourceTree = "<group>";
@@ -597,6 +641,7 @@
 				0100000001 /* Vault */,
 				SE0000070 /* Vault/Extensions/ShareExtension */,
 				TS0000070 /* VaultTests */,
+				UI0000070 /* VaultUITests */,
 				0100000002 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -636,6 +681,59 @@
 				TS0000038 /* ShareVaultViewModeTests.swift */,
 			);
 			path = VaultTests;
+			sourceTree = "<group>";
+		};
+		UI0000070 /* VaultUITests */ = {
+			isa = PBXGroup;
+			children = (
+				UI0000071 /* Base */,
+				UI0000072 /* Screens */,
+				UI0000073 /* Tests */,
+				UI0000074 /* Shared */,
+			);
+			path = VaultUITests;
+			sourceTree = "<group>";
+		};
+		UI0000071 /* Base */ = {
+			isa = PBXGroup;
+			children = (
+				UI0000000 /* BaseUITest.swift */,
+				UI0000002 /* XCUIElement+Helpers.swift */,
+			);
+			path = Base;
+			sourceTree = "<group>";
+		};
+		UI0000072 /* Screens */ = {
+			isa = PBXGroup;
+			children = (
+				UI0000006 /* OnboardingScreen.swift */,
+				UI0000008 /* PatternLockScreen.swift */,
+				UI000000A /* VaultScreen.swift */,
+				UI000000C /* SettingsScreen.swift */,
+				UI000000E /* RecoveryPhraseScreen.swift */,
+				UI0000010 /* ChangePatternScreen.swift */,
+			);
+			path = Screens;
+			sourceTree = "<group>";
+		};
+		UI0000073 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				UI0000012 /* OnboardingUITests.swift */,
+				UI0000014 /* UnlockUITests.swift */,
+				UI0000016 /* VaultViewerUITests.swift */,
+				UI0000018 /* SettingsUITests.swift */,
+				UI000001A /* AppearanceUITests.swift */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		UI0000074 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				UI0000004 /* AccessibilityIDs.swift */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 		UX0000010 /* Milestones */ = {
@@ -708,6 +806,24 @@
 			productReference = TS0000010 /* VaultTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		UI0000040 /* VaultUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = UI000F000 /* Build configuration list for PBXNativeTarget "VaultUITests" */;
+			buildPhases = (
+				UI00000E0 /* Sources */,
+				UI00000F0 /* Frameworks */,
+				UI0000100 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				UI00000CD /* PBXTargetDependency */,
+			);
+			name = VaultUITests;
+			productName = VaultUITests;
+			productReference = UI0000020 /* VaultUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -725,6 +841,10 @@
 						CreatedOnToolsVersion = 15.0;
 					};
 					TS0000040 = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = 0110000000;
+					};
+					UI0000040 = {
 						CreatedOnToolsVersion = 15.0;
 						TestTargetID = 0110000000;
 					};
@@ -751,6 +871,7 @@
 					0110000000 /* Vault */,
 					SE0000030 /* ShareExtension */,
 					TS0000040 /* VaultTests */,
+					UI0000040 /* VaultUITests */,
 				);
 		};
 /* End PBXProject section */
@@ -780,6 +901,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		TS0000100 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		UI0000100 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -937,6 +1065,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		UI00000E0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				UI0000001 /* BaseUITest.swift in Sources */,
+				UI0000003 /* XCUIElement+Helpers.swift in Sources */,
+				UI0000005 /* AccessibilityIDs.swift in Sources */,
+				UI0000007 /* OnboardingScreen.swift in Sources */,
+				UI0000009 /* PatternLockScreen.swift in Sources */,
+				UI000000B /* VaultScreen.swift in Sources */,
+				UI000000D /* SettingsScreen.swift in Sources */,
+				UI000000F /* RecoveryPhraseScreen.swift in Sources */,
+				UI0000011 /* ChangePatternScreen.swift in Sources */,
+				UI0000013 /* OnboardingUITests.swift in Sources */,
+				UI0000015 /* UnlockUITests.swift in Sources */,
+				UI0000017 /* VaultViewerUITests.swift in Sources */,
+				UI0000019 /* SettingsUITests.swift in Sources */,
+				UI000001B /* AppearanceUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -949,6 +1098,11 @@
 			isa = PBXTargetDependency;
 			target = 0110000000 /* Vault */;
 			targetProxy = TS000000B /* PBXContainerItemProxy */;
+		};
+		UI00000CD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0110000000 /* Vault */;
+			targetProxy = UI00000CB /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1103,6 +1257,11 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.1;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					MetricKit,
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1145,6 +1304,11 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.1;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					MetricKit,
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Vault App Store";
@@ -1256,6 +1420,38 @@
 			};
 			name = Release;
 		};
+		UI000F001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 73;
+				DEVELOPMENT_TEAM = UFV835UGV6;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios.VaultUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Vault;
+			};
+			name = Debug;
+		};
+		UI000F002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 73;
+				DEVELOPMENT_TEAM = UFV835UGV6;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios.VaultUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Vault;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1291,6 +1487,15 @@
 			buildConfigurations = (
 				TS000F001 /* Debug */,
 				TS000F002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		UI000F000 /* Build configuration list for PBXNativeTarget "VaultUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				UI000F001 /* Debug */,
+				UI000F002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

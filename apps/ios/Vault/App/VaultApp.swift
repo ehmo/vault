@@ -36,11 +36,7 @@ struct VaultApp: App {
                     ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "app_on_appear")
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-                    appState.applyAppearanceToAllWindows()
                     ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "did_become_active")
-                }
-                .onReceive(NotificationCenter.default.publisher(for: UIWindow.didBecomeKeyNotification)) { _ in
-                    appState.applyAppearanceToAllWindows()
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     switch newPhase {
@@ -102,6 +98,8 @@ final class AppState {
     #if DEBUG
     /// When true, Maestro E2E tests are running — disables lock triggers and enables test bypass
     let isMaestroTestMode = ProcessInfo.processInfo.arguments.contains("-MAESTRO_TEST")
+    /// When true, XCUITests are running — disables animations for faster test execution
+    let isXCUITestMode = ProcessInfo.processInfo.arguments.contains("-XCUITEST_MODE")
     #endif
 
     init() {
@@ -140,6 +138,9 @@ final class AppState {
 
     private func checkFirstLaunch() {
         #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-RESET_ONBOARDING") {
+            UserDefaults.standard.removeObject(forKey: "hasCompletedOnboarding")
+        }
         if isMaestroTestMode {
             // Auto-complete onboarding in test mode
             UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
@@ -191,18 +192,12 @@ final class AppState {
         }
         let resolvedColor = baseColor.resolvedColor(with: targetTraits)
 
-        UIView.performWithoutAnimation {
-            CATransaction.begin()
-            CATransaction.setDisableActions(true)
-            for scene in UIApplication.shared.connectedScenes {
-                guard let windowScene = scene as? UIWindowScene else { continue }
-                for window in windowScene.windows {
-                    window.overrideUserInterfaceStyle = style
-                    window.backgroundColor = resolvedColor
-                    window.rootViewController?.view.backgroundColor = resolvedColor
-                }
+        for scene in UIApplication.shared.connectedScenes {
+            guard let windowScene = scene as? UIWindowScene else { continue }
+            for window in windowScene.windows {
+                window.overrideUserInterfaceStyle = style
+                window.backgroundColor = resolvedColor
             }
-            CATransaction.commit()
         }
     }
 
@@ -364,6 +359,16 @@ final class AppState {
         // Deterministic 32-byte key via SHA-256 (no Secure Enclave needed)
         let testKey = Data(CryptoKit.SHA256.hash(data: testSeed))
 
+        // Clear vault if requested (for tests that need empty state)
+        if ProcessInfo.processInfo.arguments.contains("-MAESTRO_CLEAR_VAULT") {
+            let emptyIndex = VaultStorage.VaultIndex(
+                files: [],
+                nextOffset: 0,
+                totalSize: 500 * 1024 * 1024
+            )
+            try? VaultStorage.shared.saveIndex(emptyIndex, with: testKey)
+        }
+
         // Initialize empty vault if needed
         if !VaultStorage.shared.vaultExists(for: testKey) {
             let emptyIndex = VaultStorage.VaultIndex(
@@ -478,7 +483,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                 guard let window = notification.object as? UIWindow else { return }
                 window.overrideUserInterfaceStyle = style
                 window.backgroundColor = resolved
-                window.rootViewController?.view.backgroundColor = resolved
             }
         }
 
@@ -490,6 +494,19 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+
+        #if DEBUG
+        // Disable animations for faster XCUITest execution
+        if ProcessInfo.processInfo.arguments.contains("-XCUITEST_MODE") {
+            UIView.setAnimationsEnabled(false)
+            for scene in UIApplication.shared.connectedScenes {
+                guard let windowScene = scene as? UIWindowScene else { continue }
+                for window in windowScene.windows {
+                    window.layer.speed = 100
+                }
+            }
+        }
+        #endif
 
         // Eagerly init VaultStorage so blob existence check (and potential background
         // blob creation on first launch) overlaps with the user drawing their pattern.

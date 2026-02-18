@@ -72,6 +72,7 @@ struct RecoveryPhraseView: View {
                         .padding()
                 }
                 .vaultProminentButtonStyle()
+                .accessibilityIdentifier("recovery_phrase_saved")
                 .padding(.horizontal, 40)
                 .padding(.bottom, 40)
                 .alert("Are you sure?", isPresented: $showSaveConfirmation) {
