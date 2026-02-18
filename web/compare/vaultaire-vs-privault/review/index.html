@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privault Review 2026: Does the Calculator Disguise Actually Work?</title>
+  <meta name="description" content="An independent security review of Privault in 2026. We examine whether the calculator disguise provides real security and compare it with Vaultaire's encryption approach.">
+  <meta name="keywords" content="privault review, privault alternative, calculator vault app, privault vs vaultaire">
+  <meta property="og:title" content="Privault Review 2026: Does the Calculator Disguise Actually Work?">
+  <meta property="og:description" content="Privault disguises itself as a calculator. We analyze whether this obscurity-based approach actually protects your photos.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://vaultaire.app/compare/vaultaire-vs-privault/review/">
+  <meta property="twitter:card" content="summary">
+  <link rel="canonical" href="https://vaultaire.app/compare/vaultaire-vs-privault/review/">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+</head>
+<body>
+  <header>
+    <div class="container nav-inner">
+      <a href="../../../index.html" class="logo">
+        <img src="../../../assets/vault-logo.png" alt="Vaultaire logo" class="logo-mark logo-mark--dark">
+        <img src="../../../assets/vault-logo-light.png" alt="Vaultaire logo for light theme" class="logo-mark logo-mark--light">
+        <span>Vaultaire</span>
+      </a>
+      <nav class="nav-links">
+        <a href="../../../index.html">Home</a>
+        <a href="../../../index.html#features">Features</a>
+        <a href="../../../index.html#security">Security</a>
+        <a href="../../../manifesto/index.html">Manifesto</a>
+        <a href="../../../compare/">Compare</a>
+      </nav>
+      <div class="nav-cta">
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+          <span class="theme-icon" id="theme-icon">&#9788;</span>
+          <span id="theme-label">Light</span>
+        </button>
+        <a href="https://apps.apple.com/app/vaultaire/id6740526623" class="btn btn-primary" style="padding: 12px 24px; font-size: 0.9rem;">Get App</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <nav class="breadcrumbs">
+        <a href="../../../index.html">Home</a><span>/</span>
+        <a href="../../../compare/">Compare</a><span>/</span>
+        <a href="../">vs Privault</a><span>/</span>
+        Review
+      </nav>
+
+      <article class="review-article">
+        <h1>Privault Review: Is It Worth It in 2026?</h1>
+        <div class="article-meta">Updated February 2026 | Comparison with Vaultaire</div>
+
+        <h2>Overview</h2>
+        <p>Privault belongs to a category of photo vault apps that disguise themselves as calculator applications. The idea is straightforward: someone scrolling through your home screen sees what appears to be a calculator. They open it, and it functions as one. But enter a specific PIN and the calculator interface gives way to a hidden photo gallery. With roughly 77,000 ratings on the App Store, the concept has clearly found an audience.</p>
+        <p>The appeal is understandable. Disguise feels like security. If nobody knows the vault exists, nobody will try to access it. This is a textbook example of security through obscurity -- a strategy that information security professionals have been warning against for decades. It works until it does not, and when it fails, it fails completely because there is no fallback layer of protection underneath.</p>
+        <p>In 2026, the calculator disguise is one of the most widely known "secret app" concepts on the internet. A quick search for "calculator vault app" returns millions of results. Blog posts, TikTok videos, and news articles have thoroughly documented the pattern. Anyone who is specifically looking for hidden content on a device knows to check for calculator apps that take up suspiciously large amounts of storage.</p>
+
+        <h2>Security Model</h2>
+        <p>Privault's entire security architecture rests on two pillars: the calculator disguise and a numeric PIN. The disguise is a social engineering measure -- it works against people who are not specifically looking for hidden apps. The PIN gates access to the hidden gallery interface. Neither of these is a cryptographic security measure.</p>
+        <p>The files stored within Privault are not encrypted. They sit in the app's sandbox in their original format. If someone accesses the device's file system -- through a computer connection, a backup extraction tool, or forensic software -- the photos are immediately visible. The calculator UI does not appear in that context. The PIN is not checked. The disguise is irrelevant.</p>
+        <p>This is the fundamental weakness of obscurity-based security: it protects against one threat vector (casual visual discovery) while providing zero protection against every other vector. Device examination, file system browsing, backup extraction, forensic analysis -- all of these bypass the disguise entirely.</p>
+
+        <h2>Lock Mechanism</h2>
+        <p>Access to Privault's hidden gallery requires entering a numeric PIN through the calculator interface. You type your PIN as though it were a mathematical expression, then press equals, and the vault opens. Touch ID and Face ID are available as alternative unlock methods in the premium version.</p>
+        <p>The PIN is an access control mechanism, not a cryptographic key. It unlocks the interface. It does not decrypt files, because the files were never encrypted in the first place. If you forget your PIN, recovery is difficult or impossible -- ironic for a system that does not actually use the PIN for any cryptographic purpose. The PIN could theoretically be bypassed entirely by accessing the files through the file system.</p>
+
+        <h2>Backup and Cloud</h2>
+        <p>Privault offers limited backup functionality. There is no robust cloud backup system. Files exist primarily on the device, and if the device is lost, damaged, or reset, those files are gone. Some users report using iTunes backups to preserve their Privault data, but since the files are unencrypted in the app sandbox, this means the "hidden" photos are sitting in plaintext within the iTunes backup as well.</p>
+        <p>The lack of encrypted backup is a significant gap. Users who rely on Privault as their primary storage for private photos are one device failure away from permanent data loss, with no recovery mechanism.</p>
+
+        <h2>Sharing and Privacy</h2>
+        <p>Privault does not offer encrypted sharing features. To share a file, you export it from the vault in its original unencrypted format. There is no concept of shared encrypted access, temporary viewing links, or collaborative vaults.</p>
+
+        <h2>Pricing Analysis</h2>
+        <p>Privault follows the freemium model common to photo vault apps. The free tier includes advertising. Premium unlocks ad removal, additional features, and biometric access at approximately $4.99 per month. A lifetime purchase option at $39.99 is available, which is more palatable than recurring subscriptions but still represents a significant investment in an app with no cryptographic security.</p>
+        <p>The core question with Privault's pricing is: what are you paying for? The calculator disguise works the same in the free tier. The photos remain unencrypted in both tiers. Premium essentially buys you an ad-free experience and biometric unlock for a fundamentally insecure storage model.</p>
+
+        <h2>What Users Are Saying</h2>
+        <blockquote>"My girlfriend found my vault in about five minutes. She googled 'calculator app that hides photos' and there it was. Some secret."</blockquote>
+        <p>The calculator disguise is the worst-kept secret in mobile apps. Its effectiveness depends entirely on the other person not knowing that calculator vault apps exist, which is an increasingly unreliable assumption.</p>
+        <blockquote>"Phone died, took it to get repaired, and the technician saw all my photos when he connected it to his computer. So much for hidden."</blockquote>
+        <p>The disguise provides zero protection when the device is physically examined. File system access bypasses the calculator UI completely.</p>
+        <blockquote>"Ads every time I open a photo. Every. Single. Time. It's a photo viewer that's 50% advertisements."</blockquote>
+        <p>The free tier's ad frequency is a consistent complaint, with users reporting full-screen ads between photo views.</p>
+        <blockquote>"Updated my phone and all the photos in Privault disappeared. No backup, no recovery, nothing. Years of memories gone."</blockquote>
+        <p>Without encrypted backup or a recovery mechanism, data loss is permanent. This is the highest-stakes failure mode for an app that users trust with irreplaceable files.</p>
+
+        <h2>How Vaultaire Addresses Each Pain Point</h2>
+        <h3>Encryption Instead of Disguise</h3>
+        <p>Vaultaire does not need to hide. It does not pretend to be a calculator, a weather app, or anything else. It is openly a vault application -- because its security does not depend on obscurity. Every file is encrypted with AES-256-GCM using keys derived from your unlock pattern and the device's Secure Enclave. Someone can know exactly what the app is, find it on your phone, and even access the file system. They will find encrypted blobs that are mathematically indistinguishable from random noise.</p>
+        <h3>Pattern as Cryptographic Key</h3>
+        <p>Where Privault's PIN opens a door, Vaultaire's pattern turns a lock. The pattern you draw is an input to key derivation. No pattern, no key. Wrong pattern, wrong key. The files remain encrypted. There is no UI to "unlock" -- the cryptographic operation either produces valid data or it does not.</p>
+        <h3>Duress Protection</h3>
+        <p>Privault's disguise fails entirely under coercion. If someone knows you have a calculator vault app and demands access, the disguise is worthless. Vaultaire's duress vault provides a fundamentally different response: a secondary pattern opens a plausible decoy vault. The primary vault's encrypted data is indistinguishable from unused storage space. There is nothing to find, nothing to point to, and no way to prove that additional data exists.</p>
+        <h3>Recovery Phrase Backup</h3>
+        <p>Vaultaire provides a recovery phrase -- a mnemonic seed that allows you to restore your encrypted vault on any device. Your data survives device loss, damage, or replacement. Unlike Privault, where a dead phone means dead data, Vaultaire's recovery system ensures your encrypted files are always recoverable.</p>
+
+        <div class="verdict-box">
+          <h3>The Verdict</h3>
+          <p>Privault solves the wrong problem. It hides the existence of your vault instead of protecting the contents of your files. In 2026, the calculator disguise is widely known, trivially discoverable, and provides no protection against file system access. Vaultaire takes the opposite approach: it does not care if someone finds the app, because the files are encrypted at rest with industry-standard cryptography. Real security does not require a costume.</p>
+          <a href="https://apps.apple.com/app/vaultaire/id6740526623" class="btn btn-primary">Try Vaultaire Free</a>
+        </div>
+
+        <p style="text-align: center; margin-top: 32px;">
+          <a href="../" style="color: var(--accent);">&larr; Back to full comparison</a>
+        </p>
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <h4 style="color: var(--text)">Vaultaire</h4>
+        <p>&copy; 2026 Wraxle LLC</p>
+      </div>
+      <div class="footer-links">
+        <a href="../../../index.html">Home</a>
+        <a href="../../../manifesto/index.html">Manifesto</a>
+        <a href="../../../privacy/index.html">Privacy Policy</a>
+        <a href="../../../terms/index.html">Terms of Use</a>
+        <a href="../../../s/index.html">Vault Invite</a>
+        <a href="mailto:support@vaultaire.app">Support</a>
+      </div>
+      <div class="footer-compare">
+        <a href="../../vaultaire-vs-private-photo-vault/">vs Private Photo Vault</a>
+        <a href="../../vaultaire-vs-keepsafe/">vs Keepsafe</a>
+        <a href="../../vaultaire-vs-privault/">vs Privault</a>
+        <a href="../../vaultaire-vs-spv/">vs SPV</a>
+        <a href="../../vaultaire-vs-secret-photo-album/">vs Secret Photo Album</a>
+        <a href="../../vaultaire-vs-pv-secret-photo-album/">vs PV Secret Photo Album</a>
+        <a href="../../vaultaire-vs-calculator-hide-photos/">vs Calculator#</a>
+        <a href="../../vaultaire-vs-secret-photo-vault/">vs Secret Photo Vault</a>
+        <a href="../../vaultaire-vs-hide-it-pro/">vs Hide it Pro</a>
+        <a href="../../vaultaire-vs-safe-lock/">vs Safe Lock</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      const root = document.documentElement;
+      const key = 'vaultaire-theme';
+      const preferred = window.matchMedia('(prefers-color-scheme: dark)');
+      const toggle = document.getElementById('theme-toggle');
+      const icon = document.getElementById('theme-icon');
+      const label = document.getElementById('theme-label');
+      function setTheme(theme, persist) {
+        root.dataset.theme = theme;
+        const isDark = theme === 'dark';
+        icon.textContent = isDark ? '\u2606' : '\u263D';
+        label.textContent = isDark ? 'Light' : 'Dark';
+        toggle.setAttribute('aria-pressed', String(!isDark));
+        toggle.setAttribute('aria-label', 'Switch to ' + (isDark ? 'light' : 'dark') + ' mode');
+        if (persist) localStorage.setItem(key, theme);
+      }
+      var saved = localStorage.getItem(key);
+      var hasOverride = saved === 'dark' || saved === 'light';
+      setTheme(hasOverride ? saved : (preferred.matches ? 'dark' : 'light'), false);
+      toggle.addEventListener('click', function () {
+        setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+      });
+      preferred.addEventListener('change', function (e) {
+        if (!localStorage.getItem(key)) setTheme(e.matches ? 'dark' : 'light', false);
+      });
+    })();
+  </script>
+</body>
+</html>

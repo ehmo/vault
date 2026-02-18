@@ -1,0 +1,53 @@
+{
+  "slug": "keepsafe",
+  "appId": "510873505",
+  "name": "Secret Photo Vault: Keepsafe",
+  "developer": "KeepSafe Software, Inc",
+  "description": "Download Keepsafe to join the millions of people who have entrusted over a billion pictures to Keepsafe: the most popular photo locker and album vault app.\n\nKeepsafe secures personal photos and videos by locking them down with PIN protection, fingerprint touch ID, and military-grade encryption. It’s the best place for storing your personal pictures and videos. With Keepsafe, you can protect your privacy, secure your photos, and save phone space.\n\nUse Keepsafe for:\n- Preserving special memories\n- Storing family photos\n- Protecting copies of your driver’s license, ID cards, and credit cards\n- Organizing important documents\n\nWhat makes Keepsafe different?\n• Award-winning photo locker, with over 70 million users\n• Beautiful design and UX. Easy to upload, view & organize photos\n• Smooth scrolling for photo viewing on all devices\n\nBasic Features:\n- Phone and tablet support\n- Simple interface\n- Easy-to-use PIN pad access\n- Photo backup\n- Custom albums\n- Full-screen and slideshow viewing for photos and videos\n- Integrated camera for taking photos directly in Keepsafe\n- Safe Send for sharing pictures for a limited time from Keepsafe\n- Syncs images and videos in Keepsafe to all of your Keepsafe installations on any platform\n\nKeepsafe Premium’s Exclusive Features:\n\nManage Your Photos\n• Album Lock: Assign individual PIN codes to access particular albums\n• Private Cloud: Stores up to 10,000 items in Keepsafe\n• Space Saver: Compresses photos and saves originals to the Cloud\n• Trash Recovery: Retrieves photos you’ve mistakenly deleted\n\nPersonalize Keepsafe\n• Ad-Free: Keeps your photo-viewing experience distraction-free\n• Custom Album Covers: Sets album thumbnails to a specific image\n\n========================\n\nHelp & Support\n\nProblems or questions?\n\nVisit Keepsafe’s support site at https://support.getkeepsafe.com/hc/en-us\nSend a ticket from inside Keepsafe (best for troubleshooting)\nContact us at support@getkeepsafe.com\n\n========================\n\n\nKeepsafe Premium Subscription\n\n- Payment will be charged to iTunes Account at confirmation of purchase\n- Subscription automatically renews unless auto-renew is turned off at least 24-hours before the end of the period\n- Length of subscriptions: one month & one year\n- Account will be charged for renewal within 24-hours prior to the end of the current period, and identify the cost of the renewal\n- Subscriptions may be managed by the user and auto-renewal may be turned off by going to the user's Account Settings after purchase\n- No cancellation of the current subscription is allowed during active subscription period\n- Any unused portion of a free period, if offered, will be forfeited when the user purchases a subscription.\n\n========================\n\nLinks\n\nTerms of Service: https://www.getkeepsafe.com/policies/#terms\nPrivacy: https://www.getkeepsafe.com/policies/#privacy\nKeepsafe Basic is ad supported: https://youradchoices.com",
+  "price": 0.0,
+  "formattedPrice": "Free",
+  "rating": 4.75,
+  "ratingCount": 368846,
+  "iconUrl": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/74/b6/d5/74b6d569-f648-5c3b-7005-7b050d1d6c51/AppIcon-AppStore-0-0-1x_U007emarketing-0-0-0-7-0-0-0-85-220.png/512x512bb.jpg",
+  "version": "13.19.0",
+  "categories": [
+    "Photo & Video",
+    "Utilities"
+  ],
+  "bundleId": "com.keepsafe.KeepSafe",
+  "storeUrl": "https://apps.apple.com/us/app/secret-photo-vault-keepsafe/id510873505",
+  "features": {
+    "aes256gcm": false,
+    "secureEnclave": false,
+    "patternLock": false,
+    "multipleVaults": true,
+    "duressVault": true,
+    "zeroKnowledge": false,
+    "encryptedBackup": false,
+    "encryptedSharing": false,
+    "recoveryPhrase": false,
+    "noBiometrics": false,
+    "photosVideosFiles": true,
+    "mediaOptimization": true,
+    "freeTier": true,
+    "noAdsFreeTier": false,
+    "shareSheetImport": true,
+    "cameraCapture": true,
+    "offlineByDefault": false
+  },
+  "pricing": {
+    "freeTierLimits": "Ad-supported, limited cloud storage, no album lock",
+    "subscriptionMonthly": "~$9.99/mo (Premium)",
+    "subscriptionAnnual": "~$23.99/yr (Premium)",
+    "lifetime": "Unknown",
+    "notes": "Premium unlocks ad-free, album lock, private cloud (10K items), space saver, trash recovery, custom album covers."
+  },
+  "complaints": [
+    "Aggressive subscription upsells and pricing",
+    "Ads in free version disrupt photo viewing experience",
+    "Photos lost after account sync issues",
+    "Military-grade encryption claim is vague and unverifiable",
+    "Limited to 10,000 items even with Premium"
+  ],
+  "positioning": "While Keepsafe claims 'military-grade encryption' behind a subscription paywall, Vaultaire delivers verifiable AES-256-GCM encryption with Secure Enclave hardware keys for all users on a truly zero-knowledge architecture."
+}

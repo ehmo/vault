@@ -1,8 +1,8 @@
 # Ongoing ASO Optimization Tasks -- Vaultaire
 
-**Last Updated:** February 12, 2026
-**Launch Date:** March 5, 2026
-**Status:** Pre-launch (active post-launch)
+**Last Updated:** February 17, 2026
+**Launch Date:** Live on App Store
+**Status:** Post-launch -- all tasks active
 
 ---
 

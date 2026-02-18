@@ -1,0 +1,53 @@
+{
+  "slug": "safe-lock",
+  "appId": "1195429570",
+  "name": "Safe Lock - Hidden Photo Vault",
+  "developer": "Katerina Akhlebinina",
+  "description": "* Safe Lock - Private Photo Vault: The Ultimate Photo Hiding App and Gallery Lock *\n\nLooking for a reliable solution to protect your personal photos and videos?\n\nSafe Lock - Private Photo Vault, the most secure and private app in the App Store. With features like PIN-code, Touch ID, Face ID, DotLock, numeric, or alphabetic passwords, this app ensures your hidden photo album remains locked and inaccessible to prying eyes.\n\nSafe Lock - Private Photo Vault offers a secret folders where you can securely store your private photos, videos and notes. Capture new pictures using the built-in hidden camera within the app and instantly add them to your locked photo album. We do not have access to your secrets, photos and videos are saved only on your device.\n\nDiscover of Safe Lock - Private Photo Vault:\n\n/Protect Your Memories/: Safeguard your private photo and video memories with our secret folders.\n\n/Secure Important Photos, Videos/: Keep copies of essential documents, such as driving license, passports, ID, and bank cards, protected from unauthorized access.\n\n/Plan Surprises and Gifts/: Use the app to plan surprises and keep gift ideas securely tucked away. Store and organize essential notes with ease, knowing they are kept safe within  Safe Lock - Private Photo Vault.\n\nKey App Features:\n\n/Multiple Lock Options/: Choose from a range of secure locks including PIN-code, DotLock, Numeric, Alphabetic, Passcode, Touch ID, and Face ID to ensure privacy for your hidden photo vault.\n\n/Innovative Locking Methods/: Take advantage of unique gestures like shaking or flipping to instantly lock your photos and hide app.\n\n/Hidden Photo Camera/: Capture photos discreetly within the app using the secret camera with a zoom option, allowing you to add exclusive content to your hidden photo vault.\n\n/Easy Data Management/: Transfer files through WiFi or easily export/import from popular Cloud platforms like Dropbox, Google Drive, Yandex.Disk, iCloud, and Box.\n\n/Slideshow and Sharing/: Showcase your secret photos and videos with a stunning slideshow and easily export or import them to/from your Photo Roll, Email, or any Cloud platform.\n\n/Anti-Theft Measures/: Receive break-in reports with photos, empowering you to take swift action if any unauthorized access attempts occur.\n\n/Additional Features/: Benefit from GIF and PDF support, customize your app icon, jot down secret notes, enjoy dark mode support, and use the fake password feature that opens a fake gallery for added security.\n\nDownload  Safe Lock - Private Photo Vault today and experience the peace of mind that comes with keeping your personal photos and videos secure. Your memories deserve the utmost protection.\n\n+++++++++++++++++++++++++++++++++++++++++++++++++++++++\n\n/Premium Subscription/\n\nPremium subscription unlocks all features to manage your personal content within Safe Lock. Also app includes number of cool features such as seven different patterns of locks, Touch ID, immediate lock button, extra security features for the internal albums, on the go photo camera and etc.\n\nPayment will be charged to iTunes Account at confirmation of purchase. Subscriptions automatically renew unless auto-renew is turned off at least 24-hours before the end of the current period. Account will be charged for renewal within 24-hours prior to the end of the current period, and identify the cost of the renewal. Subscriptions may be managed by the user and auto-renewal may be turned off by going to the user's Account Settings after purchase. No cancellation of the current subscription is allowed during active subscription period.\n\nBy using application, you are agreeing to our Privacy Policy and Terms of Use:\nToS: http://appslabmobile.com/tos_safelock.html\nPrivacy: http://appslabmobile.com/privacypolicy_safelock.html",
+  "price": 0.0,
+  "formattedPrice": "Free",
+  "rating": 4.82,
+  "ratingCount": 24111,
+  "iconUrl": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/6d/bf/7e/6dbf7e78-356e-07d4-ae40-906282be19ff/Icon_-_Main-0-1x_U007epad-0-1-0-0-sRGB-85-220-0.png/512x512bb.jpg",
+  "version": "2.19",
+  "categories": [
+    "Photo & Video",
+    "Utilities"
+  ],
+  "bundleId": "com.appslab.safelock",
+  "storeUrl": "https://apps.apple.com/us/app/safe-lock-hidden-photo-vault/id1195429570",
+  "features": {
+    "aes256gcm": false,
+    "secureEnclave": false,
+    "patternLock": true,
+    "multipleVaults": true,
+    "duressVault": true,
+    "zeroKnowledge": true,
+    "encryptedBackup": false,
+    "encryptedSharing": false,
+    "recoveryPhrase": false,
+    "noBiometrics": false,
+    "photosVideosFiles": true,
+    "mediaOptimization": false,
+    "freeTier": true,
+    "noAdsFreeTier": false,
+    "shareSheetImport": true,
+    "cameraCapture": true,
+    "offlineByDefault": true
+  },
+  "pricing": {
+    "freeTierLimits": "Basic vault with ads, limited lock options",
+    "subscriptionMonthly": "~$4.99/mo",
+    "subscriptionAnnual": "~$19.99/yr",
+    "lifetime": "Unknown",
+    "notes": "Premium unlocks all lock patterns, extra album security features, hidden camera, and cloud platform integration."
+  },
+  "complaints": [
+    "Premium required for most useful features",
+    "No real file-level encryption despite vault branding",
+    "Break-in reports can drain battery",
+    "Cloud integration relies on third-party services only",
+    "Subscription auto-renewal complaints"
+  ],
+  "positioning": "While Safe Lock offers multiple lock types and local-only storage, Vaultaire goes beyond access control to provide true AES-256-GCM file encryption, Secure Enclave key derivation, and a BIP-39 recovery phrase for self-sovereign data ownership."
+}

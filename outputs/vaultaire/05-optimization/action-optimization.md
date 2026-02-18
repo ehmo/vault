@@ -4,10 +4,10 @@
 
 ---
 
-## Priority 1: First 30 Days Post-Launch (March 5 - April 4, 2026)
+## Priority 1: First 30 Days Post-Launch (NOW)
 
 ### Action 1.1: Establish Keyword Baseline
-**When:** March 5-12 (launch week)
+**When:** Immediately (this week)
 **Effort:** 2 hours
 **Impact:** Foundation for all future keyword optimization
 
@@ -18,7 +18,7 @@
 - [ ] Set weekly reminder to update positions every Monday
 
 ### Action 1.2: Screenshot Conversion Optimization
-**When:** March 12-19 (after first week of data)
+**When:** After first full week of baseline data
 **Effort:** 4-6 hours
 **Impact:** High -- screenshots are the primary conversion driver
 
@@ -32,7 +32,7 @@
 - [ ] Submit with next app update
 
 ### Action 1.3: First Metadata Iteration
-**When:** March 19-26 (after two weeks of data)
+**When:** After two weeks of baseline data
 **Effort:** 2 hours
 **Impact:** Medium-high -- keywords drive search visibility
 
@@ -60,7 +60,7 @@
 ## Priority 2: Days 30-90 (April - June 2026)
 
 ### Action 2.1: Product Page Optimization (PPO) A/B Testing
-**When:** April 2026 (need sufficient traffic first)
+**When:** When weekly impressions exceed 10,000 (need sufficient traffic first)
 **Effort:** 4 hours to set up, 2 weeks to run
 **Impact:** High -- data-driven optimization
 

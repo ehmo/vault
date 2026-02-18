@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPV Photo Vault Review 2026: Simple But Is It Secure?</title>
+  <meta name="description" content="An independent security review of SPV Photo Vault in 2026. We examine its simplicity, lack of encryption, and how it compares with Vaultaire's cryptographic approach.">
+  <meta name="keywords" content="spv photo vault review, spv alternative, spv photo vault safe, spv vs vaultaire">
+  <meta property="og:title" content="SPV Photo Vault Review 2026: Simple But Is It Secure?">
+  <meta property="og:description" content="SPV is a clean, simple photo vault. But simple does not mean secure. We analyze what's missing under the hood.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://vaultaire.app/compare/vaultaire-vs-spv/review/">
+  <meta property="twitter:card" content="summary">
+  <link rel="canonical" href="https://vaultaire.app/compare/vaultaire-vs-spv/review/">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+</head>
+<body>
+  <header>
+    <div class="container nav-inner">
+      <a href="../../../index.html" class="logo">
+        <img src="../../../assets/vault-logo.png" alt="Vaultaire logo" class="logo-mark logo-mark--dark">
+        <img src="../../../assets/vault-logo-light.png" alt="Vaultaire logo for light theme" class="logo-mark logo-mark--light">
+        <span>Vaultaire</span>
+      </a>
+      <nav class="nav-links">
+        <a href="../../../index.html">Home</a>
+        <a href="../../../index.html#features">Features</a>
+        <a href="../../../index.html#security">Security</a>
+        <a href="../../../manifesto/index.html">Manifesto</a>
+        <a href="../../../compare/">Compare</a>
+      </nav>
+      <div class="nav-cta">
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+          <span class="theme-icon" id="theme-icon">&#9788;</span>
+          <span id="theme-label">Light</span>
+        </button>
+        <a href="https://apps.apple.com/app/vaultaire/id6740526623" class="btn btn-primary" style="padding: 12px 24px; font-size: 0.9rem;">Get App</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <nav class="breadcrumbs">
+        <a href="../../../index.html">Home</a><span>/</span>
+        <a href="../../../compare/">Compare</a><span>/</span>
+        <a href="../">vs SPV</a><span>/</span>
+        Review
+      </nav>
+
+      <article class="review-article">
+        <h1>SPV Photo Vault Review: Is It Worth It in 2026?</h1>
+        <div class="article-meta">Updated February 2026 | Comparison with Vaultaire</div>
+
+        <h2>Overview</h2>
+        <p>SPV - Photo Vault is a straightforward photo hiding app developed by an entity called "SUSPENDED APPS." With approximately 68,000 ratings on the App Store, it has built a respectable user base by focusing on simplicity. The interface is clean, the workflow is obvious: set a PIN, import photos, and they disappear from your main photo library into SPV's locked gallery.</p>
+        <p>There is something refreshing about SPV's honesty. Unlike competitors that throw around phrases like "military-grade encryption" or "bank-level security," SPV does not make encryption claims in its marketing. It presents itself as what it is: a photo locker with PIN and biometric access. The question is whether users understand the implications of that distinction.</p>
+        <p>A photo locker without encryption is a locked drawer, not a safe. The lock prevents casual access through the front door. But the contents inside are unprotected, readable by anyone who approaches from a different angle -- a computer connection, a backup extraction, a file system browser. In 2026, these tools are freely available and trivially easy to use.</p>
+
+        <h2>Security Model</h2>
+        <p>SPV gates access with a numeric PIN. Biometric authentication via Touch ID and Face ID is available as a convenience unlock. There is no file-level encryption. Photos are stored in the app's sandbox directory in their original format -- JPEG, HEIC, PNG, whatever the source format was. The PIN prevents someone from opening the app and viewing photos through its interface. That is the entire security boundary.</p>
+        <p>To SPV's credit, the app does not claim otherwise. But the practical effect is the same as competitors that do make false encryption claims: files are unprotected at rest. Connect the device to a Mac, open a file browser, navigate to SPV's app data directory, and every "hidden" photo is right there, fully viewable, with intact EXIF metadata including GPS coordinates, timestamps, and camera information.</p>
+        <p>Biometric unlock in this context deserves specific scrutiny. Face ID and Touch ID are legally compellable in many jurisdictions -- courts in the United States have ruled that biometric authentication can be demanded, while passcodes enjoy stronger Fifth Amendment protections. If your unlock mechanism can be legally forced, and the files behind it are unencrypted, you have two layers of inadequate protection stacked on top of each other.</p>
+
+        <h2>Lock Mechanism</h2>
+        <p>The PIN is a standard numeric code, typically four to six digits. It is checked by the app's own logic and serves purely as an access gate. There is no key derivation from the PIN, no hardware-backed security enclave integration, and no cryptographic operation tied to PIN entry. The PIN unlocks the UI. If the UI is bypassed, the PIN is meaningless.</p>
+        <p>SPV does not appear to offer a PIN recovery mechanism. If you forget your PIN, your options are limited -- which is somewhat ironic for a system where the PIN does not actually protect the underlying data. The photos are still there in the file system; you just cannot view them through the app anymore.</p>
+
+        <h2>Backup and Cloud</h2>
+        <p>SPV does not offer a dedicated cloud backup solution. Photos exist on the device. If the device is lost, stolen, or factory reset, those photos are gone. Users can back up their device through iCloud or iTunes, which will include SPV's app data -- but since the photos are unencrypted, they now sit in plaintext within the device backup as well.</p>
+        <p>This creates an uncomfortable situation: your "hidden" photos are potentially present in iCloud backups, iTunes backups, and the device's file system simultaneously. The vault app hides them from the Photos app. It does not hide them from anything else.</p>
+
+        <h2>Sharing and Privacy Architecture</h2>
+        <p>SPV does not offer encrypted sharing or collaborative vault features. The app is designed as a personal photo locker. To share files, you export them from the vault, which returns them to their original unencrypted state, and send them through any standard channel. There is no plausible deniability feature, no duress mode, and no vault separation.</p>
+
+        <h2>Pricing Analysis</h2>
+        <p>SPV operates on a freemium model. The free tier includes advertisements. Premium subscriptions are available at approximately $3.99 per month or $14.99 per year. The premium tier removes ads and unlocks additional features.</p>
+        <p>At $14.99 per year, SPV is among the more reasonably priced vault apps on the market. But the value proposition remains fundamentally limited: you are paying for an ad-free interface to a photo locker that does not encrypt your files. The same functionality -- hiding photos from the main gallery behind a PIN -- can be accomplished with iOS's built-in Hidden album and Screen Time restrictions, at no cost.</p>
+
+        <h2>What Users Are Saying</h2>
+        <blockquote>"I just found out my photos aren't encrypted. I plugged my phone into my computer and there they all were. What exactly am I paying for?"</blockquote>
+        <p>The discovery that PIN-locked does not mean encrypted is a common source of frustration. Many users assume that a vault app encrypts their files, and learn otherwise only when it matters.</p>
+        <blockquote>"Transferred to a new phone and lost everything. No backup, no recovery. The app just showed an empty vault."</blockquote>
+        <p>Device transfers are a high-risk event for SPV users. Without a dedicated backup and restore mechanism, photos can be lost permanently during what should be a routine upgrade.</p>
+        <blockquote>"The ads are relentless. Full screen ads between every few photos. It's a photo gallery that shows you more ads than photos."</blockquote>
+        <p>The free tier's advertising model is aggressive, with users reporting interstitial ads at high frequency during normal photo browsing.</p>
+        <blockquote>"Simple and easy to use, but I wish it actually encrypted my files. I want simple AND secure, not one or the other."</blockquote>
+        <p>This captures the core tension. Users appreciate SPV's simplicity but recognize that simplicity without security is an incomplete product.</p>
+
+        <h2>How Vaultaire Addresses Each Pain Point</h2>
+        <h3>Simplicity with Real Encryption</h3>
+        <p>Vaultaire is designed to be as simple to use as SPV -- draw a pattern, import photos, done. The difference is what happens underneath. Every imported file is encrypted with AES-256-GCM using keys derived from your pattern and the device's Secure Enclave. The user experience is simple. The cryptographic architecture is not. You get both.</p>
+        <h3>Pattern-Derived Cryptographic Keys</h3>
+        <p>Vaultaire's pattern lock does not just gate the UI. It is a cryptographic input. The pattern participates in key derivation through HKDF. Different patterns produce different keys. Wrong pattern, wrong key, garbled output. There is no "bypass" because there is no separate access layer to bypass -- the pattern IS the key.</p>
+        <h3>Encrypted Backup with Recovery Phrase</h3>
+        <p>Vaultaire generates a recovery phrase during setup -- a mnemonic seed that allows you to restore your encrypted vault on any device. Device transfers, replacements, and factory resets are handled gracefully. Your encrypted data survives because the recovery mechanism is built into the cryptographic design, not bolted on as an afterthought.</p>
+        <h3>File System Resistance</h3>
+        <p>Connect a device with Vaultaire to a computer and browse the file system. You will find the app's data directory. Inside, you will find encrypted blobs with no file extensions, no thumbnails, no EXIF metadata, and no recognizable headers. The data is indistinguishable from random noise without the correct pattern-derived key. This is the fundamental difference between hiding files and encrypting them.</p>
+        <h3>Plausible Deniability</h3>
+        <p>SPV has no duress or deniability features. Vaultaire offers a duress vault -- a secondary pattern that opens a plausible decoy vault while the primary vault's encrypted data remains undetectable. Under coercion, there is nothing to reveal because there is nothing recognizable to find.</p>
+
+        <div class="verdict-box">
+          <h3>The Verdict</h3>
+          <p>SPV is an honest app -- it does what it says, which is lock photos behind a PIN. It does not claim to encrypt your files, and it does not encrypt your files. In 2026, that honesty is not enough. Users deserve both simplicity and security, not a choice between them. Vaultaire delivers the same clean, intuitive experience with genuine AES-256-GCM encryption, hardware-backed key storage, and a recovery mechanism that SPV cannot match. Simple does not have to mean unprotected.</p>
+          <a href="https://apps.apple.com/app/vaultaire/id6740526623" class="btn btn-primary">Try Vaultaire Free</a>
+        </div>
+
+        <p style="text-align: center; margin-top: 32px;">
+          <a href="../" style="color: var(--accent);">&larr; Back to full comparison</a>
+        </p>
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <h4 style="color: var(--text)">Vaultaire</h4>
+        <p>&copy; 2026 Wraxle LLC</p>
+      </div>
+      <div class="footer-links">
+        <a href="../../../index.html">Home</a>
+        <a href="../../../manifesto/index.html">Manifesto</a>
+        <a href="../../../privacy/index.html">Privacy Policy</a>
+        <a href="../../../terms/index.html">Terms of Use</a>
+        <a href="../../../s/index.html">Vault Invite</a>
+        <a href="mailto:support@vaultaire.app">Support</a>
+      </div>
+      <div class="footer-compare">
+        <a href="../../vaultaire-vs-private-photo-vault/">vs Private Photo Vault</a>
+        <a href="../../vaultaire-vs-keepsafe/">vs Keepsafe</a>
+        <a href="../../vaultaire-vs-privault/">vs Privault</a>
+        <a href="../../vaultaire-vs-spv/">vs SPV</a>
+        <a href="../../vaultaire-vs-secret-photo-album/">vs Secret Photo Album</a>
+        <a href="../../vaultaire-vs-pv-secret-photo-album/">vs PV Secret Photo Album</a>
+        <a href="../../vaultaire-vs-calculator-hide-photos/">vs Calculator#</a>
+        <a href="../../vaultaire-vs-secret-photo-vault/">vs Secret Photo Vault</a>
+        <a href="../../vaultaire-vs-hide-it-pro/">vs Hide it Pro</a>
+        <a href="../../vaultaire-vs-safe-lock/">vs Safe Lock</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      const root = document.documentElement;
+      const key = 'vaultaire-theme';
+      const preferred = window.matchMedia('(prefers-color-scheme: dark)');
+      const toggle = document.getElementById('theme-toggle');
+      const icon = document.getElementById('theme-icon');
+      const label = document.getElementById('theme-label');
+      function setTheme(theme, persist) {
+        root.dataset.theme = theme;
+        const isDark = theme === 'dark';
+        icon.textContent = isDark ? '\u2606' : '\u263D';
+        label.textContent = isDark ? 'Light' : 'Dark';
+        toggle.setAttribute('aria-pressed', String(!isDark));
+        toggle.setAttribute('aria-label', 'Switch to ' + (isDark ? 'light' : 'dark') + ' mode');
+        if (persist) localStorage.setItem(key, theme);
+      }
+      var saved = localStorage.getItem(key);
+      var hasOverride = saved === 'dark' || saved === 'light';
+      setTheme(hasOverride ? saved : (preferred.matches ? 'dark' : 'light'), false);
+      toggle.addEventListener('click', function () {
+        setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+      });
+      preferred.addEventListener('change', function (e) {
+        if (!localStorage.getItem(key)) setTheme(e.matches ? 'dark' : 'light', false);
+      });
+    })();
+  </script>
+</body>
+</html>

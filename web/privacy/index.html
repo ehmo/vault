@@ -3,44 +3,112 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Privacy Policy — Vaultaire</title>
+  <title>Privacy Policy | Vaultaire</title>
   <meta name="description" content="Vaultaire Privacy Policy. We collect zero personal data. Your vault is encrypted on-device with zero-knowledge architecture.">
-  <link rel="stylesheet" href="/styles/output.css">
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles/site-shared.css">
+  <style>
+    main {
+      padding: 118px 0 64px;
+    }
+
+    .legal-card {
+      background: color-mix(in srgb, var(--surface) 94%, transparent 6%);
+      border: 1px solid color-mix(in srgb, var(--text) 10%, transparent 90%);
+      border-radius: 24px;
+      padding: 36px;
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 4.2vw, 2.8rem);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+
+    .updated {
+      color: var(--text-secondary);
+      margin: 10px 0 28px;
+      font-weight: 500;
+    }
+
+    section { margin-bottom: 28px; }
+    h2 {
+      margin: 0 0 10px;
+      font-size: 1.12rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    p, li {
+      color: var(--text-secondary);
+      margin: 0;
+      font-size: 0.98rem;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 20px;
+      display: grid;
+      gap: 8px;
+    }
+
+    a {
+      color: var(--accent);
+      text-underline-offset: 3px;
+    }
+
+    @media (max-width: 768px) {
+      .legal-card { padding: 24px 18px; border-radius: 18px; }
+    }
+  </style>
 </head>
-<body class="bg-vault-bg dark:bg-vault-bg-dark text-vault-text dark:text-vault-text-dark min-h-screen">
-
-  <!-- Nav -->
-  <nav class="fixed top-0 w-full z-50 backdrop-blur-lg bg-vault-bg/80 dark:bg-vault-bg-dark/80 border-b border-vault-text/5 dark:border-vault-text-dark/5">
-    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center">
-      <a href="/" class="flex items-center gap-2 font-bold text-lg">
-        <svg class="w-8 h-8" viewBox="0 0 32 32" fill="none">
-          <rect width="32" height="32" rx="8" fill="#6246EA"/>
-          <path d="M10 14V13C10 9.686 12.686 7 16 7C19.314 7 22 9.686 22 13V14" stroke="white" stroke-width="2" stroke-linecap="round"/>
-          <rect x="8" y="14" width="16" height="12" rx="3" fill="white" fill-opacity="0.9"/>
-          <circle cx="16" cy="19" r="2" fill="#6246EA"/>
-          <path d="M16 21V23" stroke="#6246EA" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-        Vaultaire
+<body>
+  <header>
+    <div class="container nav-inner">
+      <a href="../index.html" class="logo">
+        <img src="../assets/vault-logo.png" alt="Vaultaire logo" class="logo-mark logo-mark--dark">
+        <img src="../assets/vault-logo-light.png" alt="Vaultaire logo for light theme" class="logo-mark logo-mark--light">
+        <span>Vaultaire</span>
       </a>
+      <nav class="nav-links">
+        <a href="../index.html">Home</a>
+        <a href="../index.html#features">Features</a>
+        <a href="../index.html#how-it-works">How It Works</a>
+        <a href="../index.html#security">Security</a>
+        <a href="../manifesto/index.html">Manifesto</a>
+        <a href="../index.html#faq">FAQ</a>
+      </nav>
+      <div class="nav-cta">
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+          <span class="theme-icon" id="theme-icon">☀︎</span>
+          <span id="theme-label">Light</span>
+        </button>
+        <a href="https://apps.apple.com/app/vaultaire/id6740526623" class="btn btn-primary" style="padding: 12px 24px; font-size: 0.9rem;">Get App</a>
+      </div>
     </div>
-  </nav>
+  </header>
 
-  <main class="pt-28 pb-20 px-6">
-    <article class="max-w-3xl mx-auto">
-      <h1 class="text-4xl font-bold mb-2">Privacy Policy</h1>
-      <p class="text-vault-secondary dark:text-vault-secondary-dark mb-10">Last updated: February 13, 2026</p>
-
-      <div class="prose-container space-y-8 text-vault-secondary dark:text-vault-secondary-dark leading-relaxed">
+  <main>
+    <div class="container">
+      <article class="legal-card">
+        <h1>Privacy Policy</h1>
+        <p class="updated">Last updated: February 13, 2026</p>
 
         <section>
-          <h2 class="text-xl font-semibold text-vault-text dark:text-vault-text-dark mb-3">Overview</h2>
+          <h2>Overview</h2>
           <p>Vaultaire is a private photo vault app designed with zero-knowledge architecture. Your files are encrypted on your device using a key derived from your pattern. We cannot access, view, or recover your data.</p>
         </section>
 
         <section>
-          <h2 class="text-xl font-semibold text-vault-text dark:text-vault-text-dark mb-3">Data We Do Not Collect</h2>
-          <ul class="list-disc pl-6 space-y-2">
+          <h2>Data We Do Not Collect</h2>
+          <ul>
             <li><strong>Your photos, videos, or files</strong> &mdash; all data is encrypted on-device and never leaves your phone unencrypted.</li>
             <li><strong>Your pattern or encryption keys</strong> &mdash; these are derived locally and wiped from memory when you lock the app.</li>
             <li><strong>Your recovery phrase</strong> &mdash; stored only in your device's Secure Enclave.</li>
@@ -49,33 +117,33 @@
         </section>
 
         <section>
-          <h2 class="text-xl font-semibold text-vault-text dark:text-vault-text-dark mb-3">Analytics (Opt-In Only)</h2>
+          <h2>Analytics (Opt-In Only)</h2>
           <p>During onboarding, you are asked whether you'd like to help improve Vaultaire by sharing anonymous usage data. This is entirely optional. If you consent:</p>
-          <ul class="list-disc pl-6 space-y-2 mt-3">
-            <li><strong>TelemetryDeck</strong> collects anonymous usage signals (e.g., which screens are visited, feature adoption). No device identifiers, IP addresses, or personal data are collected. Data cannot be traced back to you. <a href="https://telemetrydeck.com/privacy" class="text-vault-accent hover:underline">TelemetryDeck's privacy policy</a>.</li>
-            <li><strong>Sentry</strong> collects crash reports and performance data to help us fix bugs. Crash reports may include device model, OS version, and stack traces. No personal content is ever included. <a href="https://sentry.io/privacy" class="text-vault-accent hover:underline">Sentry's privacy policy</a>.</li>
+          <ul style="margin-top:10px">
+            <li><strong>TelemetryDeck</strong> collects anonymous usage signals (e.g., which screens are visited, feature adoption). No device identifiers, IP addresses, or personal data are collected. Data cannot be traced back to you. <a href="https://telemetrydeck.com/privacy">TelemetryDeck's privacy policy</a>.</li>
+            <li><strong>Sentry</strong> collects crash reports and performance data to help us fix bugs. Crash reports may include device model, OS version, and stack traces. No personal content is ever included. <a href="https://sentry.io/privacy">Sentry's privacy policy</a>.</li>
           </ul>
-          <p class="mt-3">You can change your analytics preference at any time in the app's Settings.</p>
+          <p style="margin-top:10px">You can change your analytics preference at any time in the app's Settings.</p>
         </section>
 
         <section>
-          <h2 class="text-xl font-semibold text-vault-text dark:text-vault-text-dark mb-3">iCloud Backup</h2>
+          <h2>iCloud Backup</h2>
           <p>If you enable iCloud Backup in settings, your encrypted vault data is uploaded to your personal iCloud account. The data remains encrypted with your pattern-derived key. We do not have access to your iCloud account or the uploaded data. Apple's iCloud terms apply to this storage.</p>
         </section>
 
         <section>
-          <h2 class="text-xl font-semibold text-vault-text dark:text-vault-text-dark mb-3">Vault Sharing</h2>
+          <h2>Vault Sharing</h2>
           <p>When you share a vault via link, the encrypted data is transmitted through Apple's CloudKit infrastructure. The share link contains the decryption phrase in the URL fragment (after the #), which never reaches our servers. Only the intended recipient with the full link can decrypt the shared vault.</p>
         </section>
 
         <section>
-          <h2 class="text-xl font-semibold text-vault-text dark:text-vault-text-dark mb-3">In-App Purchases</h2>
+          <h2>In-App Purchases</h2>
           <p>Vaultaire offers a premium subscription through Apple's App Store. All purchase transactions are handled by Apple. We do not collect or store your payment information. Apple's terms and privacy policy govern these transactions.</p>
         </section>
 
         <section>
-          <h2 class="text-xl font-semibold text-vault-text dark:text-vault-text-dark mb-3">Third-Party Services</h2>
-          <ul class="list-disc pl-6 space-y-2">
+          <h2>Third-Party Services</h2>
+          <ul>
             <li><strong>Apple CloudKit</strong> &mdash; used for vault sharing and iCloud backup (encrypted data only)</li>
             <li><strong>Apple StoreKit</strong> &mdash; used for in-app purchase processing</li>
             <li><strong>TelemetryDeck</strong> &mdash; anonymous analytics (opt-in only)</li>
@@ -84,30 +152,53 @@
         </section>
 
         <section>
-          <h2 class="text-xl font-semibold text-vault-text dark:text-vault-text-dark mb-3">Children's Privacy</h2>
+          <h2>Children's Privacy</h2>
           <p>Vaultaire does not knowingly collect any personal information from children under 13. The app does not require an account or collect any personal data.</p>
         </section>
 
         <section>
-          <h2 class="text-xl font-semibold text-vault-text dark:text-vault-text-dark mb-3">Changes to This Policy</h2>
+          <h2>Changes to This Policy</h2>
           <p>We may update this policy from time to time. Changes will be posted on this page with an updated revision date.</p>
         </section>
 
-        <section>
-          <h2 class="text-xl font-semibold text-vault-text dark:text-vault-text-dark mb-3">Contact</h2>
-          <p>If you have questions about this privacy policy, contact us at <a href="mailto:support@vaultaire.app" class="text-vault-accent hover:underline">support@vaultaire.app</a>.</p>
+        <section style="margin-bottom:0">
+          <h2>Contact</h2>
+          <p>If you have questions about this privacy policy, contact us at <a href="mailto:support@vaultaire.app">support@vaultaire.app</a>.</p>
         </section>
-
-      </div>
-    </article>
+      </article>
+    </div>
   </main>
 
-  <footer class="border-t border-vault-text/5 dark:border-vault-text-dark/5 py-8 px-6">
-    <div class="max-w-3xl mx-auto flex items-center justify-between text-sm text-vault-secondary dark:text-vault-secondary-dark">
-      <a href="/" class="hover:text-vault-text dark:hover:text-vault-text-dark transition">&larr; Back to Vaultaire</a>
-      <a href="/terms" class="hover:text-vault-text dark:hover:text-vault-text-dark transition">Terms of Use</a>
+  <footer>
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <h4 style="color: var(--text)">Vaultaire</h4>
+        <p>&copy; 2026 Wraxle LLC</p>
+      </div>
+      <div class="footer-links">
+        <a href="../index.html">Home</a>
+        <a href="../manifesto/index.html">Manifesto</a>
+        <a href="../privacy/index.html">Privacy Policy</a>
+        <a href="../terms/index.html">Terms of Use</a>
+        <a href="../s/index.html">Vault Invite</a>
+        <a href="../compare/">Compare</a>
+        <a href="mailto:support@vaultaire.app">Support</a>
+      </div>
+      <div class="footer-compare" style="width:100%;padding-top:20px;margin-top:20px;border-top:1px solid color-mix(in srgb, var(--text) 8%, transparent 92%);display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:center;font-size:0.82rem;">
+        <a href="../compare/vaultaire-vs-private-photo-vault/" style="color:var(--text-secondary);transition:color .2s;">vs Private Photo Vault</a>
+        <a href="../compare/vaultaire-vs-keepsafe/" style="color:var(--text-secondary);transition:color .2s;">vs Keepsafe</a>
+        <a href="../compare/vaultaire-vs-privault/" style="color:var(--text-secondary);transition:color .2s;">vs Privault</a>
+        <a href="../compare/vaultaire-vs-spv/" style="color:var(--text-secondary);transition:color .2s;">vs SPV</a>
+        <a href="../compare/vaultaire-vs-secret-photo-album/" style="color:var(--text-secondary);transition:color .2s;">vs Secret Photo Album</a>
+        <a href="../compare/vaultaire-vs-pv-secret-photo-album/" style="color:var(--text-secondary);transition:color .2s;">vs PV Secret Photo Album</a>
+        <a href="../compare/vaultaire-vs-calculator-hide-photos/" style="color:var(--text-secondary);transition:color .2s;">vs Calculator#</a>
+        <a href="../compare/vaultaire-vs-secret-photo-vault/" style="color:var(--text-secondary);transition:color .2s;">vs Secret Photo Vault</a>
+        <a href="../compare/vaultaire-vs-hide-it-pro/" style="color:var(--text-secondary);transition:color .2s;">vs Hide it Pro</a>
+        <a href="../compare/vaultaire-vs-safe-lock/" style="color:var(--text-secondary);transition:color .2s;">vs Safe Lock</a>
+      </div>
     </div>
   </footer>
 
+  <script src="../assets/theme-toggle.js"></script>
 </body>
 </html>

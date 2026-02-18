@@ -1,8 +1,8 @@
 # Apple App Store Metadata - Vaultaire: Encrypted Vault
 
-**Status:** ✅ Ready to Copy-Paste
+**Status:** Ready to Copy-Paste (verify against live listing)
 **Character Limits:** All Validated
-**Last Updated:** 2026-02-12
+**Last Updated:** 2026-02-17
 
 ---
 
@@ -17,29 +17,37 @@ Vaultaire: Encrypted Vault
 
 ## Subtitle (30/30 characters)
 
-### PRIMARY VERSION (Recommended for Launch)
+### PRIMARY VERSION (Recommended)
 ```
-Private Photo & File Storage
+Private Photo & File Locker
 ```
 
-**Character Count:** 29/30 characters ✓
-**Strategy:** Emphasizes privacy + dual functionality (photos + files)
+**Character Count:** 27/30 characters
+**Strategy:** Covers "private" (13 competitor titles), "photo" (42 titles), "file" (gap -- few competitors), and "locker" (search variant of "lock", less saturated than "vault"). This subtitle maximizes unique keyword coverage when combined with the title.
 
 ### Alternative Version A (For A/B Testing)
 ```
 Hide Photos with Encryption
 ```
 
-**Character Count:** 28/30 characters ✓
-**Strategy:** Direct user intent ("hide photos") + security feature
+**Character Count:** 28/30 characters
+**Strategy:** Direct user intent ("hide photos") + security feature. Tests whether action-oriented language converts better.
 
 ### Alternative Version B (For A/B Testing)
 ```
-Secure Vault for Your Photos
+Secure Photo Vault & File Lock
 ```
 
-**Character Count:** 28/30 characters ✓
-**Strategy:** "Secure vault" keyword + personal ownership angle
+**Character Count:** 30/30 characters
+**Strategy:** Maximum keyword density. Adds "secure" and "lock" but duplicates "vault" from title (may be wasted). Tests whether keyword density outperforms readability.
+
+### Alternative Version C (Original)
+```
+Private Photo & File Storage
+```
+
+**Character Count:** 29/30 characters
+**Strategy:** Generic but clear. "Storage" is less searched than "locker" or "lock" in the vault app context.
 
 ---
 
@@ -49,7 +57,7 @@ Secure Vault for Your Photos
 🔐 Military-grade encryption meets beautiful design. Protect photos, videos, and files with hardware security. Try the duress vault - show a fake vault under pressure!
 ```
 
-**Character Count:** 166/170 characters ✓
+**Character Count:** 167/170 characters
 
 **Notes:**
 - Can be updated anytime WITHOUT app submission
@@ -61,42 +69,52 @@ Secure Vault for Your Photos
 
 ## Keywords Field (100/100 characters, NO SPACES)
 
-### PRIMARY VERSION (Launch)
+### IMPORTANT: Keyword Strategy Note
+
+Apple's search algorithm combines individual words across title, subtitle, and keyword field. Words already in your title ("vault", "encrypted") and subtitle ("private", "photo", "file", "locker") are automatically indexed. Repeating them in the keyword field wastes characters. Use single words to maximize unique keyword coverage.
+
+### RECOMMENDED VERSION (Single-Word Optimized)
+```
+secret,hide,photos,lock,album,safe,hidden,secure,videos,gallery,backup,AES,password,privacy,encrypt
+```
+
+**Character Count:** 99/100 characters
+
+**Why this version is optimal:** 15 unique words that, combined with title/subtitle words, cover 40+ search phrase combinations. No wasted characters on duplicates.
+
+**Coverage (combining with title + subtitle):**
+- "secret" + "vault" = "secret vault" searches
+- "hide" + "photo" = "hide photos" searches
+- "lock" + "photo" = "lock photos" searches
+- "album" covers "secret album", "photo album"
+- "safe" covers "photo safe", "vault safe"
+- "hidden" covers "hidden photos", "hidden album"
+- "secure" covers "secure vault", "secure photos", "secure folder"
+- "videos" extends to video searches
+- "gallery" covers "photo gallery", "secure gallery"
+- "backup" covers backup-related searches
+- "AES" captures technical/security users
+- "password" is high-volume (59 descriptions)
+- "privacy" is a growing trend
+- "encrypt" may capture "encryption" variations
+
+### ALTERNATIVE VERSION (Phrase-Based, Original)
 ```
 photo vault,encrypted,private,secure photos,hide,privacy,file vault,encryption,duress,secret vault
 ```
 
-**Character Count:** 99/100 characters ✓
+**Character Count:** 99/100 characters
 
-**Keyword Breakdown:**
-- photo vault (high volume, high intent)
-- encrypted (core differentiator)
-- private (high volume)
-- secure photos (high intent)
-- hide (direct user behavior)
-- privacy (broad capture)
-- file vault (expands use case)
-- encryption (technical audience)
-- duress (unique feature)
-- secret vault (competitor overlap)
+**Note:** This version repeats words from title/subtitle ("vault", "encrypted", "private", "photo"), reducing effective unique keywords from 15 to ~10. Use only if you want to explicitly target exact-match phrases (Apple's behavior on this is not publicly documented).
 
-### Alternative Version A (For A/B Testing)
+### ALTERNATIVE VERSION B (For Later Testing)
 ```
 photo vault,hide photos,encrypted,private vault,secure,secret,file storage,lock,password,protected
 ```
 
-**Character Count:** 100/100 characters ✓
+**Character Count:** 100/100 characters
 
-**Focus:** More "hide photos" emphasis, adds "lock" and "password" (common searches)
-
-### Alternative Version B (For A/B Testing)
-```
-photo vault,secure photos,private,encrypted photos,hide,vault app,file vault,secret,privacy,keeper
-```
-
-**Character Count:** 99/100 characters ✓
-
-**Focus:** Multiple long-tail variants (encrypted photos, secure photos), "keeper" for competitor overlap
+**Use case:** Test if phrase-based keywords outperform single-word approach (submit as an app update and compare search impressions over 4 weeks).
 
 ---
 
@@ -232,7 +250,7 @@ Thank you for choosing Vaultaire. Your privacy matters.
 Navigate to **iOS App** → **[Version]** → **App Store** tab
 
 1. **Subtitle:** Copy PRIMARY VERSION subtitle (29 chars) and paste into "Subtitle" field
-2. **Promotional Text:** Copy promotional text (169 chars) and paste into "Promotional Text" field
+2. **Promotional Text:** Copy promotional text (167 chars) and paste into "Promotional Text" field
    - Note: This can be updated anytime without app submission
 3. **Description:** Copy full description (3,247 chars) and paste into "Description" field
 4. **Keywords:** Copy PRIMARY VERSION keywords (99 chars) and paste into "Keywords" field
@@ -295,7 +313,7 @@ When ready to submit:
 
 ### Phase 1: Launch with PRIMARY versions
 - App Name: Vaultaire: Encrypted Vault
-- Subtitle: Private Photo & File Storage
+- Subtitle: Private Photo & File Locker
 - Keywords: PRIMARY VERSION (see above)
 - Baseline performance: Track for 2-3 weeks
 
@@ -353,17 +371,17 @@ After 2-3 weeks, submit update with:
 Vaultaire: Encrypted Vault
 ```
 
-**Subtitle (29 chars):**
+**Subtitle (27 chars):**
 ```
-Private Photo & File Storage
+Private Photo & File Locker
 ```
 
 **Keywords (99 chars, NO SPACES):**
 ```
-photo vault,encrypted,private,secure photos,hide,privacy,file vault,encryption,duress,secret vault
+secret,hide,photos,lock,album,safe,hidden,secure,videos,gallery,backup,AES,password,privacy,encrypt
 ```
 
-**Promotional Text (166 chars):**
+**Promotional Text (167 chars):**
 ```
 🔐 Military-grade encryption meets beautiful design. Protect photos, videos, and files with hardware security. Try the duress vault - show a fake vault under pressure!
 ```

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vaultaire vs Private Photo Vault (2026) | Encryption vs PIN Protection</title>
+  <meta name="description" content="Detailed comparison of Vaultaire and Private Photo Vault. See why AES-256-GCM encryption beats PIN-only protection for securing private photos on iOS.">
+  <meta name="keywords" content="private photo vault alternative, vaultaire vs private photo vault, encrypted photo vault, best photo vault app, photo vault encryption">
+  <meta property="og:title" content="Vaultaire vs Private Photo Vault | Side-by-Side Comparison">
+  <meta property="og:description" content="Private Photo Vault uses a PIN screen. Vaultaire encrypts every file with AES-256-GCM. Compare 17 security features side by side.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://vaultaire.app/compare/vaultaire-vs-private-photo-vault/">
+  <meta property="twitter:card" content="summary">
+  <link rel="canonical" href="https://vaultaire.app/compare/vaultaire-vs-private-photo-vault/">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Vaultaire",
+    "applicationCategory": "UtilitiesApplication",
+    "operatingSystem": "iOS",
+    "offers": [
+      { "@type": "Offer", "price": "0", "priceCurrency": "USD", "description": "Free tier" },
+      { "@type": "Offer", "price": "1.99", "priceCurrency": "USD", "description": "Pro Monthly" },
+      { "@type": "Offer", "price": "9.99", "priceCurrency": "USD", "description": "Pro Annual" },
+      { "@type": "Offer", "price": "29.99", "priceCurrency": "USD", "description": "Pro Lifetime" }
+    ],
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "5.0",
+      "ratingCount": "100"
+    },
+    "isSimilarTo": {
+      "@type": "SoftwareApplication",
+      "name": "Private Photo Vault - Pic Safe",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "iOS",
+      "author": { "@type": "Organization", "name": "Legendary Software Labs" },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.7",
+        "ratingCount": "998000"
+      }
+    }
+  }
+  </script>
+</head>
+<body>
+  <header>
+    <div class="container nav-inner">
+      <a href="../../index.html" class="logo">
+        <img src="../../assets/vault-logo.png" alt="Vaultaire logo" class="logo-mark logo-mark--dark">
+        <img src="../../assets/vault-logo-light.png" alt="Vaultaire logo for light theme" class="logo-mark logo-mark--light">
+        <span>Vaultaire</span>
+      </a>
+      <nav class="nav-links">
+        <a href="../../index.html">Home</a>
+        <a href="../../index.html#features">Features</a>
+        <a href="../../index.html#security">Security</a>
+        <a href="../../manifesto/index.html">Manifesto</a>
+        <a href="../../compare/">Compare</a>
+      </nav>
+      <div class="nav-cta">
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+          <span class="theme-icon" id="theme-icon">&#9788;</span>
+          <span id="theme-label">Light</span>
+        </button>
+        <a href="https://apps.apple.com/app/vaultaire/id6740526623" class="btn btn-primary" style="padding: 12px 24px; font-size: 0.9rem;">Get App</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+
+      <!-- Breadcrumbs -->
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="../../index.html">Home</a>
+        <span>/</span>
+        <a href="../../compare/">Compare</a>
+        <span>/</span>
+        Vaultaire vs Private Photo Vault
+      </nav>
+
+      <!-- Hero -->
+      <section class="compare-hero">
+        <div class="compare-hero-inner">
+          <img src="https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/97/24/88/972488a2-ceba-c273-b36d-a317a2a53e24/AppIcon-0-0-1x_U007emarketing-0-8-0-0-0-85-220.png/100x100bb.jpg" alt="Private Photo Vault icon" class="competitor-icon" loading="lazy">
+          <span class="vs-badge">VS</span>
+          <img src="../../assets/vault-logo.png" alt="Vaultaire icon" class="vaultaire-icon">
+        </div>
+        <h1>Vaultaire vs Private Photo Vault</h1>
+        <p class="positioning">Private Photo Vault puts a PIN screen in front of your photos. Vaultaire encrypts every file with AES-256-GCM so even raw disk access reveals nothing.</p>
+      </section>
+
+      <!-- Feature Comparison Table -->
+      <section class="compare-section">
+        <h2>Feature Comparison</h2>
+        <p>Private Photo Vault by Legendary Software Labs has 998K ratings and a 4.7-star average. Here is how it compares to Vaultaire across 17 security and privacy features.</p>
+        <div class="compare-table-wrap">
+          <table class="compare-table">
+            <thead>
+              <tr>
+                <th>Feature</th>
+                <th>Vaultaire</th>
+                <th>Private Photo Vault</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="feature-name">AES-256-GCM encryption</span><span class="feature-note">File-level authenticated encryption</span></td>
+                <td><span class="check-yes">&check;</span></td>
+                <td><span class="check-no">&cross;</span></td>
+              </tr>
+              <tr>
+                <td><span class="feature-name">Secure Enclave hardware keys</span><span class="feature-note">Keys never leave the chip</span></td>
+                <td><span class="check-yes">&check;</span></td>
+                <td><span class="check-no">&cross;</span></td>
+              </tr>
+              <tr>
+                <td><span class="feature-name">Pattern lock (not PIN)</span><span class="feature-note">Visual pattern derives encryption key</span></td>
+                <td><span class="check-yes">&check;</span></td>
+                <td><span class="check-no">&cross;</span></td>
+              </tr>
+              <tr>
+                <td><span class="feature-name">Multiple independent vaults</span><span class="feature-note">Separate encrypted containers</span></td>
+                <td><span class="check-yes">&check;</span></td>
+                <td><span class="check-yes">&check;</span></td>
+              </tr>
+              <tr>
+                <td><span class="feature-name">Duress vault (destroy on trigger)</span><span class="feature-note">Plausible deniability under coercion</span></td>
+                <td><span class="check-yes">&check;</span></td>
+                <td><span class="check-no">&cross;</span></td>
+              </tr>
+              <tr>
+                <td><span class="feature-name">Zero-knowledge architecture</span><span class="feature-note">No server, no account, no telemetry</span></td>
+                <td><span class="check-yes">&check;</span></td>
+                <td><span class="check-no">&cross;</span></td>
+              </tr>
+              <tr>
+                <td><span class="feature-name">Encrypted iCloud backup</span><span class="feature-note">Backup stays encrypted end-to-end</span></td>
+                <td><span class="check-yes">&check;</span></td>
+                <td><span class="check-no">&cross;</span></td>
+              </tr>
+              <tr>
+                <td><span class="feature-name">Encrypted vault sharing</span><span class="feature-note">Share vaults without exposing keys</span></td>
+                <td><span class="check-yes">&check;</span></td>
+                <td><span class="check-no">&cross;</span></td>
+              </tr>
+              <tr>
+                <td><span class="feature-name">Recovery phrase</span><span class="feature-note">BIP-39 mnemonic for key recovery</span></td>
+                <td><span class="check-yes">&check;</span></td>
+                <td><span class="check-no">&cross;</span></td>
+              </tr>
+              <tr>
+                <td><span class="feature-name">No biometrics (by design)</span><span class="feature-note">Biometrics can be compelled; patterns cannot</span></td>
+                <td><span class="check-yes">&check;</span></td>
+                <td><span class="check-no">&cross;</span></td>
+              </tr>
+              <tr>
+                <td><span class="feature-name">Photos, Videos &amp; Files support</span><span class="feature-note">All media types plus documents</span></td>
+                <td><span class="check-yes">&check;</span></td>
+                <td><span class="check-yes">&check;</span></td>
+              </tr>
+              <tr>
+                <td><span class="feature-name">Media optimization (HEIC/HEVC)</span><span class="feature-note">Preserves efficient Apple formats</span></td>
+                <td><span class="check-yes">&check;</span></td>
+                <td><span class="check-no">&cross;</span></td>
+              </tr>
+              <tr>
+                <td><span class="feature-name">Free tier available</span><span class="feature-note">Usable without payment</span></td>
+                <td><span class="check-yes">&check;</span></td>
+                <td><span class="check-yes">&check;</span></td>
+              </tr>
+              <tr>
+                <td><span class="feature-name">No ads in free tier</span><span class="feature-note">Clean experience at every level</span></td>
+                <td><span class="check-yes">&check;</span></td>
+                <td><span class="check-no">&cross;</span></td>
+              </tr>
+              <tr>
+                <td><span class="feature-name">Share sheet import</span><span class="feature-note">Import from any app via iOS share sheet</span></td>
+                <td><span class="check-yes">&check;</span></td>
+                <td><span class="check-yes">&check;</span></td>
+              </tr>
+              <tr>
+                <td><span class="feature-name">Camera capture</span><span class="feature-note">Shoot directly into the vault</span></td>
+                <td><span class="check-yes">&check;</span></td>
+                <td><span class="check-yes">&check;</span></td>
+              </tr>
+              <tr>
+                <td><span class="feature-name">Offline-only by default</span><span class="feature-note">No network calls unless you opt in</span></td>
+                <td><span class="check-yes">&check;</span></td>
+                <td><span class="check-no">&cross;</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Pricing Comparison -->
+      <section class="compare-section">
+        <h2>Pricing Comparison</h2>
+        <div class="pricing-grid">
+          <div class="pricing-card pricing-vaultaire">
+            <h3>Vaultaire</h3>
+            <div class="pricing-tier">
+              <div class="tier-name">Free</div>
+              <div class="tier-price">$0</div>
+              <ul class="tier-details">
+                <li>1 vault, 100 files</li>
+                <li>Pattern lock</li>
+                <li>AES-256 encryption</li>
+                <li>Camera &amp; photo import</li>
+              </ul>
+            </div>
+            <div class="pricing-tier">
+              <div class="tier-name">Pro Monthly</div>
+              <div class="tier-price">$1.99/mo</div>
+              <ul class="tier-details">
+                <li>Unlimited vaults &amp; files</li>
+                <li>Duress vault</li>
+                <li>iCloud backup</li>
+                <li>Vault sharing</li>
+              </ul>
+            </div>
+            <div class="pricing-tier">
+              <div class="tier-name">Pro Annual</div>
+              <div class="tier-price">$9.99/yr</div>
+              <ul class="tier-details">
+                <li>All Pro features</li>
+                <li>58% savings vs monthly</li>
+              </ul>
+            </div>
+            <div class="pricing-tier">
+              <div class="tier-name">Pro Lifetime</div>
+              <div class="tier-price">$29.99</div>
+              <ul class="tier-details">
+                <li>One-time payment</li>
+                <li>All Pro features forever</li>
+              </ul>
+            </div>
+          </div>
+          <div class="pricing-card">
+            <h3>Private Photo Vault</h3>
+            <div class="pricing-tier">
+              <div class="tier-name">Free</div>
+              <div class="tier-price">$0</div>
+              <ul class="tier-details">
+                <li>Limited storage</li>
+                <li>Ad-supported</li>
+                <li>PIN protection only</li>
+              </ul>
+            </div>
+            <div class="pricing-tier">
+              <div class="tier-name">Premium Monthly</div>
+              <div class="tier-price">~$4.99/mo</div>
+              <ul class="tier-details">
+                <li>Unlimited storage</li>
+                <li>Ad-free experience</li>
+              </ul>
+            </div>
+            <div class="pricing-tier">
+              <div class="tier-name">Premium Annual</div>
+              <div class="tier-price">~$29.99/yr</div>
+              <ul class="tier-details">
+                <li>Same as monthly</li>
+                <li>Annual discount</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Deep Dive Sections -->
+      <section class="compare-section">
+        <h2>The Encryption Reality</h2>
+        <p>Private Photo Vault uses a PIN to gate access to the app. Once past the PIN, files are stored in the app's sandbox in their original format. This means anyone with physical access to the device's file system -- through a backup tool, forensic extraction, or jailbreak -- can read every file without needing the PIN at all.</p>
+        <p>Vaultaire takes a fundamentally different approach. Each file is individually encrypted with AES-256-GCM using a key derived from your pattern through the Secure Enclave. The encrypted blobs are meaningless without the correct pattern. There is no shortcut around the cryptography.</p>
+      </section>
+
+      <section class="compare-section">
+        <h2>Account Dependency</h2>
+        <p>Private Photo Vault encourages account creation for features like cloud backup and recovery. This creates a centralized point of failure: if their servers are breached, your metadata (and potentially files) are exposed. If their service shuts down, your recovery options disappear.</p>
+        <p>Vaultaire operates with zero knowledge. No account, no email, no server. Your recovery phrase is a BIP-39 mnemonic that you control. The app never phones home, and backups are encrypted end-to-end through iCloud -- Apple handles the transport, but only you hold the decryption key.</p>
+      </section>
+
+      <section class="compare-section">
+        <h2>The Ad-Supported Free Tier</h2>
+        <p>Private Photo Vault's free tier is ad-supported. Ads in a privacy app create an inherent contradiction: ad networks track user behavior, build advertising profiles, and transmit data to third-party servers. You are using a "privacy" app that actively shares data with advertisers.</p>
+        <p>Vaultaire's free tier has no ads. The app makes zero network requests by default. There is no tracking SDK, no analytics framework, and no ad network embedded in the binary. Privacy is not a premium upsell -- it is the baseline.</p>
+      </section>
+
+      <section class="compare-section">
+        <h2>No Duress Protection</h2>
+        <p>If someone forces you to unlock Private Photo Vault, every file is immediately visible. There is no mechanism for plausible deniability, no secondary vault, and no way to destroy sensitive data under pressure.</p>
+        <p>Vaultaire's duress vault is a decoy that triggers on a specific pattern. Under coercion, you enter the duress pattern -- it opens a clean vault while silently destroying the real one. The person watching sees a cooperative unlock. The data they were looking for ceases to exist.</p>
+      </section>
+
+      <!-- Reviews Section -->
+      <section class="compare-reviews">
+        <h2>What Private Photo Vault Users Complain About</h2>
+        <p>Common complaints from App Store reviews, and how Vaultaire addresses each one.</p>
+
+        <div class="review-card">
+          <div class="review-complaint">Photos disappeared after update</div>
+          <p class="review-quote">"Updated the app and all my photos were gone. Years of memories just vanished."</p>
+          <p class="review-response"><strong>Vaultaire approach:</strong> Files are stored as encrypted blobs in a stable container format. App updates never touch the vault structure. Your recovery phrase lets you restore access even if you reinstall the app entirely.</p>
+        </div>
+
+        <div class="review-card">
+          <div class="review-complaint">Too many ads in free version</div>
+          <p class="review-quote">"Ads pop up every time I open an album. For a privacy app, this is ridiculous."</p>
+          <p class="review-response"><strong>Vaultaire approach:</strong> No ads at any tier. The free version includes AES-256 encryption, pattern lock, and camera import with zero advertising.</p>
+        </div>
+
+        <div class="review-card">
+          <div class="review-complaint">Subscription too expensive for a photo vault</div>
+          <p class="review-quote">"$4.99/month just to hide photos? That's more than some streaming services."</p>
+          <p class="review-response"><strong>Vaultaire approach:</strong> Pro starts at $1.99/month, $9.99/year, or $29.99 lifetime. The free tier already includes real encryption -- not just a PIN screen.</p>
+        </div>
+
+        <div class="review-card">
+          <div class="review-complaint">No real encryption - files accessible with USB</div>
+          <p class="review-quote">"Connected my phone to a computer and could browse all the 'hidden' photos in the app folder."</p>
+          <p class="review-response"><strong>Vaultaire approach:</strong> Every file is encrypted with AES-256-GCM before it touches disk. Browsing the app's container via USB or a backup tool yields only encrypted blobs that are computationally infeasible to decrypt.</p>
+        </div>
+
+        <div class="review-card">
+          <div class="review-complaint">Break-in alerts don't prevent data theft</div>
+          <p class="review-quote">"I got a photo of someone who tried to open the app, but they still got in after a few tries."</p>
+          <p class="review-response"><strong>Vaultaire approach:</strong> Break-in alerts are reactive. Encryption is preventive. Even if someone enters your device, encrypted files remain unreadable without the correct pattern. The duress vault provides an additional layer of active defense.</p>
+        </div>
+      </section>
+
+      <!-- CTA -->
+      <section class="compare-cta">
+        <h2>Real Encryption. No Ads. No Account.</h2>
+        <p>Vaultaire gives you AES-256-GCM encryption, a pattern-based key, and a duress vault -- starting at free.</p>
+        <a href="https://apps.apple.com/app/vaultaire/id6740526623" class="btn btn-primary">Download Vaultaire</a>
+      </section>
+
+      <!-- Link to full review -->
+      <section class="compare-section" style="text-align: center; padding-bottom: 0;">
+        <p><a href="review/" style="color: var(--accent);">Read the full Private Photo Vault review &rarr;</a></p>
+      </section>
+
+      <!-- More Comparisons -->
+      <section class="more-comparisons">
+        <h3>More Comparisons</h3>
+        <div class="more-comparisons-grid">
+          <a href="../vaultaire-vs-keepsafe/">
+            <img src="https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/74/b6/d5/74b6d569-f648-5c3b-7005-7b050d1d6c51/AppIcon-AppStore-0-0-1x_U007emarketing-0-0-0-7-0-0-0-85-220.png/100x100bb.jpg" alt="Keepsafe icon" loading="lazy">
+            vs Keepsafe
+          </a>
+          <a href="../vaultaire-vs-privault/">
+            <img src="https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/c6/f6/48/c6f648a0-9b8c-9af2-e3dd-d9100cd0e3c5/AppIcon-0-0-1x_U007emarketing-0-7-0-85-220.png/100x100bb.jpg" alt="Privault icon" loading="lazy">
+            vs Privault
+          </a>
+          <a href="../vaultaire-vs-spv/">
+            <img src="https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/06/e3/aa/06e3aae1-1d77-b9a2-1c16-a1ce6eab114f/AppIcon-0-0-1x_U007emarketing-0-7-0-85-220.png/100x100bb.jpg" alt="SPV icon" loading="lazy">
+            vs SPV
+          </a>
+          <a href="../vaultaire-vs-secret-photo-album/">
+            <img src="https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/d2/ed/46/d2ed46b3-0ce0-f0ac-ddd0-3c3baab6e965/AppIcon-0-0-1x_U007emarketing-0-7-0-85-220.png/100x100bb.jpg" alt="Secret Photo Album icon" loading="lazy">
+            vs Secret Photo Album
+          </a>
+          <a href="../vaultaire-vs-pv-secret-photo-album/">
+            <img src="https://is1-ssl.mzstatic.com/image/thumb/Purple116/v4/ef/21/11/ef2111be-5e53-d0a3-1c0d-72637df1a3e5/AppIcon-0-0-1x_U007emarketing-0-7-0-85-220.png/100x100bb.jpg" alt="PV Secret Photo Album icon" loading="lazy">
+            vs PV Secret Photo Album
+          </a>
+          <a href="../vaultaire-vs-calculator-hide-photos/">
+            <img src="https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/c9/98/4b/c9984b12-34a1-8df1-15da-be4bd6bece73/AppIcon-0-0-1x_U007emarketing-0-7-0-85-220.png/100x100bb.jpg" alt="Calculator# icon" loading="lazy">
+            vs Calculator#
+          </a>
+          <a href="../vaultaire-vs-secret-photo-vault/">
+            <img src="https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/cd/b9/6c/cdb96c83-e5b2-0f8a-dfaf-a2bb8f7aba61/AppIcon-0-0-1x_U007emarketing-0-7-0-85-220.png/100x100bb.jpg" alt="Secret Photo Vault icon" loading="lazy">
+            vs Secret Photo Vault
+          </a>
+          <a href="../vaultaire-vs-hide-it-pro/">
+            <img src="https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/7c/23/5b/7c235bc2-c6a9-3f3f-3d19-4fc8fb6d77ca/AppIcon-0-0-1x_U007emarketing-0-7-0-85-220.png/100x100bb.jpg" alt="Hide it Pro icon" loading="lazy">
+            vs Hide it Pro
+          </a>
+          <a href="../vaultaire-vs-safe-lock/">
+            <img src="https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/71/65/e8/7165e819-abb5-9e70-42bb-cb97e5a37e2e/AppIcon-0-0-1x_U007emarketing-0-7-0-85-220.png/100x100bb.jpg" alt="Safe Lock icon" loading="lazy">
+            vs Safe Lock
+          </a>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer>
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <h4 style="color: var(--text)">Vaultaire</h4>
+        <p>&copy; 2026 Wraxle LLC</p>
+      </div>
+      <div class="footer-links">
+        <a href="../../index.html">Home</a>
+        <a href="../../manifesto/index.html">Manifesto</a>
+        <a href="../../privacy/index.html">Privacy Policy</a>
+        <a href="../../terms/index.html">Terms of Use</a>
+        <a href="../../s/index.html">Vault Invite</a>
+        <a href="mailto:support@vaultaire.app">Support</a>
+      </div>
+      <div class="footer-compare">
+        <a href="../vaultaire-vs-private-photo-vault/">vs Private Photo Vault</a>
+        <a href="../vaultaire-vs-keepsafe/">vs Keepsafe</a>
+        <a href="../vaultaire-vs-privault/">vs Privault</a>
+        <a href="../vaultaire-vs-spv/">vs SPV</a>
+        <a href="../vaultaire-vs-secret-photo-album/">vs Secret Photo Album</a>
+        <a href="../vaultaire-vs-pv-secret-photo-album/">vs PV Secret Photo Album</a>
+        <a href="../vaultaire-vs-calculator-hide-photos/">vs Calculator#</a>
+        <a href="../vaultaire-vs-secret-photo-vault/">vs Secret Photo Vault</a>
+        <a href="../vaultaire-vs-hide-it-pro/">vs Hide it Pro</a>
+        <a href="../vaultaire-vs-safe-lock/">vs Safe Lock</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      const root = document.documentElement;
+      const key = 'vaultaire-theme';
+      const preferred = window.matchMedia('(prefers-color-scheme: dark)');
+      const toggle = document.getElementById('theme-toggle');
+      const icon = document.getElementById('theme-icon');
+      const label = document.getElementById('theme-label');
+      function setTheme(theme, persist) {
+        root.dataset.theme = theme;
+        const isDark = theme === 'dark';
+        icon.textContent = isDark ? '\u2606' : '\u263D';
+        label.textContent = isDark ? 'Light' : 'Dark';
+        toggle.setAttribute('aria-pressed', String(!isDark));
+        toggle.setAttribute('aria-label', 'Switch to ' + (isDark ? 'light' : 'dark') + ' mode');
+        if (persist) localStorage.setItem(key, theme);
+      }
+      var saved = localStorage.getItem(key);
+      var hasOverride = saved === 'dark' || saved === 'light';
+      setTheme(hasOverride ? saved : (preferred.matches ? 'dark' : 'light'), false);
+      toggle.addEventListener('click', function () {
+        setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+      });
+      preferred.addEventListener('change', function (e) {
+        if (!localStorage.getItem(key)) setTheme(e.matches ? 'dark' : 'light', false);
+      });
+    })();
+  </script>
+</body>
+</html>

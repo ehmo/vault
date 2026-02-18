@@ -1,0 +1,53 @@
+{
+  "slug": "calculator-hide-photos",
+  "appId": "1165276801",
+  "name": "Calculator# Hide Photos Videos",
+  "developer": "NewSoftwares.net",
+  "description": "It looks like a Calculator but it secretly hides your confidential Photos, Videos, Documents, Passwords, Notes, Contacts and To Dos. It disguises itself as a Calculator to make it impossible for prying eyes and hackers from discovering it. It is the most feature-rich app in the market in Security Category.\n\nFeatures:\n\n- Hide Photos and Videos from Gallery.\n- Automatically Deletes them from Gallery (Optional).\n- Take Pictures and Videos from Camera.\n- Password-Protect Documents and other Files.\n- Lock Audios and take Secure Voice Notes.\n- WiFi Transfer from PC, Mac or other devices.\n- A built-in Web Browser to Download Files.\n- A built-in Password Manager and Wallet.\n- A built-in Secure Notes, To Dos & Reminders.\n- A built-in Contacts Manager and Importer.\n- Backup using Cloud Service like Dropbox.\n- Panic Switch, Disguise Mode & Hack Monitoring.\n- Calculator, Pin, Password, Pattern & Touch/Face ID.\n- Works on iPhone and iPad with GUI for both.\n\nPhotos & Videos:\nNo need to keep your family, private or secret photos & videos in iPhone gallery. The app even deletes these files from your Photos when you move them to the app when needed.\n\nGallery:\nA built-in secret gallery allows you to organize, view and play all your hidden images and videos inside a protected and discreet interface. \n\nAudios:\nLock private and confidential audio recordings and conversations and hide specific music files through the phone’s internal storage.\n\nNotes:\nWhether you want to create a list of secret things you keep in your documents or write down your private feelings; you can do so securely with the ‘Notes’ feature. \n\nDocuments:\nSecure your confidential documents. You can transfer them even from your PC or Mac using WiFi transfer or from a built-in browser to your iPhone or iPad.\n\nContacts:\nNow you can import your iPhone contacts or create secret contacts inside app to call secretly.\n\nTo Dos:\nEvery once in a while, we have some tasks we just don't want to be seen by anyone no matter what. This is why we have for you a secret to do list as well.\n\nPasswords:\nCreate and lockdown sensitive credentials like your website logins, bank accounts, computer logins, credit cards, email accounts, social networks, e-banking, instant messenger etc.\n\nCloud Backup:\nConveniently backup your locked data into Dropbox. Prevent loss of sensitive data and restore your data in case of loss or theft of device. \n\nLost Password Recovery:\nYou don’t have to worry about forgetting your password. You can conveniently, retrieve your lost password through your registered email. \n\nSecurity Locks:\nYou have the option to setup a Calculator, Touch/Face ID, PIN, Pattern or Password. You can even turn off everything completely.\n\nPanic Switch:\nPrevent shoulder surfers and snoopers from seeing your sensitive data, enable panic switch to quickly switch to another app.\n\nDisguise Mode: \nConfuse snoopers by enabling a fake error message box, it displays a fake crash notification to thwart further attempts on hacking your data.\n\nHack Monitor:\nTells you who has been trying invalid passwords to try to open your vault. Logs all such attempts and shows it to you.\n\nCalculator# is free with ads and limitations and you can purchase it to get a fully-functional and ad-free version for a year.\n\nCalculator# subscription plans:\n\nAnnual: $4.99\n\nPayments and Renewal:\n\nPayment will be charged to iTunes Account at confirmation of purchase. Subscription automatically renews unless auto-renew is turned off at least 24-hours before the end of the current period.\n\nAccount will be charged for renewal within 24-hours prior to the end of the current period.\n\nYou can manage or turn off auto-renew in your Account settings at any time after purchase.\n\nNo cancellation of the current subscription is allowed during the active period.\n\nEnd User License Agreement: https://www.newsoftwares.net/ns-vault/license \n\nTerms of use: https://www.newsoftwares.net/legal/terms/\nPrivacy policy: https://www.newsoftwares.net/legal/privacy/",
+  "price": 0.0,
+  "formattedPrice": "Free",
+  "rating": 4.4,
+  "ratingCount": 28629,
+  "iconUrl": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f7/02/6f/f7026fb0-34f4-7fc6-83a2-6b288b0cf8ce/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
+  "version": "3.4.4",
+  "categories": [
+    "Utilities",
+    "Productivity"
+  ],
+  "bundleId": "net.newsoftwares.NSVault",
+  "storeUrl": "https://apps.apple.com/us/app/calculator-hide-photos-videos/id1165276801",
+  "features": {
+    "aes256gcm": false,
+    "secureEnclave": false,
+    "patternLock": true,
+    "multipleVaults": true,
+    "duressVault": true,
+    "zeroKnowledge": false,
+    "encryptedBackup": false,
+    "encryptedSharing": false,
+    "recoveryPhrase": false,
+    "noBiometrics": false,
+    "photosVideosFiles": true,
+    "mediaOptimization": false,
+    "freeTier": true,
+    "noAdsFreeTier": false,
+    "shareSheetImport": true,
+    "cameraCapture": true,
+    "offlineByDefault": false
+  },
+  "pricing": {
+    "freeTierLimits": "Ad-supported with feature limitations",
+    "subscriptionMonthly": "N/A",
+    "subscriptionAnnual": "$4.99/yr",
+    "lifetime": "Unknown",
+    "notes": "Very affordable annual subscription. Calculator disguise is the main differentiator. Free version has ads and limitations."
+  },
+  "complaints": [
+    "Calculator interface is confusing for some users",
+    "Free version is very limited with persistent ads",
+    "Dropbox backup is not encrypted",
+    "Pattern lock can be unreliable",
+    "Too many features crammed into one app reduces quality"
+  ],
+  "positioning": "While Calculator# hides behind a calculator disguise with pattern locks and Dropbox backup, Vaultaire takes a transparency-first approach with real AES-256-GCM encryption, Secure Enclave keys, and no security theater."
+}

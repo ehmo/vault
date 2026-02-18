@@ -64,18 +64,21 @@ Vaultaire: Encrypted Vault
 (26 characters -- leaves 4 chars of headroom)
 
 **Subtitle** (30 chars max):
-Recommended options:
+Recommended (primary):
 ```
-Private Photo & Video Lock     (26 chars)
-Secure Photo & File Storage    (27 chars)
-AES-256 Photo & Video Safe     (26 chars)
+Private Photo & File Locker    (27 chars)
+```
+Alternatives for A/B testing:
+```
+Hide Photos with Encryption    (28 chars)
+Secure Photo Vault & File Lock (30 chars)
 ```
 
 **Keywords** (100 chars max, comma-separated, NO spaces after commas):
 ```
-photo vault,private photos,encrypted photos,secret album,hide photos,lock photos,secure folder,photo locker,privacy,pattern lock
+secret,hide,photos,lock,album,safe,hidden,secure,videos,gallery,backup,AES,password,privacy,encrypt
 ```
-(Approximately 100 characters -- prioritize highest-volume terms)
+(99 characters -- single-word optimized for maximum keyword coverage)
 
 Keyword strategy notes:
 - Do NOT repeat words that appear in the title or subtitle (Apple indexes those automatically)

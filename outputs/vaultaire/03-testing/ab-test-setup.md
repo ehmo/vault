@@ -1,7 +1,7 @@
 # A/B Testing Setup - Vaultaire: Encrypted Vault
 
 **Platform:** Apple App Store
-**Last Updated:** 2026-02-12
+**Last Updated:** 2026-02-17
 
 ---
 
@@ -385,11 +385,11 @@ Subtitles cannot be A/B tested via Product Page Optimization. You must submit ap
 
 ### Test Strategy
 
-**Phase 1: Launch (Weeks 1-3)**
-- Subtitle: "Private Photo & File Storage" (PRIMARY VERSION)
-- Track baseline CVR
+**Phase 1: Current (Baseline)**
+- Subtitle: "Private Photo & File Locker" (RECOMMENDED VERSION)
+- Track baseline CVR for 3 weeks
 
-**Phase 2: Update 1 (Weeks 4-6)**
+**Phase 2: Update 1 (After 3 weeks of baseline)**
 - Submit app update
 - Change subtitle to: "Hide Photos with Encryption" (Alternative A)
 - Track CVR for 3 weeks

@@ -142,14 +142,14 @@ Copy metadata from `/Users/nan/Work/ai/vault/outputs/vaultaire/02-metadata/apple
 
 | Field | Source | Character Limit |
 |-------|--------|-----------------|
-| Promotional Text | Section: Promotional Text (169 chars) | 170 |
+| Promotional Text | Section: Promotional Text (167 chars) | 170 |
 | Description | Section: Description (3,247 chars) | 4,000 |
-| Keywords | Section: Keywords Field - PRIMARY VERSION (99 chars) | 100 |
+| Keywords | Section: Keywords Field - RECOMMENDED VERSION (99 chars) | 100 |
 | Support URL | https://vaultaire.app/support | N/A |
 | Marketing URL | https://vaultaire.app (optional) | N/A |
 
 3. **Subtitle Field** (iOS 11+)
-   - Copy from Section: Subtitle - PRIMARY VERSION (29 chars)
+   - Copy from Section: Subtitle - PRIMARY VERSION (27 chars)
    - Limit: 30 characters
 
 4. **What's New**
@@ -160,8 +160,8 @@ Copy metadata from `/Users/nan/Work/ai/vault/outputs/vaultaire/02-metadata/apple
 
 Before saving, verify:
 - [ ] Keywords field has NO spaces after commas
-- [ ] Promotional text is exactly 169 characters
-- [ ] Subtitle is exactly 29 characters
+- [ ] Promotional text is exactly 167 characters
+- [ ] Subtitle is exactly 27 characters (if using recommended "Private Photo & File Locker")
 - [ ] Description is exactly 3,247 characters
 - [ ] Keywords is exactly 99 characters
 - [ ] All text reads naturally (preview on device)

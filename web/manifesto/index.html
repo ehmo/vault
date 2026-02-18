@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manifesto | Vaultaire</title>
+  <meta name="description" content="The case for Vaultaire: why private storage should make your data impossible to prove, not just hard to open.">
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles/site-shared.css">
+  <style>
+    main {
+      padding: 118px 0 70px;
+    }
+
+    .manifesto-card {
+      background: color-mix(in srgb, var(--surface) 94%, transparent 6%);
+      border: 1px solid color-mix(in srgb, var(--text) 10%, transparent 90%);
+      border-radius: 24px;
+      padding: 38px;
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 4.5vw, 3.1rem);
+      line-height: 1.06;
+      letter-spacing: -0.025em;
+    }
+
+    .intro {
+      margin: 0 0 28px;
+      color: var(--text-secondary);
+      font-size: 1.02rem;
+      max-width: 740px;
+    }
+
+    section { margin-bottom: 30px; }
+
+    h2 {
+      margin: 0 0 10px;
+      color: var(--text);
+      font-size: clamp(1.1rem, 2.2vw, 1.45rem);
+      line-height: 1.25;
+      font-weight: 700;
+    }
+
+    p {
+      margin: 0 0 12px;
+      color: var(--text-secondary);
+      font-size: 0.99rem;
+    }
+
+    hr {
+      border: 0;
+      border-top: 1px solid color-mix(in srgb, var(--text) 14%, transparent 86%);
+      margin: 14px 0 18px;
+    }
+
+    .manifesto-note {
+      margin: 0;
+      color: var(--text-secondary);
+      font-style: italic;
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 768px) {
+      .manifesto-card { padding: 24px 18px; border-radius: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav-inner">
+      <a href="../index.html" class="logo">
+        <img src="../assets/vault-logo.png" alt="Vaultaire logo" class="logo-mark logo-mark--dark">
+        <img src="../assets/vault-logo-light.png" alt="Vaultaire logo for light theme" class="logo-mark logo-mark--light">
+        <span>Vaultaire</span>
+      </a>
+      <nav class="nav-links">
+        <a href="../index.html">Home</a>
+        <a href="../index.html#features">Features</a>
+        <a href="../index.html#how-it-works">How It Works</a>
+        <a href="../index.html#security">Security</a>
+        <a href="../manifesto/index.html">Manifesto</a>
+        <a href="../index.html#faq">FAQ</a>
+      </nav>
+      <div class="nav-cta">
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+          <span class="theme-icon" id="theme-icon">☀︎</span>
+          <span id="theme-label">Light</span>
+        </button>
+        <a href="https://apps.apple.com/app/vaultaire/id6740526623" class="btn btn-primary" style="padding: 12px 24px; font-size: 0.9rem;">Get App</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <article class="manifesto-card">
+        <h1>The case for Vaultaire</h1>
+        <p class="intro">Privacy apps have a fatal flaw: they look like privacy apps. This manifesto explains why Vaultaire was built to remove proof, not add another lock screen.</p>
+
+        <section>
+          <h2>Privacy apps have a fatal flaw: they look like privacy apps.</h2>
+          <p>A locked folder announces it's locked. A hidden gallery called &ldquo;Calculator+&rdquo; fools no one who's looking. Every &ldquo;secure&rdquo; photo vault on your iPhone shares the same problem: it proves you have something to hide.</p>
+          <p>When someone forces you to unlock your phone, whether that's a border agent, an abusive partner, or an authoritarian government, they see the app, they see the lock, and they don't stop until you open it.</p>
+          <p>Vaultaire doesn't hide your files behind a lock. It makes them cease to exist.</p>
+        </section>
+
+        <section>
+          <h2>How encrypted photo storage should actually work</h2>
+          <p>Draw a pattern on the grid. A vault opens with your private photos, videos, and documents, each file individually encrypted with AES-256-GCM using hardware-backed keys from Apple's Secure Enclave. Draw a different pattern, and a completely different vault opens. Different files, different encryption keys, different everything.</p>
+          <p>Enter the wrong pattern? No error message. No &ldquo;incorrect password.&rdquo; Just an empty vault. There is no observable difference between &ldquo;wrong&rdquo; and &ldquo;empty.&rdquo;</p>
+          <p>Every vault sits inside a pre-allocated block of encrypted noise. Whether you've stored zero files or five hundred, the data on disk looks identical. Forensic tools can't tell the difference. There is nothing to find because there is nothing that looks like something to find.</p>
+          <p>This is not a lock on a door. It's a wall where the door used to be.</p>
+        </section>
+
+        <section>
+          <h2>Why zero-knowledge architecture matters</h2>
+          <p>Most photo vault apps put a PIN screen in front of unencrypted files. If someone connects your phone to a computer, the files are right there, completely readable. That's not security. That's a curtain.</p>
+          <p>Vaultaire was built around a single principle: no one, not us, not Apple, not a forensic examiner, can prove your files exist. Privacy is not something we bolted on after the fact. It's how the app works at every layer.</p>
+          <p>No accounts. No email, no phone number, no identity to tie back to you. Nothing to subpoena.</p>
+          <p>No cloud dependency. Your files never leave your device unless you explicitly choose encrypted iCloud backup or encrypted vault sharing. Even then, the server only sees noise.</p>
+          <p>No biometrics. Face ID and fingerprints can be compelled by law enforcement. A pattern in your head can't be extracted. We left biometrics out on purpose.</p>
+          <p>No &ldquo;forgot password.&rdquo; No server knows your pattern. No email reset. No backdoor. A 12-word recovery phrase exists for those who want it, stored only on your device. There is no way in for anyone but you.</p>
+          <p>Your pattern goes through 600,000 rounds of PBKDF2 to derive a 256-bit encryption key. That key lives only in memory and gets wiped the moment the app locks. We never see it. We can't recover it. That's the point.</p>
+        </section>
+
+        <section>
+          <h2>Who it's for</h2>
+          <p>Journalists protecting sources where phone searches are routine. Activists carrying documentation under government surveillance. Domestic abuse survivors keeping evidence secure on a device they know is being monitored. Travelers crossing borders where device inspection is mandatory. Attorneys with privileged materials on personal phones.</p>
+          <p>And anyone who gets that privacy isn't about having something to hide. It's about having something worth protecting.</p>
+        </section>
+
+        <section>
+          <h2>The duress vault</h2>
+          <p>Designate any vault as a duress trigger. When that pattern is drawn under coercion, every other vault is silently and permanently destroyed. The duress vault opens normally. The person watching sees cooperation and an ordinary-looking vault with a few harmless photos. They have no way to know that anything else ever existed.</p>
+          <p>No other encrypted vault app does this.</p>
+        </section>
+
+        <section>
+          <h2>What we won't build</h2>
+          <p>We won't add biometric unlock, because it can be legally compelled. We won't add cloud-dependent storage, because it creates a target for subpoenas and breaches. We won't add analytics that track how you use the app. We won't add a backdoor dressed up as account recovery. We won't weaken the architecture for convenience.</p>
+          <p>Every decision in Vaultaire comes back to one thing: your private files stay yours, under any circumstance.</p>
+        </section>
+
+        <hr>
+        <p class="manifesto-note">Vaultaire is a private, encrypted photo and file vault for iPhone. It does not collect, transmit, or store any personal information. All AES-256-GCM encryption is performed locally on your device using Apple's Secure Enclave. We cannot access your files, your patterns, or your recovery phrases, by design.</p>
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <h4 style="color: var(--text)">Vaultaire</h4>
+        <p>&copy; 2026 Wraxle LLC</p>
+      </div>
+      <div class="footer-links">
+        <a href="../index.html">Home</a>
+        <a href="../manifesto/index.html">Manifesto</a>
+        <a href="../privacy/index.html">Privacy Policy</a>
+        <a href="../terms/index.html">Terms of Use</a>
+        <a href="../s/index.html">Vault Invite</a>
+        <a href="../compare/">Compare</a>
+        <a href="mailto:support@vaultaire.app">Support</a>
+      </div>
+      <div class="footer-compare" style="width:100%;padding-top:20px;margin-top:20px;border-top:1px solid color-mix(in srgb, var(--text) 8%, transparent 92%);display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:center;font-size:0.82rem;">
+        <a href="../compare/vaultaire-vs-private-photo-vault/" style="color:var(--text-secondary);transition:color .2s;">vs Private Photo Vault</a>
+        <a href="../compare/vaultaire-vs-keepsafe/" style="color:var(--text-secondary);transition:color .2s;">vs Keepsafe</a>
+        <a href="../compare/vaultaire-vs-privault/" style="color:var(--text-secondary);transition:color .2s;">vs Privault</a>
+        <a href="../compare/vaultaire-vs-spv/" style="color:var(--text-secondary);transition:color .2s;">vs SPV</a>
+        <a href="../compare/vaultaire-vs-secret-photo-album/" style="color:var(--text-secondary);transition:color .2s;">vs Secret Photo Album</a>
+        <a href="../compare/vaultaire-vs-pv-secret-photo-album/" style="color:var(--text-secondary);transition:color .2s;">vs PV Secret Photo Album</a>
+        <a href="../compare/vaultaire-vs-calculator-hide-photos/" style="color:var(--text-secondary);transition:color .2s;">vs Calculator#</a>
+        <a href="../compare/vaultaire-vs-secret-photo-vault/" style="color:var(--text-secondary);transition:color .2s;">vs Secret Photo Vault</a>
+        <a href="../compare/vaultaire-vs-hide-it-pro/" style="color:var(--text-secondary);transition:color .2s;">vs Hide it Pro</a>
+        <a href="../compare/vaultaire-vs-safe-lock/" style="color:var(--text-secondary);transition:color .2s;">vs Safe Lock</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/theme-toggle.js"></script>
+</body>
+</html>

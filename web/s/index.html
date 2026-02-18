@@ -5,36 +5,177 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Open in Vaultaire</title>
   <meta name="description" content="Someone shared a vault with you. Open this link in Vaultaire to accept the invitation.">
-  <link rel="stylesheet" href="/styles/output.css">
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      setTimeout(function() { document.getElementById('fallback').classList.remove('hidden'); }, 1000);
-    });
-  </script>
-</head>
-<body class="bg-vault-bg dark:bg-vault-bg-dark text-vault-text dark:text-vault-text-dark min-h-screen flex items-center justify-center">
-  <main class="max-w-md mx-auto px-6 py-20 text-center">
-    <div class="w-20 h-20 rounded-2xl bg-vault-accent/10 flex items-center justify-center mx-auto mb-6">
-      <svg class="w-10 h-10" viewBox="0 0 32 32" fill="none">
-        <path d="M10 14V13C10 9.686 12.686 7 16 7C19.314 7 22 9.686 22 13V14" stroke="#6246EA" stroke-width="2" stroke-linecap="round"/>
-        <rect x="8" y="14" width="16" height="12" rx="3" fill="#6246EA" fill-opacity="0.2"/>
-        <circle cx="16" cy="19" r="2" fill="#6246EA"/>
-        <path d="M16 21V23" stroke="#6246EA" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>
-    </div>
-    <h1 class="text-3xl font-bold mb-4">Vault Invitation</h1>
-    <p class="text-vault-secondary dark:text-vault-secondary-dark mb-8">Someone shared a secure vault with you.</p>
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles/site-shared.css">
+  <style>
+    main {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      padding: 116px 16px 48px;
+    }
 
-    <div id="fallback" class="hidden space-y-4">
-      <p class="text-vault-secondary dark:text-vault-secondary-dark">To accept this invitation, you need the Vaultaire app.</p>
-      <a href="https://apps.apple.com/app/vaultaire/id6740526623"
-         class="inline-flex items-center gap-2 bg-vault-accent text-white font-semibold px-8 py-3 rounded-full hover:opacity-90 transition">
-        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-        Get Vaultaire
+    .invite-card {
+      width: min(100%, 620px);
+      background: color-mix(in srgb, var(--surface) 94%, transparent 6%);
+      border: 1px solid color-mix(in srgb, var(--text) 12%, transparent 88%);
+      border-radius: 28px;
+      padding: 34px 26px;
+      text-align: center;
+    }
+
+    .hero-logo {
+      width: 74px;
+      height: 74px;
+      border-radius: 20px;
+      margin: 0 auto 18px;
+      box-shadow: 0 12px 26px color-mix(in srgb, var(--bg) 75%, transparent 25%);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-family: var(--font-display);
+      font-size: clamp(1.6rem, 4vw, 2.2rem);
+      letter-spacing: -0.02em;
+    }
+
+    p {
+      margin: 0;
+      color: var(--text-secondary);
+      line-height: 1.65;
+    }
+
+    .stack {
+      margin-top: 18px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      margin-top: 10px;
+      text-decoration: none;
+      background: var(--accent);
+      color: var(--accent-contrast);
+      font-weight: 700;
+      padding: 14px 22px;
+      border-radius: 999px;
+    }
+
+    .hint {
+      margin-top: 14px;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    @media (max-width: 768px) {
+      main {
+        place-items: start center;
+        padding-top: 96px;
+        padding-bottom: 36px;
+      }
+      .invite-card { border-radius: 18px; padding: 24px 18px; }
+      .cta {
+        width: 100%;
+      }
+      .stack {
+        margin-top: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav-inner">
+      <a href="../index.html" class="logo">
+        <img src="../assets/vault-logo.png" alt="Vaultaire logo" class="logo-mark logo-mark--dark">
+        <img src="../assets/vault-logo-light.png" alt="Vaultaire logo for light theme" class="logo-mark logo-mark--light">
+        <span>Vaultaire</span>
       </a>
-      <p class="text-sm text-vault-secondary dark:text-vault-secondary-dark mt-6">Already have the app? Open this link on your iPhone.</p>
+      <nav class="nav-links">
+        <a href="../index.html">Home</a>
+        <a href="../index.html#features">Features</a>
+        <a href="../index.html#how-it-works">How It Works</a>
+        <a href="../index.html#security">Security</a>
+        <a href="../manifesto/index.html">Manifesto</a>
+        <a href="../index.html#faq">FAQ</a>
+      </nav>
+      <div class="nav-cta">
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+          <span class="theme-icon" id="theme-icon">☀︎</span>
+          <span id="theme-label">Light</span>
+        </button>
+        <a href="https://apps.apple.com/app/vaultaire/id6740526623" class="btn btn-primary" style="padding: 12px 24px; font-size: 0.9rem;">Get App</a>
+      </div>
     </div>
+  </header>
+
+  <main>
+    <section class="invite-card" id="invite-card" aria-live="polite">
+      <img src="../assets/vault-logo.png" alt="Vaultaire" class="hero-logo" id="hero-logo-dark">
+      <img src="../assets/vault-logo-light.png" alt="Vaultaire" class="hero-logo" id="hero-logo-light" style="display:none;">
+      <h1>Vault Invitation</h1>
+      <p>Someone shared a secure vault with you.</p>
+      <div id="fallback" class="stack">
+        <p>To accept this invitation, you need the Vaultaire app on your iPhone.</p>
+        <a class="cta" href="https://apps.apple.com/app/vaultaire/id6740526623">Get Vaultaire</a>
+        <p class="hint">Already have the app? Open this link on your iPhone.</p>
+      </div>
+    </section>
   </main>
+
+  <footer>
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <h4 style="color: var(--text)">Vaultaire</h4>
+        <p>&copy; 2026 Wraxle LLC</p>
+      </div>
+      <div class="footer-links">
+        <a href="../index.html">Home</a>
+        <a href="../manifesto/index.html">Manifesto</a>
+        <a href="../privacy/index.html">Privacy Policy</a>
+        <a href="../terms/index.html">Terms of Use</a>
+        <a href="../s/index.html">Vault Invite</a>
+        <a href="../compare/">Compare</a>
+        <a href="mailto:support@vaultaire.app">Support</a>
+      </div>
+      <div class="footer-compare" style="width:100%;padding-top:20px;margin-top:20px;border-top:1px solid color-mix(in srgb, var(--text) 8%, transparent 92%);display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:center;font-size:0.82rem;">
+        <a href="../compare/vaultaire-vs-private-photo-vault/" style="color:var(--text-secondary);transition:color .2s;">vs Private Photo Vault</a>
+        <a href="../compare/vaultaire-vs-keepsafe/" style="color:var(--text-secondary);transition:color .2s;">vs Keepsafe</a>
+        <a href="../compare/vaultaire-vs-privault/" style="color:var(--text-secondary);transition:color .2s;">vs Privault</a>
+        <a href="../compare/vaultaire-vs-spv/" style="color:var(--text-secondary);transition:color .2s;">vs SPV</a>
+        <a href="../compare/vaultaire-vs-secret-photo-album/" style="color:var(--text-secondary);transition:color .2s;">vs Secret Photo Album</a>
+        <a href="../compare/vaultaire-vs-pv-secret-photo-album/" style="color:var(--text-secondary);transition:color .2s;">vs PV Secret Photo Album</a>
+        <a href="../compare/vaultaire-vs-calculator-hide-photos/" style="color:var(--text-secondary);transition:color .2s;">vs Calculator#</a>
+        <a href="../compare/vaultaire-vs-secret-photo-vault/" style="color:var(--text-secondary);transition:color .2s;">vs Secret Photo Vault</a>
+        <a href="../compare/vaultaire-vs-hide-it-pro/" style="color:var(--text-secondary);transition:color .2s;">vs Hide it Pro</a>
+        <a href="../compare/vaultaire-vs-safe-lock/" style="color:var(--text-secondary);transition:color .2s;">vs Safe Lock</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/theme-toggle.js"></script>
+  <script>
+    (function () {
+      const darkHero = document.getElementById('hero-logo-dark');
+      const lightHero = document.getElementById('hero-logo-light');
+
+      function syncHeroLogo(isDark) {
+        darkHero.style.display = isDark ? 'block' : 'none';
+        lightHero.style.display = isDark ? 'none' : 'block';
+      }
+
+      syncHeroLogo((document.documentElement.dataset.theme || 'dark') === 'dark');
+      window.addEventListener('vaultaire-themechange', (event) => {
+        syncHeroLogo(Boolean(event.detail && event.detail.isDark));
+      });
+    })();
+  </script>
 </body>
 </html>

@@ -175,7 +175,7 @@ Tasks are organized by timeline: Pre-Launch, Launch Week, and Post-Launch testin
 #### Steps:
 1. **Use PRIMARY versions from metadata files:**
    - App Name: Vaultaire: Encrypted Vault
-   - Subtitle: Private Photo & File Storage
+   - Subtitle: Private Photo & File Locker
    - Keywords: PRIMARY VERSION (99 chars)
    - Screenshots: Control Set
 
@@ -420,7 +420,7 @@ Subtitles cannot be A/B tested via Product Page Optimization. Must use sequentia
 #### Steps:
 
 **Phase 1: Baseline (Weeks 1-3, already complete)**
-- Subtitle: "Private Photo & File Storage" (PRIMARY)
+- Subtitle: "Private Photo & File Locker" (PRIMARY)
 - Tracked baseline CVR
 
 **Phase 2: Alternative A (Weeks 11-13)**

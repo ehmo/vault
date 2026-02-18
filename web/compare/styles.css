@@ -1,0 +1,782 @@
+/* ── Vaultaire Compare Pages ── */
+/* Shared CSS for all /compare/ pages */
+
+:root {
+  --bg: #20233C;
+  --surface: #323444;
+  --text: #E8E8F0;
+  --text-secondary: #9FA1B5;
+  --accent: #CCC3F8;
+  --highlight: #FF6F6F;
+  --accent-contrast: #20233C;
+  --header-bg: rgba(32, 35, 60, 0.8);
+  --header-border: rgba(204, 195, 248, 0.22);
+  --theme-button-bg: rgba(255, 255, 255, 0.08);
+  --theme-button-text: #E8E8F0;
+  --green: #57E37A;
+  --red: #FF6F6F;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Plus Jakarta Sans', sans-serif;
+}
+
+:root[data-theme='light'] {
+  --bg: #D1D1E9;
+  --surface: #FFFFFE;
+  --text: #2B2C34;
+  --text-secondary: #6C6F88;
+  --accent: #1F0D77;
+  --highlight: #E45858;
+  --accent-contrast: #F8F8FF;
+  --header-bg: rgba(209, 209, 233, 0.86);
+  --header-border: rgba(31, 13, 119, 0.18);
+  --theme-button-bg: rgba(31, 13, 119, 0.09);
+  --theme-button-text: #1F0D77;
+  --green: #2E9E4D;
+  --red: #E45858;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 240ms ease, color 240ms ease;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+}
+
+a { text-decoration: none; color: inherit; transition: color 0.3s ease; }
+ul { list-style: none; }
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ── Header / Nav ── */
+header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 1000;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--header-border);
+  backdrop-filter: blur(12px);
+  transition: background-color 240ms ease, border-color 240ms ease;
+}
+
+.nav-inner {
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.logo .logo-mark {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--bg) 68%, transparent 32%);
+}
+
+.logo .logo-mark--light { display: none; }
+:root[data-theme='light'] .logo .logo-mark--dark { display: none; }
+:root[data-theme='light'] .logo .logo-mark--light { display: block; }
+
+.nav-links {
+  display: flex;
+  gap: 32px;
+}
+
+.nav-links a {
+  color: var(--text);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.8;
+  position: relative;
+}
+
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  bottom: -5px; left: 0;
+  width: 0; height: 2px;
+  background: var(--accent);
+  transition: width 0.3s;
+}
+
+.nav-links a:hover::after { width: 100%; }
+
+.nav-cta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 36px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: relative;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateX(-100%);
+  transition: transform 0.4s;
+  z-index: 1;
+}
+
+.btn-primary:hover::before { transform: translateX(0); }
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(31, 13, 119, 0.3);
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 2px solid var(--text);
+  color: var(--text);
+}
+
+.btn-secondary:hover {
+  background: var(--surface);
+  border-color: var(--accent);
+}
+
+.theme-toggle {
+  border: 1px solid var(--header-border);
+  background: var(--theme-button-bg);
+  color: var(--theme-button-text);
+  height: 44px; min-width: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font: 600 0.82rem var(--font-body);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease;
+}
+
+.theme-toggle:hover { transform: translateY(-1px); }
+.theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.theme-icon { font-size: 1rem; line-height: 1; }
+
+/* ── Breadcrumbs ── */
+.breadcrumbs {
+  padding: 100px 0 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.breadcrumbs a {
+  color: var(--accent);
+}
+
+.breadcrumbs a:hover {
+  color: var(--highlight);
+}
+
+.breadcrumbs span {
+  margin: 0 8px;
+  opacity: 0.5;
+}
+
+/* ── Compare Hero ── */
+.compare-hero {
+  padding: 32px 0 48px;
+  text-align: center;
+}
+
+.compare-hero-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.compare-hero .competitor-icon {
+  width: 72px; height: 72px;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.compare-hero .vs-badge {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: var(--highlight);
+  text-transform: uppercase;
+}
+
+.compare-hero .vaultaire-icon {
+  width: 72px; height: 72px;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.compare-hero h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.1;
+  margin-bottom: 16px;
+}
+
+.compare-hero .positioning {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+/* ── Compare Section ── */
+.compare-section {
+  padding: 48px 0;
+}
+
+.compare-section h2 {
+  font-size: clamp(1.3rem, 2.5vw, 1.8rem);
+  margin-bottom: 24px;
+  color: var(--text);
+}
+
+.compare-section p {
+  color: var(--text-secondary);
+  font-size: 0.99rem;
+  margin-bottom: 16px;
+  max-width: 800px;
+}
+
+/* ── Feature Comparison Table ── */
+.compare-table-wrap {
+  overflow-x: auto;
+  margin: 0 -24px;
+  padding: 0 24px;
+}
+
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.compare-table thead th {
+  padding: 16px 20px;
+  text-align: left;
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.88rem;
+  border-bottom: 2px solid var(--accent);
+  color: var(--text);
+}
+
+.compare-table thead th:first-child {
+  width: 40%;
+}
+
+.compare-table thead th:nth-child(2),
+.compare-table thead th:nth-child(3) {
+  width: 30%;
+  text-align: center;
+}
+
+.compare-table tbody td {
+  padding: 14px 20px;
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 10%, transparent 90%);
+  vertical-align: middle;
+}
+
+.compare-table tbody td:nth-child(2),
+.compare-table tbody td:nth-child(3) {
+  text-align: center;
+}
+
+.compare-table tbody tr:hover {
+  background: color-mix(in srgb, var(--surface) 50%, transparent 50%);
+}
+
+.compare-table .feature-name {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.compare-table .feature-note {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.check-yes {
+  color: var(--green);
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+.check-no {
+  color: var(--red);
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+.check-partial {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+/* ── Pricing Comparison ── */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.pricing-card {
+  background: color-mix(in srgb, var(--surface) 80%, transparent 20%);
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent 88%);
+  border-radius: 16px;
+  padding: 32px;
+}
+
+.pricing-card.pricing-vaultaire {
+  border-color: var(--accent);
+}
+
+.pricing-card h3 {
+  font-size: 1.2rem;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+}
+
+.pricing-tier {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 8%, transparent 92%);
+}
+
+.pricing-tier:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.pricing-tier .tier-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.pricing-tier .tier-price {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: var(--accent);
+  margin: 4px 0;
+}
+
+.pricing-tier .tier-details {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.pricing-tier .tier-details li {
+  padding: 2px 0;
+  padding-left: 16px;
+  position: relative;
+}
+
+.pricing-tier .tier-details li::before {
+  content: '/';
+  position: absolute;
+  left: 0;
+  color: var(--highlight);
+  font-weight: bold;
+}
+
+/* ── Reviews Section ── */
+.compare-reviews {
+  padding: 48px 0;
+}
+
+.review-card {
+  background: color-mix(in srgb, var(--surface) 60%, transparent 40%);
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent 90%);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.review-card .review-complaint {
+  font-weight: 600;
+  color: var(--highlight);
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+}
+
+.review-card .review-quote {
+  font-style: italic;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  margin-bottom: 12px;
+  padding-left: 16px;
+  border-left: 2px solid color-mix(in srgb, var(--text) 20%, transparent 80%);
+}
+
+.review-card .review-response {
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.review-card .review-response strong {
+  color: var(--accent);
+}
+
+/* ── CTA Section ── */
+.compare-cta {
+  padding: 80px 0;
+  text-align: center;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--accent) 8%, transparent 92%) 0%, transparent 70%);
+}
+
+.compare-cta h2 {
+  font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+  margin-bottom: 16px;
+}
+
+.compare-cta p {
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin: 0 auto 32px;
+}
+
+.compare-cta .btn {
+  font-size: 1rem;
+}
+
+/* ── More Comparisons Nav ── */
+.more-comparisons {
+  padding: 48px 0;
+  border-top: 1px solid color-mix(in srgb, var(--text) 10%, transparent 90%);
+}
+
+.more-comparisons h3 {
+  font-size: 1.1rem;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.more-comparisons-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.more-comparisons-grid a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--surface) 50%, transparent 50%);
+  border: 1px solid color-mix(in srgb, var(--text) 8%, transparent 92%);
+  border-radius: 10px;
+  font-size: 0.88rem;
+  color: var(--text);
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.more-comparisons-grid a:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--surface) 80%, transparent 20%);
+}
+
+.more-comparisons-grid a img {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+}
+
+/* ── Compare Landing Page (Grid of Cards) ── */
+.compare-landing-hero {
+  padding: 120px 0 48px;
+  text-align: center;
+}
+
+.compare-landing-hero h1 {
+  font-size: clamp(2rem, 4.5vw, 3.2rem);
+  margin-bottom: 16px;
+}
+
+.compare-landing-hero p {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.compare-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
+  padding: 24px 0 80px;
+}
+
+.compare-card {
+  background: color-mix(in srgb, var(--surface) 80%, transparent 20%);
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent 88%);
+  border-radius: 16px;
+  padding: 28px;
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.compare-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+}
+
+.compare-card img {
+  width: 56px; height: 56px;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.compare-card-content h3 {
+  font-size: 1rem;
+  margin-bottom: 4px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.compare-card-content .card-ratings {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.compare-card-content .card-diff {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* ── Review Article ── */
+.review-article {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 32px 0 80px;
+}
+
+.review-article h1 {
+  font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+  line-height: 1.15;
+  margin-bottom: 16px;
+  text-transform: none;
+  letter-spacing: -0.02em;
+}
+
+.review-article .article-meta {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  margin-bottom: 32px;
+}
+
+.review-article h2 {
+  font-size: 1.4rem;
+  margin: 40px 0 16px;
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+
+.review-article h3 {
+  font-size: 1.1rem;
+  margin: 28px 0 12px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.review-article p {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  margin-bottom: 16px;
+  line-height: 1.7;
+}
+
+.review-article blockquote {
+  border-left: 3px solid var(--highlight);
+  padding: 12px 20px;
+  margin: 20px 0;
+  background: color-mix(in srgb, var(--surface) 50%, transparent 50%);
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.review-article .verdict-box {
+  background: color-mix(in srgb, var(--accent) 10%, transparent 90%);
+  border: 1px solid var(--accent);
+  border-radius: 16px;
+  padding: 32px;
+  margin: 40px 0;
+  text-align: center;
+}
+
+.review-article .verdict-box h3 {
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.review-article .verdict-box p {
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+/* ── Footer ── */
+footer {
+  background: color-mix(in srgb, var(--bg) 82%, #07080D 18%);
+  padding: 60px 0;
+  font-size: 0.9rem;
+  border-top: 1px solid color-mix(in srgb, var(--text) 14%, transparent 86%);
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.footer-brand p {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin-top: 8px;
+}
+
+.footer-links a {
+  margin-left: 24px;
+  color: var(--accent);
+}
+
+.footer-links a:hover { color: var(--highlight); }
+
+.footer-compare {
+  width: 100%;
+  padding-top: 20px;
+  margin-top: 20px;
+  border-top: 1px solid color-mix(in srgb, var(--text) 8%, transparent 92%);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  justify-content: center;
+  font-size: 0.82rem;
+}
+
+.footer-compare a {
+  color: var(--text-secondary);
+  transition: color 0.2s;
+}
+
+.footer-compare a:hover {
+  color: var(--accent);
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .pricing-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .container { padding: 0 16px; }
+  .nav-links { display: none; }
+  .theme-toggle #theme-label { display: none; }
+
+  .logo {
+    font-size: 1.1rem;
+  }
+
+  .logo .logo-mark {
+    width: 24px; height: 24px;
+    border-radius: 7px;
+  }
+
+  .compare-hero .competitor-icon,
+  .compare-hero .vaultaire-icon {
+    width: 56px; height: 56px;
+    border-radius: 12px;
+  }
+
+  .compare-hero .vs-badge {
+    font-size: 1.1rem;
+  }
+
+  .compare-table {
+    font-size: 0.85rem;
+  }
+
+  .compare-table thead th,
+  .compare-table tbody td {
+    padding: 10px 12px;
+  }
+
+  .compare-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .more-comparisons-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .footer-links a {
+    margin-left: 0;
+    margin-right: 20px;
+  }
+
+  .review-article {
+    padding: 24px 0 60px;
+  }
+}

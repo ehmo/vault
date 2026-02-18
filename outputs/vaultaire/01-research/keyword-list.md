@@ -1,6 +1,6 @@
 # Keyword Research - Vaultaire: Encrypted Vault
 
-**Date:** 2026-02-12
+**Date:** 2026-02-12 (updated 2026-02-17)
 **Data Source:** iTunes Search API (real-time), App Store page scraping
 **Apps Analyzed:** 180+ unique apps across 23 search queries
 **Methodology:** Keyword extraction from competitor titles/descriptions, cross-search frequency analysis, competition density measurement
@@ -25,12 +25,13 @@
 - Includes brand name + "Encrypted" (unique differentiator) + "Vault" (highest-frequency keyword)
 - "Encrypted" appears in 0/8 top competitor titles -- strong differentiation signal
 
-**Subtitle (30 chars):** `Private Photo & File Locker` (27 chars)
+**Subtitle (30 chars):** `Private Photo & File Locker` (27 chars) -- RECOMMENDED
 - Targets "private" (13 title uses), "photo" (42 title uses), "locker" (3 title uses)
 - "File" expands scope beyond just photos -- a gap in competitors
-- Alternative: `Hide Photos with Real Encryption` (32 chars -- too long)
-- Alternative: `Lock Photos with AES Encryption` (31 chars -- 1 over)
-- Alternative: `Secure Photo Vault & File Lock` (30 chars)
+- "Locker" is a less saturated variant of "lock" and adds a unique indexed word
+- Alternative A: `Hide Photos with Encryption` (28 chars) -- action-oriented, for A/B test
+- Alternative B: `Secure Photo Vault & File Lock` (30 chars) -- max density but duplicates "vault"
+- Alternative C: `Private Photo & File Storage` (29 chars) -- generic, "storage" less searched
 
 ---
 

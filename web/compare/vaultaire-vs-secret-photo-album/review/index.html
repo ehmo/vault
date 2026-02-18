@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secret Photo Album Review 2026: How Secret Is It Really?</title>
+  <meta name="description" content="An independent security review of Secret Photo Album in 2026. We examine its passcode-only protection, lack of encryption, and how it compares with Vaultaire.">
+  <meta name="keywords" content="secret photo album review, secret photo album alternative, secret photo album safe, secret photo album vs vaultaire">
+  <meta property="og:title" content="Secret Photo Album Review 2026: How Secret Is It Really?">
+  <meta property="og:description" content="Secret Photo Album hides photos behind a passcode. But are they actually secret? We investigate the security model.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://vaultaire.app/compare/vaultaire-vs-secret-photo-album/review/">
+  <meta property="twitter:card" content="summary">
+  <link rel="canonical" href="https://vaultaire.app/compare/vaultaire-vs-secret-photo-album/review/">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles.css">
+</head>
+<body>
+  <header>
+    <div class="container nav-inner">
+      <a href="../../../index.html" class="logo">
+        <img src="../../../assets/vault-logo.png" alt="Vaultaire logo" class="logo-mark logo-mark--dark">
+        <img src="../../../assets/vault-logo-light.png" alt="Vaultaire logo for light theme" class="logo-mark logo-mark--light">
+        <span>Vaultaire</span>
+      </a>
+      <nav class="nav-links">
+        <a href="../../../index.html">Home</a>
+        <a href="../../../index.html#features">Features</a>
+        <a href="../../../index.html#security">Security</a>
+        <a href="../../../manifesto/index.html">Manifesto</a>
+        <a href="../../../compare/">Compare</a>
+      </nav>
+      <div class="nav-cta">
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+          <span class="theme-icon" id="theme-icon">&#9788;</span>
+          <span id="theme-label">Light</span>
+        </button>
+        <a href="https://apps.apple.com/app/vaultaire/id6740526623" class="btn btn-primary" style="padding: 12px 24px; font-size: 0.9rem;">Get App</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <nav class="breadcrumbs">
+        <a href="../../../index.html">Home</a><span>/</span>
+        <a href="../../../compare/">Compare</a><span>/</span>
+        <a href="../">vs Secret Photo Album</a><span>/</span>
+        Review
+      </nav>
+
+      <article class="review-article">
+        <h1>Secret Photo Album Review: Is It Worth It in 2026?</h1>
+        <div class="article-meta">Updated February 2026 | Comparison with Vaultaire</div>
+
+        <h2>Overview</h2>
+        <p>Secret Photo Album is a basic photo hiding app with approximately 39,000 App Store ratings. Its premise is simple: set a passcode, import photos from your camera roll, and they are moved into a locked gallery within the app. The photos disappear from your main Photos library and reappear only when you open Secret Photo Album and enter the correct passcode.</p>
+        <p>The app does not claim to encrypt your files. It does not reference any specific security standards or cryptographic implementations. It is, in the most literal sense, a secret photo album -- an album that is hidden from casual view. Whether "secret" adequately describes "stored in plaintext in an app sandbox directory accessible to anyone with a USB cable" is the central question of this review.</p>
+        <p>In the broader landscape of photo vault apps in 2026, Secret Photo Album occupies the most basic tier: passcode access, no encryption, no backup encryption, no vault separation, no advanced privacy features. It is a locked folder with a passcode screen. Understanding what that means -- and what it does not mean -- is critical for anyone trusting it with genuinely private files.</p>
+
+        <h2>Security Model</h2>
+        <p>Secret Photo Album uses a numeric passcode to gate access to its gallery interface. Enter the correct passcode and you see your photos. Enter the wrong one and you do not. That is the complete security model. There is no file-level encryption, no key derivation, no hardware-backed security, and no cryptographic transformation of any kind applied to the stored files.</p>
+        <p>The photos sit in the app's iOS sandbox directory in their original format. JPEG files remain JPEG files. HEIC files remain HEIC files. All metadata is preserved: EXIF data, GPS coordinates, timestamps, camera information. Connect the device to a computer, use any file management tool to browse the app's data directory, and every photo is immediately viewable with full metadata intact.</p>
+        <p>This is not a theoretical vulnerability. It is the normal, expected behavior of the file system. The passcode prevents access through the app's own interface. It does nothing to prevent access through any other pathway. And in 2026, there are dozens of freely available tools that can browse an iOS device's app sandbox directories.</p>
+
+        <h2>Lock Mechanism</h2>
+        <p>The passcode is a numeric code, typically four digits. Some versions support longer codes or alphanumeric passwords. Biometric unlock via Touch ID or Face ID may be available depending on the version. The passcode is verified by the app's own logic. It does not participate in any cryptographic operation. It does not derive a key. It does not decrypt anything. It checks whether the entered value matches the stored value and, if so, shows the gallery.</p>
+        <p>There is no passcode recovery mechanism. If you forget your passcode, your photos are inaccessible through the app -- though they remain fully accessible through the file system. This creates an odd situation: you can lose access to your own photos through the app while they remain completely unprotected on disk.</p>
+
+        <h2>Backup and Cloud</h2>
+        <p>Secret Photo Album does not offer encrypted backup. There is no dedicated cloud backup feature. If your device is lost, damaged, or reset, photos stored only within Secret Photo Album are gone. Device backups through iCloud or iTunes will include the app's sandbox data, meaning your "secret" photos are present in those backups in their original, unencrypted format.</p>
+        <p>The backup situation creates a paradox. If you back up your device (as Apple recommends), your hidden photos are included in the backup in plaintext. If you do not back up your device, you risk permanent data loss. There is no option that provides both data preservation and data privacy.</p>
+
+        <h2>Sharing and Privacy Architecture</h2>
+        <p>Secret Photo Album does not offer encrypted sharing, shared vaults, or any collaborative privacy features. There is no vault separation -- all photos exist in a single locked space behind a single passcode. There is no duress mode, no decoy vault, and no plausible deniability mechanism.</p>
+        <p>The app's privacy architecture, if it can be called that, is a single passcode gate in front of a single unencrypted photo collection. This is the minimum viable implementation of a photo vault, and it has not evolved significantly since the app's initial release.</p>
+
+        <h2>Pricing Analysis</h2>
+        <p>Secret Photo Album uses a freemium model. The free tier includes advertising, reportedly at high frequency. Premium subscriptions are available at approximately $2.99 per month or $9.99 per year. The premium tier removes ads and may unlock additional organizational features.</p>
+        <p>At $9.99 per year, the pricing is relatively modest compared to competitors. But the question of value remains: you are paying to remove ads from an app that stores your files unencrypted. The core functionality -- hiding photos behind a passcode -- is something iOS can do natively with its Hidden album feature combined with Face ID or a Screen Time passcode.</p>
+
+        <h2>What Users Are Saying</h2>
+        <blockquote>"Connected my phone to my laptop and all my 'secret' photos showed up in the file browser. They weren't encrypted at all. Just sitting there."</blockquote>
+        <p>The gap between the word "secret" and the reality of plaintext file storage is the most fundamental disconnect. Users expect secrecy. They get a locked UI over unprotected files.</p>
+        <blockquote>"Got a new iPhone and all my photos are gone. No way to transfer them. The app just starts fresh on the new phone."</blockquote>
+        <p>Device transfers and upgrades are consistently reported as data loss events. Without a backup and restore mechanism designed for vault data, the transition destroys stored content.</p>
+        <blockquote>"The ads are constant. Open the app, ad. Open a photo, ad. Go back to the gallery, ad. I feel like I'm using an ad app that sometimes shows photos."</blockquote>
+        <p>Advertising frequency in the free tier is a dominant complaint theme. Users describe the experience as hostile to normal use.</p>
+        <blockquote>"There's only one passcode for everything. I can't have a separate area for different types of files or different levels of sensitivity."</blockquote>
+        <p>The single-vault, single-passcode model provides no granularity. All files share the same access level, the same protection (or lack thereof), and the same exposure risk.</p>
+
+        <h2>How Vaultaire Addresses Each Pain Point</h2>
+        <h3>Individual File Encryption</h3>
+        <p>Vaultaire encrypts every file individually with AES-256-GCM. Not a database encryption wrapper around a folder. Not a single encrypted container. Each photo and video gets its own encryption key derived from your pattern and the Secure Enclave. A breach of one file reveals nothing about any other file. Connect to a computer and browse the file system: you find encrypted blobs with no recognizable format, no metadata, no thumbnails.</p>
+        <h3>Pattern-Derived Keys</h3>
+        <p>Where Secret Photo Album's passcode gates a UI, Vaultaire's pattern IS the security. The pattern you draw is a cryptographic input to HKDF-based key derivation. Wrong pattern produces wrong key produces unreadable output. There is no "check if the passcode matches" step. The cryptographic operation either works or it does not. There is nothing to bypass.</p>
+        <h3>Encrypted Backup with Recovery Phrase</h3>
+        <p>Vaultaire generates a recovery phrase at setup -- a standard mnemonic seed. This phrase allows you to restore your encrypted vault on any new device. Phone upgrade? Enter your recovery phrase. Device stolen? Get a new phone, enter your recovery phrase. The encrypted data survives because recovery is part of the cryptographic architecture, not an optional add-on.</p>
+        <h3>Vault Separation and Duress Mode</h3>
+        <p>Vaultaire supports multiple vault contexts. A primary pattern opens your real vault. A secondary duress pattern opens a plausible decoy vault. The primary vault's data is indistinguishable from random noise without the correct pattern. Under coercion, you can provide the duress pattern. The examiner sees a believable vault. Your real data remains cryptographically invisible.</p>
+        <h3>Metadata Stripping</h3>
+        <p>When Vaultaire encrypts a file, the original metadata -- EXIF data, GPS coordinates, timestamps -- is encrypted along with the file content. Nothing leaks. No thumbnails are generated in accessible locations. The encrypted blobs carry no information about their contents.</p>
+
+        <div class="verdict-box">
+          <h3>The Verdict</h3>
+          <p>Secret Photo Album is a passcode-locked folder. It hides photos from the Photos app. It does not protect them from file system access, backup extraction, or device examination. The word "secret" in the name implies a level of protection that the app does not provide. In 2026, with file access tools readily available and privacy threats increasingly sophisticated, a passcode over plaintext files is not adequate. Vaultaire provides what the name "Secret Photo Album" promises but does not deliver: photos that are genuinely, cryptographically, mathematically inaccessible without the correct key.</p>
+          <a href="https://apps.apple.com/app/vaultaire/id6740526623" class="btn btn-primary">Try Vaultaire Free</a>
+        </div>
+
+        <p style="text-align: center; margin-top: 32px;">
+          <a href="../" style="color: var(--accent);">&larr; Back to full comparison</a>
+        </p>
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <h4 style="color: var(--text)">Vaultaire</h4>
+        <p>&copy; 2026 Wraxle LLC</p>
+      </div>
+      <div class="footer-links">
+        <a href="../../../index.html">Home</a>
+        <a href="../../../manifesto/index.html">Manifesto</a>
+        <a href="../../../privacy/index.html">Privacy Policy</a>
+        <a href="../../../terms/index.html">Terms of Use</a>
+        <a href="../../../s/index.html">Vault Invite</a>
+        <a href="mailto:support@vaultaire.app">Support</a>
+      </div>
+      <div class="footer-compare">
+        <a href="../../vaultaire-vs-private-photo-vault/">vs Private Photo Vault</a>
+        <a href="../../vaultaire-vs-keepsafe/">vs Keepsafe</a>
+        <a href="../../vaultaire-vs-privault/">vs Privault</a>
+        <a href="../../vaultaire-vs-spv/">vs SPV</a>
+        <a href="../../vaultaire-vs-secret-photo-album/">vs Secret Photo Album</a>
+        <a href="../../vaultaire-vs-pv-secret-photo-album/">vs PV Secret Photo Album</a>
+        <a href="../../vaultaire-vs-calculator-hide-photos/">vs Calculator#</a>
+        <a href="../../vaultaire-vs-secret-photo-vault/">vs Secret Photo Vault</a>
+        <a href="../../vaultaire-vs-hide-it-pro/">vs Hide it Pro</a>
+        <a href="../../vaultaire-vs-safe-lock/">vs Safe Lock</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      const root = document.documentElement;
+      const key = 'vaultaire-theme';
+      const preferred = window.matchMedia('(prefers-color-scheme: dark)');
+      const toggle = document.getElementById('theme-toggle');
+      const icon = document.getElementById('theme-icon');
+      const label = document.getElementById('theme-label');
+      function setTheme(theme, persist) {
+        root.dataset.theme = theme;
+        const isDark = theme === 'dark';
+        icon.textContent = isDark ? '\u2606' : '\u263D';
+        label.textContent = isDark ? 'Light' : 'Dark';
+        toggle.setAttribute('aria-pressed', String(!isDark));
+        toggle.setAttribute('aria-label', 'Switch to ' + (isDark ? 'light' : 'dark') + ' mode');
+        if (persist) localStorage.setItem(key, theme);
+      }
+      var saved = localStorage.getItem(key);
+      var hasOverride = saved === 'dark' || saved === 'light';
+      setTheme(hasOverride ? saved : (preferred.matches ? 'dark' : 'light'), false);
+      toggle.addEventListener('click', function () {
+        setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+      });
+      preferred.addEventListener('change', function (e) {
+        if (!localStorage.getItem(key)) setTheme(e.matches ? 'dark' : 'light', false);
+      });
+    })();
+  </script>
+</body>
+</html>

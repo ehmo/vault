@@ -12,7 +12,7 @@
 ### Title & Subtitle
 - [ ] App name reserved in App Store Connect (app.vaultaire.ios)
 - [ ] Title finalized: "Vaultaire: Encrypted Vault" (26/30 chars)
-- [ ] Subtitle finalized (XX/30 chars) -- recommend: "Private Photo & Video Lock" (26/30)
+- [ ] Subtitle finalized (27/30 chars) -- recommend: "Private Photo & File Locker" (27/30)
 - [ ] Promotional text written (XX/170 chars) -- can be updated without new submission
 - [ ] All character limits validated
 
