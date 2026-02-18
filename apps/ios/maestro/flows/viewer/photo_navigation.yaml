@@ -24,6 +24,7 @@ appId: app.vaultaire.ios
     direction: "RIGHT"
 
 # Viewer controls must remain stable after multiple swipes
+# (regression: swiping should not accidentally dismiss to gallery)
 - assertVisible:
     id: "viewer_done"
 

@@ -154,49 +154,192 @@ actor MediaOptimizer {
 
     // MARK: - Video Optimization
 
+    /// Target bitrate tiers for HEVC encoding (bits per second).
+    /// These deliver excellent mobile viewing quality at dramatically lower file sizes.
+    private static let bitrate1080p = 4_000_000  // 4 Mbps — comparable to streaming HD
+    private static let bitrate720p  = 2_500_000  // 2.5 Mbps
+    private static let bitrateSD    = 1_500_000  // 1.5 Mbps
+    private static let audioBitrate = 128_000    // 128 kbps AAC
+
     private func optimizeVideo(fileURL: URL, mimeType: String) async throws -> (URL, String, Bool) {
         let asset = AVURLAsset(url: fileURL)
 
-        // Check if already HEVC at ≤ 1080p — skip if so
+        // Check if already compact enough — skip if bitrate is already low
         if await isAlreadyOptimalVideo(asset) {
+            optimizerLogger.info("Video already optimal, skipping")
             return (fileURL, mimeType, false)
         }
 
-        guard let exportSession = AVAssetExportSession(
-            asset: asset,
-            presetName: AVAssetExportPresetHEVC1920x1080
-        ) else {
-            // Preset not supported — passthrough
-            optimizerLogger.warning("HEVC export preset not available, passing through")
+        guard let videoTrack = try? await asset.loadTracks(withMediaType: .video).first else {
             return (fileURL, mimeType, false)
         }
+
+        let naturalSize = try await videoTrack.load(.naturalSize)
+        let preferredTransform = try await videoTrack.load(.preferredTransform)
+
+        // Calculate output dimensions (max 1080p, preserve aspect ratio)
+        let targetSize = Self.targetVideoSize(from: naturalSize, transform: preferredTransform)
+        let targetBitrate = Self.targetBitrate(for: targetSize)
+
+        optimizerLogger.info("Video transcode: \(Int(naturalSize.width))x\(Int(naturalSize.height)) → \(targetSize.width)x\(targetSize.height) @ \(targetBitrate / 1000) kbps")
 
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("mp4")
 
-        exportSession.outputURL = tempURL
-        exportSession.outputFileType = .mp4
-        exportSession.shouldOptimizeForNetworkUse = true
+        do {
+            // Set up reader
+            let reader = try AVAssetReader(asset: asset)
 
-        await exportSession.export()
+            let videoReaderOutput = AVAssetReaderTrackOutput(track: videoTrack, outputSettings: [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
+            ])
+            videoReaderOutput.alwaysCopiesSampleData = false
+            reader.add(videoReaderOutput)
 
-        guard exportSession.status == .completed else {
-            try? FileManager.default.removeItem(at: tempURL)
-            if let error = exportSession.error {
-                optimizerLogger.error("Video export failed: \(error.localizedDescription, privacy: .public)")
+            // Set up writer
+            let writer = try AVAssetWriter(outputURL: tempURL, fileType: .mp4)
+
+            let videoWriterInput = AVAssetWriterInput(mediaType: .video, outputSettings: [
+                AVVideoCodecKey: AVVideoCodecType.hevc,
+                AVVideoWidthKey: targetSize.width,
+                AVVideoHeightKey: targetSize.height,
+                AVVideoCompressionPropertiesKey: [
+                    AVVideoAverageBitRateKey: targetBitrate,
+                    AVVideoExpectedSourceFrameRateKey: 30,
+                    AVVideoMaxKeyFrameIntervalKey: 60
+                ]
+            ])
+            videoWriterInput.expectsMediaDataInRealTime = false
+            videoWriterInput.transform = preferredTransform
+            writer.add(videoWriterInput)
+
+            // Audio track (if present)
+            var audioReaderOutput: AVAssetReaderTrackOutput?
+            var audioWriterInput: AVAssetWriterInput?
+            if let audioTrack = try? await asset.loadTracks(withMediaType: .audio).first {
+                let audioOutput = AVAssetReaderTrackOutput(track: audioTrack, outputSettings: [
+                    AVFormatIDKey: kAudioFormatLinearPCM,
+                    AVLinearPCMBitDepthKey: 16,
+                    AVLinearPCMIsBigEndianKey: false,
+                    AVLinearPCMIsFloatKey: false,
+                    AVLinearPCMIsNonInterleaved: false
+                ])
+                audioOutput.alwaysCopiesSampleData = false
+                reader.add(audioOutput)
+                audioReaderOutput = audioOutput
+
+                let audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: [
+                    AVFormatIDKey: kAudioFormatMPEG4AAC,
+                    AVEncoderBitRateKey: Self.audioBitrate,
+                    AVSampleRateKey: 44100,
+                    AVNumberOfChannelsKey: 2
+                ])
+                audioInput.expectsMediaDataInRealTime = false
+                writer.add(audioInput)
+                audioWriterInput = audioInput
             }
-            // Fall back to passthrough on export failure
+
+            // Start reading/writing
+            reader.startReading()
+            writer.startWriting()
+            writer.startSession(atSourceTime: .zero)
+
+            // Process video and audio tracks concurrently
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    await Self.transferSamples(from: videoReaderOutput, to: videoWriterInput)
+                }
+                if let audioOutput = audioReaderOutput, let audioInput = audioWriterInput {
+                    group.addTask {
+                        await Self.transferSamples(from: audioOutput, to: audioInput)
+                    }
+                }
+            }
+
+            await writer.finishWriting()
+
+            guard writer.status == .completed else {
+                try? FileManager.default.removeItem(at: tempURL)
+                let errorDesc = writer.error?.localizedDescription ?? "unknown"
+                optimizerLogger.error("Video writer failed: \(errorDesc, privacy: .public)")
+                return (fileURL, mimeType, false)
+            }
+
+            reader.cancelReading()
+        } catch {
+            try? FileManager.default.removeItem(at: tempURL)
+            optimizerLogger.error("Video transcode setup failed: \(error.localizedDescription, privacy: .public)")
             return (fileURL, mimeType, false)
         }
 
         let originalSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int64) ?? 0
         let optimizedSize = (try? FileManager.default.attributesOfItem(atPath: tempURL.path)[.size] as? Int64) ?? 0
-        optimizerLogger.info("Video optimized: \(originalSize) → \(optimizedSize) bytes (\(originalSize > 0 ? Int(100 - (optimizedSize * 100 / originalSize)) : 0)% reduction)")
+
+        // If optimized file isn't meaningfully smaller (< 10% reduction), skip it
+        if originalSize > 0 && optimizedSize >= Int64(Double(originalSize) * 0.9) {
+            try? FileManager.default.removeItem(at: tempURL)
+            optimizerLogger.info("Video transcode yielded < 10% reduction (\(originalSize) → \(optimizedSize)), keeping original")
+            return (fileURL, mimeType, false)
+        }
+
+        let reduction = originalSize > 0 ? Int(100 - (optimizedSize * 100 / originalSize)) : 0
+        optimizerLogger.info("Video optimized: \(originalSize) → \(optimizedSize) bytes (\(reduction)% reduction)")
 
         return (tempURL, "video/mp4", true)
     }
 
+    /// Transfer sample buffers from reader output to writer input using the proper callback pattern.
+    private nonisolated static func transferSamples(from output: AVAssetReaderTrackOutput, to input: AVAssetWriterInput) async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let queue = DispatchQueue(label: "app.vaultaire.transcode.\(output.mediaType.rawValue)")
+            // AVAssetWriterInput/AVAssetReaderTrackOutput are thread-safe for this callback pattern.
+            // The requestMediaDataWhenReady callback is always called on the provided queue serially.
+            nonisolated(unsafe) let output = output
+            nonisolated(unsafe) let input = input
+            input.requestMediaDataWhenReady(on: queue) {
+                while input.isReadyForMoreMediaData {
+                    guard let buffer = output.copyNextSampleBuffer() else {
+                        input.markAsFinished()
+                        continuation.resume()
+                        return
+                    }
+                    input.append(buffer)
+                }
+            }
+        }
+    }
+
+    /// Calculate output video dimensions: cap at 1080p, preserve aspect ratio.
+    private static func targetVideoSize(from naturalSize: CGSize, transform: CGAffineTransform) -> (width: Int, height: Int) {
+        // Apply transform to get actual displayed dimensions (handles rotation)
+        let transformed = naturalSize.applying(transform)
+        let w = abs(transformed.width)
+        let h = abs(transformed.height)
+        let maxDim = max(w, h)
+
+        if maxDim <= 1920 {
+            // Already ≤ 1080p — keep original dimensions (rounded to even)
+            return (Int(w / 2) * 2, Int(h / 2) * 2)
+        }
+
+        let scale = 1920.0 / maxDim
+        // Round to nearest even number (required by video encoder)
+        let newW = Int((w * scale) / 2) * 2
+        let newH = Int((h * scale) / 2) * 2
+        return (max(newW, 2), max(newH, 2))
+    }
+
+    /// Select target bitrate based on output resolution.
+    private static func targetBitrate(for size: (width: Int, height: Int)) -> Int {
+        let maxDim = max(size.width, size.height)
+        if maxDim >= 1080 { return bitrate1080p }
+        if maxDim >= 720 { return bitrate720p }
+        return bitrateSD
+    }
+
+    /// Check if video is already compact enough to skip optimization.
+    /// Skips if HEVC, ≤ 1080p, AND estimated bitrate is already ≤ 5 Mbps.
     private func isAlreadyOptimalVideo(_ asset: AVURLAsset) async -> Bool {
         guard let videoTrack = try? await asset.loadTracks(withMediaType: .video).first else {
             return false
@@ -212,14 +355,26 @@ actor MediaOptimizer {
         // 'hvc1' FourCC = HEVC
         let isHEVC = mediaSubType == 0x68766331
 
+        guard isHEVC else { return false }
+
         // Check resolution
         guard let naturalSize = try? await videoTrack.load(.naturalSize) else {
             return false
         }
         let maxDimension = max(naturalSize.width, naturalSize.height)
-        let isAtMost1080p = maxDimension <= 1920
+        guard maxDimension <= 1920 else { return false }
 
-        return isHEVC && isAtMost1080p
+        // Check bitrate — only skip if already low enough
+        guard let estimatedRate = try? await videoTrack.load(.estimatedDataRate) else {
+            return false
+        }
+        let isLowBitrate = estimatedRate <= 5_000_000 // 5 Mbps threshold
+
+        if !isLowBitrate {
+            optimizerLogger.info("HEVC ≤1080p but bitrate \(Int(estimatedRate / 1000)) kbps exceeds threshold, will re-encode")
+        }
+
+        return isLowBitrate
     }
 
     // MARK: - Errors

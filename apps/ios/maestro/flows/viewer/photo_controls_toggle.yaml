@@ -1,0 +1,36 @@
+appId: app.vaultaire.ios
+---
+# Test tap-to-toggle controls in full screen photo viewer
+- runFlow: ../helpers/launch_with_files.yaml
+
+# Open first photo
+- tapOn:
+    point: "20%, 34%"
+
+# Viewer should be open with controls visible
+- assertVisible:
+    id: "viewer_done"
+
+- assertVisible:
+    id: "viewer_actions"
+
+# Single tap to hide controls
+- tapOn:
+    point: "50%, 50%"
+
+# Controls should be hidden
+- assertNotVisible:
+    id: "viewer_done"
+    optional: true
+
+# Single tap again to show controls
+- tapOn:
+    point: "50%, 50%"
+
+# Controls should be visible again
+- assertVisible:
+    id: "viewer_done"
+
+# Dismiss
+- tapOn:
+    id: "viewer_done"

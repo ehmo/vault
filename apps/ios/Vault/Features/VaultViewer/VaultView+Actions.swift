@@ -211,6 +211,15 @@ extension VaultView {
                     self.masterKey = result.masterKey
                     self.files = items
                     self.isLoading = false
+
+                    // Auto-detect best filter based on vault contents
+                    if !items.isEmpty && self.fileFilter == .all {
+                        let hasNonMedia = items.contains { !$0.isMedia }
+                        if !hasNonMedia {
+                            self.fileFilter = .media
+                        }
+                    }
+
                     EmbraceManager.shared.addBreadcrumb(category: "vault.opened", data: ["fileCount": items.count])
                 }
             } catch {
@@ -480,9 +489,14 @@ extension VaultView {
                 } else {
                     self.toastMessage = .filesImported(imported)
                 }
-                // Switch to All so imported items are visible regardless of current filter
-                if imported > 0 && self.fileFilter != .all && self.fileFilter != .media {
-                    self.fileFilter = .all
+                // Switch filter so imported items are visible
+                if imported > 0 {
+                    let hasNonMedia = self.files.contains { !$0.isMedia }
+                    if hasNonMedia && self.fileFilter == .media {
+                        self.fileFilter = .all
+                    } else if !hasNonMedia && self.fileFilter != .media {
+                        self.fileFilter = .media
+                    }
                 }
             }
 
@@ -685,9 +699,14 @@ extension VaultView {
                 } else {
                     self.toastMessage = .filesImported(imported)
                 }
-                // Switch to All filter so imported files are visible
-                if imported > 0 && self.fileFilter != .all {
-                    self.fileFilter = .all
+                // Switch filter so imported files are visible
+                if imported > 0 {
+                    let hasNonMedia = self.files.contains { !$0.isMedia }
+                    if hasNonMedia && self.fileFilter == .media {
+                        self.fileFilter = .all
+                    } else if !hasNonMedia && self.fileFilter != .media {
+                        self.fileFilter = .media
+                    }
                 }
             }
 
