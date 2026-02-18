@@ -124,6 +124,7 @@ struct VaultView: View {
     @State var limitAlertRemaining = 0
     @State var limitAlertSelected = 0
     @State var activeImportTask: Task<Void, Never>?
+    @State var activeLoadTask: Task<Void, Never>?
     @State var isImportingPendingFiles = false
     let floatingButtonTrailingInset: CGFloat = 15
     let floatingButtonBottomInset: CGFloat = -15

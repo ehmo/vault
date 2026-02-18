@@ -403,9 +403,11 @@ enum CryptoEngine {
         return try encryptStreaming(fileURL: fileURL, originalSize: fileSize, with: key)
     }
 
-    /// Stream-encrypts a file with chunked AES-GCM.
+    /// Stream-encrypts a file with chunked AES-GCM but accumulates entire output in memory.
+    /// Prefer `encryptFileStreamingToHandle` for true O(chunk) memory usage.
     /// Format: [magic 4B][version 1B][chunkSize 4B][totalChunks 4B][originalSize 8B][baseNonce 12B]
     ///         then per chunk: [encryptedChunkSize 4B][AES-GCM encrypted chunk]
+    @available(*, deprecated, message: "Accumulates entire output in memory. Use encryptFileStreamingToHandle for true streaming.")
     static func encryptStreaming(fileURL: URL, originalSize: Int, with key: Data) throws -> Data {
         guard key.count == 32 else { throw CryptoError.keyGenerationFailed }
 

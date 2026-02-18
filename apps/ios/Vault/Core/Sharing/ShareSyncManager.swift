@@ -41,6 +41,15 @@ final class ShareSyncManager {
         self.cloudKit = cloudKit
     }
 
+    #if DEBUG
+    static func createForTesting(
+        storage: VaultStorageProtocol,
+        cloudKit: CloudKitSharingClient
+    ) -> ShareSyncManager {
+        ShareSyncManager(storage: storage, cloudKit: cloudKit)
+    }
+    #endif
+
     // MARK: - Trigger Sync
 
     /// Called when vault files change. Debounces briefly, then syncs to all share targets.

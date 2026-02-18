@@ -218,6 +218,15 @@ final class ShareUploadManager {
         bootstrapJobsFromPendingState()
     }
 
+    #if DEBUG
+    static func createForTesting(
+        storage: VaultStorageProtocol,
+        cloudKit: CloudKitSharingClient
+    ) -> ShareUploadManager {
+        ShareUploadManager(storage: storage, cloudKit: cloudKit)
+    }
+    #endif
+
     // MARK: - Public API
 
     func setVaultKeyProvider(_ provider: @escaping () -> VaultKey?) {

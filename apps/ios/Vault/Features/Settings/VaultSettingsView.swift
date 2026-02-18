@@ -338,7 +338,8 @@ struct VaultSettingsView: View {
         
         Task {
             do {
-                let files = try VaultStorage.shared.listFiles(with: key)
+                let result = try VaultStorage.shared.listFilesLightweight(with: key)
+                let files = result.files
                 let totalSize = files.reduce(0) { $0 + Int64($1.size) }
                 
                 // Check if this is the duress vault

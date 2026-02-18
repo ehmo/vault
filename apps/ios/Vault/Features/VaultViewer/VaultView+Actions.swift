@@ -199,7 +199,9 @@ extension VaultView {
             return
         }
 
-        Task.detached(priority: .userInitiated) {
+        // Cancel prior in-flight load to avoid redundant concurrent decrypts
+        activeLoadTask?.cancel()
+        activeLoadTask = Task.detached(priority: .userInitiated) {
             do {
                 let result = try VaultStorage.shared.listFilesLightweight(with: key)
                 // Store encrypted thumbnails in cache, keep only hasThumbnail flag in items

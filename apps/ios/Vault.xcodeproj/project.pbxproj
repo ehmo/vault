@@ -133,6 +133,9 @@
 		EB0000001 /* EncryptedBlobTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB0000000 /* EncryptedBlobTests.swift */; };
 		FC0000001 /* VaultFullChainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0000000 /* VaultFullChainTests.swift */; };
 		NC0000001 /* NonceChunkSwapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NC0000000 /* NonceChunkSwapTests.swift */; };
+		SST00001 /* ShareSyncManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SST00000 /* ShareSyncManagerTests.swift */; };
+		SUT00001 /* ShareUploadManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SUT00000 /* ShareUploadManagerTests.swift */; };
+		SRT00001 /* ShareRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SRT00000 /* ShareRoundTripTests.swift */; };
 		019000009 /* PatternSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000008 /* PatternSetupCoordinator.swift */; };
 		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
 		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
@@ -323,6 +326,9 @@
 		EB0000000 /* EncryptedBlobTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedBlobTests.swift; sourceTree = "<group>"; };
 		FC0000000 /* VaultFullChainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFullChainTests.swift; sourceTree = "<group>"; };
 		NC0000000 /* NonceChunkSwapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NonceChunkSwapTests.swift; sourceTree = "<group>"; };
+		SST00000 /* ShareSyncManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSyncManagerTests.swift; sourceTree = "<group>"; };
+		SUT00000 /* ShareUploadManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareUploadManagerTests.swift; sourceTree = "<group>"; };
+		SRT00000 /* ShareRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareRoundTripTests.swift; sourceTree = "<group>"; };
 		019000008 /* PatternSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinator.swift; sourceTree = "<group>"; };
 		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
@@ -735,6 +741,9 @@
 				EB0000000 /* EncryptedBlobTests.swift */,
 				FC0000000 /* VaultFullChainTests.swift */,
 				NC0000000 /* NonceChunkSwapTests.swift */,
+				SST00000 /* ShareSyncManagerTests.swift */,
+				SUT00000 /* ShareUploadManagerTests.swift */,
+				SRT00000 /* ShareRoundTripTests.swift */,
 			);
 			path = VaultTests;
 			sourceTree = "<group>";
@@ -1138,6 +1147,9 @@
 				EB0000001 /* EncryptedBlobTests.swift in Sources */,
 				FC0000001 /* VaultFullChainTests.swift in Sources */,
 				NC0000001 /* NonceChunkSwapTests.swift in Sources */,
+				SST00001 /* ShareSyncManagerTests.swift in Sources */,
+				SUT00001 /* ShareUploadManagerTests.swift in Sources */,
+				SRT00001 /* ShareRoundTripTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

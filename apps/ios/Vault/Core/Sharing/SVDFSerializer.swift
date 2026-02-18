@@ -395,6 +395,10 @@ enum SVDFSerializer {
     ///   - metadata: Updated metadata.
     ///   - shareKey: Encryption key for manifest and metadata.
     /// - Returns: The updated SVDF blob and new manifest.
+    /// Maximum prior data size for in-memory incremental build (100 MB).
+    /// Vaults larger than this must use `buildIncrementalStreaming` instead.
+    static let maxInMemoryIncrementalSize = 100 * 1024 * 1024
+
     static func buildIncremental(
         priorData: Data,
         priorManifest: [FileManifestEntry],
@@ -403,6 +407,13 @@ enum SVDFSerializer {
         metadata: SharedVaultData.SharedVaultMetadata,
         shareKey: Data
     ) throws -> (data: Data, manifest: [FileManifestEntry]) {
+        guard priorData.count <= maxInMemoryIncrementalSize else {
+            throw SVDFError.payloadTooLarge(
+                size: priorData.count,
+                limit: maxInMemoryIncrementalSize
+            )
+        }
+
         // Start with all file entry bytes (everything before the old manifest)
         let header = try parseHeader(from: priorData)
         let fileEntriesEnd = Int(header.manifestOffset)
@@ -818,6 +829,7 @@ enum SVDFSerializer {
         case invalidEntry
         case fieldTooLarge(field: String, value: Int, max: Int)
         case negativeField(field: String, value: Int)
+        case payloadTooLarge(size: Int, limit: Int)
 
         var errorDescription: String? {
             switch self {
@@ -827,6 +839,8 @@ enum SVDFSerializer {
             case .invalidEntry: return "Corrupted file entry in SVDF"
             case .fieldTooLarge(let field, let value, let max):
                 return "File metadata is too large for sharing (\(field)=\(value), max \(max))."
+            case .payloadTooLarge(let size, let limit):
+                return "SVDF data too large for in-memory build (\(size) bytes, limit \(limit)). Use buildIncrementalStreaming instead."
             case .negativeField(let field, let value):
                 return "File metadata is invalid for sharing (\(field)=\(value))."
             }
