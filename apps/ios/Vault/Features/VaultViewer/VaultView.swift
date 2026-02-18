@@ -132,6 +132,7 @@ struct VaultView: View {
     var transferManager = BackgroundShareTransferManager.shared
 
     // Shared vault state
+    @State var hasCountedOpenThisSession = false
     @State var isSharedVault = false
     @State var sharePolicy: VaultStorage.SharePolicy?
     @State var sharedVaultId: String?

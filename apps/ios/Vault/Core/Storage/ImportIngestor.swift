@@ -115,10 +115,10 @@ enum ImportIngestor {
             // If the .enc file is missing, this file was already imported in a
             // previous attempt (we delete .enc after each successful import).
             // Count as skipped, not failed — batch cleanup should still proceed.
-            guard StagedImportManager.encryptedFileURL(
+            guard let encryptedFileURL = StagedImportManager.encryptedFileURL(
                 batchId: batch.batchId,
                 fileId: file.fileId
-            ) != nil else {
+            ) else {
                 skipped += 1
                 continue
             }
@@ -133,7 +133,7 @@ enum ImportIngestor {
                     .appendingPathComponent("\(file.fileId.uuidString)_import")
                     .appendingPathExtension(URL(string: file.filename)?.pathExtension ?? "dat")
                 try CryptoEngine.decryptStagedFileToURL(
-                    from: StagedImportManager.encryptedFileURL(batchId: batch.batchId, fileId: file.fileId)!,
+                    from: encryptedFileURL,
                     to: tempURL,
                     with: vaultKey
                 )

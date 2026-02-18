@@ -21,6 +21,7 @@ struct ToastMessage: Equatable {
         return .init(icon: "exclamationmark.triangle", message: msg)
     }
     static func filesDeleted(_ count: Int) -> Self { .init(icon: "trash", message: "\(count) file\(count == 1 ? "" : "s") deleted") }
+    static func error(_ message: String) -> Self { .init(icon: "exclamationmark.triangle.fill", message: message) }
     static func exported() -> Self { .init(icon: "square.and.arrow.up", message: "Exported to Photos") }
     static func milestone(_ text: String) -> Self { .init(icon: "sparkles", message: text) }
 }

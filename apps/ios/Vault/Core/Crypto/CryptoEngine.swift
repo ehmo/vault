@@ -8,6 +8,7 @@ enum CryptoError: Error, LocalizedError {
     case invalidData
     case keyGenerationFailed
     case integrityCheckFailed
+    case chunkOrderingViolation
 
     var errorDescription: String? {
         switch self {
@@ -16,6 +17,7 @@ enum CryptoError: Error, LocalizedError {
         case .invalidData: return "Invalid or corrupted data"
         case .keyGenerationFailed: return "Failed to generate encryption key"
         case .integrityCheckFailed: return "Data integrity check failed"
+        case .chunkOrderingViolation: return "Encrypted chunk ordering has been tampered with"
         }
     }
 }
@@ -328,9 +330,9 @@ enum CryptoEngine {
             let encChunk = data.subdata(in: offset..<(offset + Int(encSize)))
             offset += Int(encSize)
 
-            let nonce = try xorNonce(baseNonceData, with: UInt64(chunkIndex))
-            _ = try AES.GCM.Nonce(data: nonce)
+            let expectedNonce = try AES.GCM.Nonce(data: xorNonce(baseNonceData, with: UInt64(chunkIndex)))
             let sealedBox = try AES.GCM.SealedBox(combined: encChunk)
+            guard Data(sealedBox.nonce) == Data(expectedNonce) else { throw CryptoError.chunkOrderingViolation }
             let decrypted = try AES.GCM.open(sealedBox, using: symmetricKey)
             try handle.write(contentsOf: decrypted)
         }
@@ -373,9 +375,9 @@ enum CryptoEngine {
             let encChunk = try readExact(Int(encSize), from: handle)
             consumedBytes += Int(encSize)
 
-            let nonce = try xorNonce(baseNonceData, with: UInt64(chunkIndex))
-            _ = try AES.GCM.Nonce(data: nonce)
+            let expectedNonce = try AES.GCM.Nonce(data: xorNonce(baseNonceData, with: UInt64(chunkIndex)))
             let sealedBox = try AES.GCM.SealedBox(combined: encChunk)
+            guard Data(sealedBox.nonce) == Data(expectedNonce) else { throw CryptoError.chunkOrderingViolation }
             let decrypted = try AES.GCM.open(sealedBox, using: symmetricKey)
             try outputHandle.write(contentsOf: decrypted)
         }
@@ -482,9 +484,9 @@ enum CryptoEngine {
             let encChunk = data.subdata(in: offset..<(offset + Int(encSize)))
             offset += Int(encSize)
 
-            let nonce = try xorNonce(baseNonceData, with: UInt64(chunkIndex))
-            _ = try AES.GCM.Nonce(data: nonce)
+            let expectedNonce = try AES.GCM.Nonce(data: xorNonce(baseNonceData, with: UInt64(chunkIndex)))
             let sealedBox = try AES.GCM.SealedBox(combined: encChunk)
+            guard Data(sealedBox.nonce) == Data(expectedNonce) else { throw CryptoError.chunkOrderingViolation }
             let decrypted = try AES.GCM.open(sealedBox, using: symmetricKey)
             output.append(decrypted)
         }

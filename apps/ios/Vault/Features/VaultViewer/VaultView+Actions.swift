@@ -33,10 +33,16 @@ extension VaultView {
 
         activeImportTask?.cancel()
         activeImportTask = Task.detached(priority: .userInitiated) {
-            try? VaultStorage.shared.deleteFiles(ids: idsToDelete, with: key) { deleted in
-                Task { @MainActor in
-                    guard !Task.isCancelled else { return }
-                    self.importProgress = (deleted, count)
+            do {
+                try VaultStorage.shared.deleteFiles(ids: idsToDelete, with: key) { deleted in
+                    Task { @MainActor in
+                        guard !Task.isCancelled else { return }
+                        self.importProgress = (deleted, count)
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.toastMessage = .error("Delete failed: \(error.localizedDescription)")
                 }
             }
 
@@ -96,12 +102,18 @@ extension VaultView {
     func deleteFileById(_ id: UUID) {
         guard let key = appState.currentVaultKey else { return }
         Task.detached(priority: .userInitiated) {
-            try? VaultStorage.shared.deleteFile(id: id, with: key)
-            await MainActor.run {
-                if let idx = self.files.firstIndex(where: { $0.id == id }) {
-                    self.files.remove(at: idx)
+            do {
+                try VaultStorage.shared.deleteFile(id: id, with: key)
+                await MainActor.run {
+                    if let idx = self.files.firstIndex(where: { $0.id == id }) {
+                        self.files.remove(at: idx)
+                    }
+                    self.toastMessage = .filesDeleted(1)
                 }
-                self.toastMessage = .filesDeleted(1)
+            } catch {
+                await MainActor.run {
+                    self.toastMessage = .error("Failed to delete file: \(error.localizedDescription)")
+                }
             }
         }
     }

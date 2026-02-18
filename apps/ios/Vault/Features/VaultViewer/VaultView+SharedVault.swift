@@ -87,19 +87,22 @@ extension VaultView {
                     return
                 }
 
-                // Check view count
-                let currentOpens = (index.openCount ?? 0) + 1
-                if let maxOpens = index.sharePolicy?.maxOpens, currentOpens > maxOpens {
-                    await MainActor.run {
-                        selfDestructMessage = "This shared vault has reached its maximum number of opens. All shared files have been removed."
-                        showSelfDestructAlert = true
+                // Check view count — only increment once per unlock session
+                if !hasCountedOpenThisSession {
+                    let currentOpens = (index.openCount ?? 0) + 1
+                    if let maxOpens = index.sharePolicy?.maxOpens, currentOpens > maxOpens {
+                        await MainActor.run {
+                            selfDestructMessage = "This shared vault has reached its maximum number of opens. All shared files have been removed."
+                            showSelfDestructAlert = true
+                        }
+                        return
                     }
-                    return
-                }
 
-                // Increment open count
-                index.openCount = currentOpens
-                try VaultStorage.shared.saveIndex(index, with: key)
+                    // Increment open count
+                    index.openCount = currentOpens
+                    try VaultStorage.shared.saveIndex(index, with: key)
+                    await MainActor.run { hasCountedOpenThisSession = true }
+                }
 
                 // Check for revocation / updates
                 if let vaultId = index.sharedVaultId {
