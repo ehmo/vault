@@ -1,0 +1,675 @@
+Implement the following plan:
+
+# Fix Media Viewer Issues
+
+## Context
+After the VaultViewModel extraction, multiple media viewer bugs surfaced: filter defaulting, image/video centering, video aspect ratio corruption during conversion, and broken zoom. These are regression bugs in the media viewer stack.
+
+## Issues & Root Causes
+
+### 1. Filter defaults to media with documents present
+**File:** `VaultViewModel.swift` lines 186-191
+**Cause:** `loadFiles()` only switches `.all` -> `.media` when vault has only media. If filter was persisted as `.media` from a previous session and user later added documents, it stays `.media` on reload because check requires `fileFilter == .all`.
+**Fix:** Add reverse check: if `fileFilter == .media` AND documents exist, switch to `.all`.
+
+### 2. Image pushed up instead of centered
+**File:** `FullScreenPhotoViewer.swift`
+**Cause:** `GeometryReader` respects safe areas, so `geometry.size` excludes notch (~60pt) and home indicator (~34pt). Image is centered within safe area zone, not the full screen. Since notch > home indicator, the visual center is below the safe-area center, making the image appear pushed up.
+**Fix:** Use `.ignoresSafeArea()` on the content or calculate centering relative to the full screen.
+
+### 3. Video aspect ratio corrupted during conversion
+**File:** `MediaOptimizer.swift` lines 192-214
+**Cause:** Transform applied TWICE:
+1. `targetVideoSize()` applies `preferredTransform` to `naturalSize` to compute writer dimensions (portrait 1920x1080 -> 1080x1920)
+2. `videoWriterInput.transform = preferredTransform` embeds the same rotation again
+Result: writer configured for 1080x1920, but raw pixel buffers are 1920x1080, PLUS rotation metadata applied again.
+**Fix:** Use `naturalSize` directly for writer dimensions (don't apply transform in `targetVideoSize`), keep `videoWriterInput.transform = preferredTransform`. Pixel buffers will match writer dimensions, and transform metadata tells player how to orient.
+
+### 4. Zoom image thrown around screen
+**File:** `ZoomableImageContainer.swift` lines 100-111
+**Cause:** `centerImageView` uses `contentSize * zoomScale` but UIScrollView auto-updates `contentSize` to `imageView.frame.size` (already zoomed) during zoom. This double-counts zoomScale: `fittedSize * zoom * zoom` instead of `fittedSize * zoom`.
+**Fix:** Use `imageView.frame.size` directly (standard Apple approach) instead of `contentSize * zoomScale`.
+
+## Implementation
+
+### A. VaultViewModel.swift
+In `loadFiles()` auto-detect logic, change:
+```swift
+if !items.isEmpty && self.fileFilter == .all {
+    let hasNonMedia = items.contains { !$0.isMedia }
+    if !hasNonMedia { self.setFileFilter(.media) }
+}
+```
+To:
+```swift
+if !items.isEmpty {
+    let hasNonMedia = items.contains { !$0.isMedia }
+    if !hasNonMedia && self.fileFilter == .all {
+        self.setFileFilter(.media)
+    } else if hasNonMedia && self.fileFilter == .media {
+        self.setFileFilter(.all)
+    }
+}
+```
+
+### B. ZoomableImageContainer.swift
+Replace `centerImageView`:
+```swift
+static func centerImageView(_ imageView: UIImageView, in scrollView: UIScrollView) {
+    let boundsSize = scrollView.bounds.size
+    let frameSize = imageView.frame.size
+    let xOffset = max(0, (boundsSize.width - frameSize.width) / 2)
+    let yOffset = max(0, (boundsSize.height - frameSize.height) / 2)
+    imageView.center = CGPoint(
+        x: frameSize.width / 2 + xOffset,
+        y: frameSize.height / 2 + yOffset
+    )
+}
+```
+
+### C. FullScreenPhotoViewer.swift
+Add `.ignoresSafeArea()` to the photo paging content so images are centered on the full screen, not just the safe area zone. The controls overlay already handles safe areas independently with gradient backgrounds.
+
+### D. MediaOptimizer.swift
+In `targetVideoSize`, don't apply the transform to compute dimensions. Use naturalSize directly (with even-number rounding and max 1920 capping). Keep `videoWriterInput.transform = preferredTransform` for orientation metadata.
+
+Change `targetVideoSize`:
+```swift
+private static func targetVideoSize(from naturalSize: CGSize, transform: CGAffineTransform) -> (width: Int, height: Int) {
+    // Use naturalSize directly — the writer transform handles orientation
+    let w = naturalSize.width
+    let h = naturalSize.height
+    let maxDim = max(w, h)
+    // ... same capping/rounding logic ...
+}
+```
+
+### E. Tests
+1. **MediaOptimizerTests:** Add test for portrait video with rotation transform to verify output dimensions match naturalSize (not transformed)
+2. **ZoomableImageContainer centering test:** Verify centering at various zoom levels
+3. **VaultViewModel filter test:** Verify filter auto-detection with mixed file types
+
+## Files to Modify
+- `apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift`
+- `apps/ios/Vault/Features/VaultViewer/ZoomableImageContainer.swift`
+- `apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift`
+- `apps/ios/Vault/Core/Storage/MediaOptimizer.swift`
+- `apps/ios/VaultTests/MediaOptimizerTests.swift` (add portrait video test)
+
+## Verification
+1. Build succeeds with no new warnings
+2. All 394+ existing tests pass
+3. New tests pass
+4. Manual: open vault with mixed media/documents -> filter shows "All"
+5. Manual: open image -> centered on screen, not pushed up
+6. Manual: pinch-to-zoom on image -> smooth, stays centered
+7. Manual: open video -> correct aspect ratio, centered
+8. Push to TestFlight build 83
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Base directory for this skill: /Users/nan/.claude/skills/xcodebuildmcp
+
+# XcodeBuildMCP
+
+Prefer XcodeBuildMCP over raw `xcodebuild`, `xcrun`, or `simctl`.
+
+If a capability is missing, assume your tool list may be hiding tools (search/progressive disclosure) or not loading tool schemas yet. Use your tool-search or “load tools” mechanism. If you still can’t find the tools, ask the user to enable them in the MCP client's configuration.
+
+## Tools (exact names + official descriptions)
+
+### Session defaults
+
+Before you call any other tools, you **must** call `session_show_defaults` to show the current defaults, ensure you then fill in the appropriate missing defaults. You may need to call one or more discovery/list tools to obtain the values needed.
+
+- `session_set_defaults`
+  - Set the session defaults, should be called at least once to set tool defaults.
+- `session_show_defaults`
+  - Show session defaults.
+- `session_clear_defaults`
+  - Clear session defaults.
+
+### Project discovery
+
+- `discover_projs`
+  - Scans a directory (defaults to workspace root) to find Xcode project (.xcodeproj) and workspace (.xcworkspace) files.
+- `list_schemes`
+  - List Xcode schemes.
+- `show_build_settings`
+  - Show build settings.
+- `get_app_bundle_id`
+  - Extract bundle id from .app.
+- `get_mac_bundle_id`
+  - Extract bundle id from macOS .app.
+
+### Simulator
+
+- `boot_sim`
+  - Boot iOS simulator.
+- `list_sims`
+  - List iOS simulators.
+- `open_sim`
+  - Open Simulator app.
+- `build_sim`
+  - Build for iOS sim.
+- `build_run_sim`
+  - Build and run iOS sim.
+- `test_sim`
+  - Test on iOS sim.
+- `get_sim_app_path`
+  - Get sim built app path.
+- `install_app_sim`
+  - Install app on sim.
+- `launch_app_sim`
+  - Launch app on simulator.
+- `launch_app_logs_sim`
+  - Launch sim app with logs.
+- `stop_app_sim`
+  - Stop sim app.
+- `record_sim_video`
+  - Record sim video.
+
+### Simulator management
+
+- `erase_sims`
+  - Erase simulator.
+- `set_sim_location`
+  - Set sim location.
+- `reset_sim_location`
+  - Reset sim location.
+- `set_sim_appearance`
+  - Set sim appearance.
+- `sim_statusbar`
+  - Set sim status bar network.
+
+### Device
+
+- `list_devices`
+  - List connected devices.
+- `build_device`
+  - Build for device.
+- `test_device`
+  - Test on device.
+- `get_device_app_path`
+  - Get device built app path.
+- `install_app_device`
+  - Install app on device.
+- `launch_app_device`
+  - Launch app on device.
+- `stop_app_device`
+  - Stop device app.
+
+### macOS
+
+- `build_macos`
+  - Build macOS app.
+- `build_run_macos`
+  - Build and run macOS app.
+- `test_macos`
+  - Test macOS target.
+- `get_mac_app_path`
+  - Get macOS built app path.
+- `launch_mac_app`
+  - Launch macOS app.
+- `stop_mac_app`
+  - Stop macOS app.
+
+### Logging
+
+- `start_device_log_cap`
+  - Start device log capture.
+- `start_sim_log_cap`
+  - Start sim log capture.
+- `stop_device_log_cap`
+  - Stop device log capture.
+- `stop_sim_log_cap`
+  - Stop sim log capture.
+
+### Debugging
+
+- `debug_attach_sim`
+  - Attach LLDB to sim app.
+- `debug_breakpoint_add`
+  - Add breakpoint.
+- `debug_breakpoint_remove`
+  - Remove breakpoint.
+- `debug_continue`
+  - Continue debug session.
+- `debug_detach`
+  - Detach debugger.
+- `debug_lldb_command`
+  - Run LLDB command.
+- `debug_stack`
+  - Get backtrace.
+- `debug_variables`
+  - Get frame variables.
+
+### UI automation
+
+- `button`
+  - Press simulator hardware button.
+- `gesture`
+  - Simulator gesture preset.
+- `key_press`
+  - Press key by keycode.
+- `key_sequence`
+  - Press a sequence of keys by their keycodes.
+- `long_press`
+  - Long press at coords.
+- `screenshot`
+  - Capture screenshot.
+- `snapshot_ui`
+  - Print view hierarchy with precise view coordinates (x, y, width, height) for visible elements.
+- `swipe`
+  - Swipe between points.
+- `tap`
+  - Tap coordinate or element.
+- `touch`
+  - Touch down/up at coords.
+- `type_text`
+  - Type text.
+
+### SwiftPM
+
+- `swift_package_build`
+  - swift package target build.
+- `swift_package_clean`
+  - swift package clean.
+- `swift_package_list`
+  - List SwiftPM processes.
+- `swift_package_run`
+  - swift package target run.
+- `swift_package_stop`
+  - Stop SwiftPM run.
+- `swift_package_test`
+  - Run swift package target tests.
+
+### Scaffolding / utilities
+
+- `scaffold_ios_project`
+  - Scaffold iOS project.
+- `scaffold_macos_project`
+  - Scaffold macOS project.
+- `clean`
+  - Clean build products.
+
+### Diagnostics
+
+- `doctor`
+  - MCP environment info.
+- `manage_workflows`
+  - Workflows are groups of tools exposed by XcodeBuildMCP. By default, not all workflows (and therefore tools) are enabled; only simulator tools are enabled by default. Some workflows are mandatory and can't be disabled.
+
+---
+
+Push to testflight
+
+---
+
+Base directory for this skill: /Users/nan/.claude/skills/asc-xcode-build
+
+# Xcode Build and Export
+
+Use this skill when you need to build an app from source and prepare it for upload to App Store Connect.
+
+## Preconditions
+- Xcode installed and command line tools configured
+- Valid signing identity and provisioning profiles (or automatic signing enabled)
+
+## iOS Build Flow
+
+### 1. Clean and Archive
+```bash
+xcodebuild clean archive \
+  -scheme "YourScheme" \
+  -configuration Release \
+  -archivePath /tmp/YourApp.xcarchive \
+  -destination "generic/platform=iOS"
+```
+
+### 2. Export IPA
+```bash
+xcodebuild -exportArchive \
+  -archivePath /tmp/YourApp.xcarchive \
+  -exportPath /tmp/YourAppExport \
+  -exportOptionsPlist ExportOptions.plist \
+  -allowProvisioningUpdates
+```
+
+A minimal `ExportOptions.plist` for App Store distribution:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>app-store-connect</string>
+    <key>teamID</key>
+    <string>YOUR_TEAM_ID</string>
+</dict>
+</plist>
+```
+
+### 3. Upload with asc
+```bash
+asc builds upload --app "APP_ID" --ipa "/tmp/YourAppExport/YourApp.ipa"
+```
+
+## macOS Build Flow
+
+### 1. Archive
+```bash
+xcodebuild archive \
+  -scheme "YourMacScheme" \
+  -configuration Release \
+  -archivePath /tmp/YourMacApp.xcarchive \
+  -destination "generic/platform=macOS"
+```
+
+### 2. Export PKG
+```bash
+xcodebuild -exportArchive \
+  -archivePath /tmp/YourMacApp.xcarchive \
+  -exportPath /tmp/YourMacAppExport \
+  -exportOptionsPlist ExportOptions.plist \
+  -allowProvisioningUpdates
+```
+
+### 3. Upload PKG
+macOS apps export as `.pkg` files. Use `xcrun altool`:
+```bash
+xcrun altool --upload-app \
+  -f "/tmp/YourMacAppExport/YourApp.pkg" \
+  --type macos \
+  --apiKey "$ASC_KEY_ID" \
+  --apiIssuer "$ASC_ISSUER_ID"
+```
+
+Note: The API key file must be in `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8`
+
+## Build Number Management
+
+Each upload requires a unique build number higher than previously uploaded builds.
+
+In Xcode project settings:
+- `CURRENT_PROJECT_VERSION` - build number (e.g., "316")
+- `MARKETING_VERSION` - version string (e.g., "2.2.0")
+
+Check existing builds:
+```bash
+asc builds list --app "APP_ID" --platform IOS --limit 5
+```
+
+## Troubleshooting
+
+### "No profiles for bundle ID" during export
+- Add `-allowProvisioningUpdates` flag
+- Verify your Apple ID is logged into Xcode
+
+### Build rejected for missing icon (macOS)
+macOS requires ICNS format icons with all sizes:
+- 16x16, 32x32, 128x128, 256x256, 512x512 (1x and 2x)
+
+### CFBundleVersion too low
+The build number must be higher than any previously uploaded build. Increment `CURRENT_PROJECT_VERSION` and rebuild.
+
+## Notes
+- Always clean before archive for release builds
+- Use `xcodebuild -showBuildSettings` to verify configuration
+- For submission issues (encryption, content rights), see `asc-submission-health` skill
+
+---
+
+The import is now completely broken /Users/nan/Downloads/ScreenRecording_02-18-2026\ 00-04-04_1.MP4
+
+Why do we have tests if these kind of things are not caught?
+
+---
+
+[Image: original 1260x2736, displayed at 921x2000. Multiply coordinates by 1.37 to map to original image.]
+
+---
+
+[Image: original 1260x2736, displayed at 921x2000. Multiply coordinates by 1.37 to map to original image.]
+
+---
+
+[Image: original 1260x2736, displayed at 921x2000. Multiply coordinates by 1.37 to map to original image.]
+
+---
+
+[Image: original 1260x2736, displayed at 921x2000. Multiply coordinates by 1.37 to map to original image.]
+
+---
+
+[Image: original 1260x2736, displayed at 921x2000. Multiply coordinates by 1.37 to map to original image.]
+
+---
+
+[Image: original 1260x2736, displayed at 921x2000. Multiply coordinates by 1.37 to map to original image.]
+
+---
+
+[Image: original 1260x2736, displayed at 921x2000. Multiply coordinates by 1.37 to map to original image.]
+
+---
+
+[Image: original 1260x2736, displayed at 921x2000. Multiply coordinates by 1.37 to map to original image.]
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial Plan**: User provided a detailed plan to fix 5 media viewer issues in the Vaultaire iOS app:
+   - Filter defaults to media with documents present (VaultViewModel.swift)
+   - Image pushed up instead of centered (FullScreenPhotoViewer.swift)
+   - Video aspect ratio corrupted during conversion (MediaOptimizer.swift)
+   - Zoom image thrown around screen (ZoomableImageContainer.swift)
+   - Tests needed for the fixes
+
+2. **Implementation Phase**: I read all relevant files and implemented 4 code fixes:
+   - VaultViewModel.swift: Changed filter auto-detection in `loadFiles()` to add reverse check
+   - ZoomableImageContainer.swift: Changed `centerImageView` to use `imageView.frame.size` instead of `contentSize * zoomScale`
+   - FullScreenPhotoViewer.swift: Added `.ignoresSafeArea()` to photo paging ScrollView
+   - MediaOptimizer.swift: Changed `targetVideoSize` to use `naturalSize` directly instead of applying transform
+
+3. **User reported search bug**: While tests were running, user reported that searching "Ge" returns all files. I discovered that `localizedStandardContains("Ge")` was matching "ge" in "image/heic" mimeType. Fixed by removing mimeType from the search filter.
+
+4. **Tests passed**: All 33 targeted tests passed (22 MediaOptimizer + 11 ZoomableImageContainer). Full test suite: all unit tests passed, only 2 pre-existing UI test flakes failed.
+
+5. **Committed and pushed**: Commit `2ec0458` with all fixes.
+
+6. **TestFlight push**: User asked to push to TestFlight. Bumped build 82→83, archived, exported, uploaded successfully. Commit `d77c790`.
+
+7. **Import broken report**: User reported import is "completely broken" with a screen recording showing:
+   - Fresh vault "SPMHIL" created
+   - 9 photos selected from picker
+   - Import progress shows (1/9, 3/9, 5/9)
+   - After import completes, vault returns to empty state
+   - No toast message visible
+   - User was screen recording (red dot visible in all frames)
+
+8. **Investigation of import bug**: Extensive investigation including:
+   - Checked if my changes could affect import flow (they shouldn't)
+   - Found screen recording detection that calls `lockVault()` but ruled it out (recording was already active before vault was opened, notification only fires on state CHANGE)
+   - Checked `handleVaultKeyChange` which cancels import and clears files
+   - Reviewed the reactivity fix in commit `1d62f6d` that changed from explicit `.onChange(of: viewModel.files)` handlers to relying on `@Observable` tracking
+   - Checked for race conditions between `activeLoadTask` and `activeImportTask`
+   - Was about to check how VaultView is instantiated in the parent view (to check if `@State` reset could be the issue)
+   - The investigation was still ongoing when the summary was requested
+
+Key findings during investigation:
+- The commit `1d62f6d` removed explicit `.onChange(of: viewModel.files)` that called `recomputeVisibleFiles()` and replaced it with relying on `@Observable` tracking via `computeVisibleFiles()` called directly in `body`
+- This means if `@Observable` tracking doesn't properly detect `files` mutations from `Task.detached { await MainActor.run { self.files.append(...) } }`, the view wouldn't update
+- OR if the parent view recreates VaultView (causing `@State var viewModel = VaultViewModel()` to reinitialize), all in-memory files would be lost
+- I was in the middle of checking how VaultView is instantiated by searching for `VaultView()` in the parent ContentView when the conversation was interrupted
+
+The user expressed frustration: "Why do we have tests if these kind of things are not caught?" - valid concern that unit tests don't cover the full import-to-display flow.
+
+Summary:
+1. Primary Request and Intent:
+   - User asked to implement a plan fixing 5 media viewer bugs: filter defaulting, image centering, video aspect ratio, zoom centering, and broken search
+   - User then asked to push to TestFlight (build 83)
+   - User then reported that import is "completely broken" on fresh vaults — files import with progress but vault shows empty state after completion. User is frustrated that tests didn't catch this regression.
+
+2. Key Technical Concepts:
+   - SwiftUI `@Observable` macro and observation tracking for reactive view updates
+   - `@State var viewModel = VaultViewModel()` — view-owned observable class instance
+   - `Task.detached { await MainActor.run { ... } }` pattern for off-main-thread work with main-actor UI updates
+   - `UIScreen.capturedDidChangeNotification` for screen recording detection → vault locking
+   - `computeVisibleFiles()` called directly in SwiftUI `body` (relies on `@Observable` tracking) vs old `cachedVisibleFiles` pattern (explicit `.onChange` handlers)
+   - `PHPickerViewController` for photo selection and import flow
+   - AVAssetWriter/Reader for video transcoding with `preferredTransform` vs `naturalSize`
+   - `localizedStandardContains` — case/diacritic-insensitive search that matched "Ge" in "image/heic"
+
+3. Files and Code Sections:
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift`**
+     - Core view model for the vault. Contains filter logic, import logic, file management.
+     - **Change 1 — Filter auto-detection in `loadFiles()`** (line ~185):
+       ```swift
+       // Before:
+       if !items.isEmpty && self.fileFilter == .all {
+           let hasNonMedia = items.contains { !$0.isMedia }
+           if !hasNonMedia { self.setFileFilter(.media) }
+       }
+       // After:
+       if !items.isEmpty {
+           let hasNonMedia = items.contains { !$0.isMedia }
+           if !hasNonMedia && self.fileFilter == .all {
+               self.setFileFilter(.media)
+           } else if hasNonMedia && self.fileFilter == .media {
+               self.setFileFilter(.all)
+           }
+       }
+       ```
+     - **Change 2 — Search filter** (line ~101): Removed mimeType from search:
+       ```swift
+       // Before:
+       ($0.filename ?? "").localizedStandardContains(searchText) ||
+       ($0.mimeType ?? "").localizedStandardContains(searchText)
+       // After:
+       ($0.filename ?? "").localizedStandardContains(searchText)
+       ```
+     - **Key import code** — `performPhotoImport()` uses `Task.detached` with `await MainActor.run { self.files.append(...) }` pattern. After import: `updateFilterAfterImport()` sets filter, `importProgress = nil`.
+     - `@State var viewModel = VaultViewModel()` in VaultView (line 99) — if the view identity changes, this recreates the viewModel, losing all in-memory files.
+
+   - **`apps/ios/Vault/Features/VaultViewer/ZoomableImageContainer.swift`**
+     - UIScrollView-based zoomable image with pinch-to-zoom.
+     - **Changed `centerImageView`** to use `imageView.frame.size` directly (standard Apple approach) instead of `contentSize * zoomScale` which double-counted zoom:
+       ```swift
+       static func centerImageView(_ imageView: UIImageView, in scrollView: UIScrollView) {
+           let boundsSize = scrollView.bounds.size
+           let frameSize = imageView.frame.size
+           let xOffset = max(0, (boundsSize.width - frameSize.width) / 2)
+           let yOffset = max(0, (boundsSize.height - frameSize.height) / 2)
+           imageView.center = CGPoint(
+               x: frameSize.width / 2 + xOffset,
+               y: frameSize.height / 2 + yOffset
+           )
+       }
+       ```
+
+   - **`apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift`**
+     - Full-screen photo viewer with paging ScrollView.
+     - **Added `.ignoresSafeArea()`** to the photo paging ScrollView (after `.scrollDisabled(isZoomed)`) so images center relative to full screen, not just safe area.
+
+   - **`apps/ios/Vault/Core/Storage/MediaOptimizer.swift`**
+     - Media optimization for vault storage (HEIC images, HEVC video).
+     - **Changed `targetVideoSize`** to not apply transform to naturalSize:
+       ```swift
+       // Before: Applied transform causing double-rotation
+       let transformed = naturalSize.applying(transform)
+       let w = abs(transformed.width)
+       let h = abs(transformed.height)
+       // After: Use naturalSize directly, writer transform handles orientation
+       let w = naturalSize.width
+       let h = naturalSize.height
+       ```
+
+   - **`apps/ios/VaultTests/MediaOptimizerTests.swift`**
+     - Added `testPortraitVideoPreservesNaturalSize()` test with rotated video
+     - Updated `createMinimalVideo()` helper to accept `width`, `height`, `rotated` parameters
+
+   - **`apps/ios/VaultTests/ZoomableImageContainerTests.swift`**
+     - Updated `testCenterImageViewAtZoomScale()` test to match new centering logic (imageView.frame already scaled by UIScrollView at zoom time)
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView.swift`** (read-only)
+     - Line 99: `@State var viewModel = VaultViewModel()` — view-owned
+     - Line 332: `let visible = viewModel.computeVisibleFiles()` — computed each body eval
+     - Lines 138-156: `mainContentView` checks `viewModel.files.isEmpty` for empty state
+     - Lines 189-197: Import progress overlay on `navigationContent`
+     - Lines 351-355: `onChange(of: showingPhotoPicker)` only sets `suppressLockForShareSheet`
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView+Grid.swift`** (read-only)
+     - `fileGridContentView` requires `viewModel.masterKey` to be non-nil to show the grid
+
+   - **`apps/ios/Vault/App/ContentView.swift`** (read-only)
+     - Line 115-124: Screen recording detection → `appState.lockVault()` which sets `currentVaultKey = nil`
+     - Line 129-136: Background lock with `suppressLockForShareSheet` check
+
+   - **Key commit `1d62f6d`** (reactivity fix diff reviewed):
+     - Removed `.onChange(of: viewModel.files)` and other explicit `.onChange` handlers
+     - Changed from `viewModel.cachedVisibleFiles` to `viewModel.computeVisibleFiles()` in body
+     - This means the view now relies entirely on `@Observable` tracking for reactivity
+
+4. Errors and fixes:
+   - **Search returning wrong results**: User reported searching "Ge" showed all files. Root cause: `localizedStandardContains("Ge")` matched "ge" in "image/heic" mimeType. Fixed by removing mimeType from search filter, keeping only filename search.
+   - **SourceKit false positives**: After edits, SourceKit reported "No such module 'UIKit'" and other errors. These are IDE index issues, not real build errors. Ignored them.
+   - **Pre-existing UI test failures**: `VaultViewerSeededUITests` (2 tests) failed because they require a pre-seeded vault. Not related to changes.
+   - **Import completely broken** (UNRESOLVED): After pushing build 83, user reported fresh vault import shows progress but ends with empty state. Investigation ongoing — no root cause identified yet.
+
+5. Problem Solving:
+   - **Solved**: 5 media viewer bugs (filter default, image centering, video aspect ratio, zoom centering, search filtering)
+   - **Solved**: TestFlight build 83 uploaded successfully
+   - **Ongoing**: Import broken on fresh vaults. Extensive investigation explored:
+     - Screen recording lock (ruled out — recording was active before vault opened, notification only fires on state CHANGE)
+     - Race conditions between `activeLoadTask` and `activeImportTask` (unlikely — load completes before user can trigger import)
+     - `handleVaultKeyChange` clearing files (no trigger found during import)
+     - `@Observable` tracking not detecting `files.append()` from `Task.detached { await MainActor.run { ... } }` (possible but should work)
+     - Parent view recreating VaultView causing `@State` reset (was investigating this when interrupted)
+     - All imports silently failing (possible — progress updates on both success and failure paths)
+     - Was searching for `VaultView()` instantiation in parent to check if view identity changes could cause `@State` reset
+
+6. All user messages:
+   - "Implement the following plan: [detailed 5-bug fix plan for media viewer]"
+   - "The search doesn't return the proper files. If you look at this image I am searching for 'Ge' but the files being found do not contain that substring." [with screenshot]
+   - "Push to testflight"
+   - "The import is now completely broken [video path]. Why do we have tests if these kind of things are not caught?" [with screen recording showing fresh vault import failing]
+
+7. Pending Tasks:
+   - **Fix the import bug**: The most critical pending task. Import appears to work (progress shows) but vault returns to empty state after completion on fresh vaults.
+   - **Update `.scratch-pad.md`**: Per project AGENTS.md, should update scratch pad with session learnings at session end.
+   - **Session close protocol**: Need to commit any remaining changes, sync beads, push to remote.
+   - **Potentially rebuild and push new TestFlight** once import bug is fixed.
+
+8. Current Work:
+   Investigating why import is broken on fresh vaults. The user's screen recording shows:
+   - Fresh vault "SPMHIL" created
+   - 9 photos selected and import starts with progress (1/9 → 5/9 visible)
+   - After import completes, vault shows empty state (walkthrough cards + "Protect Your First Files" button)
+   - No toast message visible
+   
+   I was in the middle of checking how VaultView is instantiated by searching for `VaultView()` in the parent ContentView. The search `Grep for "VaultView\(\)"` in the App directory returned no matches. The next step would be to search more broadly or check ContentView.swift directly to see if VaultView's identity could change during/after the photo picker flow (which would reset `@State var viewModel = VaultViewModel()` and lose all in-memory imported files).
+
+   Key theories still open:
+   1. Parent view recreating VaultView (resetting `@State`) — was actively investigating
+   2. `@Observable` not detecting mutations from `Task.detached { await MainActor.run {} }` 
+   3. All 9 imports silently failing (storeFileFromURL throwing) — no files ever appended
+
+9. Optional Next Step:
+   Continue investigating the import bug. Specifically:
+   - Search for how VaultView is instantiated: `Grep for "VaultView"` in ContentView.swift to check if the view identity could change (causing `@State` reset)
+   - If that's not the issue, add debug logging to `performPhotoImport` to capture: files.count after each append, successCount/failedCount at completion, and whether the completion handler runs
+   - Consider reverting to the explicit `.onChange(of: viewModel.files)` pattern from before commit `1d62f6d` as a potential fix if `@Observable` tracking is the root cause
+
+   User's exact words: "The import is now completely broken" and "Why do we have tests if these kind of things are not caught?"
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
