@@ -35,12 +35,12 @@ extension VaultView {
 
     // MARK: - Top Safe Area Inset
 
-    var topSafeAreaContent: some View {
+    func topSafeAreaContent(visible: VisibleFiles) -> some View {
         VStack(spacing: 8) {
             if !files.isEmpty && !showingSettings {
                 HStack(spacing: 8) {
                     if isEditing {
-                        editModeControls
+                        editModeControls(visible: visible)
                     } else {
                         searchAndFilterControls
                     }
@@ -64,19 +64,20 @@ extension VaultView {
 
     // MARK: - Edit Mode Controls
 
-    private var editModeControls: some View {
-        Group {
+    private func editModeControls(visible: VisibleFiles) -> some View {
+        let allVisible = visible.all
+        return Group {
             // Select All / Deselect All button
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
-                    if selectedIds.count == sortedFiles.count {
+                    if selectedIds.count == allVisible.count {
                         selectedIds.removeAll()
                     } else {
-                        selectedIds = Set(sortedFiles.map(\.id))
+                        selectedIds = Set(allVisible.map(\.id))
                     }
                 }
             } label: {
-                Text(selectedIds.count == sortedFiles.count ? "Deselect All" : "Select All (\(sortedFiles.count))")
+                Text(selectedIds.count == allVisible.count ? "Deselect All" : "Select All (\(allVisible.count))")
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
                     .padding(.horizontal, 12)
@@ -156,7 +157,7 @@ extension VaultView {
                     }
                 }
             } label: {
-                Image(systemName: fileFilter == .media ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
+                Image(systemName: fileFilter == .all ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
                     .fontWeight(.medium)
                     .padding(10)
                     .vaultGlassBackground(cornerRadius: 12)

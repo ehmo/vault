@@ -107,7 +107,7 @@ struct VaultView: View {
     @State var showingSettings = false
     @State var isLoading = true
     @State var searchText = ""
-    @State var fileFilter: FileFilter = .media
+    @AppStorage("vaultFileFilter") var fileFilter: FileFilter = .all
     @State var sortOrder: SortOrder = .dateNewest
     @State var isEditing = false
     @State var selectedIds: Set<UUID> = []
@@ -194,10 +194,6 @@ struct VaultView: View {
         )
     }
 
-    var sortedFiles: [VaultFileItem] {
-        computeVisibleFiles().all
-    }
-
     var useDateGrouping: Bool {
         sortOrder == .dateNewest || sortOrder == .dateOldest
     }
@@ -246,7 +242,7 @@ struct VaultView: View {
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
-                topSafeAreaContent
+                topSafeAreaContent(visible: visible)
             }
             .safeAreaInset(edge: .bottom) {
                 if isEditing && !selectedIds.isEmpty && !files.isEmpty && !showingSettings {

@@ -434,9 +434,9 @@ extension VaultView {
                 } else {
                     self.toastMessage = .filesImported(imported)
                 }
-                // Switch to Media filter so imported photos/videos are visible
-                if imported > 0 && self.fileFilter == .documents {
-                    self.fileFilter = .media
+                // Switch to All so imported items are visible regardless of current filter
+                if imported > 0 && self.fileFilter != .all && self.fileFilter != .media {
+                    self.fileFilter = .all
                 }
             }
 
