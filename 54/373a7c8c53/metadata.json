@@ -7,9 +7,14 @@
   "files_touched": [
     "apps/ios/Vault.xcodeproj/project.pbxproj",
     "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Storage/MediaOptimizer.swift",
+    "apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift",
     "apps/ios/Vault/Features/VaultViewer/VaultView+Toolbar.swift",
     "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
-    "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift"
+    "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift",
+    "apps/ios/Vault/Features/VaultViewer/ZoomableImageContainer.swift",
+    "apps/ios/VaultTests/MediaOptimizerTests.swift",
+    "apps/ios/VaultTests/ZoomableImageContainerTests.swift"
   ],
   "sessions": [
     {
@@ -18,13 +23,20 @@
       "context": "/54/373a7c8c53/0/context.md",
       "content_hash": "/54/373a7c8c53/0/content_hash.txt",
       "prompt": "/54/373a7c8c53/0/prompt.txt"
+    },
+    {
+      "metadata": "/54/373a7c8c53/1/metadata.json",
+      "transcript": "/54/373a7c8c53/1/full.jsonl",
+      "context": "/54/373a7c8c53/1/context.md",
+      "content_hash": "/54/373a7c8c53/1/content_hash.txt",
+      "prompt": "/54/373a7c8c53/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 61,
-    "cache_creation_tokens": 136646,
-    "cache_read_tokens": 4603830,
-    "output_tokens": 907,
-    "api_call_count": 43
+    "input_tokens": 83,
+    "cache_creation_tokens": 199302,
+    "cache_read_tokens": 5703311,
+    "output_tokens": 1307,
+    "api_call_count": 60
   }
 }
