@@ -13,6 +13,7 @@ enum CloudKitSharingError: Error, LocalizedError {
     case invalidData
     case alreadyClaimed
     case revoked
+    case networkError
 
     var errorDescription: String? {
         switch self {
@@ -25,6 +26,7 @@ enum CloudKitSharingError: Error, LocalizedError {
         case .invalidData: return "Invalid vault data"
         case .alreadyClaimed: return "This share phrase has already been used"
         case .revoked: return "Access to this vault has been revoked"
+        case .networkError: return "Can't verify phrase — check your connection and try again"
         }
     }
 }
@@ -93,8 +95,8 @@ final class CloudKitSharingManager {
         } catch let error as CKError where error.code == .unknownItem {
             return .failure(.vaultNotFound)
         } catch {
-            // Network error — don't block the user; let them proceed
-            return .success(())
+            // Network error — surface it so user knows verification failed
+            return .failure(.networkError)
         }
     }
 
