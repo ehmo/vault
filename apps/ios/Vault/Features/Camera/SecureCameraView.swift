@@ -179,7 +179,10 @@ final class CameraPreviewUIView: UIView {
     override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
 
     var previewLayer: AVCaptureVideoPreviewLayer {
-        layer as! AVCaptureVideoPreviewLayer
+        guard let previewLayer = layer as? AVCaptureVideoPreviewLayer else {
+            fatalError("CameraPreviewUIView: layer is not AVCaptureVideoPreviewLayer")
+        }
+        return previewLayer
     }
 
     override init(frame: CGRect) {

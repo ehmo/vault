@@ -145,7 +145,7 @@ final class MediaOptimizerTests: XCTestCase {
         // Create a larger image for more noticeable compression
         let jpegURL = try createTempJPEG(size: CGSize(width: 1000, height: 1000))
         defer { try? FileManager.default.removeItem(at: jpegURL) }
-        let originalSize = try FileManager.default.attributesOfItem(atPath: jpegURL.path)[.size] as! Int64
+        let originalSize = try FileManager.default.attributesOfItem(atPath: jpegURL.path)[.size] as? Int64 ?? 0
 
         let (outputURL, _, wasOptimized) = try await MediaOptimizer.shared.optimize(
             fileURL: jpegURL, mimeType: "image/jpeg", mode: .optimized
@@ -153,7 +153,7 @@ final class MediaOptimizerTests: XCTestCase {
         defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
 
         XCTAssertTrue(wasOptimized)
-        let optimizedSize = try FileManager.default.attributesOfItem(atPath: outputURL.path)[.size] as! Int64
+        let optimizedSize = try FileManager.default.attributesOfItem(atPath: outputURL.path)[.size] as? Int64 ?? 0
         XCTAssertLessThan(optimizedSize, originalSize, "HEIC output should be smaller than JPEG input")
     }
 

@@ -874,18 +874,27 @@ final class VaultViewModel {
 
             if let vaultId = index.sharedVaultId {
                 Task {
-                    try? await CloudKitSharingManager.shared.markShareConsumed(shareVaultId: vaultId)
+                    do {
+                        try await CloudKitSharingManager.shared.markShareConsumed(shareVaultId: vaultId)
+                    } catch {
+                        vmLogger.error("Failed to mark share consumed during self-destruct: \(error.localizedDescription, privacy: .public)")
+                        EmbraceManager.shared.captureError(error, context: ["action": "markShareConsumed", "vaultId": vaultId])
+                    }
                 }
             }
 
             for file in index.files where !file.isDeleted {
-                try? VaultStorage.shared.deleteFile(id: file.fileId, with: key)
+                do {
+                    try VaultStorage.shared.deleteFile(id: file.fileId, with: key)
+                } catch {
+                    vmLogger.error("Failed to delete file during self-destruct \(file.fileId, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                    EmbraceManager.shared.captureError(error, context: ["action": "deleteFile", "fileId": file.fileId])
+                }
             }
             try VaultStorage.shared.deleteVaultIndex(for: key)
         } catch {
-            #if DEBUG
-            print("❌ [VaultViewModel] Self-destruct error: \(error)")
-            #endif
+            vmLogger.error("Self-destruct error: \(error.localizedDescription, privacy: .public)")
+            EmbraceManager.shared.captureError(error, context: ["action": "selfDestruct"])
         }
 
         appState?.lockVault()

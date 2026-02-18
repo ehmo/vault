@@ -2,6 +2,9 @@ import Foundation
 import AVFoundation
 import UIKit
 import Observation
+import OSLog
+
+private let cameraLogger = Logger(subsystem: "app.vaultaire.ios", category: "CameraManager")
 
 protocol CameraManagerDelegate: AnyObject {
     func cameraManager(_ manager: CameraManager, didChangeAuthorization status: AVAuthorizationStatus)
@@ -121,7 +124,7 @@ final class CameraManager: NSObject, @unchecked Sendable {
             // Choose camera first
             let desiredPosition: AVCaptureDevice.Position = preferFrontCamera ? .front : .back
             guard let videoDevice = self.device(for: desiredPosition) ?? self.device(for: .back) else {
-                print("CameraManager: No video device available for position \(desiredPosition)")
+                cameraLogger.warning("No video device available for position \(String(describing: desiredPosition), privacy: .public)")
                 return
             }
 
@@ -138,11 +141,11 @@ final class CameraManager: NSObject, @unchecked Sendable {
                     self.session.addInput(videoInput)
                     self.videoDeviceInput = videoInput
                 } else {
-                    print("CameraManager: Cannot add video input")
+                    cameraLogger.error("Cannot add video input")
                     return
                 }
             } catch {
-                print("CameraManager: Failed to create video input: \(error)")
+                cameraLogger.error("Failed to create video input: \(error.localizedDescription, privacy: .public)")
                 return
             }
 
@@ -151,7 +154,7 @@ final class CameraManager: NSObject, @unchecked Sendable {
                 if self.session.canAddOutput(self.photoOutput) {
                     self.session.addOutput(self.photoOutput)
                 } else {
-                    print("CameraManager: Cannot add photo output")
+                    cameraLogger.error("Cannot add photo output")
                 }
             }
             
@@ -161,9 +164,9 @@ final class CameraManager: NSObject, @unchecked Sendable {
                 self.session.sessionPreset = .photo
             } else if self.session.canSetSessionPreset(.high) {
                 self.session.sessionPreset = .high
-                print("CameraManager: Using .high preset instead of .photo")
+                cameraLogger.info("Using .high preset instead of .photo")
             } else {
-                print("CameraManager: Cannot set .photo or .high preset, using default")
+                cameraLogger.warning("Cannot set .photo or .high preset, using default")
             }
             
             // Configure photo output settings based on device capabilities
@@ -173,7 +176,7 @@ final class CameraManager: NSObject, @unchecked Sendable {
                     self.photoOutput.maxPhotoDimensions = maxDimensions
                     self.photoOutput.maxPhotoQualityPrioritization = .quality
                 } else {
-                    print("CameraManager: No valid max photo dimensions, using defaults")
+                    cameraLogger.warning("No valid max photo dimensions, using defaults")
                 }
             } else {
                 self.photoOutput.isHighResolutionCaptureEnabled = true
@@ -185,8 +188,8 @@ final class CameraManager: NSObject, @unchecked Sendable {
     func configureSessionAsync(preferFrontCamera: Bool = false) async {
         // Warn about simulator limitations
         if isSimulator {
-            print("⚠️ CameraManager: Running in iOS Simulator. Camera functionality is limited and may produce errors.")
-            print("⚠️ For best results, test camera features on a physical device.")
+            cameraLogger.warning("Running in iOS Simulator. Camera functionality is limited and may produce errors.")
+            cameraLogger.info("For best results, test camera features on a physical device.")
         }
         
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
@@ -211,7 +214,7 @@ final class CameraManager: NSObject, @unchecked Sendable {
                 // Choose camera first
                 let desiredPosition: AVCaptureDevice.Position = preferFrontCamera ? .front : .back
                 guard let videoDevice = self.device(for: desiredPosition) ?? self.device(for: .back) else {
-                    print("CameraManager: No video device available for position \(desiredPosition)")
+                    cameraLogger.warning("No video device available for position \(String(describing: desiredPosition), privacy: .public)")
                     return
                 }
 
@@ -228,11 +231,11 @@ final class CameraManager: NSObject, @unchecked Sendable {
                         self.session.addInput(videoInput)
                         self.videoDeviceInput = videoInput
                     } else {
-                        print("CameraManager: Cannot add video input")
+                        cameraLogger.error("Cannot add video input")
                         return
                     }
                 } catch {
-                    print("CameraManager: Failed to create video input: \(error)")
+                    cameraLogger.error("Failed to create video input: \(error.localizedDescription, privacy: .public)")
                     return
                 }
 
@@ -241,7 +244,7 @@ final class CameraManager: NSObject, @unchecked Sendable {
                     if self.session.canAddOutput(self.photoOutput) {
                         self.session.addOutput(self.photoOutput)
                     } else {
-                        print("CameraManager: Cannot add photo output")
+                        cameraLogger.error("Cannot add photo output")
                     }
                 }
                 
@@ -251,9 +254,9 @@ final class CameraManager: NSObject, @unchecked Sendable {
                     self.session.sessionPreset = .photo
                 } else if self.session.canSetSessionPreset(.high) {
                     self.session.sessionPreset = .high
-                    print("CameraManager: Using .high preset instead of .photo")
+                    cameraLogger.info("Using .high preset instead of .photo")
                 } else {
-                    print("CameraManager: Cannot set .photo or .high preset, using default")
+                    cameraLogger.warning("Cannot set .photo or .high preset, using default")
                 }
                 
                 // Configure photo output settings based on device capabilities
@@ -263,7 +266,7 @@ final class CameraManager: NSObject, @unchecked Sendable {
                         self.photoOutput.maxPhotoDimensions = maxDimensions
                         self.photoOutput.maxPhotoQualityPrioritization = .quality
                     } else {
-                        print("CameraManager: No valid max photo dimensions, using defaults")
+                        cameraLogger.warning("No valid max photo dimensions, using defaults")
                     }
                 } else {
                     self.photoOutput.isHighResolutionCaptureEnabled = true

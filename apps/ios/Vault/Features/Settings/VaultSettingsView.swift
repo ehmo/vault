@@ -273,14 +273,24 @@ struct VaultSettingsView: View {
         do {
             let index = try VaultStorage.shared.loadIndex(with: key)
             for file in index.files where !file.isDeleted {
-                try? VaultStorage.shared.deleteFile(id: file.fileId, with: key)
+                do {
+                    try VaultStorage.shared.deleteFile(id: file.fileId, with: key)
+                } catch {
+                    vaultSettingsLogger.error("Failed to delete file \(file.fileId, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                    EmbraceManager.shared.captureError(error, context: ["action": "deleteFile", "fileId": file.fileId])
+                }
             }
 
             // Remove any active CloudKit shares
             if let shares = index.activeShares {
                 for share in shares {
                     Task {
-                        try? await CloudKitSharingManager.shared.deleteSharedVault(shareVaultId: share.id)
+                        do {
+                            try await CloudKitSharingManager.shared.deleteSharedVault(shareVaultId: share.id)
+                        } catch {
+                            vaultSettingsLogger.error("Failed to delete shared vault \(share.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                            EmbraceManager.shared.captureError(error, context: ["action": "deleteSharedVault", "shareId": share.id])
+                        }
                     }
                 }
             }
@@ -288,11 +298,17 @@ struct VaultSettingsView: View {
             try VaultStorage.shared.deleteVaultIndex(for: key)
         } catch {
             vaultSettingsLogger.error("Delete vault error: \(error.localizedDescription, privacy: .public)")
+            EmbraceManager.shared.captureError(error, context: ["action": "deleteVault"])
         }
 
         // Clean up recovery data and duress status
         Task {
-            try? await RecoveryPhraseManager.shared.deleteRecoveryData(for: key.rawBytes)
+            do {
+                try await RecoveryPhraseManager.shared.deleteRecoveryData(for: key.rawBytes)
+            } catch {
+                vaultSettingsLogger.error("Failed to delete recovery data: \(error.localizedDescription, privacy: .public)")
+                EmbraceManager.shared.captureError(error, context: ["action": "deleteRecoveryData"])
+            }
             if await DuressHandler.shared.isDuressKey(key.rawBytes) {
                 await DuressHandler.shared.clearDuressVault()
             }
