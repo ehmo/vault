@@ -154,4 +154,27 @@ final class ZoomableImageContainerTests: XCTestCase {
         let result = coordinator.gestureRecognizer(gesture1, shouldRecognizeSimultaneouslyWith: gesture2)
         XCTAssertFalse(result)
     }
+
+    // MARK: - Image identity check (used for zoom reset)
+
+    func testDifferentImagesAreNotIdentical() {
+        // The zoom-reset logic uses `!==` (identity check) on UIImage.
+        // Different UIImage instances from different symbols should not be identical.
+        let image1 = UIImage(systemName: "photo")!
+        let image2 = UIImage(systemName: "star")!
+        XCTAssertFalse(image1 === image2, "Different images should not be identical")
+    }
+
+    func testSameImageReferenceIsIdentical() {
+        let image = UIImage(systemName: "photo")!
+        let sameRef = image
+        XCTAssertTrue(image === sameRef, "Same reference should be identical")
+    }
+
+    // MARK: - Zoom threshold constant
+
+    func testZoomThresholdIsReasonable() {
+        XCTAssertGreaterThan(ZoomableImageContainer.zoomThreshold, 1.0)
+        XCTAssertLessThan(ZoomableImageContainer.zoomThreshold, 1.2)
+    }
 }

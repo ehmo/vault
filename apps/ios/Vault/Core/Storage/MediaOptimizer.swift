@@ -8,7 +8,7 @@ import os.log
 private let optimizerLogger = Logger(subsystem: "app.vaultaire.ios", category: "MediaOptimizer")
 
 /// Optimizes media files before vault storage using modern codecs.
-/// Images → HEIC (ImageIO), Videos → HEVC 1080p (AVAssetExportSession).
+/// Images → HEIC (ImageIO), Videos → HEVC 1080p (AVAssetReader/AVAssetWriter with bitrate control).
 /// Non-media files pass through unchanged.
 actor MediaOptimizer {
     static let shared = MediaOptimizer()
@@ -297,11 +297,15 @@ actor MediaOptimizer {
             // The requestMediaDataWhenReady callback is always called on the provided queue serially.
             nonisolated(unsafe) let output = output
             nonisolated(unsafe) let input = input
+            var resumed = false
             input.requestMediaDataWhenReady(on: queue) {
                 while input.isReadyForMoreMediaData {
                     guard let buffer = output.copyNextSampleBuffer() else {
                         input.markAsFinished()
-                        continuation.resume()
+                        if !resumed {
+                            resumed = true
+                            continuation.resume()
+                        }
                         return
                     }
                     input.append(buffer)

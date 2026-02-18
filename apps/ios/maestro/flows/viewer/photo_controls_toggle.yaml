@@ -18,10 +18,12 @@ appId: app.vaultaire.ios
 - tapOn:
     point: "50%, 50%"
 
+# Wait for hide animation to complete
+- waitForAnimationToEnd
+
 # Controls should be hidden
 - assertNotVisible:
     id: "viewer_done"
-    optional: true
 
 # Single tap again to show controls
 - tapOn:

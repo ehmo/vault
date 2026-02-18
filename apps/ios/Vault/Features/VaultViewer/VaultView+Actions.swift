@@ -489,14 +489,8 @@ extension VaultView {
                 } else {
                     self.toastMessage = .filesImported(imported)
                 }
-                // Switch filter so imported items are visible
                 if imported > 0 {
-                    let hasNonMedia = self.files.contains { !$0.isMedia }
-                    if hasNonMedia && self.fileFilter == .media {
-                        self.fileFilter = .all
-                    } else if !hasNonMedia && self.fileFilter != .media {
-                        self.fileFilter = .media
-                    }
+                    self.updateFilterAfterImport()
                 }
             }
 
@@ -699,14 +693,8 @@ extension VaultView {
                 } else {
                     self.toastMessage = .filesImported(imported)
                 }
-                // Switch filter so imported files are visible
                 if imported > 0 {
-                    let hasNonMedia = self.files.contains { !$0.isMedia }
-                    if hasNonMedia && self.fileFilter == .media {
-                        self.fileFilter = .all
-                    } else if !hasNonMedia && self.fileFilter != .media {
-                        self.fileFilter = .media
-                    }
+                    self.updateFilterAfterImport()
                 }
             }
 
@@ -728,6 +716,18 @@ extension VaultView {
             performPhotoImport(Array(results.prefix(remaining)))
         case .files(let urls):
             performFileImport(Array(urls.prefix(remaining)))
+        }
+    }
+
+    // MARK: - Filter Helpers
+
+    /// Updates the file filter after import so newly added items are visible.
+    private func updateFilterAfterImport() {
+        let hasNonMedia = self.files.contains { !$0.isMedia }
+        if hasNonMedia && self.fileFilter == .media {
+            self.fileFilter = .all
+        } else if !hasNonMedia && self.fileFilter != .media {
+            self.fileFilter = .media
         }
     }
 }
