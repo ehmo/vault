@@ -66,6 +66,14 @@ final class VaultStorage {
     private let indexLock = NSRecursiveLock()
     private var blobReady = false
 
+    // In-memory index cache — avoids decrypt+decode on every retrieveFile/listFiles call
+    private var cachedIndex: VaultIndex?
+    private var cachedIndexFingerprint: String?
+
+    private func keyFingerprint(_ key: Data) -> String {
+        SHA256.hash(data: key).prefix(16).map { String(format: "%02x", $0) }.joined()
+    }
+
     private var blobURL: URL {
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         return documents.appendingPathComponent(blobFileName)
@@ -368,6 +376,12 @@ final class VaultStorage {
         let span = EmbraceManager.shared.startTransaction(name: "storage.index_load", operation: "storage.index_load")
         defer { span.finish(status: .ok) }
 
+        // Return cached index if available for this key
+        let fp = keyFingerprint(key)
+        if let cached = cachedIndex, cachedIndexFingerprint == fp {
+            return cached
+        }
+
         #if DEBUG
         print("📇 [VaultStorage] loadIndex called with key hash: \(key.hashValue)")
         #endif
@@ -398,6 +412,8 @@ final class VaultStorage {
                 version: 3
             )
             newIndex.blobs = [primary]
+            cachedIndex = newIndex
+            cachedIndexFingerprint = fp
             return newIndex
         }
 
@@ -447,6 +463,8 @@ final class VaultStorage {
                 #endif
             }
 
+            cachedIndex = index
+            cachedIndexFingerprint = fp
             return index
         } catch {
             #if DEBUG
@@ -488,7 +506,11 @@ final class VaultStorage {
 
         let indexURL = indexURL(for: key)
         try encrypted.write(to: indexURL, options: [.atomic, .completeFileProtection])
-        
+
+        // Update in-memory cache
+        cachedIndex = index
+        cachedIndexFingerprint = keyFingerprint(key)
+
         #if DEBUG
         print("✅ [VaultStorage] Index saved to disk")
         #endif
@@ -1345,7 +1367,14 @@ final class VaultStorage {
 
     func deleteVaultIndex(for key: Data) throws {
         let indexURL = indexURL(for: key)
-        
+
+        // Invalidate cache for this key
+        let fp = keyFingerprint(key)
+        if cachedIndexFingerprint == fp {
+            cachedIndex = nil
+            cachedIndexFingerprint = nil
+        }
+
         if fileManager.fileExists(atPath: indexURL.path) {
             #if DEBUG
             print("🗑️ [VaultStorage] Deleting vault index file")
@@ -1360,6 +1389,10 @@ final class VaultStorage {
         #if DEBUG
         print("💣 [VaultStorage] Destroying all vault data!")
         #endif
+
+        // Invalidate cached index
+        cachedIndex = nil
+        cachedIndexFingerprint = nil
 
         // Delete ALL index files (all vaults) — without keys, blob data is unrecoverable
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
