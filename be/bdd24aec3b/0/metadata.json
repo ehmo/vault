@@ -1,0 +1,51 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "bebdd24aec3b",
+  "session_id": "d7336379-23a0-4da3-a035-fd1f71797470",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T04:56:59.061905Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".scratch-pad.md",
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Core/Storage/ImportIngestor.swift",
+    "apps/ios/Vault/Core/Storage/MediaOptimizer.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift",
+    "apps/ios/Vault/Features/Sharing/SharedVaultInviteView.swift",
+    "apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Actions.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
+    "apps/ios/Vault/Features/VaultViewer/ZoomableImageContainer.swift",
+    "apps/ios/VaultTests/MediaOptimizerTests.swift",
+    "apps/ios/VaultTests/ZoomableImageContainerTests.swift",
+    "apps/ios/docs/marketing-copy.md",
+    "apps/ios/docs/storage.md",
+    "apps/ios/maestro/flows/viewer/photo_controls_toggle.yaml",
+    "apps/ios/maestro/flows/viewer/photo_navigation.yaml",
+    "docs/ios-app-design.md",
+    "docs/manifesto.md",
+    "web/index.html",
+    "web/redesign-draft.html"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "68204ffe-4715-45d0-9698-33bb33ece9a0",
+  "checkpoint_transcript_start": 1978,
+  "transcript_lines_at_start": 1978,
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 164016,
+    "cache_read_tokens": 706718,
+    "output_tokens": 78,
+    "api_call_count": 11
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T04:56:58.248084Z",
+    "agent_lines": 23,
+    "human_added": 0,
+    "human_modified": 528,
+    "human_removed": 3537,
+    "total_committed": 551,
+    "agent_percentage": 4.174228675136116
+  }
+}
