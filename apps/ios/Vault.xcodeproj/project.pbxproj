@@ -159,6 +159,9 @@
 		UI000001B /* AppearanceUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI000001A /* AppearanceUITests.swift */; };
 		VIT0000001 /* VaultIndexTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = VIT0000000 /* VaultIndexTypes.swift */; };
 		VIM0000001 /* VaultIndexManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = VIM0000000 /* VaultIndexManager.swift */; };
+		VSP0000001 /* VaultStorageProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = VSP0000000 /* VaultStorageProtocol.swift */; };
+		CKC0000001 /* CloudKitSharingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = CKC0000000 /* CloudKitSharingClient.swift */; };
+		SUB0000001 /* SubscriptionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = SUB0000000 /* SubscriptionClient.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -347,6 +350,9 @@
 		UI000001A /* AppearanceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceUITests.swift; sourceTree = "<group>"; };
 		VIT0000000 /* VaultIndexTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultIndexTypes.swift; sourceTree = "<group>"; };
 		VIM0000000 /* VaultIndexManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultIndexManager.swift; sourceTree = "<group>"; };
+		VSP0000000 /* VaultStorageProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultStorageProtocol.swift; sourceTree = "<group>"; };
+		CKC0000000 /* CloudKitSharingClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitSharingClient.swift; sourceTree = "<group>"; };
+		SUB0000000 /* SubscriptionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionClient.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -449,6 +455,7 @@
 			isa = PBXGroup;
 			children = (
 				003000000 /* VaultStorage.swift */,
+				VSP0000000 /* VaultStorageProtocol.swift */,
 				VIT0000000 /* VaultIndexTypes.swift */,
 				VIM0000000 /* VaultIndexManager.swift */,
 				003000002 /* EncryptedBlob.swift */,
@@ -479,6 +486,7 @@
 			isa = PBXGroup;
 			children = (
 				014000000 /* CloudKitSharingManager.swift */,
+				CKC0000000 /* CloudKitSharingClient.swift */,
 				014000002 /* ShareSyncManager.swift */,
 				014000004 /* SVDFSerializer.swift */,
 				014000006 /* ShareSyncCache.swift */,
@@ -512,6 +520,7 @@
 			isa = PBXGroup;
 			children = (
 				020000000 /* SubscriptionManager.swift */,
+				SUB0000000 /* SubscriptionClient.swift */,
 				020000002 /* PaywallTrigger.swift */,
 				020000004 /* VaultairePaywallView.swift */,
 			);
@@ -996,6 +1005,7 @@
 				002000003 /* KeyDerivation.swift in Sources */,
 				002000005 /* PatternSerializer.swift in Sources */,
 				003000001 /* VaultStorage.swift in Sources */,
+				VSP0000001 /* VaultStorageProtocol.swift in Sources */,
 				VIT0000001 /* VaultIndexTypes.swift in Sources */,
 				VIM0000001 /* VaultIndexManager.swift in Sources */,
 				003000003 /* EncryptedBlob.swift in Sources */,
@@ -1049,6 +1059,7 @@
 				012000003 /* VaultMetadata.swift in Sources */,
 				013000001 /* iCloudBackupManager.swift in Sources */,
 				014000001 /* CloudKitSharingManager.swift in Sources */,
+				CKC0000001 /* CloudKitSharingClient.swift in Sources */,
 				014000003 /* ShareSyncManager.swift in Sources */,
 				014000005 /* SVDFSerializer.swift in Sources */,
 				014000007 /* ShareSyncCache.swift in Sources */,
@@ -1068,6 +1079,7 @@
 				019000005 /* PaywallStepView.swift in Sources */,
 				019000007 /* ThankYouView.swift in Sources */,
 				020000001 /* SubscriptionManager.swift in Sources */,
+				SUB0000001 /* SubscriptionClient.swift in Sources */,
 				020000003 /* PaywallTrigger.swift in Sources */,
 				020000005 /* VaultairePaywallView.swift in Sources */,
 				SE0000013 /* VaultCoreConstants.swift in Sources */,

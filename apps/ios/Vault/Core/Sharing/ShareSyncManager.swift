@@ -30,7 +30,16 @@ final class ShareSyncManager {
     private var currentBgTaskId: UIBackgroundTaskIdentifier = .invalid
     private let debounceInterval: TimeInterval = 5
 
-    private init() { /* No-op */ }
+    private let storage: VaultStorageProtocol
+    private let cloudKit: CloudKitSharingClient
+
+    private init(
+        storage: VaultStorageProtocol = VaultStorage.shared,
+        cloudKit: CloudKitSharingClient = CloudKitSharingManager.shared
+    ) {
+        self.storage = storage
+        self.cloudKit = cloudKit
+    }
 
     // MARK: - Trigger Sync
 
@@ -106,7 +115,7 @@ final class ShareSyncManager {
         // Load index and check for active shares
         let index: VaultStorage.VaultIndex
         do {
-            index = try VaultStorage.shared.loadIndex(with: vaultKey)
+            index = try storage.loadIndex(with: vaultKey)
         } catch {
             syncStatus = .error("Failed to load vault: \(error.localizedDescription)")
             EmbraceManager.shared.captureError(error)
@@ -126,7 +135,7 @@ final class ShareSyncManager {
 
         syncStatus = .syncing
 
-        let consumedByShareId = await CloudKitSharingManager.shared.consumedStatusByShareVaultIds(
+        let consumedByShareId = await cloudKit.consumedStatusByShareVaultIds(
             activeShares.map(\.id)
         )
 
@@ -155,6 +164,7 @@ final class ShareSyncManager {
                 let capturedVaultKey = vaultKey
                 let capturedShareKey = ShareKey(shareKeyData)
                 let capturedShareId = share.id
+                let capturedStorage = storage
 
                 // Build SVDF to a temp file off main thread (streaming, O(largest_file) memory)
                 let buildResult: (svdfFileURL: URL, chunkHashes: [String], syncState: ShareSyncCache.SyncState)
@@ -164,7 +174,8 @@ final class ShareSyncManager {
                             index: capturedIndex,
                             vaultKey: capturedVaultKey,
                             shareKey: capturedShareKey,
-                            shareVaultId: capturedShareId
+                            shareVaultId: capturedShareId,
+                            storage: capturedStorage
                         )
                     }.value
                 } catch {
@@ -178,7 +189,7 @@ final class ShareSyncManager {
                 syncProgress = (i + 1, totalShares)
 
                 // Upload changed chunks from file (reads 2MB at a time)
-                try await CloudKitSharingManager.shared.syncSharedVaultIncrementalFromFile(
+                try await cloudKit.syncSharedVaultIncrementalFromFile(
                     shareVaultId: share.id,
                     svdfFileURL: buildResult.svdfFileURL,
                     newChunkHashes: buildResult.chunkHashes,
@@ -211,9 +222,9 @@ final class ShareSyncManager {
         // Remove consumed shares from the index
         if !consumedShareIds.isEmpty {
             do {
-                var updatedIndex = try VaultStorage.shared.loadIndex(with: vaultKey)
+                var updatedIndex = try storage.loadIndex(with: vaultKey)
                 updatedIndex.activeShares?.removeAll { consumedShareIds.contains($0.id) }
-                try VaultStorage.shared.saveIndex(updatedIndex, with: vaultKey)
+                try storage.saveIndex(updatedIndex, with: vaultKey)
                 shareSyncLogger.info("Removed \(consumedShareIds.count) consumed shares from index")
             } catch {
                 shareSyncLogger.warning("Failed to remove consumed shares: \(error.localizedDescription, privacy: .public)")
@@ -223,14 +234,14 @@ final class ShareSyncManager {
         // Batch-update share records in a single index load/save
         if !shareUpdates.isEmpty {
             do {
-                var updatedIndex = try VaultStorage.shared.loadIndex(with: vaultKey)
+                var updatedIndex = try storage.loadIndex(with: vaultKey)
                 for update in shareUpdates {
                     if let idx = updatedIndex.activeShares?.firstIndex(where: { $0.id == update.id }) {
                         updatedIndex.activeShares?[idx].lastSyncedAt = Date()
                         updatedIndex.activeShares?[idx].syncSequence = update.syncSequence
                     }
                 }
-                try VaultStorage.shared.saveIndex(updatedIndex, with: vaultKey)
+                try storage.saveIndex(updatedIndex, with: vaultKey)
             } catch {
                 shareSyncLogger.warning("Failed to update share records: \(error.localizedDescription, privacy: .public)")
             }
@@ -263,7 +274,8 @@ final class ShareSyncManager {
         index: VaultStorage.VaultIndex,
         vaultKey: VaultKey,
         shareKey: ShareKey,
-        shareVaultId: String
+        shareVaultId: String,
+        storage: VaultStorageProtocol = VaultStorage.shared
     ) throws -> (svdfFileURL: URL, chunkHashes: [String], syncState: ShareSyncCache.SyncState) {
         guard let encryptedMasterKey = index.encryptedMasterKey else {
             throw VaultStorageError.corruptedData
@@ -308,7 +320,7 @@ final class ShareSyncManager {
                     let entry = activeFiles[i]
                     return try Self.reencryptFileForShare(
                         entry: entry, index: index, masterKey: masterKey,
-                        shareKey: shareKey, cache: cache
+                        shareKey: shareKey, cache: cache, storage: storage
                     )
                 },
                 metadata: metadata,
@@ -328,7 +340,7 @@ final class ShareSyncManager {
                     let entry = filesToAppend[i]
                     return try Self.reencryptFileForShare(
                         entry: entry, index: index, masterKey: masterKey,
-                        shareKey: shareKey, cache: cache
+                        shareKey: shareKey, cache: cache, storage: storage
                     )
                 },
                 removedFileIds: removedFileIds,
@@ -370,7 +382,8 @@ final class ShareSyncManager {
         index: VaultStorage.VaultIndex,
         masterKey: Data,
         shareKey: ShareKey,
-        cache: ShareSyncCache
+        cache: ShareSyncCache,
+        storage: VaultStorageProtocol = VaultStorage.shared
     ) throws -> SharedVaultData.SharedFile {
         let fileIdStr = entry.fileId.uuidString
 
@@ -379,7 +392,7 @@ final class ShareSyncManager {
         if let cached = cache.loadEncryptedFile(fileIdStr) {
             reencrypted = cached
         } else {
-            let (_, content) = try VaultStorage.shared.retrieveFileContent(
+            let (_, content) = try storage.retrieveFileContent(
                 entry: entry, index: index, masterKey: masterKey
             )
             reencrypted = try CryptoEngine.encrypt(content, with: shareKey.rawBytes)

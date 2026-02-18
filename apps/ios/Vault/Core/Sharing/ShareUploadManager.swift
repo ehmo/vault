@@ -182,6 +182,9 @@ final class ShareUploadManager {
 
     private var vaultKeyProvider: (() -> VaultKey?)?
 
+    private let storage: VaultStorageProtocol
+    private let cloudKit: CloudKitSharingClient
+
     private struct PreparedUploadArtifacts {
         let shareKey: ShareKey
         let phraseVaultId: String
@@ -205,7 +208,12 @@ final class ShareUploadManager {
             .appendingPathComponent("pending_upload", isDirectory: true)
     }()
 
-    private init() {
+    private init(
+        storage: VaultStorageProtocol = VaultStorage.shared,
+        cloudKit: CloudKitSharingClient = CloudKitSharingManager.shared
+    ) {
+        self.storage = storage
+        self.cloudKit = cloudKit
         migrateLegacyPendingIfNeeded()
         bootstrapJobsFromPendingState()
     }
@@ -407,9 +415,10 @@ final class ShareUploadManager {
         teardownBackgroundExecutionIfIdle()
 
         guard let shareVaultId else { return }
+        let capturedCloudKit = cloudKit
         Task.detached(priority: .utility) {
             if cleanupRemote {
-                try? await CloudKitSharingManager.shared.deleteSharedVault(shareVaultId: shareVaultId)
+                try? await capturedCloudKit.deleteSharedVault(shareVaultId: shareVaultId)
             }
             try? ShareSyncCache(shareVaultId: shareVaultId).purge()
         }
@@ -445,12 +454,14 @@ final class ShareUploadManager {
                 job.message = "Encrypting files..."
             }
 
+            let capturedStorage = storage
             let prepTask = Task.detached(priority: .userInitiated) {
                 try Self.buildInitialUploadArtifacts(
                     jobId: jobId,
                     phrase: phrase,
                     vaultKey: vaultKey,
-                    ownerFingerprint: ownerFingerprint
+                    ownerFingerprint: ownerFingerprint,
+                    storage: capturedStorage
                 )
             }
             let prepared: PreparedUploadArtifacts
@@ -492,7 +503,7 @@ final class ShareUploadManager {
                 job.message = "Uploading vault..."
             }
 
-            try await CloudKitSharingManager.shared.uploadChunksFromFile(
+            try await cloudKit.uploadChunksFromFile(
                 shareVaultId: shareVaultId,
                 fileURL: svdfURL,
                 chunkIndices: Array(0..<prepared.totalChunks),
@@ -510,7 +521,7 @@ final class ShareUploadManager {
                 }
             )
 
-            try await CloudKitSharingManager.shared.saveManifest(
+            try await cloudKit.saveManifest(
                 shareVaultId: shareVaultId,
                 phraseVaultId: prepared.phraseVaultId,
                 shareKey: prepared.shareKey,
@@ -663,7 +674,7 @@ final class ShareUploadManager {
             }
             updatePendingProgress(jobId: state.jobId, progress: 2, message: "Checking uploaded chunks...")
 
-            let existingIndices = try await CloudKitSharingManager.shared.existingChunkIndices(for: state.shareVaultId)
+            let existingIndices = try await cloudKit.existingChunkIndices(for: state.shareVaultId)
             let missingIndices = (0..<state.totalChunks).filter { !existingIndices.contains($0) }
 
             updateJob(jobId: state.jobId) { job in
@@ -673,7 +684,7 @@ final class ShareUploadManager {
             }
             updatePendingProgress(jobId: state.jobId, progress: 5, message: "Uploading remaining chunks...")
 
-            try await CloudKitSharingManager.shared.uploadChunksFromFile(
+            try await cloudKit.uploadChunksFromFile(
                 shareVaultId: state.shareVaultId,
                 fileURL: svdfURL,
                 chunkIndices: missingIndices,
@@ -691,7 +702,7 @@ final class ShareUploadManager {
                 }
             )
 
-            try await CloudKitSharingManager.shared.saveManifest(
+            try await cloudKit.saveManifest(
                 shareVaultId: state.shareVaultId,
                 phraseVaultId: state.phraseVaultId,
                 shareKey: ShareKey(state.shareKeyData),
@@ -889,13 +900,13 @@ final class ShareUploadManager {
 
     private func removeShareRecord(shareVaultId: String, vaultKey: VaultKey) {
         do {
-            var index = try VaultStorage.shared.loadIndex(with: vaultKey)
+            var index = try storage.loadIndex(with: vaultKey)
             guard var shares = index.activeShares else { return }
             let originalCount = shares.count
             shares.removeAll { $0.id == shareVaultId }
             guard shares.count != originalCount else { return }
             index.activeShares = shares.isEmpty ? nil : shares
-            try VaultStorage.shared.saveIndex(index, with: vaultKey)
+            try storage.saveIndex(index, with: vaultKey)
         } catch {
             Self.logger.error("Failed to remove share record for terminated upload: \(error.localizedDescription, privacy: .public)")
         }
@@ -908,7 +919,7 @@ final class ShareUploadManager {
         vaultKey: VaultKey
     ) {
         do {
-            var index = try VaultStorage.shared.loadIndex(with: vaultKey)
+            var index = try storage.loadIndex(with: vaultKey)
             let exists = index.activeShares?.contains(where: { $0.id == shareVaultId }) ?? false
             if !exists {
                 let record = VaultStorage.ShareRecord(
@@ -923,7 +934,7 @@ final class ShareUploadManager {
                     index.activeShares = []
                 }
                 index.activeShares?.append(record)
-                try VaultStorage.shared.saveIndex(index, with: vaultKey)
+                try storage.saveIndex(index, with: vaultKey)
             }
         } catch {
             Self.logger.error("Failed to append share record: \(error.localizedDescription, privacy: .public)")
@@ -1059,14 +1070,15 @@ final class ShareUploadManager {
         jobId: String,
         phrase: String,
         vaultKey: VaultKey,
-        ownerFingerprint: String
+        ownerFingerprint: String,
+        storage: VaultStorageProtocol = VaultStorage.shared
     ) throws -> PreparedUploadArtifacts {
         try Task.checkCancellation()
 
         let shareKey = ShareKey(try KeyDerivation.deriveShareKey(from: phrase))
         let phraseVaultId = KeyDerivation.shareVaultId(from: phrase)
 
-        let index = try VaultStorage.shared.loadIndex(with: vaultKey)
+        let index = try storage.loadIndex(with: vaultKey)
         guard let encryptedMasterKey = index.encryptedMasterKey else {
             throw VaultStorageError.corruptedData
         }
@@ -1095,7 +1107,7 @@ final class ShareUploadManager {
                 try Task.checkCancellation()
                 let entry = activeFiles[i]
                 return try autoreleasepool {
-                    let (header, plaintextURL) = try VaultStorage.shared.retrieveFileToTempURL(
+                    let (header, plaintextURL) = try storage.retrieveFileToTempURL(
                         id: entry.fileId,
                         with: vaultKey
                     )
