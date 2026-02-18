@@ -86,3 +86,4 @@ The `apple-app-site-association` file MUST:
 - For all-caps headings, keep positive tracking (around `0.02em`-`0.03em`) and avoid negative letter-spacing; keep body/legal copy at `1rem`+ with line-height near `1.6` for readability.
 - Keep the primary nav item set in sync across all pages, including home. If compare exists in secondary pages, include `Compare` on `index.html` header nav too.
 - For compare detail pages, breadcrumb display text and BreadcrumbList item #3 label must always start with `Vaultaire vs ...` (never just `vs ...`).
+- Keep SEO baseline files explicit in repo root: `robots.txt` (allow crawl + sitemap link), `sitemap.xml` (real XML file + `/sitemap.xml` XML content-type header), and root favicon assets (`/favicon.png`, `/apple-touch-icon.png`) linked from page heads.
