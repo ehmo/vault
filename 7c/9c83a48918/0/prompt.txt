@@ -1,0 +1,13 @@
+The photo view still starts with images centered at the top (see image). When I take any action, swipe or tap it recenters. But the starting point is still wrong
+
+---
+
+[Image: source: /Users/nan/Downloads/IMG_2139.PNG]
+
+---
+
+Some pictures like this one REDACTED.HEIC are shown incorrectly like this (see image 2). Fix it
+
+---
+
+[Image: source: /Users/nan/Downloads/IMG_2143.PNG]
