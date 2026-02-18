@@ -31,11 +31,8 @@ struct PatternSetupCoordinator {
                 return .duplicatePattern
             }
 
-            let emptyIndex = VaultStorage.VaultIndex(
-                files: [],
-                nextOffset: 0,
-                totalSize: 500 * 1024 * 1024
-            )
+            // Create empty vault index. loadIndex auto-creates a proper v3 index with master key when none exists.
+            let emptyIndex = try VaultStorage.shared.loadIndex(with: VaultKey(key))
             try saveIndex(emptyIndex, key)
 
             try await saveRecoveryPhrase(phrase, pattern, gridSize, key)

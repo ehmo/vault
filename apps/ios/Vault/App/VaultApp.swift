@@ -350,25 +350,24 @@ final class AppState {
         // Deterministic 32-byte key via SHA-256 (no Secure Enclave needed)
         let testKey = Data(CryptoKit.SHA256.hash(data: testSeed))
 
+        let testVaultKey = VaultKey(testKey)
+
         // Clear vault if requested (for tests that need empty state)
         if ProcessInfo.processInfo.arguments.contains("-MAESTRO_CLEAR_VAULT") {
-            let emptyIndex = VaultStorage.VaultIndex(
-                files: [],
-                nextOffset: 0,
-                totalSize: 500 * 1024 * 1024
-            )
-            try? VaultStorage.shared.saveIndex(emptyIndex, with: VaultKey(testKey))
+            // loadIndex auto-creates a proper v3 index with master key when none exists
+            let emptyIndex = try? VaultStorage.shared.loadIndex(with: testVaultKey)
+            if let emptyIndex {
+                try? VaultStorage.shared.saveIndex(emptyIndex, with: testVaultKey)
+            }
         }
 
         // Initialize empty vault if needed
-        let testVaultKey = VaultKey(testKey)
         if !VaultStorage.shared.vaultExists(for: testVaultKey) {
-            let emptyIndex = VaultStorage.VaultIndex(
-                files: [],
-                nextOffset: 0,
-                totalSize: 500 * 1024 * 1024
-            )
-            try? VaultStorage.shared.saveIndex(emptyIndex, with: testVaultKey)
+            // loadIndex auto-creates a proper v3 index with master key when none exists
+            let emptyIndex = try? VaultStorage.shared.loadIndex(with: testVaultKey)
+            if let emptyIndex {
+                try? VaultStorage.shared.saveIndex(emptyIndex, with: testVaultKey)
+            }
         }
 
         currentVaultKey = testVaultKey
