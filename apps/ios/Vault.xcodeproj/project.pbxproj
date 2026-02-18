@@ -123,6 +123,7 @@
 		TS0000039 /* ShareVaultViewModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000038 /* ShareVaultViewModeTests.swift */; };
 		MO0000003 /* MediaOptimizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = MO0000002 /* MediaOptimizerTests.swift */; };
 		ZI0000001 /* ZoomableImageContainerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ZI0000000 /* ZoomableImageContainerTests.swift */; };
+		DH0000001 /* DuressHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DH0000000 /* DuressHandlerTests.swift */; };
 		019000009 /* PatternSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000008 /* PatternSetupCoordinator.swift */; };
 		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
 		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
@@ -300,6 +301,7 @@
 		TS0000038 /* ShareVaultViewModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareVaultViewModeTests.swift; sourceTree = "<group>"; };
 		MO0000002 /* MediaOptimizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaOptimizerTests.swift; sourceTree = "<group>"; };
 		ZI0000000 /* ZoomableImageContainerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableImageContainerTests.swift; sourceTree = "<group>"; };
+		DH0000000 /* DuressHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuressHandlerTests.swift; sourceTree = "<group>"; };
 		019000008 /* PatternSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinator.swift; sourceTree = "<group>"; };
 		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
@@ -694,6 +696,7 @@
 				TS0000038 /* ShareVaultViewModeTests.swift */,
 				MO0000002 /* MediaOptimizerTests.swift */,
 				ZI0000000 /* ZoomableImageContainerTests.swift */,
+				DH0000000 /* DuressHandlerTests.swift */,
 			);
 			path = VaultTests;
 			sourceTree = "<group>";
@@ -1082,6 +1085,7 @@
 				TS0000039 /* ShareVaultViewModeTests.swift in Sources */,
 				MO0000003 /* MediaOptimizerTests.swift in Sources */,
 				ZI0000001 /* ZoomableImageContainerTests.swift in Sources */,
+				DH0000001 /* DuressHandlerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

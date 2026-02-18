@@ -113,7 +113,7 @@ final class SecureEnclaveManager {
             return 0
         }
 
-        return data.withUnsafeBytes { $0.load(as: Int32.self) }.hashValue
+        return Int(data.withUnsafeBytes { $0.load(as: Int32.self) })
     }
 
     /// Increments the wipe counter.

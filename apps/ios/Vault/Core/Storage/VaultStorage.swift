@@ -10,6 +10,8 @@ enum VaultStorageError: Error, LocalizedError {
     case corruptedData
     case vaultAlreadyExists
     case expansionNotAllowed
+    case secureOverwriteFailed
+    case indexDecryptionFailed
 
     var errorDescription: String? {
         switch self {
@@ -21,6 +23,8 @@ enum VaultStorageError: Error, LocalizedError {
         case .corruptedData: return "Vault data is corrupted"
         case .vaultAlreadyExists: return "A vault with this pattern already exists"
         case .expansionNotAllowed: return "Unable to expand storage"
+        case .secureOverwriteFailed: return "Failed to generate random data for secure overwrite"
+        case .indexDecryptionFailed: return "Vault index is corrupted and could not be decrypted"
         }
     }
 }
@@ -446,30 +450,11 @@ final class VaultStorage {
             return index
         } catch {
             #if DEBUG
-            print("⚠️ [VaultStorage] Failed to decrypt index (wrong key?): \(error)")
-            print("⚠️ [VaultStorage] Returning empty index")
+            print("⚠️ [VaultStorage] Failed to decrypt index: \(error)")
             #endif
-            // Decryption failed - return empty index with new master key (appears as empty vault)
-            guard let masterKey = CryptoEngine.generateRandomBytes(count: 32) else {
-                throw VaultStorageError.corruptedData
-            }
-            let encryptedMasterKey = try CryptoEngine.encrypt(masterKey, with: key)
-            let globalCursor = readGlobalCursor()
-            let primary = BlobDescriptor(
-                blobId: "primary",
-                fileName: blobFileName,
-                capacity: cursorBlockOffset,
-                cursor: globalCursor
-            )
-            var newIndex = VaultIndex(
-                files: [],
-                nextOffset: 0,
-                totalSize: cursorBlockOffset,
-                encryptedMasterKey: encryptedMasterKey,
-                version: 3
-            )
-            newIndex.blobs = [primary]
-            return newIndex
+            // Index file exists at this key's path but cannot be decrypted — corruption.
+            // (Wrong-key case is handled above: no file exists for an unknown key.)
+            throw VaultStorageError.indexDecryptionFailed
         }
     }
 
@@ -1095,9 +1080,10 @@ final class VaultStorage {
         defer { try? handle.close() }
 
         try handle.seek(toOffset: UInt64(entry.offset))
-        if let randomData = CryptoEngine.generateRandomBytes(count: entry.size) {
-            handle.write(randomData)
+        guard let randomData = CryptoEngine.generateRandomBytes(count: entry.size) else {
+            throw VaultStorageError.secureOverwriteFailed
         }
+        handle.write(randomData)
 
         // Mark as deleted in index
         index.files[entryIndex] = VaultIndex.VaultFileEntry(
@@ -1143,9 +1129,10 @@ final class VaultStorage {
             for (arrayIndex, entry) in entries {
                 // Securely overwrite file data with random bytes
                 try handle.seek(toOffset: UInt64(entry.offset))
-                if let randomData = CryptoEngine.generateRandomBytes(count: entry.size) {
-                    handle.write(randomData)
+                guard let randomData = CryptoEngine.generateRandomBytes(count: entry.size) else {
+                    throw VaultStorageError.secureOverwriteFailed
                 }
+                handle.write(randomData)
 
                 // Mark as deleted in index
                 index.files[arrayIndex] = VaultIndex.VaultFileEntry(
