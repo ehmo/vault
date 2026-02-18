@@ -365,6 +365,55 @@ final class VaultStorage {
         )
     }
 
+    /// Variant of allocateBlobSpace that reuses cached FileHandles for the same blob.
+    private func allocateBlobSpace(size: Int, index: inout VaultIndex, handleCache: inout [String: FileHandle]) throws -> BlobWriteResult {
+        var targetBlobIndex: Int? = nil
+        if let blobs = index.blobs {
+            for (i, blob) in blobs.enumerated() {
+                if blob.cursor + size <= blob.capacity {
+                    targetBlobIndex = i
+                    break
+                }
+            }
+        }
+
+        if targetBlobIndex == nil {
+            guard let newBlob = createExpansionBlob() else {
+                throw VaultStorageError.writeError
+            }
+            if index.blobs == nil { index.blobs = [] }
+            index.blobs!.append(newBlob)
+            targetBlobIndex = index.blobs!.count - 1
+        }
+
+        guard let blobIdx = targetBlobIndex, let blobs = index.blobs else {
+            throw VaultStorageError.writeError
+        }
+        let writeOffset = blobs[blobIdx].cursor
+        let targetBlobId = blobs[blobIdx].blobId
+
+        let handle: FileHandle
+        if let cached = handleCache[targetBlobId] {
+            handle = cached
+        } else {
+            let targetURL = blobURL(for: targetBlobId, in: index)
+            guard let newHandle = try? FileHandle(forWritingTo: targetURL) else {
+                throw VaultStorageError.writeError
+            }
+            handleCache[targetBlobId] = newHandle
+            handle = newHandle
+        }
+
+        try handle.seek(toOffset: UInt64(writeOffset))
+
+        return BlobWriteResult(
+            writeOffset: writeOffset,
+            blobId: targetBlobId,
+            blobIdx: blobIdx,
+            handle: handle
+        )
+    }
+
     /// Updates blob cursor and global cursor after writing data to the blob.
     private func finalizeBlobWrite(size: Int, result: BlobWriteResult, index: inout VaultIndex) {
         let newCursor = result.writeOffset + size
@@ -460,6 +509,8 @@ final class VaultStorage {
         var index = try loadIndex(with: key)
         let masterKey = try getMasterKey(from: index, vaultKey: key)
         var storedIds: [UUID] = []
+        var handleCache: [String: FileHandle] = [:]
+        defer { handleCache.values.forEach { try? $0.close() } }
 
         for (i, file) in files.enumerated() {
             let encryptedFile = try CryptoEngine.encryptFile(
@@ -468,8 +519,7 @@ final class VaultStorage {
             let fileData = encryptedFile.encryptedContent
             let fileSize = fileData.count
 
-            let blobWrite = try allocateBlobSpace(size: fileSize, index: &index)
-            defer { try? blobWrite.handle.close() }
+            let blobWrite = try allocateBlobSpace(size: fileSize, index: &index, handleCache: &handleCache)
 
             blobWrite.handle.write(fileData)
 
