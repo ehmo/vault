@@ -1,46 +1,57 @@
-# The Case for Vaultaire
+# The case for Vaultaire
 
 ## Privacy apps have a fatal flaw: they look like privacy apps.
 
-A locked folder announces it's locked. A hidden gallery called "Calculator+" fools no one who's looking. Every "secure" app on your phone shares the same problem — it proves you have something to hide.
+A locked folder announces it's locked. A hidden gallery called "Calculator+" fools no one who's looking. Every "secure" photo vault on your iPhone shares the same problem: it proves you have something to hide.
 
-When someone forces you to unlock your phone — a border agent, an abusive partner, an authoritarian regime — they see the app, they see the lock, and they don't stop until you open it.
+When someone forces you to unlock your phone, whether that's a border agent, an abusive partner, or an authoritarian government, they see the app, they see the lock, and they don't stop until you open it.
 
-Vaultaire doesn't hide your files behind a lock. It makes them **cease to exist**.
+Vaultaire doesn't hide your files behind a lock. It makes them cease to exist.
 
-## How
+## How encrypted photo storage should actually work
 
-Draw a pattern. A vault opens. Draw a different pattern — a completely different vault opens, with different files, different encryption keys, different everything. Enter the wrong pattern? No error message. No "incorrect password." Just an empty vault. There is no observable difference between "wrong" and "empty."
+Draw a pattern on the grid. A vault opens with your private photos, videos, and documents, each file individually encrypted with AES-256-GCM using hardware-backed keys from Apple's Secure Enclave. Draw a different pattern, and a completely different vault opens. Different files, different encryption keys, different everything.
 
-Every vault sits inside a pre-allocated block of encrypted noise. Whether you've stored zero files or five hundred, the data on disk looks identical. Forensic tools cannot tell the difference. There is nothing to find because there is nothing that looks like something to find.
+Enter the wrong pattern? No error message. No "incorrect password." Just an empty vault. There is no observable difference between "wrong" and "empty."
 
-This is not a lock on a door. This is a wall where the door used to be.
+Every vault sits inside a pre-allocated block of encrypted noise. Whether you've stored zero files or five hundred, the data on disk looks identical. Forensic tools can't tell the difference. There is nothing to find because there is nothing that looks like something to find.
 
-## Why it matters
+This is not a lock on a door. It's a wall where the door used to be.
 
-Privacy is not a feature you bolt onto an app. It's a property of the architecture. Vaultaire was designed from the ground up around a single principle: **no one — not us, not Apple, not a forensic examiner — can prove your files exist.**
+## Why zero-knowledge architecture matters
 
-- **No accounts.** No email, no phone number, no identity. There is nothing to subpoena.
-- **No cloud.** Your files never leave your device unless you explicitly choose to share them. When you do, they're encrypted before upload. The server sees noise.
-- **No biometrics.** Face ID can be compelled by law. A pattern in your head cannot be extracted. This is a deliberate choice.
-- **No "forgot password."** There is no server that knows your pattern. No email reset. No backdoor. Recovery phrases exist for those who want them, stored only on-device. But there is no way in for anyone but you.
+Most photo vault apps put a PIN screen in front of unencrypted files. If someone connects your phone to a computer, the files are right there, completely readable. That's not security. That's a curtain.
 
-## For people who need it most
+Vaultaire was built around a single principle: no one, not us, not Apple, not a forensic examiner, can prove your files exist. Privacy is not something we bolted on after the fact. It's how the app works at every layer.
 
-**Journalists** protecting sources where phone searches are routine. **Activists** carrying documentation under surveillance. **Domestic abuse survivors** keeping evidence secure on a monitored device. **Travelers** crossing borders where device inspection is mandatory. **Attorneys** with privileged materials on personal phones.
+No accounts. No email, no phone number, no identity to tie back to you. Nothing to subpoena.
 
-And anyone who understands that privacy isn't about having something to hide. It's about having something to protect.
+No cloud dependency. Your files never leave your device unless you explicitly choose encrypted iCloud backup or encrypted vault sharing. Even then, the server only sees noise.
 
-## The duress button no one can see
+No biometrics. Face ID and fingerprints can be compelled by law enforcement. A pattern in your head can't be extracted. We left biometrics out on purpose.
 
-Designate any vault as a duress trigger. When that pattern is drawn under coercion, every other vault is silently destroyed. The duress vault opens normally. The person watching sees cooperation and an ordinary vault. They have no way to know anything else ever existed.
+No "forgot password." No server knows your pattern. No email reset. No backdoor. A 12-word recovery phrase exists for those who want it, stored only on your device. There is no way in for anyone but you.
 
-## What we refuse to do
+Your pattern goes through 600,000 rounds of PBKDF2 to derive a 256-bit encryption key. That key lives only in memory and gets wiped the moment the app locks. We never see it. We can't recover it. That's the point.
 
-We refuse to add biometric unlock — it can be compelled. We refuse to add cloud sync — it creates a target. We refuse to add analytics that track how you use the app. We refuse to add a backdoor disguised as account recovery. We refuse to weaken the architecture for convenience.
+## Who it's for
 
-Every decision in Vaultaire optimizes for one thing: **that your files remain yours, and yours alone, under any circumstances.**
+Journalists protecting sources where phone searches are routine. Activists carrying documentation under government surveillance. Domestic abuse survivors keeping evidence secure on a device they know is being monitored. Travelers crossing borders where device inspection is mandatory. Attorneys with privileged materials on personal phones.
+
+And anyone who gets that privacy isn't about having something to hide. It's about having something worth protecting.
+
+## The duress vault
+
+Designate any vault as a duress trigger. When that pattern is drawn under coercion, every other vault is silently and permanently destroyed. The duress vault opens normally. The person watching sees cooperation and an ordinary-looking vault with a few harmless photos. They have no way to know that anything else ever existed.
+
+No other encrypted vault app does this.
+
+## What we won't build
+
+We won't add biometric unlock, because it can be legally compelled. We won't add cloud-dependent storage, because it creates a target for subpoenas and breaches. We won't add analytics that track how you use the app. We won't add a backdoor dressed up as account recovery. We won't weaken the architecture for convenience.
+
+Every decision in Vaultaire comes back to one thing: your private files stay yours, under any circumstance.
 
 ---
 
-*Vaultaire does not collect, transmit, or store any personal information. All encryption is performed locally on your device. We cannot access your files, your patterns, or your recovery phrases — by design.*
+*Vaultaire is a private, encrypted photo and file vault for iPhone. It does not collect, transmit, or store any personal information. All AES-256-GCM encryption is performed locally on your device using Apple's Secure Enclave. We cannot access your files, your patterns, or your recovery phrases, by design.*
