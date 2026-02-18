@@ -758,17 +758,17 @@ struct ShareVaultView: View {
         )
 
         if shouldDisable && !didDisableIdleTimerForUploads {
-            UIApplication.shared.isIdleTimerDisabled = true
+            IdleTimerManager.shared.disable()
             didDisableIdleTimerForUploads = true
         } else if !shouldDisable && didDisableIdleTimerForUploads {
-            UIApplication.shared.isIdleTimerDisabled = false
+            IdleTimerManager.shared.enable()
             didDisableIdleTimerForUploads = false
         }
     }
 
     private func releaseIdleTimerPolicyIfNeeded() {
         if didDisableIdleTimerForUploads {
-            UIApplication.shared.isIdleTimerDisabled = false
+            IdleTimerManager.shared.enable()
             didDisableIdleTimerForUploads = false
         }
     }

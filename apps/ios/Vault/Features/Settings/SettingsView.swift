@@ -727,7 +727,7 @@ struct iCloudBackupSettingsView: View {
                     backupTask = nil
                     isBackingUp = false
                     backupStage = nil
-                    UIApplication.shared.isIdleTimerDisabled = false
+                    IdleTimerManager.shared.enable()
                 }
                 .font(.subheadline)
             } else if let date = lastBackupDate {
@@ -810,7 +810,7 @@ struct iCloudBackupSettingsView: View {
             backupTask = nil
             isBackingUp = false
             backupStage = nil
-            UIApplication.shared.isIdleTimerDisabled = false
+            IdleTimerManager.shared.enable()
             return
         }
 
@@ -838,12 +838,12 @@ struct iCloudBackupSettingsView: View {
         backupStage = nil
         uploadProgress = 0
         errorMessage = nil
-        UIApplication.shared.isIdleTimerDisabled = true
+        IdleTimerManager.shared.disable()
 
         backupTask = Task {
             defer {
                 Task { @MainActor in
-                    UIApplication.shared.isIdleTimerDisabled = false
+                    IdleTimerManager.shared.enable()
                 }
             }
             do {

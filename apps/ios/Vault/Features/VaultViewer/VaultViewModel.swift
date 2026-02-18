@@ -225,7 +225,7 @@ final class VaultViewModel {
 
         isDeleteInProgress = true
         importProgress = (0, count)
-        UIApplication.shared.isIdleTimerDisabled = true
+        IdleTimerManager.shared.disable()
         isEditing = false
 
         activeImportTask?.cancel()
@@ -249,7 +249,7 @@ final class VaultViewModel {
                 self.selectedIds.removeAll()
                 self.importProgress = nil
                 self.isDeleteInProgress = false
-                UIApplication.shared.isIdleTimerDisabled = false
+                IdleTimerManager.shared.enable()
                 self.toastMessage = .filesDeleted(count)
             }
 
@@ -396,7 +396,7 @@ final class VaultViewModel {
 
         activeImportTask?.cancel()
         importProgress = (0, count)
-        UIApplication.shared.isIdleTimerDisabled = true
+        IdleTimerManager.shared.disable()
 
         activeImportTask = Task.detached(priority: .userInitiated) {
             var successCount = 0
@@ -548,7 +548,7 @@ final class VaultViewModel {
                     return
                 }
                 self.importProgress = nil
-                UIApplication.shared.isIdleTimerDisabled = false
+                IdleTimerManager.shared.enable()
                 if failed > 0 && imported == 0 {
                     self.toastMessage = .importFailed(failed, imported: 0, reason: errorReason)
                 } else if failed > 0 {
@@ -608,7 +608,7 @@ final class VaultViewModel {
         if showProgress {
             importProgress = (0, count)
         }
-        UIApplication.shared.isIdleTimerDisabled = true
+        IdleTimerManager.shared.disable()
 
         activeImportTask = Task.detached(priority: .userInitiated) {
             var successCount = 0
@@ -702,7 +702,7 @@ final class VaultViewModel {
                     return
                 }
                 self.importProgress = nil
-                UIApplication.shared.isIdleTimerDisabled = false
+                IdleTimerManager.shared.enable()
                 if failed > 0 && imported == 0 {
                     self.toastMessage = .importFailed(failed, imported: 0, reason: errorReason)
                 } else if failed > 0 {
@@ -731,7 +731,7 @@ final class VaultViewModel {
         guard let vaultKey = appState?.currentVaultKey else { return }
 
         isImportingPendingFiles = true
-        UIApplication.shared.isIdleTimerDisabled = true
+        IdleTimerManager.shared.disable()
 
         let fingerprint = KeyDerivation.keyFingerprint(from: vaultKey.rawBytes)
         let initialPendingCount = StagedImportManager.pendingImportableFileCount(for: fingerprint)
@@ -751,7 +751,7 @@ final class VaultViewModel {
             await MainActor.run {
                 self.isImportingPendingFiles = false
                 self.importProgress = nil
-                UIApplication.shared.isIdleTimerDisabled = false
+                IdleTimerManager.shared.enable()
             }
 
             guard !Task.isCancelled else { return }
@@ -910,7 +910,7 @@ final class VaultViewModel {
         activeImportTask = nil
         importProgress = nil
         isDeleteInProgress = false
-        UIApplication.shared.isIdleTimerDisabled = false
+        IdleTimerManager.shared.enable()
 
         if oldKey != newKey {
             vmLogger.info("Vault key changed: clearing files (had \(self.files.count) files)")

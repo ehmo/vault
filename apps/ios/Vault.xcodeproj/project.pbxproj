@@ -20,6 +20,7 @@
 		003000003 /* EncryptedBlob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003000002 /* EncryptedBlob.swift */; };
 		003000005 /* SecureDelete.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003000004 /* SecureDelete.swift */; };
 		003000007 /* FileUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003000006 /* FileUtilities.swift */; };
+		UT0000001 /* IdleTimerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = UT0000000 /* IdleTimerManager.swift */; };
 		004000001 /* SecureEnclaveManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004000000 /* SecureEnclaveManager.swift */; };
 		004000005 /* DuressHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004000004 /* DuressHandler.swift */; };
 		005000001 /* PatternLockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005000000 /* PatternLockView.swift */; };
@@ -220,6 +221,7 @@
 		003000002 /* EncryptedBlob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedBlob.swift; sourceTree = "<group>"; };
 		003000004 /* SecureDelete.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureDelete.swift; sourceTree = "<group>"; };
 		003000006 /* FileUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUtilities.swift; sourceTree = "<group>"; };
+		UT0000000 /* IdleTimerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleTimerManager.swift; sourceTree = "<group>"; };
 		004000000 /* SecureEnclaveManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureEnclaveManager.swift; sourceTree = "<group>"; };
 		004000004 /* DuressHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuressHandler.swift; sourceTree = "<group>"; };
 		005000000 /* PatternLockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternLockView.swift; sourceTree = "<group>"; };
@@ -443,6 +445,7 @@
 				0100000025 /* Notifications */,
 				0100000026 /* Telemetry */,
 				SE000000C /* VaultCoreConstants.swift */,
+				UT0000000 /* IdleTimerManager.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -1023,6 +1026,7 @@
 				003000003 /* EncryptedBlob.swift in Sources */,
 				003000005 /* SecureDelete.swift in Sources */,
 				003000007 /* FileUtilities.swift in Sources */,
+				UT0000001 /* IdleTimerManager.swift in Sources */,
 				004000001 /* SecureEnclaveManager.swift in Sources */,
 				39EACFAD2F2AC5C500FA7EC2 /* GridLetterManager.swift in Sources */,
 				004000005 /* DuressHandler.swift in Sources */,
