@@ -289,10 +289,15 @@ actor MediaOptimizer {
         return (tempURL, "video/mp4", true)
     }
 
+    /// Reusable serial queues for sample transfer — one per track type.
+    /// Avoids creating new DispatchQueues per transcode call.
+    private static let videoTransferQueue = DispatchQueue(label: "app.vaultaire.transcode.video")
+    private static let audioTransferQueue = DispatchQueue(label: "app.vaultaire.transcode.audio")
+
     /// Transfer sample buffers from reader output to writer input using the proper callback pattern.
     private nonisolated static func transferSamples(from output: AVAssetReaderTrackOutput, to input: AVAssetWriterInput) async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            let queue = DispatchQueue(label: "app.vaultaire.transcode.\(output.mediaType.rawValue)")
+            let queue = output.mediaType == .audio ? audioTransferQueue : videoTransferQueue
             // AVAssetWriterInput/AVAssetReaderTrackOutput are thread-safe for this callback pattern.
             // The requestMediaDataWhenReady callback is always called on the provided queue serially.
             nonisolated(unsafe) let output = output

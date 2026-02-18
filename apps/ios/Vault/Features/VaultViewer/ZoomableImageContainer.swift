@@ -62,14 +62,22 @@ struct ZoomableImageContainer: UIViewRepresentable {
     func updateUIView(_ scrollView: UIScrollView, context: Context) {
         guard let imageView = scrollView.viewWithTag(100) as? UIImageView else { return }
 
+        let imageChanged = imageView.image !== image
+        let sizeChanged = context.coordinator.lastContainerSize != containerSize
+
         // Update image if changed
-        if imageView.image !== image {
+        if imageChanged {
             imageView.image = image
             scrollView.zoomScale = 1.0
         }
 
         context.coordinator.parent = self
-        layoutImageView(imageView, in: scrollView)
+
+        // Only recompute layout when image or container size actually changed
+        if imageChanged || sizeChanged {
+            context.coordinator.lastContainerSize = containerSize
+            layoutImageView(imageView, in: scrollView)
+        }
     }
 
     private func layoutImageView(_ imageView: UIImageView, in scrollView: UIScrollView) {
@@ -107,6 +115,7 @@ struct ZoomableImageContainer: UIViewRepresentable {
         weak var scrollView: UIScrollView?
         weak var imageView: UIImageView?
         weak var panGesture: UIPanGestureRecognizer?
+        var lastContainerSize: CGSize = .zero
 
         init(parent: ZoomableImageContainer) {
             self.parent = parent
