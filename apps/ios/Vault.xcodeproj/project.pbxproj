@@ -124,6 +124,10 @@
 		MO0000003 /* MediaOptimizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = MO0000002 /* MediaOptimizerTests.swift */; };
 		ZI0000001 /* ZoomableImageContainerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ZI0000000 /* ZoomableImageContainerTests.swift */; };
 		DH0000001 /* DuressHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DH0000000 /* DuressHandlerTests.swift */; };
+		SD0000001 /* SecureDeleteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SD0000000 /* SecureDeleteTests.swift */; };
+		EB0000001 /* EncryptedBlobTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB0000000 /* EncryptedBlobTests.swift */; };
+		FC0000001 /* VaultFullChainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0000000 /* VaultFullChainTests.swift */; };
+		NC0000001 /* NonceChunkSwapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NC0000000 /* NonceChunkSwapTests.swift */; };
 		019000009 /* PatternSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000008 /* PatternSetupCoordinator.swift */; };
 		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
 		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
@@ -302,6 +306,10 @@
 		MO0000002 /* MediaOptimizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaOptimizerTests.swift; sourceTree = "<group>"; };
 		ZI0000000 /* ZoomableImageContainerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableImageContainerTests.swift; sourceTree = "<group>"; };
 		DH0000000 /* DuressHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuressHandlerTests.swift; sourceTree = "<group>"; };
+		SD0000000 /* SecureDeleteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureDeleteTests.swift; sourceTree = "<group>"; };
+		EB0000000 /* EncryptedBlobTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedBlobTests.swift; sourceTree = "<group>"; };
+		FC0000000 /* VaultFullChainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFullChainTests.swift; sourceTree = "<group>"; };
+		NC0000000 /* NonceChunkSwapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NonceChunkSwapTests.swift; sourceTree = "<group>"; };
 		019000008 /* PatternSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinator.swift; sourceTree = "<group>"; };
 		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
@@ -697,6 +705,10 @@
 				MO0000002 /* MediaOptimizerTests.swift */,
 				ZI0000000 /* ZoomableImageContainerTests.swift */,
 				DH0000000 /* DuressHandlerTests.swift */,
+				SD0000000 /* SecureDeleteTests.swift */,
+				EB0000000 /* EncryptedBlobTests.swift */,
+				FC0000000 /* VaultFullChainTests.swift */,
+				NC0000000 /* NonceChunkSwapTests.swift */,
 			);
 			path = VaultTests;
 			sourceTree = "<group>";
@@ -1086,6 +1098,10 @@
 				MO0000003 /* MediaOptimizerTests.swift in Sources */,
 				ZI0000001 /* ZoomableImageContainerTests.swift in Sources */,
 				DH0000001 /* DuressHandlerTests.swift in Sources */,
+				SD0000001 /* SecureDeleteTests.swift in Sources */,
+				EB0000001 /* EncryptedBlobTests.swift in Sources */,
+				FC0000001 /* VaultFullChainTests.swift in Sources */,
+				NC0000001 /* NonceChunkSwapTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
