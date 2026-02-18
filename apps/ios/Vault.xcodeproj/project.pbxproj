@@ -223,6 +223,7 @@
 		002000004 /* PatternSerializer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSerializer.swift; sourceTree = "<group>"; };
 		003000000 /* VaultStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultStorage.swift; sourceTree = "<group>"; };
 		003000002 /* EncryptedBlob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedBlob.swift; sourceTree = "<group>"; };
+		VBM000000 /* VaultBlobManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultBlobManager.swift; sourceTree = "<group>"; };
 		003000004 /* SecureDelete.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureDelete.swift; sourceTree = "<group>"; };
 		003000006 /* FileUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUtilities.swift; sourceTree = "<group>"; };
 		UT0000000 /* IdleTimerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleTimerManager.swift; sourceTree = "<group>"; };
