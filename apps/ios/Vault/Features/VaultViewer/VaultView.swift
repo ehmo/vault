@@ -198,11 +198,6 @@ struct VaultView: View {
         computeVisibleFiles().all
     }
 
-    var splitFiles: (all: [VaultFileItem], media: [VaultFileItem], documents: [VaultFileItem]) {
-        let visible = computeVisibleFiles()
-        return (visible.all, visible.media, visible.documents)
-    }
-
     var useDateGrouping: Bool {
         sortOrder == .dateNewest || sortOrder == .dateOldest
     }
@@ -463,16 +458,16 @@ struct VaultView: View {
 struct VaultFileItem: Identifiable, Sendable {
     let id: UUID
     let size: Int
-    let encryptedThumbnail: Data?
+    let hasThumbnail: Bool
     let mimeType: String?
     let filename: String?
     let createdAt: Date?
     let duration: TimeInterval?
 
-    init(id: UUID, size: Int, encryptedThumbnail: Data?, mimeType: String?, filename: String?, createdAt: Date? = nil, duration: TimeInterval? = nil) {
+    init(id: UUID, size: Int, hasThumbnail: Bool = false, mimeType: String?, filename: String?, createdAt: Date? = nil, duration: TimeInterval? = nil) {
         self.id = id
         self.size = size
-        self.encryptedThumbnail = encryptedThumbnail
+        self.hasThumbnail = hasThumbnail
         self.mimeType = mimeType
         self.filename = filename
         self.createdAt = createdAt

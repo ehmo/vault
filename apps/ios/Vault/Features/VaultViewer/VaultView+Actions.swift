@@ -190,11 +190,17 @@ extension VaultView {
         Task.detached(priority: .userInitiated) {
             do {
                 let result = try VaultStorage.shared.listFilesLightweight(with: key)
+                // Store encrypted thumbnails in cache, keep only hasThumbnail flag in items
+                for entry in result.files {
+                    if let encThumb = entry.encryptedThumbnail {
+                        await ThumbnailCache.shared.storeEncrypted(id: entry.fileId, data: encThumb)
+                    }
+                }
                 let items = result.files.map { entry in
                     VaultFileItem(
                         id: entry.fileId,
                         size: entry.size,
-                        encryptedThumbnail: entry.encryptedThumbnail,
+                        hasThumbnail: entry.encryptedThumbnail != nil,
                         mimeType: entry.mimeType,
                         filename: entry.filename,
                         createdAt: entry.createdAt,
@@ -234,13 +240,16 @@ extension VaultView {
                     with: key,
                     thumbnailData: thumbnail
                 )
-                // Re-encrypt thumbnail for in-memory model (matches what's stored in index)
+                // Store encrypted thumbnail in cache
                 let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: currentMasterKey ?? key) }
-                await MainActor.run { [encThumb] in
+                if let encThumb {
+                    await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
+                }
+                await MainActor.run {
                     self.files.append(VaultFileItem(
                         id: fileId,
                         size: imageData.count,
-                        encryptedThumbnail: encThumb,
+                        hasThumbnail: encThumb != nil,
                         mimeType: "image/jpeg",
                         filename: filename,
                         createdAt: Date()
@@ -333,11 +342,14 @@ extension VaultView {
                         try? FileManager.default.removeItem(at: tempVideoURL)
 
                         let encThumb = metadata.thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
+                        if let encThumb {
+                            await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
+                        }
                         await MainActor.run {
                             guard !Task.isCancelled else { return }
                             self.files.append(VaultFileItem(
                                 id: fileId, size: fileSize,
-                                encryptedThumbnail: encThumb, mimeType: mimeType,
+                                hasThumbnail: encThumb != nil, mimeType: mimeType,
                                 filename: filename, createdAt: Date(), duration: metadata.duration
                             ))
                             self.importProgress = (index + 1, count)
@@ -377,11 +389,14 @@ extension VaultView {
                             with: key, thumbnailData: thumbnail
                         )
                         let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
+                        if let encThumb {
+                            await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
+                        }
                         await MainActor.run {
                             guard !Task.isCancelled else { return }
                             self.files.append(VaultFileItem(
                                 id: fileId, size: jpegData.count,
-                                encryptedThumbnail: encThumb, mimeType: mimeType,
+                                hasThumbnail: encThumb != nil, mimeType: mimeType,
                                 filename: filename, createdAt: Date()
                             ))
                             self.importProgress = (index + 1, count)
@@ -551,11 +566,14 @@ extension VaultView {
                             with: key, thumbnailData: metadata.thumbnail, duration: metadata.duration
                         )
                         let encThumb = metadata.thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
+                        if let encThumb {
+                            await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
+                        }
                         await MainActor.run {
                             guard !Task.isCancelled else { return }
                             self.files.append(VaultFileItem(
                                 id: fileId, size: fileSize,
-                                encryptedThumbnail: encThumb, mimeType: mimeType,
+                                hasThumbnail: encThumb != nil, mimeType: mimeType,
                                 filename: filename, createdAt: Date(), duration: metadata.duration
                             ))
                             if showProgress { self.importProgress = (index + 1, count) }
@@ -571,11 +589,14 @@ extension VaultView {
                             with: key, thumbnailData: thumbnail
                         )
                         let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
+                        if let encThumb {
+                            await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
+                        }
                         await MainActor.run {
                             guard !Task.isCancelled else { return }
                             self.files.append(VaultFileItem(
                                 id: fileId, size: fileSize,
-                                encryptedThumbnail: encThumb, mimeType: mimeType,
+                                hasThumbnail: encThumb != nil, mimeType: mimeType,
                                 filename: filename, createdAt: Date()
                             ))
                             if showProgress { self.importProgress = (index + 1, count) }

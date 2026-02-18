@@ -13,7 +13,7 @@ final class DateGroupingTests: XCTestCase {
         VaultFileItem(
             id: id,
             size: 1024,
-            encryptedThumbnail: nil,
+            hasThumbnail: false,
             mimeType: mimeType,
             filename: "test.png",
             createdAt: createdAt

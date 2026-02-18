@@ -22,6 +22,9 @@ struct PhotosGridView: View {
         grid
             .coordinateSpace(name: "photosGrid")
             .onPreferenceChange(PhotoCellFramePreference.self) { cellFrames = $0 }
+            .onChange(of: isEditing) { _, editing in
+                if !editing { cellFrames.removeAll() }
+            }
     }
 
     @ViewBuilder
@@ -29,14 +32,16 @@ struct PhotosGridView: View {
         let base = LazyVGrid(columns: columns, spacing: 2) {
             ForEach(files) { file in
                 cellView(for: file)
-                    .background(
-                        GeometryReader { geo in
-                            Color.clear.preference(
-                                key: PhotoCellFramePreference.self,
-                                value: [file.id: geo.frame(in: .named("photosGrid"))]
-                            )
+                    .background {
+                        if isEditing {
+                            GeometryReader { geo in
+                                Color.clear.preference(
+                                    key: PhotoCellFramePreference.self,
+                                    value: [file.id: geo.frame(in: .named("photosGrid"))]
+                                )
+                            }
                         }
-                    )
+                    }
             }
         }
         if isEditing {
@@ -53,7 +58,7 @@ struct PhotosGridView: View {
             .overlay {
                 AsyncThumbnailView(
                     fileId: file.id,
-                    encryptedThumbnail: file.encryptedThumbnail,
+                    hasThumbnail: file.hasThumbnail,
                     masterKey: masterKey,
                     contentMode: .fill
                 )

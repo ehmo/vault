@@ -248,7 +248,7 @@ struct QuickLookPreview: UIViewControllerRepresentable {
         file: VaultFileItem(
             id: UUID(),
             size: 1024,
-            encryptedThumbnail: nil,
+            hasThumbnail: false,
             mimeType: "image/jpeg",
             filename: "preview.jpg"
         ),

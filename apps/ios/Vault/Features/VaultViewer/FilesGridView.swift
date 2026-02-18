@@ -23,6 +23,9 @@ struct FilesGridView: View {
             .padding(.horizontal, 16)
             .coordinateSpace(name: "filesGrid")
             .onPreferenceChange(FileCellFramePreference.self) { cellFrames = $0 }
+            .onChange(of: isEditing) { _, editing in
+                if !editing { cellFrames.removeAll() }
+            }
     }
 
     @ViewBuilder
@@ -30,14 +33,16 @@ struct FilesGridView: View {
         let base = LazyVGrid(columns: columns, spacing: 12) {
             ForEach(files) { file in
                 cellView(for: file)
-                    .background(
-                        GeometryReader { geo in
-                            Color.clear.preference(
-                                key: FileCellFramePreference.self,
-                                value: [file.id: geo.frame(in: .named("filesGrid"))]
-                            )
+                    .background {
+                        if isEditing {
+                            GeometryReader { geo in
+                                Color.clear.preference(
+                                    key: FileCellFramePreference.self,
+                                    value: [file.id: geo.frame(in: .named("filesGrid"))]
+                                )
+                            }
                         }
-                    )
+                    }
             }
         }
         if isEditing {
@@ -93,12 +98,12 @@ struct FilesGridView: View {
 
     @ViewBuilder
     private func thumbnailOrIcon(for file: VaultFileItem) -> some View {
-        if let masterKey, file.encryptedThumbnail != nil {
+        if let masterKey, file.hasThumbnail {
             Color.clear
                 .overlay {
                     AsyncThumbnailView(
                         fileId: file.id,
-                        encryptedThumbnail: file.encryptedThumbnail,
+                        hasThumbnail: file.hasThumbnail,
                         masterKey: masterKey,
                         contentMode: .fill
                     )

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct AsyncThumbnailView: View {
     let fileId: UUID
-    let encryptedThumbnail: Data?
+    let hasThumbnail: Bool
     let masterKey: Data
     var contentMode: ContentMode = .fill
 
@@ -19,18 +19,17 @@ struct AsyncThumbnailView: View {
             }
         }
         .task(id: fileId) {
-            guard let encryptedThumbnail else { return }
+            guard hasThumbnail else { return }
 
-            // Check cache first
+            // Check decoded image cache first
             if let cached = await ThumbnailCache.shared.image(for: fileId) {
                 image = cached
                 return
             }
 
-            // Decrypt off-main (task already runs on cooperative pool)
+            // Decrypt from stored encrypted data
             let result = await ThumbnailCache.shared.decryptAndCache(
                 id: fileId,
-                encryptedThumbnail: encryptedThumbnail,
                 masterKey: masterKey
             )
             if !Task.isCancelled {

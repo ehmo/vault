@@ -9,7 +9,7 @@ final class VaultFileItemTests: XCTestCase {
         VaultFileItem(
             id: UUID(),
             size: 1024,
-            encryptedThumbnail: nil,
+            hasThumbnail: false,
             mimeType: mimeType,
             filename: "test",
             createdAt: nil,
@@ -62,7 +62,7 @@ final class VaultFileItemTests: XCTestCase {
 
     func testDurationDefaultsToNil() {
         let item = VaultFileItem(
-            id: UUID(), size: 100, encryptedThumbnail: nil,
+            id: UUID(), size: 100, hasThumbnail: false,
             mimeType: "video/mp4", filename: "clip.mp4"
         )
         XCTAssertNil(item.duration)

@@ -210,17 +210,12 @@ struct FullScreenPhotoViewer: View {
         let isVideo = (file.mimeType ?? "").hasPrefix("video/")
 
         if isVideo {
-            // For videos, decrypt the thumbnail from the file entry (fast, ~30KB)
-            guard let masterKey = masterKey,
-                  let encryptedThumb = file.encryptedThumbnail else { return }
-            do {
-                let thumbData = try CryptoEngine.decrypt(encryptedThumb, with: masterKey)
-                guard let uiImage = UIImage(data: thumbData) else { return }
+            // For videos, decrypt thumbnail from ThumbnailCache (fast, ~30KB)
+            guard let masterKey = masterKey, file.hasThumbnail else { return }
+            if let uiImage = await ThumbnailCache.shared.decryptAndCache(id: file.id, masterKey: masterKey) {
                 await MainActor.run {
                     images[file.id] = uiImage
                 }
-            } catch {
-                // Thumbnail decryption failed
             }
         } else {
             // For images, load full content
