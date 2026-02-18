@@ -49,7 +49,7 @@
       <nav class="breadcrumbs">
         <a href="../../../index.html">Home</a><span>/</span>
         <a href="../../../compare/">Compare</a><span>/</span>
-        <a href="../">vs Private Photo Vault</a><span>/</span>
+        <a href="../">Vaultaire vs Private Photo Vault</a><span>/</span>
         Review
       </nav>
 
@@ -133,21 +133,31 @@
         <a href="mailto:support@vaultaire.app">Support</a>
       </div>
       <div class="footer-compare">
-        <a href="../../vaultaire-vs-private-photo-vault/">vs Private Photo Vault</a>
-        <a href="../../vaultaire-vs-keepsafe/">vs Keepsafe</a>
-        <a href="../../vaultaire-vs-privault/">vs Privault</a>
-        <a href="../../vaultaire-vs-spv/">vs SPV</a>
-        <a href="../../vaultaire-vs-secret-photo-album/">vs Secret Photo Album</a>
-        <a href="../../vaultaire-vs-pv-secret-photo-album/">vs PV Secret Photo Album</a>
-        <a href="../../vaultaire-vs-calculator-hide-photos/">vs Calculator#</a>
-        <a href="../../vaultaire-vs-secret-photo-vault/">vs Secret Photo Vault</a>
-        <a href="../../vaultaire-vs-hide-it-pro/">vs Hide it Pro</a>
-        <a href="../../vaultaire-vs-safe-lock/">vs Safe Lock</a>
+        <a href="../../vaultaire-vs-private-photo-vault/">Vaultaire vs Private Photo Vault</a>
+        <a href="../../vaultaire-vs-keepsafe/">Vaultaire vs Keepsafe</a>
+        <a href="../../vaultaire-vs-privault/">Vaultaire vs Privault</a>
+        <a href="../../vaultaire-vs-spv/">Vaultaire vs SPV</a>
+        <a href="../../vaultaire-vs-secret-photo-album/">Vaultaire vs Secret Photo Album</a>
+        <a href="../../vaultaire-vs-pv-secret-photo-album/">Vaultaire vs PV Secret Photo Album</a>
+        <a href="../../vaultaire-vs-calculator-hide-photos/">Vaultaire vs Calculator#</a>
+        <a href="../../vaultaire-vs-secret-photo-vault/">Vaultaire vs Secret Photo Vault</a>
+        <a href="../../vaultaire-vs-hide-it-pro/">Vaultaire vs Hide it Pro</a>
+        <a href="../../vaultaire-vs-safe-lock/">Vaultaire vs Safe Lock</a>
       </div>
     </div>
   </footer>
-
-
+  <script>
+    (function () {
+      const fallbackIcon = "/assets/compare-fallback-icon.svg";
+      document.querySelectorAll('img[src*="is1-ssl.mzstatic.com"], img[data-competitor-icon]').forEach((img) => {
+        img.addEventListener("error", () => {
+          if (img.dataset.fallbackApplied === "1") return;
+          img.dataset.fallbackApplied = "1";
+          img.src = fallbackIcon;
+        });
+      });
+    })();
+  </script>
 
   <script src="../../../assets/theme-toggle.js"></script>
 </body>

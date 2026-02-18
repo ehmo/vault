@@ -346,7 +346,7 @@
             min-height: 100vh;
             display: flex;
             align-items: center;
-            padding-top: 80px;
+            padding-top: max(108px, calc(80px + env(safe-area-inset-top)));
             overflow: hidden;
         }
 
@@ -1231,17 +1231,49 @@
 
         .footer-content {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            justify-content: flex-start;
+            align-items: flex-start;
             flex-wrap: wrap;
-            gap: 20px;
+            gap: 18px 24px;
+        }
+
+        .footer-brand {
+            width: 100%;
+        }
+
+        .footer-links {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 24px;
         }
 
         .footer-links a {
-            margin-left: 24px;
+            margin: 0;
             color: var(--accent-dark);
         }
         .footer-links a:hover { color: var(--highlight-dark); }
+
+        .footer-compare {
+            width: 100%;
+            padding-top: 20px;
+            margin-top: 6px;
+            border-top: 1px solid color-mix(in srgb, var(--text-dark) 8%, transparent 92%);
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 8px 14px;
+            font-size: 0.82rem;
+        }
+
+        .footer-compare a {
+            color: var(--text-secondary);
+            transition: color .2s;
+            text-align: left;
+        }
+
+        .footer-compare a:hover {
+            color: var(--accent-dark);
+        }
 
         /* ── Grid Overlay ── */
         .grid-overlay {
@@ -1276,7 +1308,7 @@
             }
             .hero {
                 min-height: auto;
-                padding-top: 74px;
+                padding-top: max(112px, calc(74px + env(safe-area-inset-top) + 28px));
                 padding-bottom: 40px;
             }
             .hero-layout {
@@ -1326,7 +1358,7 @@
             .mockup-container {
                 width: min(100%, 340px);
                 height: 560px;
-                margin: 8px auto 0;
+                margin: 20px auto 32px;
             }
             .pattern-lock-zone {
                 width: 218px;
@@ -1335,6 +1367,17 @@
             }
             .lock-title {
                 font-size: 1.15rem;
+            }
+
+            .footer-links {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .footer-compare {
+                grid-template-columns: 1fr;
+                gap: 6px;
             }
         }
 
@@ -1766,17 +1809,17 @@
                 <a href="compare/">Compare</a>
                 <a href="mailto:support@vaultaire.app">Support</a>
             </div>
-            <div class="footer-compare" style="width:100%;padding-top:20px;margin-top:20px;border-top:1px solid color-mix(in srgb, var(--text-dark) 8%, transparent 92%);display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:center;font-size:0.82rem;">
-                <a href="compare/vaultaire-vs-private-photo-vault/" style="color:var(--text-secondary);transition:color .2s;">vs Private Photo Vault</a>
-                <a href="compare/vaultaire-vs-keepsafe/" style="color:var(--text-secondary);transition:color .2s;">vs Keepsafe</a>
-                <a href="compare/vaultaire-vs-privault/" style="color:var(--text-secondary);transition:color .2s;">vs Privault</a>
-                <a href="compare/vaultaire-vs-spv/" style="color:var(--text-secondary);transition:color .2s;">vs SPV</a>
-                <a href="compare/vaultaire-vs-secret-photo-album/" style="color:var(--text-secondary);transition:color .2s;">vs Secret Photo Album</a>
-                <a href="compare/vaultaire-vs-pv-secret-photo-album/" style="color:var(--text-secondary);transition:color .2s;">vs PV Secret Photo Album</a>
-                <a href="compare/vaultaire-vs-calculator-hide-photos/" style="color:var(--text-secondary);transition:color .2s;">vs Calculator#</a>
-                <a href="compare/vaultaire-vs-secret-photo-vault/" style="color:var(--text-secondary);transition:color .2s;">vs Secret Photo Vault</a>
-                <a href="compare/vaultaire-vs-hide-it-pro/" style="color:var(--text-secondary);transition:color .2s;">vs Hide it Pro</a>
-                <a href="compare/vaultaire-vs-safe-lock/" style="color:var(--text-secondary);transition:color .2s;">vs Safe Lock</a>
+            <div class="footer-compare">
+                <a href="compare/vaultaire-vs-private-photo-vault/">Vaultaire vs Private Photo Vault</a>
+                <a href="compare/vaultaire-vs-keepsafe/">Vaultaire vs Keepsafe</a>
+                <a href="compare/vaultaire-vs-privault/">Vaultaire vs Privault</a>
+                <a href="compare/vaultaire-vs-spv/">Vaultaire vs SPV</a>
+                <a href="compare/vaultaire-vs-secret-photo-album/">Vaultaire vs Secret Photo Album</a>
+                <a href="compare/vaultaire-vs-pv-secret-photo-album/">Vaultaire vs PV Secret Photo Album</a>
+                <a href="compare/vaultaire-vs-calculator-hide-photos/">Vaultaire vs Calculator#</a>
+                <a href="compare/vaultaire-vs-secret-photo-vault/">Vaultaire vs Secret Photo Vault</a>
+                <a href="compare/vaultaire-vs-hide-it-pro/">Vaultaire vs Hide it Pro</a>
+                <a href="compare/vaultaire-vs-safe-lock/">Vaultaire vs Safe Lock</a>
             </div>
         </div>
     </footer>

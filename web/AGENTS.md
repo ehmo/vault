@@ -48,6 +48,7 @@ Defined in `styles/input.css` as `@theme` variables, used as `bg-vault-bg`, `tex
 - Shared cross-page chrome styles live in `styles/site-shared.css` (header, nav, footer, buttons, responsive nav behavior).
 - Shared theme toggle behavior lives in `assets/theme-toggle.js` (`vaultaire-theme` localStorage key, `☀︎/☽` icon swap, `vaultaire-themechange` event).
 - Keep per-page `<style>` blocks focused on page-specific layout/content only.
+- `index.html` still contains an embedded style block for the hero/mockup experience; when changing global chrome (header/footer/mobile spacing), mirror equivalent adjustments there so home does not drift from shared pages.
 
 ## Deployment
 
@@ -78,3 +79,4 @@ The `apple-app-site-association` file MUST:
 - Reuse the exact home-page header/footer chrome (nav spacing, theme glyph toggle `☀︎/☽`, angular `Get App` button, footer brand block) across every page to avoid visual drift.
 - For nested compare pages (`/compare/<slug>/review/`), header nav links and shared script paths must use `../../../` depth; top-level compare pages use `../`, comparison detail pages use `../../`.
 - Keep compare-specific layout in `compare/styles.css`, but always import and rely on `styles/site-shared.css` for shared chrome so header/footer/theme behavior stays identical across pages.
+- Compare icon URLs from App Store can fail intermittently; attach a local fallback (`/assets/compare-fallback-icon.svg`) for all competitor icon images so cards/lists never render broken placeholders.
