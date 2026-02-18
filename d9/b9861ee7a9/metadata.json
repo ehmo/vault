@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "d9b9861ee7a9",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Core/Storage/MediaOptimizer.swift",
+    "apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Actions.swift",
+    "apps/ios/VaultTests/ZoomableImageContainerTests.swift",
+    "apps/ios/maestro/flows/viewer/photo_controls_toggle.yaml",
+    "apps/ios/maestro/flows/viewer/photo_navigation.yaml",
+    "web/index.html",
+    "web/redesign-draft.html"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d9/b9861ee7a9/0/metadata.json",
+      "transcript": "/d9/b9861ee7a9/0/full.jsonl",
+      "context": "/d9/b9861ee7a9/0/context.md",
+      "content_hash": "/d9/b9861ee7a9/0/content_hash.txt",
+      "prompt": "/d9/b9861ee7a9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 106,
+    "cache_creation_tokens": 231005,
+    "cache_read_tokens": 8853295,
+    "output_tokens": 4581,
+    "api_call_count": 94
+  }
+}

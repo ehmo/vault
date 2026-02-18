@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "d9b9861ee7a9",
+  "session_id": "d7336379-23a0-4da3-a035-fd1f71797470",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T02:44:13.031558Z",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Core/Storage/MediaOptimizer.swift",
+    "apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Actions.swift",
+    "apps/ios/VaultTests/ZoomableImageContainerTests.swift",
+    "apps/ios/maestro/flows/viewer/photo_controls_toggle.yaml",
+    "apps/ios/maestro/flows/viewer/photo_navigation.yaml",
+    "web/index.html",
+    "web/redesign-draft.html"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "91cdb558-0921-45bb-9df8-0f2c5be93f5b",
+  "checkpoint_transcript_start": 751,
+  "transcript_lines_at_start": 751,
+  "token_usage": {
+    "input_tokens": 106,
+    "cache_creation_tokens": 231005,
+    "cache_read_tokens": 8853295,
+    "output_tokens": 4581,
+    "api_call_count": 94
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T02:44:12.555632Z",
+    "agent_lines": 702,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 1201,
+    "total_committed": 702,
+    "agent_percentage": 100
+  }
+}
