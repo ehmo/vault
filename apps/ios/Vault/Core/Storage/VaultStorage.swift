@@ -62,47 +62,38 @@ final class VaultStorage {
     }
 
     private let initQueue = DispatchQueue(label: "vault.blob.init")
-    /// Serializes all index read/write operations to prevent concurrent access races
-    /// between VaultView, ShareSyncManager, and BackgroundShareTransferManager.
-    /// Recursive lock allows compound operations (load+modify+save) to call loadIndex/saveIndex internally.
-    private let indexLock = NSRecursiveLock()
     private var blobReady = false
 
-    // In-memory index cache — avoids decrypt+decode on every retrieveFile/listFiles call
-    private var cachedIndex: VaultIndex?
-    private var cachedIndexFingerprint: String?
-
-    private func keyFingerprint(_ key: VaultKey) -> String {
-        SHA256.hash(data: key.rawBytes).prefix(16).map { String(format: "%02x", $0) }.joined()
-    }
+    /// Index manager handles all index CRUD, caching, locking, and migration.
+    let indexManager: VaultIndexManager
 
     private var blobURL: URL {
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         return documents.appendingPathComponent(blobFileName)
     }
-    
+
     /// Expose blob URL for secure overwrites during pattern changes
     func getBlobURL() -> URL {
         return blobURL
     }
 
-    /// Returns the index file URL for a specific vault key
-    /// Each vault gets its own index file based on a hash of the key
-    private func indexURL(for key: VaultKey) -> URL {
-        let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-
-        // Create a fingerprint from the key
-        let keyHash = SHA256.hash(data: key.rawBytes)
-        let fingerprint = keyHash.prefix(16).map { String(format: "%02x", $0) }.joined()
-        
-        let fileName = "vault_index_\(fingerprint).bin"
-        
-        Self.logger.debug("Index file for this vault: \(fileName, privacy: .public)")
-        
-        return documents.appendingPathComponent(fileName)
-    }
-
     private init() {
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let blobSize = 50 * 1024 * 1024
+        indexManager = VaultIndexManager(
+            documentsURL: documents,
+            blobFileName: "vault_data.bin",
+            defaultBlobSize: blobSize,
+            cursorBlockOffset: blobSize - 16
+        )
+        // Wire up closures that depend on VaultStorage's blob state
+        indexManager.readGlobalCursor = { [weak self] in
+            self?.readGlobalCursor() ?? 0
+        }
+        indexManager.cursorFooterOffset = { [weak self] in
+            self?.cursorFooterOffset() ?? (blobSize - 16)
+        }
+
         initializeBlobIfNeeded()
         cleanupStaleTempFiles()
     }
@@ -115,6 +106,20 @@ final class VaultStorage {
                 try? fileManager.removeItem(at: file)
             }
         }
+    }
+
+    // MARK: - Index Delegation
+
+    func loadIndex(with key: VaultKey) throws -> VaultIndex {
+        return try indexManager.loadIndex(with: key)
+    }
+
+    func saveIndex(_ index: VaultIndex, with key: VaultKey) throws {
+        try indexManager.saveIndex(index, with: key)
+    }
+
+    private func getMasterKey(from index: VaultIndex, vaultKey: VaultKey) throws -> Data {
+        return try indexManager.getMasterKey(from: index, vaultKey: vaultKey)
     }
 
     // MARK: - Blob Initialization
@@ -234,265 +239,6 @@ final class VaultStorage {
         }
     }
 
-    // MARK: - Vault Index Management
-
-    // MARK: - Share Policy & Records
-
-    struct SharePolicy: Codable, Equatable, Sendable {
-        var expiresAt: Date?        // nil = never
-        var maxOpens: Int?          // nil = unlimited
-        var allowScreenshots: Bool  // default false
-        var allowDownloads: Bool    // default true
-
-        init(expiresAt: Date? = nil, maxOpens: Int? = nil, allowScreenshots: Bool = false, allowDownloads: Bool = true) {
-            self.expiresAt = expiresAt
-            self.maxOpens = maxOpens
-            self.allowScreenshots = allowScreenshots
-            self.allowDownloads = allowDownloads
-        }
-    }
-
-    struct ShareRecord: Codable, Identifiable, Sendable {
-        let id: String              // share vault ID in CloudKit
-        let createdAt: Date
-        let policy: SharePolicy
-        var lastSyncedAt: Date?
-        var shareKeyData: Data?     // phrase-derived share key (stored in encrypted index)
-        var syncSequence: Int?      // incremental sync counter (nil = never synced with SVDF)
-
-        var shareId: String { id }
-    }
-
-    struct BlobDescriptor: Codable, Sendable {
-        let blobId: String      // "primary" or random hex
-        let fileName: String    // "vault_data.bin" or "vd_<hex>.bin"
-        let capacity: Int       // usable bytes (blob size minus reserved footer for primary)
-        var cursor: Int         // next write offset in this blob
-    }
-
-    struct VaultIndex: Codable, Sendable {
-        var files: [VaultFileEntry]
-        var nextOffset: Int
-        var totalSize: Int
-        var encryptedMasterKey: Data? // Master key encrypted with vault key (32 bytes encrypted)
-        var version: Int // Index format version for future migrations
-
-        // Multi-blob pool (nil = v2 single-blob mode)
-        var blobs: [BlobDescriptor]?
-
-        // Owner side: active shares for this vault
-        var activeShares: [ShareRecord]?
-
-        // Recipient side: marks this as a received shared vault
-        var isSharedVault: Bool?
-        var sharedVaultId: String?       // CloudKit vault ID for update checks
-        var sharePolicy: SharePolicy?    // restrictions set by owner
-        var openCount: Int?              // track opens for maxOpens
-        var shareKeyData: Data?          // phrase-derived share key for update downloads
-        var sharedVaultVersion: Int?     // last known remote version for update checks
-
-        // Legacy initializer for backward compatibility
-        init(files: [VaultFileEntry], nextOffset: Int, totalSize: Int) {
-            self.files = files
-            self.nextOffset = nextOffset
-            self.totalSize = totalSize
-            self.encryptedMasterKey = nil
-            self.version = 1
-        }
-
-        // New initializer with master key
-        init(files: [VaultFileEntry], nextOffset: Int, totalSize: Int, encryptedMasterKey: Data, version: Int = 2) {
-            self.files = files
-            self.nextOffset = nextOffset
-            self.totalSize = totalSize
-            self.encryptedMasterKey = encryptedMasterKey
-            self.version = version
-        }
-
-        struct VaultFileEntry: Codable, Sendable {
-            let fileId: UUID
-            let offset: Int
-            let size: Int
-            let encryptedHeaderPreview: Data // First 64 bytes for quick lookup
-            let isDeleted: Bool
-            let thumbnailData: Data? // Encrypted thumbnail data (JPEG, 200x200 max)
-            let mimeType: String?
-            let filename: String?
-            let blobId: String? // nil = primary blob (backward compat)
-            let createdAt: Date? // When the file was added to the vault
-            let duration: TimeInterval? // Video duration in seconds (nil for non-video)
-
-            // Legacy initializer for backward compatibility
-            init(fileId: UUID, offset: Int, size: Int, encryptedHeaderPreview: Data, isDeleted: Bool) {
-                self.fileId = fileId
-                self.offset = offset
-                self.size = size
-                self.encryptedHeaderPreview = encryptedHeaderPreview
-                self.isDeleted = isDeleted
-                self.thumbnailData = nil
-                self.mimeType = nil
-                self.filename = nil
-                self.blobId = nil
-                self.createdAt = nil
-                self.duration = nil
-            }
-
-            // Full initializer with thumbnail and blobId
-            init(fileId: UUID, offset: Int, size: Int, encryptedHeaderPreview: Data, isDeleted: Bool,
-                 thumbnailData: Data?, mimeType: String?, filename: String?, blobId: String? = nil,
-                 createdAt: Date? = nil, duration: TimeInterval? = nil) {
-                self.fileId = fileId
-                self.offset = offset
-                self.size = size
-                self.encryptedHeaderPreview = encryptedHeaderPreview
-                self.isDeleted = isDeleted
-                self.thumbnailData = thumbnailData
-                self.mimeType = mimeType
-                self.filename = filename
-                self.blobId = blobId
-                self.createdAt = createdAt
-                self.duration = duration
-            }
-        }
-    }
-
-    func loadIndex(with key: VaultKey) throws -> VaultIndex {
-        indexLock.lock()
-        defer { indexLock.unlock() }
-        return try performLoadIndex(with: key)
-    }
-
-    private func performLoadIndex(with key: VaultKey) throws -> VaultIndex {
-        let span = EmbraceManager.shared.startTransaction(name: "storage.index_load", operation: "storage.index_load")
-        defer { span.finish(status: .ok) }
-
-        // Return cached index if available for this key
-        let fp = keyFingerprint(key)
-        if let cached = cachedIndex, cachedIndexFingerprint == fp {
-            return cached
-        }
-
-        Self.logger.debug("loadIndex called with key hash: \(key.rawBytes.hashValue, privacy: .private)")
-
-        let indexURL = indexURL(for: key)
-
-        guard fileManager.fileExists(atPath: indexURL.path) else {
-            Self.logger.debug("No index file exists, creating new vault with master key")
-            // Return empty v3 index for new vaults with a fresh master key
-            guard let masterKey = CryptoEngine.generateRandomBytes(count: 32) else {
-                throw VaultStorageError.corruptedData
-            }
-            let encryptedMasterKey = try CryptoEngine.encrypt(masterKey, with: key.rawBytes)
-            let globalCursor = readGlobalCursor()
-            let primary = BlobDescriptor(
-                blobId: "primary",
-                fileName: blobFileName,
-                capacity: cursorBlockOffset,
-                cursor: globalCursor
-            )
-            var newIndex = VaultIndex(
-                files: [],
-                nextOffset: 0,
-                totalSize: cursorBlockOffset,
-                encryptedMasterKey: encryptedMasterKey,
-                version: 3
-            )
-            newIndex.blobs = [primary]
-            cachedIndex = newIndex
-            cachedIndexFingerprint = fp
-            return newIndex
-        }
-
-        let encryptedData = try Data(contentsOf: indexURL)
-        
-        Self.logger.debug("Index file loaded, size: \(encryptedData.count, privacy: .public) bytes")
-
-        // Try to decrypt - if it fails, this key doesn't match any vault
-        do {
-            let decryptedData = try CryptoEngine.decrypt(encryptedData, with: key.rawBytes)
-            var index = try JSONDecoder().decode(VaultIndex.self, from: decryptedData)
-            
-            Self.logger.info("Index decrypted. Files: \(index.files.count, privacy: .public), nextOffset: \(index.nextOffset, privacy: .public), version: \(index.version, privacy: .public)")
-            
-            // Migration: If index doesn't have a master key (version 1), create one
-            if index.encryptedMasterKey == nil {
-                Self.logger.info("Migrating vault to use master key (v1 -> v2)")
-                guard let masterKey = CryptoEngine.generateRandomBytes(count: 32) else {
-                    throw VaultStorageError.corruptedData
-                }
-                index.encryptedMasterKey = try CryptoEngine.encrypt(masterKey, with: key.rawBytes)
-                index.version = 2
-
-                try saveIndex(index, with: key)
-
-                Self.logger.info("Vault migrated to v2 with master key")
-            }
-
-            // Migration: v2 → v3 (add blob descriptors)
-            if index.version < 3 {
-                Self.logger.info("Migrating vault v2 -> v3 (multi-blob)")
-                migrateToV3(&index)
-                try saveIndex(index, with: key)
-
-                Self.logger.info("Vault migrated to v3")
-            }
-
-            cachedIndex = index
-            cachedIndexFingerprint = fp
-            return index
-        } catch {
-            Self.logger.warning("Failed to decrypt index: \(error.localizedDescription, privacy: .public)")
-            // Index file exists at this key's path but cannot be decrypted — corruption.
-            // (Wrong-key case is handled above: no file exists for an unknown key.)
-            throw VaultStorageError.indexDecryptionFailed
-        }
-    }
-
-    func saveIndex(_ index: VaultIndex, with key: VaultKey) throws {
-        indexLock.lock()
-        defer { indexLock.unlock() }
-        try performSaveIndex(index, with: key)
-    }
-
-    private func performSaveIndex(_ index: VaultIndex, with key: VaultKey) throws {
-        let span = EmbraceManager.shared.startTransaction(name: "storage.index_save", operation: "storage.index_save")
-        defer { span.finish(status: .ok) }
-
-        Self.logger.debug("saveIndex called")
-        Self.logger.debug("Files: \(index.files.count, privacy: .public), nextOffset: \(index.nextOffset, privacy: .public)")
-        Self.logger.debug("Key hash: \(key.rawBytes.hashValue, privacy: .private)")
-
-        let encoded = try JSONEncoder().encode(index)
-
-        Self.logger.debug("Index encoded, size: \(encoded.count, privacy: .public) bytes")
-
-        let encrypted = try CryptoEngine.encrypt(encoded, with: key.rawBytes)
-        
-        Self.logger.debug("Index encrypted, size: \(encrypted.count, privacy: .public) bytes")
-
-        let indexURL = indexURL(for: key)
-        try encrypted.write(to: indexURL, options: [.atomic, .completeFileProtection])
-
-        // Update in-memory cache
-        cachedIndex = index
-        cachedIndexFingerprint = keyFingerprint(key)
-
-        Self.logger.info("Index saved to disk")
-    }
-    
-    /// Extract and decrypt the master key from the vault index
-    private func getMasterKey(from index: VaultIndex, vaultKey: VaultKey) throws -> Data {
-        guard let encryptedMasterKey = index.encryptedMasterKey else {
-            throw VaultStorageError.corruptedData
-        }
-
-        let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey.rawBytes)
-        
-        Self.logger.debug("Master key decrypted")
-        
-        return masterKey
-    }
-
     // MARK: - Multi-Blob Management
 
     /// Documents directory for all blob files
@@ -500,7 +246,7 @@ final class VaultStorage {
         fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
 
-    /// Resolve a blobId to its file URL. nil or "primary" → primary blob.
+    /// Resolve a blobId to its file URL. nil or "primary" -> primary blob.
     private func blobURL(for blobId: String?) -> URL {
         guard let blobId = blobId, blobId != "primary" else {
             return blobURL
@@ -554,25 +300,6 @@ final class VaultStorage {
             capacity: defaultBlobSize, // Full capacity — no footer reservation
             cursor: 0
         )
-    }
-
-    /// Migrate a v2 index to v3 by adding blob descriptors.
-    private func migrateToV3(_ index: inout VaultIndex) {
-        let globalCursor = readGlobalCursor()
-        let cursor = max(globalCursor, index.nextOffset)
-
-        // Use actual file size for capacity — legacy blobs may be 500MB
-        let actualCapacity = cursorFooterOffset()
-        let primary = BlobDescriptor(
-            blobId: "primary",
-            fileName: blobFileName,
-            capacity: actualCapacity,
-            cursor: cursor
-        )
-        index.blobs = [primary]
-        index.version = 3
-
-        Self.logger.info("Migrated index to v3. Primary blob cursor: \(cursor, privacy: .public)")
     }
 
     /// Enumerate all blob files on disk (primary + expansion).
@@ -657,8 +384,8 @@ final class VaultStorage {
         span.setTag(value: mimeType, key: "mimeType")
 
         ensureBlobReady()
-        indexLock.lock()
-        defer { indexLock.unlock() }
+        indexManager.indexLock.lock()
+        defer { indexManager.indexLock.unlock() }
         Self.logger.debug("storeFile called")
         Self.logger.debug("filename: \(filename, privacy: .public), size: \(data.count, privacy: .public) bytes")
         Self.logger.debug("mimeType: \(mimeType, privacy: .public)")
@@ -666,9 +393,9 @@ final class VaultStorage {
         Self.logger.debug("thumbnail provided: \(thumbnailData != nil, privacy: .public)")
 
         var index = try loadIndex(with: key)
-        
+
         Self.logger.debug("Current index loaded. Files: \(index.files.count, privacy: .public), nextOffset: \(index.nextOffset, privacy: .public)")
-        
+
         // Get the master key for encrypting file data
         let masterKey = try getMasterKey(from: index, vaultKey: key)
 
@@ -677,7 +404,7 @@ final class VaultStorage {
             data: data,
             filename: filename,
             mimeType: mimeType,
-            with: masterKey  // ← Use master key here
+            with: masterKey  // <- Use master key here
         )
 
         let fileData = encryptedFile.encryptedContent
@@ -727,8 +454,8 @@ final class VaultStorage {
 
     func storeFiles(_ files: [FileToStore], with key: VaultKey, onProgress: ((Int) -> Void)? = nil) throws -> [UUID] {
         ensureBlobReady()
-        indexLock.lock()
-        defer { indexLock.unlock() }
+        indexManager.indexLock.lock()
+        defer { indexManager.indexLock.unlock() }
 
         var index = try loadIndex(with: key)
         let masterKey = try getMasterKey(from: index, vaultKey: key)
@@ -783,8 +510,8 @@ final class VaultStorage {
     /// Uses streaming encryption for large files (VCSE for files > 1MB).
     func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, duration: TimeInterval? = nil) throws -> UUID {
         ensureBlobReady()
-        indexLock.lock()
-        defer { indexLock.unlock() }
+        indexManager.indexLock.lock()
+        defer { indexManager.indexLock.unlock() }
 
         var index = try loadIndex(with: key)
         let masterKey = try getMasterKey(from: index, vaultKey: key)
@@ -959,8 +686,8 @@ final class VaultStorage {
 
     func deleteFile(id: UUID, with key: VaultKey) throws {
         ensureBlobReady()
-        indexLock.lock()
-        defer { indexLock.unlock() }
+        indexManager.indexLock.lock()
+        defer { indexManager.indexLock.unlock() }
         var index = try loadIndex(with: key)
 
         guard let entryIndex = index.files.firstIndex(where: { $0.fileId == id && !$0.isDeleted }) else {
@@ -1004,8 +731,8 @@ final class VaultStorage {
     /// Calls `onProgress` after each file is securely overwritten (on the calling thread).
     func deleteFiles(ids: Set<UUID>, with key: VaultKey, onProgress: ((Int) -> Void)? = nil) throws {
         ensureBlobReady()
-        indexLock.lock()
-        defer { indexLock.unlock() }
+        indexManager.indexLock.lock()
+        defer { indexManager.indexLock.unlock() }
         var index = try loadIndex(with: key)
 
         // Group entries by blob to reuse file handles (nil blobId = "primary")
@@ -1059,17 +786,17 @@ final class VaultStorage {
         let span = EmbraceManager.shared.startTransaction(name: "storage.list_files", operation: "storage.list_files")
         defer { span.finish(status: .ok) }
         let index = try loadIndex(with: key)
-        
+
         // Get the master key for decrypting thumbnails
         let masterKey = try getMasterKey(from: index, vaultKey: key)
-        
+
         return index.files.filter { !$0.isDeleted }.map { entry in
             // Decrypt thumbnail with MASTER KEY if available
             var decryptedThumbnail: Data? = nil
             if let encryptedThumb = entry.thumbnailData {
                 decryptedThumbnail = try? CryptoEngine.decrypt(encryptedThumb, with: masterKey)
             }
-            
+
             return VaultFileEntry(
                 fileId: entry.fileId,
                 size: entry.size,
@@ -1124,7 +851,7 @@ final class VaultStorage {
     }
 
     // MARK: - Pattern/Key Management
-    
+
     /// Count the number of existing vault index files on disk
     func existingVaultCount() -> Int {
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -1134,8 +861,8 @@ final class VaultStorage {
 
     /// Check if a vault already exists for the given key
     func vaultExists(for key: VaultKey) -> Bool {
-        let indexURL = indexURL(for: key)
-        let exists = fileManager.fileExists(atPath: indexURL.path)
+        let url = indexManager.indexURL(for: key)
+        let exists = fileManager.fileExists(atPath: url.path)
 
         Self.logger.debug("Checking if vault exists for key hash \(key.rawBytes.hashValue, privacy: .private): \(exists, privacy: .public)")
 
@@ -1149,16 +876,16 @@ final class VaultStorage {
         guard let index = try? loadIndex(with: key) else { return false }
         return index.files.contains(where: { !$0.isDeleted })
     }
-    
+
     /// Change the vault key (pattern) without re-encrypting files
     /// This is extremely fast because we only re-encrypt the master key, not the file data
     func changeVaultKey(from oldKey: VaultKey, to newKey: VaultKey) throws {
-        indexLock.lock()
-        defer { indexLock.unlock() }
+        indexManager.indexLock.lock()
+        defer { indexManager.indexLock.unlock() }
         Self.logger.debug("Changing vault key (pattern change)")
         Self.logger.debug("Old key hash: \(oldKey.rawBytes.hashValue, privacy: .private)")
         Self.logger.debug("New key hash: \(newKey.rawBytes.hashValue, privacy: .private)")
-        
+
         // Check if new key would overwrite an existing vault with actual files
         if vaultHasFiles(for: newKey) {
             Self.logger.error("Cannot change to this pattern - vault with files already exists!")
@@ -1168,28 +895,28 @@ final class VaultStorage {
         if vaultExists(for: newKey) {
             try? deleteVaultIndex(for: newKey)
         }
-        
+
         // 1. Load index with old key
         let index = try loadIndex(with: oldKey)
-        
+
         Self.logger.debug("Index loaded with old key. Files: \(index.files.count, privacy: .public)")
-        
+
         // 2. Decrypt master key with old vault key
         let masterKey = try getMasterKey(from: index, vaultKey: oldKey)
-        
+
         Self.logger.debug("Master key decrypted with old vault key")
-        
+
         // 3. Re-encrypt master key with NEW vault key
         let newEncryptedMasterKey = try CryptoEngine.encrypt(masterKey, with: newKey.rawBytes)
-        
+
         Self.logger.debug("Master key re-encrypted with new vault key")
-        
+
         // 4. Copy index and replace only the master key (future-proof — new fields are preserved)
         var newIndex = index
         newIndex.encryptedMasterKey = newEncryptedMasterKey
 
         // 5. Write-ahead: save new index to temp file, verify, then move into place
-        let newIndexURL = indexURL(for: newKey)
+        let newIndexURL = indexManager.indexURL(for: newKey)
         let tempURL = newIndexURL.appendingPathExtension("tmp")
 
         // Encode and encrypt
@@ -1207,7 +934,7 @@ final class VaultStorage {
             throw VaultStorageError.corruptedData
         }
 
-        // Atomic move temp → final (replaces if exists)
+        // Atomic move temp -> final (replaces if exists)
         if fileManager.fileExists(atPath: newIndexURL.path) {
             try fileManager.removeItem(at: newIndexURL)
         }
@@ -1221,22 +948,18 @@ final class VaultStorage {
         Self.logger.debug("Old index deleted")
         Self.logger.info("Vault key change complete! No files were re-encrypted.")
     }
-    
+
     // MARK: - Vault Destruction (for duress)
 
     func deleteVaultIndex(for key: VaultKey) throws {
-        let indexURL = indexURL(for: key)
+        let url = indexManager.indexURL(for: key)
 
         // Invalidate cache for this key
-        let fp = keyFingerprint(key)
-        if cachedIndexFingerprint == fp {
-            cachedIndex = nil
-            cachedIndexFingerprint = nil
-        }
+        indexManager.invalidateCache(for: key)
 
-        if fileManager.fileExists(atPath: indexURL.path) {
+        if fileManager.fileExists(atPath: url.path) {
             Self.logger.debug("Deleting vault index file")
-            try fileManager.removeItem(at: indexURL)
+            try fileManager.removeItem(at: url)
         }
     }
 
@@ -1246,8 +969,7 @@ final class VaultStorage {
         Self.logger.warning("Destroying all vault data!")
 
         // Invalidate cached index
-        cachedIndex = nil
-        cachedIndexFingerprint = nil
+        indexManager.invalidateCache()
 
         // Delete ALL index files (all vaults) — without keys, blob data is unrecoverable
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -1297,30 +1019,30 @@ final class VaultStorage {
 
         writeGlobalCursor(0)
     }
-    
+
     /// Destroys all vault indexes except the one for the specified key
     /// Used during duress mode to preserve only the duress vault
     func destroyAllIndexesExcept(_ preservedKey: VaultKey) {
         Self.logger.debug("Destroying all vault indexes except preserved key")
-        
+
         // Get the index URL for the preserved vault
-        let preservedIndexURL = indexURL(for: preservedKey)
+        let preservedIndexURL = indexManager.indexURL(for: preservedKey)
         let preservedFilename = preservedIndexURL.lastPathComponent
-        
+
         Self.logger.debug("Preserving index file: \(preservedFilename, privacy: .public)")
-        
+
         // Delete all OTHER index files
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         if let files = try? fileManager.contentsOfDirectory(at: documents, includingPropertiesForKeys: nil) {
             for file in files {
-                if file.lastPathComponent.hasPrefix("vault_index_") && 
+                if file.lastPathComponent.hasPrefix("vault_index_") &&
                    file.lastPathComponent != preservedFilename {
                     Self.logger.debug("Deleting index file: \(file.lastPathComponent, privacy: .public)")
                     try? fileManager.removeItem(at: file)
                 }
             }
         }
-        
+
         Self.logger.info("All vault indexes destroyed except \(preservedFilename, privacy: .public)")
     }
 
@@ -1359,8 +1081,8 @@ final class VaultStorage {
     /// Reclaim deleted space by copying live files to fresh blobs.
     /// Returns the updated index.
     func compactBlobs(with key: VaultKey) throws -> VaultIndex {
-        indexLock.lock()
-        defer { indexLock.unlock() }
+        indexManager.indexLock.lock()
+        defer { indexManager.indexLock.unlock() }
         var index = try loadIndex(with: key)
         let masterKey = try getMasterKey(from: index, vaultKey: key)
         _ = masterKey // Silence unused warning — masterKey needed if we re-encrypt; here we copy raw

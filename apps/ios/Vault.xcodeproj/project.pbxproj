@@ -157,6 +157,8 @@
 		UI0000017 /* VaultViewerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000016 /* VaultViewerUITests.swift */; };
 		UI0000019 /* SettingsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000018 /* SettingsUITests.swift */; };
 		UI000001B /* AppearanceUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI000001A /* AppearanceUITests.swift */; };
+		VIT0000001 /* VaultIndexTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = VIT0000000 /* VaultIndexTypes.swift */; };
+		VIM0000001 /* VaultIndexManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = VIM0000000 /* VaultIndexManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -343,6 +345,8 @@
 		UI0000016 /* VaultViewerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultViewerUITests.swift; sourceTree = "<group>"; };
 		UI0000018 /* SettingsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsUITests.swift; sourceTree = "<group>"; };
 		UI000001A /* AppearanceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceUITests.swift; sourceTree = "<group>"; };
+		VIT0000000 /* VaultIndexTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultIndexTypes.swift; sourceTree = "<group>"; };
+		VIM0000000 /* VaultIndexManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultIndexManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -445,6 +449,8 @@
 			isa = PBXGroup;
 			children = (
 				003000000 /* VaultStorage.swift */,
+				VIT0000000 /* VaultIndexTypes.swift */,
+				VIM0000000 /* VaultIndexManager.swift */,
 				003000002 /* EncryptedBlob.swift */,
 				003000004 /* SecureDelete.swift */,
 				003000006 /* FileUtilities.swift */,
@@ -990,6 +996,8 @@
 				002000003 /* KeyDerivation.swift in Sources */,
 				002000005 /* PatternSerializer.swift in Sources */,
 				003000001 /* VaultStorage.swift in Sources */,
+				VIT0000001 /* VaultIndexTypes.swift in Sources */,
+				VIM0000001 /* VaultIndexManager.swift in Sources */,
 				003000003 /* EncryptedBlob.swift in Sources */,
 				003000005 /* SecureDelete.swift in Sources */,
 				003000007 /* FileUtilities.swift in Sources */,
