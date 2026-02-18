@@ -3,30 +3,30 @@
   "checkpoint_id": "a57983059a9e",
   "session_id": "090242c9-96a0-4717-a29c-7a0a18d4828e",
   "strategy": "manual-commit",
-  "created_at": "2026-02-18T20:26:50.579092Z",
+  "created_at": "2026-02-18T20:47:03.809428Z",
   "branch": "main",
-  "checkpoints_count": 3,
+  "checkpoints_count": 2,
   "files_touched": [
     "apps/ios/rating-screen-prototype.html"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "a89775da-abf6-4205-8fe3-d952aa1dc1ba",
-  "checkpoint_transcript_start": 2127,
-  "transcript_lines_at_start": 2127,
+  "transcript_identifier_at_start": "643a284b-41dc-4c4d-85f0-8a2a63f20caf",
+  "checkpoint_transcript_start": 2222,
+  "transcript_lines_at_start": 2222,
   "token_usage": {
-    "input_tokens": 23,
-    "cache_creation_tokens": 27140,
-    "cache_read_tokens": 2505678,
-    "output_tokens": 4174,
-    "api_call_count": 17
+    "input_tokens": 14,
+    "cache_creation_tokens": 28747,
+    "cache_read_tokens": 468379,
+    "output_tokens": 69,
+    "api_call_count": 8
   },
   "initial_attribution": {
-    "calculated_at": "2026-02-18T20:26:49.983885Z",
-    "agent_lines": 325,
-    "human_added": 243,
-    "human_modified": 81,
+    "calculated_at": "2026-02-18T20:47:03.231308Z",
+    "agent_lines": 61,
+    "human_added": 2,
+    "human_modified": 32,
     "human_removed": 0,
-    "total_committed": 649,
-    "agent_percentage": 50.077041602465336
+    "total_committed": 95,
+    "agent_percentage": 64.21052631578948
   }
 }
