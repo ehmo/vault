@@ -34,6 +34,7 @@
 		007000001 /* SecureCameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007000000 /* SecureCameraView.swift */; };
 		007000003 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007000002 /* CameraManager.swift */; };
 		CPV000001 /* ChangePatternView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CPV000000 /* ChangePatternView.swift */; };
+		CRP000001 /* CustomRecoveryPhraseInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CRP000000 /* CustomRecoveryPhraseInputView.swift */; };
 		008000001 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008000000 /* SettingsView.swift */; };
 		ASV000001 /* AppearanceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ASV000000 /* AppearanceSettingsView.swift */; };
 		DPV000001 /* DuressPatternSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DPV000000 /* DuressPatternSettingsView.swift */; };
@@ -238,6 +239,7 @@
 		007000000 /* SecureCameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureCameraView.swift; sourceTree = "<group>"; };
 		007000002 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
 		CPV000000 /* ChangePatternView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangePatternView.swift; sourceTree = "<group>"; };
+		CRP000000 /* CustomRecoveryPhraseInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomRecoveryPhraseInputView.swift; sourceTree = "<group>"; };
 		008000000 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		ASV000000 /* AppearanceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsView.swift; sourceTree = "<group>"; };
 		DPV000000 /* DuressPatternSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuressPatternSettingsView.swift; sourceTree = "<group>"; };
@@ -611,6 +613,7 @@
 			isa = PBXGroup;
 			children = (
 				CPV000000 /* ChangePatternView.swift */,
+				CRP000000 /* CustomRecoveryPhraseInputView.swift */,
 				008000000 /* SettingsView.swift */,
 				ASV000000 /* AppearanceSettingsView.swift */,
 				DPV000000 /* DuressPatternSettingsView.swift */,
@@ -1070,6 +1073,7 @@
 				007000001 /* SecureCameraView.swift in Sources */,
 				007000003 /* CameraManager.swift in Sources */,
 				CPV000001 /* ChangePatternView.swift in Sources */,
+				CRP000001 /* CustomRecoveryPhraseInputView.swift in Sources */,
 				008000001 /* SettingsView.swift in Sources */,
 				ASV000001 /* AppearanceSettingsView.swift in Sources */,
 				DPV000001 /* DuressPatternSettingsView.swift in Sources */,
