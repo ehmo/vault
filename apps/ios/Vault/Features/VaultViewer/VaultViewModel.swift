@@ -338,7 +338,6 @@ final class VaultViewModel {
 
                 let ext = mimeType == "image/heic" ? "heic" : "jpg"
                 let filename = "IMG_\(Date().timeIntervalSince1970).\(ext)"
-                let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
                 let thumbnail = FileUtilities.generateThumbnail(fromFileURL: optimizedURL)
 
                 let fileId = try VaultStorage.shared.storeFileFromURL(

@@ -321,7 +321,7 @@ actor MediaOptimizer {
 
     /// Calculate output video dimensions: cap at 1080p, preserve aspect ratio.
     /// Uses naturalSize directly — the writer's transform property handles orientation.
-    private static func targetVideoSize(from naturalSize: CGSize, transform: CGAffineTransform) -> (width: Int, height: Int) {
+    private static func targetVideoSize(from naturalSize: CGSize, transform _: CGAffineTransform) -> (width: Int, height: Int) {
         // Use naturalSize directly — pixel buffers are in natural orientation,
         // and videoWriterInput.transform handles display rotation.
         let w = naturalSize.width

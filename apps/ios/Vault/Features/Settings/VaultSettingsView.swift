@@ -806,7 +806,7 @@ struct ChangePatternView: View {
                 }
                 .vaultProminentButtonStyle()
                 .alert("Are you sure?", isPresented: $showSaveConfirmation) {
-                    Button("Cancel", role: .cancel) { }
+                    Button("Cancel", role: .cancel) { /* dismiss alert */ }
                     Button("Yes, I've saved it") { dismiss() }
                 } message: {
                     Text("This recovery phrase will NEVER be shown again. Make sure you've written it down and stored it safely.")

@@ -13,7 +13,7 @@ private final class MockSyncVaultStorage: VaultStorageProtocol {
     // Track calls
     var loadIndexCallCount = 0
 
-    func loadIndex(with key: VaultKey) throws -> VaultStorage.VaultIndex {
+    func loadIndex(with _: VaultKey) throws -> VaultStorage.VaultIndex {
         loadIndexCallCount += 1
         if let error = loadIndexError { throw error }
         guard let index = indexToReturn else {
@@ -28,57 +28,57 @@ private final class MockSyncVaultStorage: VaultStorageProtocol {
         indexToReturn = index
     }
 
-    // MARK: - Unused protocol methods
+    // MARK: - Unused protocol methods (stubs)
 
-    func storeFile(data: Data, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data?, duration: TimeInterval?) throws -> UUID {
+    func storeFile(data _: Data, filename _: String, mimeType _: String, with _: VaultKey, thumbnailData _: Data?, duration _: TimeInterval?) throws -> UUID {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data?, duration: TimeInterval?) throws -> UUID {
+    func storeFileFromURL(_ _: URL, filename _: String, mimeType _: String, with _: VaultKey, thumbnailData _: Data?, duration _: TimeInterval?) throws -> UUID {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func retrieveFile(id: UUID, with key: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
+    func retrieveFile(id _: UUID, with _: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func retrieveFileContent(entry: VaultStorage.VaultIndex.VaultFileEntry, index: VaultStorage.VaultIndex, masterKey: Data) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
+    func retrieveFileContent(entry _: VaultStorage.VaultIndex.VaultFileEntry, index _: VaultStorage.VaultIndex, masterKey _: Data) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func retrieveFileToTempURL(id: UUID, with key: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, tempURL: URL) {
+    func retrieveFileToTempURL(id _: UUID, with _: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, tempURL: URL) {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func deleteFile(id: UUID, with key: VaultKey) throws {
+    func deleteFile(id _: UUID, with _: VaultKey) throws {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func deleteFiles(ids: Set<UUID>, with key: VaultKey, onProgress: ((Int) -> Void)?) throws {
+    func deleteFiles(ids _: Set<UUID>, with _: VaultKey, onProgress _: ((Int) -> Void)?) throws {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func listFiles(with key: VaultKey) throws -> [VaultStorage.VaultFileEntry] {
+    func listFiles(with _: VaultKey) throws -> [VaultStorage.VaultFileEntry] {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func listFilesLightweight(with key: VaultKey) throws -> (masterKey: Data, files: [VaultStorage.LightweightFileEntry]) {
+    func listFilesLightweight(with _: VaultKey) throws -> (masterKey: Data, files: [VaultStorage.LightweightFileEntry]) {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func vaultExists(for key: VaultKey) -> Bool {
+    func vaultExists(for _: VaultKey) -> Bool {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func vaultHasFiles(for key: VaultKey) -> Bool {
+    func vaultHasFiles(for _: VaultKey) -> Bool {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func deleteVaultIndex(for key: VaultKey) throws {
+    func deleteVaultIndex(for _: VaultKey) throws {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func destroyAllIndexesExcept(_ preservedKey: VaultKey) {
+    func destroyAllIndexesExcept(_: VaultKey) {
         fatalError("Not used in ShareSyncManager tests")
     }
 }
@@ -104,79 +104,79 @@ private final class MockSyncCloudKitSharing: CloudKitSharingClient {
         svdfFileURL: URL,
         newChunkHashes: [String],
         previousChunkHashes: [String],
-        onProgress: ((Int, Int) -> Void)?
+        onProgress _: ((Int, Int) -> Void)?
     ) async throws {
         syncFromFileCalls.append((shareVaultId, svdfFileURL, newChunkHashes, previousChunkHashes))
         if let error = syncFromFileError { throw error }
     }
 
-    // MARK: - Unused protocol methods
+    // MARK: - Unused protocol methods (stubs)
 
-    func checkPhraseAvailability(phrase: String) async -> Result<Void, CloudKitSharingError> {
+    func checkPhraseAvailability(phrase _: String) async -> Result<Void, CloudKitSharingError> {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func markShareClaimed(shareVaultId: String) async throws {
+    func markShareClaimed(shareVaultId _: String) async throws {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func markShareConsumed(shareVaultId: String) async throws {
+    func markShareConsumed(shareVaultId _: String) async throws {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func isShareConsumed(shareVaultId: String) async -> Bool {
+    func isShareConsumed(shareVaultId _: String) async -> Bool {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func uploadSharedVault(shareVaultId: String, phrase: String, vaultData: Data, shareKey: ShareKey, policy: VaultStorage.SharePolicy, ownerFingerprint: String, onProgress: ((Int, Int) -> Void)?) async throws {
+    func uploadSharedVault(shareVaultId _: String, phrase _: String, vaultData _: Data, shareKey _: ShareKey, policy _: VaultStorage.SharePolicy, ownerFingerprint _: String, onProgress _: ((Int, Int) -> Void)?) async throws {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func syncSharedVault(shareVaultId: String, vaultData: Data, shareKey: ShareKey, currentVersion: Int, onProgress: ((Int, Int) -> Void)?) async throws {
+    func syncSharedVault(shareVaultId _: String, vaultData _: Data, shareKey _: ShareKey, currentVersion _: Int, onProgress _: ((Int, Int) -> Void)?) async throws {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func syncSharedVaultIncremental(shareVaultId: String, svdfData: Data, newChunkHashes: [String], previousChunkHashes: [String], onProgress: ((Int, Int) -> Void)?) async throws {
+    func syncSharedVaultIncremental(shareVaultId _: String, svdfData _: Data, newChunkHashes _: [String], previousChunkHashes _: [String], onProgress _: ((Int, Int) -> Void)?) async throws {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func uploadChunksParallel(shareVaultId: String, chunks: [(Int, Data)], onProgress: ((Int, Int) -> Void)?) async throws {
+    func uploadChunksParallel(shareVaultId _: String, chunks _: [(Int, Data)], onProgress _: ((Int, Int) -> Void)?) async throws {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func uploadChunksFromFile(shareVaultId: String, fileURL: URL, chunkIndices: [Int], onProgress: ((Int, Int) -> Void)?) async throws {
+    func uploadChunksFromFile(shareVaultId _: String, fileURL _: URL, chunkIndices _: [Int], onProgress _: ((Int, Int) -> Void)?) async throws {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func saveManifest(shareVaultId: String, phraseVaultId: String, shareKey: ShareKey, policy: VaultStorage.SharePolicy, ownerFingerprint: String, totalChunks: Int) async throws {
+    func saveManifest(shareVaultId _: String, phraseVaultId _: String, shareKey _: ShareKey, policy _: VaultStorage.SharePolicy, ownerFingerprint _: String, totalChunks _: Int) async throws {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func downloadSharedVault(phrase: String, markClaimedOnDownload: Bool, onProgress: ((Int, Int) -> Void)?) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
+    func downloadSharedVault(phrase _: String, markClaimedOnDownload _: Bool, onProgress _: ((Int, Int) -> Void)?) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func checkForUpdates(shareVaultId: String, currentVersion: Int) async throws -> Int? {
+    func checkForUpdates(shareVaultId _: String, currentVersion _: Int) async throws -> Int? {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func downloadUpdatedVault(shareVaultId: String, shareKey: ShareKey, onProgress: ((Int, Int) -> Void)?) async throws -> Data {
+    func downloadUpdatedVault(shareVaultId _: String, shareKey _: ShareKey, onProgress _: ((Int, Int) -> Void)?) async throws -> Data {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func revokeShare(shareVaultId: String) async throws {
+    func revokeShare(shareVaultId _: String) async throws {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func deleteSharedVault(shareVaultId: String) async throws {
+    func deleteSharedVault(shareVaultId _: String) async throws {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func deleteSharedVault(phrase: String) async throws {
+    func deleteSharedVault(phrase _: String) async throws {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func existingChunkIndices(for shareVaultId: String) async throws -> Set<Int> {
+    func existingChunkIndices(for _: String) async throws -> Set<Int> {
         fatalError("Not used in ShareSyncManager tests")
     }
 

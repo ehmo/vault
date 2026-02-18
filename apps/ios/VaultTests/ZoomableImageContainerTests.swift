@@ -75,10 +75,10 @@ final class ZoomableImageContainerTests: XCTestCase {
         let container = ZoomableImageContainer(
             image: image,
             containerSize: CGSize(width: 400, height: 800),
-            onSingleTap: {},
-            onVerticalDrag: { _ in },
-            onVerticalDragEnd: { _, _ in },
-            onZoomChange: { _ in }
+            onSingleTap: { /* unused in test */ },
+            onVerticalDrag: { _ in /* unused in test */ },
+            onVerticalDragEnd: { _, _ in /* unused in test */ },
+            onZoomChange: { _ in /* unused in test */ }
         )
 
         let coordinator = container.makeCoordinator()
@@ -97,9 +97,9 @@ final class ZoomableImageContainerTests: XCTestCase {
         let container = ZoomableImageContainer(
             image: image,
             containerSize: CGSize(width: 400, height: 800),
-            onSingleTap: {},
-            onVerticalDrag: { _ in },
-            onVerticalDragEnd: { _, _ in },
+            onSingleTap: { /* unused in test */ },
+            onVerticalDrag: { _ in /* unused in test */ },
+            onVerticalDragEnd: { _, _ in /* unused in test */ },
             onZoomChange: { scale in reportedScale = scale }
         )
 
@@ -119,10 +119,10 @@ final class ZoomableImageContainerTests: XCTestCase {
         let container = ZoomableImageContainer(
             image: image,
             containerSize: CGSize(width: 400, height: 800),
-            onSingleTap: {},
-            onVerticalDrag: { _ in },
-            onVerticalDragEnd: { _, _ in },
-            onZoomChange: { _ in }
+            onSingleTap: { /* unused in test */ },
+            onVerticalDrag: { _ in /* unused in test */ },
+            onVerticalDragEnd: { _, _ in /* unused in test */ },
+            onZoomChange: { _ in /* unused in test */ }
         )
 
         let coordinator = container.makeCoordinator()
@@ -142,10 +142,10 @@ final class ZoomableImageContainerTests: XCTestCase {
         let container = ZoomableImageContainer(
             image: image,
             containerSize: CGSize(width: 400, height: 800),
-            onSingleTap: {},
-            onVerticalDrag: { _ in },
-            onVerticalDragEnd: { _, _ in },
-            onZoomChange: { _ in }
+            onSingleTap: { /* unused in test */ },
+            onVerticalDrag: { _ in /* unused in test */ },
+            onVerticalDragEnd: { _, _ in /* unused in test */ },
+            onZoomChange: { _ in /* unused in test */ }
         )
 
         let coordinator = container.makeCoordinator()
