@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Open in Vaultaire</title>
   <meta name="description" content="Someone shared a vault with you. Open this link in Vaultaire to accept the invitation.">
+  <meta name="apple-itunes-app" content="app-id=6758529311">
   <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -70,6 +71,12 @@
       border-radius: 999px;
     }
 
+    .cta-open {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid color-mix(in srgb, var(--text) 20%, transparent 80%);
+    }
+
     .hint {
       margin-top: 14px;
       font-size: 0.9rem;
@@ -93,14 +100,15 @@
   </style>
 </head>
 <body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
   <header>
     <div class="container nav-inner">
-      <a href="../index.html" class="logo">
-        <img src="../assets/vault-logo.png" alt="Vaultaire logo" class="logo-mark logo-mark--dark">
-        <img src="../assets/vault-logo-light.png" alt="Vaultaire logo for light theme" class="logo-mark logo-mark--light">
+      <a href="../index.html" class="logo" aria-label="Vaultaire home">
+        <img src="../assets/vault-logo.png" alt="" class="logo-mark logo-mark--dark" loading="lazy" width="32" height="32">
+        <img src="../assets/vault-logo-light.png" alt="" class="logo-mark logo-mark--light" loading="lazy" width="32" height="32">
         <span>Vaultaire</span>
       </a>
-      <nav class="nav-links">
+      <nav class="nav-links" aria-label="Main navigation">
         <a href="../index.html">Home</a>
         <a href="../index.html#features">Features</a>
         <a href="../index.html#how-it-works">How It Works</a>
@@ -113,21 +121,26 @@
           <span class="theme-icon" id="theme-icon">☀︎</span>
           <span id="theme-label">Light</span>
         </button>
-        <a href="https://apps.apple.com/app/vaultaire/id6740526623" class="btn btn-primary btn-nav">Get App</a>
+        <a href="https://apps.apple.com/app/vaultaire/id6758529311" class="btn btn-primary btn-nav">Get App</a>
       </div>
     </div>
   </header>
 
-  <main>
-    <section class="invite-card" id="invite-card" aria-live="polite">
-      <img src="../assets/vault-logo.png" alt="Vaultaire" class="hero-logo" id="hero-logo-dark">
-      <img src="../assets/vault-logo-light.png" alt="Vaultaire" class="hero-logo" id="hero-logo-light" style="display:none;">
+  <main id="main-content">
+    <section class="invite-card" id="invite-card" aria-live="polite" aria-atomic="true" role="status">
+      <img src="../assets/vault-logo.png" alt="" class="hero-logo" id="hero-logo-dark" loading="lazy" width="74" height="74">
+      <img src="../assets/vault-logo-light.png" alt="" class="hero-logo" id="hero-logo-light" style="display:none;" loading="lazy" width="74" height="74">
       <h1>Vault Invitation</h1>
       <p>Someone shared a secure vault with you.</p>
       <div id="fallback" class="stack">
         <p>To accept this invitation, you need the Vaultaire app on your iPhone.</p>
-        <a class="cta" href="https://apps.apple.com/app/vaultaire/id6740526623">Get Vaultaire</a>
-        <p class="hint">Already have the app? Open this link on your iPhone.</p>
+        <a class="cta cta-open" id="open-in-app" href="vaultaire://s" aria-describedby="open-hint">
+          <span aria-hidden="true">🔗</span> Open in Vaultaire
+        </a>
+        <a class="cta" href="https://apps.apple.com/app/vaultaire/id6758529311" aria-label="Get Vaultaire from the App Store">
+          <span aria-hidden="true">📱</span> Get Vaultaire
+        </a>
+        <p class="hint" id="open-hint">Already have the app? Open this link on your iPhone.</p>
       </div>
     </section>
   </main>
@@ -167,6 +180,53 @@
     (function () {
       const darkHero = document.getElementById('hero-logo-dark');
       const lightHero = document.getElementById('hero-logo-light');
+      const openInAppButton = document.getElementById('open-in-app');
+
+      function buildUniversalInviteUrl() {
+        const url = new URL(window.location.href);
+        url.protocol = 'https:';
+        url.host = 'vaultaire.app';
+        if (url.pathname === '/s/index.html') {
+          url.pathname = '/s';
+        }
+        url.searchParams.set('open_in_app', String(Date.now()));
+        return url.toString();
+      }
+
+      function buildCustomSchemeInviteUrl() {
+        const token = window.location.hash ? window.location.hash.slice(1) : '';
+        if (!token) {
+          return 'vaultaire://s';
+        }
+        return 'vaultaire://s?p=' + encodeURIComponent(token) + '#' + token;
+      }
+
+      if (openInAppButton) {
+        openInAppButton.href = buildCustomSchemeInviteUrl();
+        openInAppButton.addEventListener('click', function (event) {
+          event.preventDefault();
+          const fallbackUrl = buildUniversalInviteUrl();
+          const schemeUrl = buildCustomSchemeInviteUrl();
+
+          const onVisibilityChange = function () {
+            if (document.visibilityState === 'hidden') {
+              clearTimeout(fallbackTimer);
+              document.removeEventListener('visibilitychange', onVisibilityChange);
+            }
+          };
+
+          document.addEventListener('visibilitychange', onVisibilityChange);
+
+          const fallbackTimer = setTimeout(function () {
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+            if (document.visibilityState === 'visible') {
+              window.location.assign(fallbackUrl);
+            }
+          }, 900);
+
+          window.location.assign(schemeUrl);
+        });
+      }
 
       function syncHeroLogo(isDark) {
         darkHero.style.display = isDark ? 'block' : 'none';
