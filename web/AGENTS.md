@@ -84,4 +84,5 @@ The `apple-app-site-association` file MUST:
 - Keep compare-specific layout in `compare/styles.css`, but always import and rely on `styles/site-shared.css` for shared chrome so header/footer/theme behavior stays identical across pages.
 - Compare icon URLs from App Store can fail intermittently; attach a local fallback (`/assets/compare-fallback-icon.svg`) for all competitor icon images so cards/lists never render broken placeholders.
 - For all-caps headings, keep positive tracking (around `0.02em`-`0.03em`) and avoid negative letter-spacing; keep body/legal copy at `1rem`+ with line-height near `1.6` for readability.
+- Keep the primary nav item set in sync across all pages, including home. If compare exists in secondary pages, include `Compare` on `index.html` header nav too.
 - For compare detail pages, breadcrumb display text and BreadcrumbList item #3 label must always start with `Vaultaire vs ...` (never just `vs ...`).
