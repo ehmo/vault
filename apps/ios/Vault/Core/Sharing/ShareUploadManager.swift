@@ -180,10 +180,10 @@ final class ShareUploadManager {
     private var currentBgTaskId: UIBackgroundTaskIdentifier = .invalid
     private var currentBGProcessingTask: BGProcessingTask?
 
-    private var vaultKeyProvider: (() -> Data?)?
+    private var vaultKeyProvider: (() -> VaultKey?)?
 
     private struct PreparedUploadArtifacts {
-        let shareKey: Data
+        let shareKey: ShareKey
         let phraseVaultId: String
         let sharedFileIds: [String]
         let svdfManifest: [SVDFSerializer.FileManifestEntry]
@@ -212,7 +212,7 @@ final class ShareUploadManager {
 
     // MARK: - Public API
 
-    func setVaultKeyProvider(_ provider: @escaping () -> Data?) {
+    func setVaultKeyProvider(_ provider: @escaping () -> VaultKey?) {
         vaultKeyProvider = provider
     }
 
@@ -263,7 +263,7 @@ final class ShareUploadManager {
     }
 
     func startBackgroundUpload(
-        vaultKey: Data,
+        vaultKey: VaultKey,
         phrase: String,
         hasExpiration: Bool,
         expiresAt: Date?,
@@ -272,13 +272,13 @@ final class ShareUploadManager {
         allowDownloads: Bool = true
     ) {
         Task {
-            if await DuressHandler.shared.isDuressKey(vaultKey) {
+            if await DuressHandler.shared.isDuressKey(vaultKey.rawBytes) {
                 await DuressHandler.shared.clearDuressVault()
                 Self.logger.info("Cleared duress vault designation before starting share upload")
             }
         }
 
-        let ownerFingerprint = KeyDerivation.keyFingerprint(from: vaultKey)
+        let ownerFingerprint = KeyDerivation.keyFingerprint(from: vaultKey.rawBytes)
         let shareVaultId = CloudKitSharingManager.generateShareVaultId()
         let jobId = UUID().uuidString.lowercased()
 
@@ -327,10 +327,10 @@ final class ShareUploadManager {
         resumePendingUploads(vaultKey: vaultKeyProvider?(), trigger: trigger)
     }
 
-    func resumePendingUploads(vaultKey: Data?, trigger: String = "manual") {
+    func resumePendingUploads(vaultKey: VaultKey?, trigger: String = "manual") {
         let pendingStates: [PendingUploadState]
         if let vaultKey {
-            let fingerprint = KeyDerivation.keyFingerprint(from: vaultKey)
+            let fingerprint = KeyDerivation.keyFingerprint(from: vaultKey.rawBytes)
             pendingStates = Self.loadAllPendingUploadStates().filter { $0.ownerFingerprint == fingerprint }
         } else {
             pendingStates = Self.loadAllPendingUploadStates()
@@ -364,7 +364,7 @@ final class ShareUploadManager {
         }
     }
 
-    func resumeUpload(jobId: String, vaultKey: Data?) {
+    func resumeUpload(jobId: String, vaultKey: VaultKey?) {
         guard let vaultKey else { return }
         guard let state = Self.loadPendingUploadState(jobId: jobId) else { return }
         pendingStateByJobId[jobId] = state
@@ -384,7 +384,7 @@ final class ShareUploadManager {
     /// - remove pending state + disk payload
     /// - remove row/state immediately
     /// - clean up share artifacts in background
-    func terminateUpload(jobId: String, vaultKey: Data?, cleanupRemote: Bool = true) {
+    func terminateUpload(jobId: String, vaultKey: VaultKey?, cleanupRemote: Bool = true) {
         let shareVaultId = jobsById[jobId]?.shareVaultId
             ?? pendingStateByJobId[jobId]?.shareVaultId
             ?? Self.loadPendingUploadState(jobId: jobId)?.shareVaultId
@@ -421,7 +421,7 @@ final class ShareUploadManager {
         jobId: String,
         shareVaultId: String,
         phrase: String,
-        vaultKey: Data,
+        vaultKey: VaultKey,
         ownerFingerprint: String,
         policy: VaultStorage.SharePolicy
     ) async {
@@ -471,7 +471,7 @@ final class ShareUploadManager {
                 jobId: jobId,
                 shareVaultId: shareVaultId,
                 phraseVaultId: prepared.phraseVaultId,
-                shareKeyData: prepared.shareKey,
+                shareKeyData: prepared.shareKey.rawBytes,
                 policy: policy,
                 ownerFingerprint: ownerFingerprint,
                 totalChunks: prepared.totalChunks,
@@ -545,7 +545,7 @@ final class ShareUploadManager {
             appendShareRecord(
                 shareVaultId: shareVaultId,
                 policy: policy,
-                shareKeyData: prepared.shareKey,
+                shareKeyData: prepared.shareKey.rawBytes,
                 vaultKey: vaultKey
             )
 
@@ -588,7 +588,7 @@ final class ShareUploadManager {
         }
     }
 
-    private func startResumeTask(state: PendingUploadState, vaultKey: Data?) {
+    private func startResumeTask(state: PendingUploadState, vaultKey: VaultKey?) {
         guard uploadTasks[state.jobId] == nil else { return }
         terminatedJobIds.remove(state.jobId)
         ensureBackgroundExecution()
@@ -613,7 +613,7 @@ final class ShareUploadManager {
         uploadTasks[state.jobId] = task
     }
 
-    private func runResumeUpload(state: PendingUploadState, vaultKey: Data?) async {
+    private func runResumeUpload(state: PendingUploadState, vaultKey: VaultKey?) async {
         defer {
             uploadTasks.removeValue(forKey: state.jobId)
             terminatedJobIds.remove(state.jobId)
@@ -694,7 +694,7 @@ final class ShareUploadManager {
             try await CloudKitSharingManager.shared.saveManifest(
                 shareVaultId: state.shareVaultId,
                 phraseVaultId: state.phraseVaultId,
-                shareKey: state.shareKeyData,
+                shareKey: ShareKey(state.shareKeyData),
                 policy: state.policy,
                 ownerFingerprint: state.ownerFingerprint,
                 totalChunks: state.totalChunks
@@ -887,7 +887,7 @@ final class ShareUploadManager {
         }
     }
 
-    private func removeShareRecord(shareVaultId: String, vaultKey: Data) {
+    private func removeShareRecord(shareVaultId: String, vaultKey: VaultKey) {
         do {
             var index = try VaultStorage.shared.loadIndex(with: vaultKey)
             guard var shares = index.activeShares else { return }
@@ -905,7 +905,7 @@ final class ShareUploadManager {
         shareVaultId: String,
         policy: VaultStorage.SharePolicy,
         shareKeyData: Data,
-        vaultKey: Data
+        vaultKey: VaultKey
     ) {
         do {
             var index = try VaultStorage.shared.loadIndex(with: vaultKey)
@@ -1058,19 +1058,19 @@ final class ShareUploadManager {
     private nonisolated static func buildInitialUploadArtifacts(
         jobId: String,
         phrase: String,
-        vaultKey: Data,
+        vaultKey: VaultKey,
         ownerFingerprint: String
     ) throws -> PreparedUploadArtifacts {
         try Task.checkCancellation()
 
-        let shareKey = try KeyDerivation.deriveShareKey(from: phrase)
+        let shareKey = ShareKey(try KeyDerivation.deriveShareKey(from: phrase))
         let phraseVaultId = KeyDerivation.shareVaultId(from: phrase)
 
         let index = try VaultStorage.shared.loadIndex(with: vaultKey)
         guard let encryptedMasterKey = index.encryptedMasterKey else {
             throw VaultStorageError.corruptedData
         }
-        let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey)
+        let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey.rawBytes)
         let activeFiles = index.files.filter { !$0.isDeleted }
 
         let metadata = SharedVaultData.SharedVaultMetadata(
@@ -1104,7 +1104,7 @@ final class ShareUploadManager {
                     var encryptedThumb: Data? = nil
                     if let thumbData = entry.thumbnailData {
                         let decryptedThumb = try CryptoEngine.decrypt(thumbData, with: masterKey)
-                        encryptedThumb = try CryptoEngine.encrypt(decryptedThumb, with: shareKey)
+                        encryptedThumb = try CryptoEngine.encrypt(decryptedThumb, with: shareKey.rawBytes)
                     }
 
                     return SVDFSerializer.StreamingSourceFile(
@@ -1123,7 +1123,7 @@ final class ShareUploadManager {
                 pendingTempURLForCleanup = nil
             },
             metadata: metadata,
-            shareKey: shareKey
+            shareKey: shareKey.rawBytes
         )
 
         let fileSize = fileSize(of: svdfURL)

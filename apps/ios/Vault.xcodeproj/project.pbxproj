@@ -12,6 +12,8 @@
 		001000005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 001000004 /* Assets.xcassets */; };
 		001000007 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 001000006 /* PrivacyInfo.xcprivacy */; };
 		002000001 /* CryptoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000000 /* CryptoEngine.swift */; };
+		SB0000001 /* SecureBytes.swift in Sources */ = {isa = PBXBuildFile; fileRef = SB0000000 /* SecureBytes.swift */; };
+		KT0000001 /* KeyTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = KT0000000 /* KeyTypes.swift */; };
 		002000003 /* KeyDerivation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000002 /* KeyDerivation.swift */; };
 		002000005 /* PatternSerializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000004 /* PatternSerializer.swift */; };
 		003000001 /* VaultStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003000000 /* VaultStorage.swift */; };
@@ -88,6 +90,8 @@
 		SE0000001 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE0000000 /* ShareViewController.swift */; };
 		SE0000003 /* PatternInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE0000002 /* PatternInputView.swift */; };
 		SE0000005 /* CryptoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000000 /* CryptoEngine.swift */; };
+		SB0000002 /* SecureBytes.swift in Sources */ = {isa = PBXBuildFile; fileRef = SB0000000 /* SecureBytes.swift */; };
+		KT0000002 /* KeyTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = KT0000000 /* KeyTypes.swift */; };
 		SE0000007 /* KeyDerivation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000002 /* KeyDerivation.swift */; };
 		SE0000009 /* PatternSerializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000004 /* PatternSerializer.swift */; };
 		SE000000B /* SecureEnclaveManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004000000 /* SecureEnclaveManager.swift */; };
@@ -125,6 +129,7 @@
 		ZI0000001 /* ZoomableImageContainerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ZI0000000 /* ZoomableImageContainerTests.swift */; };
 		DH0000001 /* DuressHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DH0000000 /* DuressHandlerTests.swift */; };
 		SD0000001 /* SecureDeleteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SD0000000 /* SecureDeleteTests.swift */; };
+		SBT00001 /* SecureBytesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SBT00000 /* SecureBytesTests.swift */; };
 		EB0000001 /* EncryptedBlobTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB0000000 /* EncryptedBlobTests.swift */; };
 		FC0000001 /* VaultFullChainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0000000 /* VaultFullChainTests.swift */; };
 		NC0000001 /* NonceChunkSwapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NC0000000 /* NonceChunkSwapTests.swift */; };
@@ -198,6 +203,8 @@
 		001000004 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		001000006 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		002000000 /* CryptoEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoEngine.swift; sourceTree = "<group>"; };
+		SB0000000 /* SecureBytes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureBytes.swift; sourceTree = "<group>"; };
+		KT0000000 /* KeyTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyTypes.swift; sourceTree = "<group>"; };
 		002000002 /* KeyDerivation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyDerivation.swift; sourceTree = "<group>"; };
 		002000004 /* PatternSerializer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSerializer.swift; sourceTree = "<group>"; };
 		003000000 /* VaultStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultStorage.swift; sourceTree = "<group>"; };
@@ -307,6 +314,7 @@
 		ZI0000000 /* ZoomableImageContainerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableImageContainerTests.swift; sourceTree = "<group>"; };
 		DH0000000 /* DuressHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuressHandlerTests.swift; sourceTree = "<group>"; };
 		SD0000000 /* SecureDeleteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureDeleteTests.swift; sourceTree = "<group>"; };
+		SBT00000 /* SecureBytesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureBytesTests.swift; sourceTree = "<group>"; };
 		EB0000000 /* EncryptedBlobTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedBlobTests.swift; sourceTree = "<group>"; };
 		FC0000000 /* VaultFullChainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFullChainTests.swift; sourceTree = "<group>"; };
 		NC0000000 /* NonceChunkSwapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NonceChunkSwapTests.swift; sourceTree = "<group>"; };
@@ -427,6 +435,8 @@
 				002000000 /* CryptoEngine.swift */,
 				002000002 /* KeyDerivation.swift */,
 				002000004 /* PatternSerializer.swift */,
+				SB0000000 /* SecureBytes.swift */,
+				KT0000000 /* KeyTypes.swift */,
 			);
 			path = Crypto;
 			sourceTree = "<group>";
@@ -706,6 +716,7 @@
 				ZI0000000 /* ZoomableImageContainerTests.swift */,
 				DH0000000 /* DuressHandlerTests.swift */,
 				SD0000000 /* SecureDeleteTests.swift */,
+				SBT00000 /* SecureBytesTests.swift */,
 				EB0000000 /* EncryptedBlobTests.swift */,
 				FC0000000 /* VaultFullChainTests.swift */,
 				NC0000000 /* NonceChunkSwapTests.swift */,
@@ -974,6 +985,8 @@
 				39EACFA12F29B36D00FA7EC2 /* RecoveryPhraseManager.swift in Sources */,
 				001000003 /* ContentView.swift in Sources */,
 				002000001 /* CryptoEngine.swift in Sources */,
+				SB0000001 /* SecureBytes.swift in Sources */,
+				KT0000001 /* KeyTypes.swift in Sources */,
 				002000003 /* KeyDerivation.swift in Sources */,
 				002000005 /* PatternSerializer.swift in Sources */,
 				003000001 /* VaultStorage.swift in Sources */,
@@ -1064,6 +1077,8 @@
 				SE0000001 /* ShareViewController.swift in Sources */,
 				SE0000003 /* PatternInputView.swift in Sources */,
 				SE0000005 /* CryptoEngine.swift in Sources */,
+				SB0000002 /* SecureBytes.swift in Sources */,
+				KT0000002 /* KeyTypes.swift in Sources */,
 				SE0000007 /* KeyDerivation.swift in Sources */,
 				SE0000009 /* PatternSerializer.swift in Sources */,
 				SE000000B /* SecureEnclaveManager.swift in Sources */,
@@ -1099,6 +1114,7 @@
 				ZI0000001 /* ZoomableImageContainerTests.swift in Sources */,
 				DH0000001 /* DuressHandlerTests.swift in Sources */,
 				SD0000001 /* SecureDeleteTests.swift in Sources */,
+				SBT00001 /* SecureBytesTests.swift in Sources */,
 				EB0000001 /* EncryptedBlobTests.swift in Sources */,
 				FC0000001 /* VaultFullChainTests.swift in Sources */,
 				NC0000001 /* NonceChunkSwapTests.swift in Sources */,

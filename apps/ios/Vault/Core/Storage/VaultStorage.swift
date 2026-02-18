@@ -72,8 +72,8 @@ final class VaultStorage {
     private var cachedIndex: VaultIndex?
     private var cachedIndexFingerprint: String?
 
-    private func keyFingerprint(_ key: Data) -> String {
-        SHA256.hash(data: key).prefix(16).map { String(format: "%02x", $0) }.joined()
+    private func keyFingerprint(_ key: VaultKey) -> String {
+        SHA256.hash(data: key.rawBytes).prefix(16).map { String(format: "%02x", $0) }.joined()
     }
 
     private var blobURL: URL {
@@ -88,11 +88,11 @@ final class VaultStorage {
 
     /// Returns the index file URL for a specific vault key
     /// Each vault gets its own index file based on a hash of the key
-    private func indexURL(for key: Data) -> URL {
+    private func indexURL(for key: VaultKey) -> URL {
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        
+
         // Create a fingerprint from the key
-        let keyHash = SHA256.hash(data: key)
+        let keyHash = SHA256.hash(data: key.rawBytes)
         let fingerprint = keyHash.prefix(16).map { String(format: "%02x", $0) }.joined()
         
         let fileName = "vault_index_\(fingerprint).bin"
@@ -356,13 +356,13 @@ final class VaultStorage {
         }
     }
 
-    func loadIndex(with key: Data) throws -> VaultIndex {
+    func loadIndex(with key: VaultKey) throws -> VaultIndex {
         indexLock.lock()
         defer { indexLock.unlock() }
         return try performLoadIndex(with: key)
     }
 
-    private func performLoadIndex(with key: Data) throws -> VaultIndex {
+    private func performLoadIndex(with key: VaultKey) throws -> VaultIndex {
         let span = EmbraceManager.shared.startTransaction(name: "storage.index_load", operation: "storage.index_load")
         defer { span.finish(status: .ok) }
 
@@ -372,7 +372,7 @@ final class VaultStorage {
             return cached
         }
 
-        Self.logger.debug("loadIndex called with key hash: \(key.hashValue, privacy: .private)")
+        Self.logger.debug("loadIndex called with key hash: \(key.rawBytes.hashValue, privacy: .private)")
 
         let indexURL = indexURL(for: key)
 
@@ -382,7 +382,7 @@ final class VaultStorage {
             guard let masterKey = CryptoEngine.generateRandomBytes(count: 32) else {
                 throw VaultStorageError.corruptedData
             }
-            let encryptedMasterKey = try CryptoEngine.encrypt(masterKey, with: key)
+            let encryptedMasterKey = try CryptoEngine.encrypt(masterKey, with: key.rawBytes)
             let globalCursor = readGlobalCursor()
             let primary = BlobDescriptor(
                 blobId: "primary",
@@ -409,7 +409,7 @@ final class VaultStorage {
 
         // Try to decrypt - if it fails, this key doesn't match any vault
         do {
-            let decryptedData = try CryptoEngine.decrypt(encryptedData, with: key)
+            let decryptedData = try CryptoEngine.decrypt(encryptedData, with: key.rawBytes)
             var index = try JSONDecoder().decode(VaultIndex.self, from: decryptedData)
             
             Self.logger.info("Index decrypted. Files: \(index.files.count, privacy: .public), nextOffset: \(index.nextOffset, privacy: .public), version: \(index.version, privacy: .public)")
@@ -420,7 +420,7 @@ final class VaultStorage {
                 guard let masterKey = CryptoEngine.generateRandomBytes(count: 32) else {
                     throw VaultStorageError.corruptedData
                 }
-                index.encryptedMasterKey = try CryptoEngine.encrypt(masterKey, with: key)
+                index.encryptedMasterKey = try CryptoEngine.encrypt(masterKey, with: key.rawBytes)
                 index.version = 2
 
                 try saveIndex(index, with: key)
@@ -448,25 +448,25 @@ final class VaultStorage {
         }
     }
 
-    func saveIndex(_ index: VaultIndex, with key: Data) throws {
+    func saveIndex(_ index: VaultIndex, with key: VaultKey) throws {
         indexLock.lock()
         defer { indexLock.unlock() }
         try performSaveIndex(index, with: key)
     }
 
-    private func performSaveIndex(_ index: VaultIndex, with key: Data) throws {
+    private func performSaveIndex(_ index: VaultIndex, with key: VaultKey) throws {
         let span = EmbraceManager.shared.startTransaction(name: "storage.index_save", operation: "storage.index_save")
         defer { span.finish(status: .ok) }
 
         Self.logger.debug("saveIndex called")
         Self.logger.debug("Files: \(index.files.count, privacy: .public), nextOffset: \(index.nextOffset, privacy: .public)")
-        Self.logger.debug("Key hash: \(key.hashValue, privacy: .private)")
+        Self.logger.debug("Key hash: \(key.rawBytes.hashValue, privacy: .private)")
 
         let encoded = try JSONEncoder().encode(index)
-        
+
         Self.logger.debug("Index encoded, size: \(encoded.count, privacy: .public) bytes")
-        
-        let encrypted = try CryptoEngine.encrypt(encoded, with: key)
+
+        let encrypted = try CryptoEngine.encrypt(encoded, with: key.rawBytes)
         
         Self.logger.debug("Index encrypted, size: \(encrypted.count, privacy: .public) bytes")
 
@@ -481,12 +481,12 @@ final class VaultStorage {
     }
     
     /// Extract and decrypt the master key from the vault index
-    private func getMasterKey(from index: VaultIndex, vaultKey: Data) throws -> Data {
+    private func getMasterKey(from index: VaultIndex, vaultKey: VaultKey) throws -> Data {
         guard let encryptedMasterKey = index.encryptedMasterKey else {
             throw VaultStorageError.corruptedData
         }
-        
-        let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey)
+
+        let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey.rawBytes)
         
         Self.logger.debug("Master key decrypted")
         
@@ -651,7 +651,7 @@ final class VaultStorage {
 
     // MARK: - File Operations
 
-    func storeFile(data: Data, filename: String, mimeType: String, with key: Data, thumbnailData: Data? = nil, duration: TimeInterval? = nil) throws -> UUID {
+    func storeFile(data: Data, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, duration: TimeInterval? = nil) throws -> UUID {
         let span = EmbraceManager.shared.startTransaction(name: "storage.store_file", operation: "storage.store_file")
         span.setTag(value: "\(data.count / 1024)", key: "fileSizeKB")
         span.setTag(value: mimeType, key: "mimeType")
@@ -662,7 +662,7 @@ final class VaultStorage {
         Self.logger.debug("storeFile called")
         Self.logger.debug("filename: \(filename, privacy: .public), size: \(data.count, privacy: .public) bytes")
         Self.logger.debug("mimeType: \(mimeType, privacy: .public)")
-        Self.logger.debug("key hash: \(key.hashValue, privacy: .private)")
+        Self.logger.debug("key hash: \(key.rawBytes.hashValue, privacy: .private)")
         Self.logger.debug("thumbnail provided: \(thumbnailData != nil, privacy: .public)")
 
         var index = try loadIndex(with: key)
@@ -725,7 +725,7 @@ final class VaultStorage {
         let thumbnailData: Data?
     }
 
-    func storeFiles(_ files: [FileToStore], with key: Data, onProgress: ((Int) -> Void)? = nil) throws -> [UUID] {
+    func storeFiles(_ files: [FileToStore], with key: VaultKey, onProgress: ((Int) -> Void)? = nil) throws -> [UUID] {
         ensureBlobReady()
         indexLock.lock()
         defer { indexLock.unlock() }
@@ -781,7 +781,7 @@ final class VaultStorage {
 
     /// Store a file from a URL without loading the entire raw content into memory.
     /// Uses streaming encryption for large files (VCSE for files > 1MB).
-    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: Data, thumbnailData: Data? = nil, duration: TimeInterval? = nil) throws -> UUID {
+    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, duration: TimeInterval? = nil) throws -> UUID {
         ensureBlobReady()
         indexLock.lock()
         defer { indexLock.unlock() }
@@ -848,7 +848,7 @@ final class VaultStorage {
         return fileId
     }
 
-    func retrieveFile(id: UUID, with key: Data) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
+    func retrieveFile(id: UUID, with key: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
         let span = EmbraceManager.shared.startTransaction(name: "storage.retrieve_file", operation: "storage.retrieve_file")
         ensureBlobReady()
         let index = try loadIndex(with: key)
@@ -890,7 +890,7 @@ final class VaultStorage {
 
     /// Retrieves and decrypts a file directly to a temp URL, minimizing peak memory.
     /// For VCSE-encrypted content, stream-decrypts in 256KB chunks (~512KB peak).
-    func retrieveFileToTempURL(id: UUID, with key: Data) throws -> (header: CryptoEngine.EncryptedFileHeader, tempURL: URL) {
+    func retrieveFileToTempURL(id: UUID, with key: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, tempURL: URL) {
         ensureBlobReady()
         let index = try loadIndex(with: key)
         let masterKey = try getMasterKey(from: index, vaultKey: key)
@@ -957,7 +957,7 @@ final class VaultStorage {
         return (header, tempURL)
     }
 
-    func deleteFile(id: UUID, with key: Data) throws {
+    func deleteFile(id: UUID, with key: VaultKey) throws {
         ensureBlobReady()
         indexLock.lock()
         defer { indexLock.unlock() }
@@ -1002,7 +1002,7 @@ final class VaultStorage {
 
     /// Delete multiple files in a single index load/save cycle.
     /// Calls `onProgress` after each file is securely overwritten (on the calling thread).
-    func deleteFiles(ids: Set<UUID>, with key: Data, onProgress: ((Int) -> Void)? = nil) throws {
+    func deleteFiles(ids: Set<UUID>, with key: VaultKey, onProgress: ((Int) -> Void)? = nil) throws {
         ensureBlobReady()
         indexLock.lock()
         defer { indexLock.unlock() }
@@ -1055,7 +1055,7 @@ final class VaultStorage {
         try saveIndex(index, with: key)
     }
 
-    func listFiles(with key: Data) throws -> [VaultFileEntry] {
+    func listFiles(with key: VaultKey) throws -> [VaultFileEntry] {
         let span = EmbraceManager.shared.startTransaction(name: "storage.list_files", operation: "storage.list_files")
         defer { span.finish(status: .ok) }
         let index = try loadIndex(with: key)
@@ -1101,7 +1101,7 @@ final class VaultStorage {
 
     /// Returns the master key and file entries without decrypting thumbnails.
     /// Use this for lazy thumbnail loading — thumbnails are decrypted on-demand per cell.
-    func listFilesLightweight(with key: Data) throws -> (masterKey: Data, files: [LightweightFileEntry]) {
+    func listFilesLightweight(with key: VaultKey) throws -> (masterKey: Data, files: [LightweightFileEntry]) {
         let span = EmbraceManager.shared.startTransaction(name: "storage.list_files_lightweight", operation: "storage.list_files_lightweight")
         defer { span.finish(status: .ok) }
 
@@ -1133,18 +1133,18 @@ final class VaultStorage {
     }
 
     /// Check if a vault already exists for the given key
-    func vaultExists(for key: Data) -> Bool {
+    func vaultExists(for key: VaultKey) -> Bool {
         let indexURL = indexURL(for: key)
         let exists = fileManager.fileExists(atPath: indexURL.path)
 
-        Self.logger.debug("Checking if vault exists for key hash \(key.hashValue, privacy: .private): \(exists, privacy: .public)")
+        Self.logger.debug("Checking if vault exists for key hash \(key.rawBytes.hashValue, privacy: .private): \(exists, privacy: .public)")
 
         return exists
     }
 
     /// Returns true only when a vault index exists AND contains at least one non-deleted file.
     /// Use this for collision checks where overwriting an empty vault is acceptable.
-    func vaultHasFiles(for key: Data) -> Bool {
+    func vaultHasFiles(for key: VaultKey) -> Bool {
         guard vaultExists(for: key) else { return false }
         guard let index = try? loadIndex(with: key) else { return false }
         return index.files.contains(where: { !$0.isDeleted })
@@ -1152,12 +1152,12 @@ final class VaultStorage {
     
     /// Change the vault key (pattern) without re-encrypting files
     /// This is extremely fast because we only re-encrypt the master key, not the file data
-    func changeVaultKey(from oldKey: Data, to newKey: Data) throws {
+    func changeVaultKey(from oldKey: VaultKey, to newKey: VaultKey) throws {
         indexLock.lock()
         defer { indexLock.unlock() }
         Self.logger.debug("Changing vault key (pattern change)")
-        Self.logger.debug("Old key hash: \(oldKey.hashValue, privacy: .private)")
-        Self.logger.debug("New key hash: \(newKey.hashValue, privacy: .private)")
+        Self.logger.debug("Old key hash: \(oldKey.rawBytes.hashValue, privacy: .private)")
+        Self.logger.debug("New key hash: \(newKey.rawBytes.hashValue, privacy: .private)")
         
         // Check if new key would overwrite an existing vault with actual files
         if vaultHasFiles(for: newKey) {
@@ -1180,7 +1180,7 @@ final class VaultStorage {
         Self.logger.debug("Master key decrypted with old vault key")
         
         // 3. Re-encrypt master key with NEW vault key
-        let newEncryptedMasterKey = try CryptoEngine.encrypt(masterKey, with: newKey)
+        let newEncryptedMasterKey = try CryptoEngine.encrypt(masterKey, with: newKey.rawBytes)
         
         Self.logger.debug("Master key re-encrypted with new vault key")
         
@@ -1194,12 +1194,12 @@ final class VaultStorage {
 
         // Encode and encrypt
         let encoded = try JSONEncoder().encode(newIndex)
-        let encrypted = try CryptoEngine.encrypt(encoded, with: newKey)
+        let encrypted = try CryptoEngine.encrypt(encoded, with: newKey.rawBytes)
         try encrypted.write(to: tempURL, options: [.atomic, .completeFileProtection])
 
         // Verify: read back and decrypt to confirm integrity
         let readBack = try Data(contentsOf: tempURL)
-        let decrypted = try CryptoEngine.decrypt(readBack, with: newKey)
+        let decrypted = try CryptoEngine.decrypt(readBack, with: newKey.rawBytes)
         let verified = try JSONDecoder().decode(VaultIndex.self, from: decrypted)
         guard verified.files.count == newIndex.files.count,
               verified.encryptedMasterKey == newEncryptedMasterKey else {
@@ -1224,7 +1224,7 @@ final class VaultStorage {
     
     // MARK: - Vault Destruction (for duress)
 
-    func deleteVaultIndex(for key: Data) throws {
+    func deleteVaultIndex(for key: VaultKey) throws {
         let indexURL = indexURL(for: key)
 
         // Invalidate cache for this key
@@ -1300,7 +1300,7 @@ final class VaultStorage {
     
     /// Destroys all vault indexes except the one for the specified key
     /// Used during duress mode to preserve only the duress vault
-    func destroyAllIndexesExcept(_ preservedKey: Data) {
+    func destroyAllIndexesExcept(_ preservedKey: VaultKey) {
         Self.logger.debug("Destroying all vault indexes except preserved key")
         
         // Get the index URL for the preserved vault
@@ -1358,7 +1358,7 @@ final class VaultStorage {
 
     /// Reclaim deleted space by copying live files to fresh blobs.
     /// Returns the updated index.
-    func compactBlobs(with key: Data) throws -> VaultIndex {
+    func compactBlobs(with key: VaultKey) throws -> VaultIndex {
         indexLock.lock()
         defer { indexLock.unlock() }
         var index = try loadIndex(with: key)

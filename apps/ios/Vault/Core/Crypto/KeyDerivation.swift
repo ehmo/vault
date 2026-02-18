@@ -156,9 +156,9 @@ final class KeyDerivation {
     // MARK: - Share Key Derivation (Device-Independent)
 
     #if !EXTENSION
-    /// Derives a share key from a share phrase.
-    /// Unlike pattern-based keys, share keys use a fixed salt so they can be
-    /// derived identically on any device with the same phrase.
+    /// Derives a share key from a share phrase using per-phrase salt.
+    /// The salt is SHA256("vault-share-v2-" + normalized_phrase), ensuring
+    /// each phrase gets a unique salt while remaining device-independent.
     static func deriveShareKey(from phrase: String) throws -> Data {
         let span = EmbraceManager.shared.startTransaction(name: "crypto.pbkdf2_share", operation: "crypto.pbkdf2_share")
         span.setTag(value: "800000", key: "iterations")
@@ -166,8 +166,9 @@ final class KeyDerivation {
         let normalized = normalizeSharePhrase(phrase)
         let phraseData = Data(normalized.utf8)
 
-        // Fixed salt for share keys (must be same across all devices)
-        let salt = "vault-share-v1-salt".data(using: .utf8)!
+        // Per-phrase salt: SHA256 of a versioned prefix + the normalized phrase
+        let saltInput = "vault-share-v2-" + normalized
+        let salt = Data(SHA256.hash(data: Data(saltInput.utf8)))
 
         do {
             let derivedKey = try deriveKeyPBKDF2(
@@ -183,6 +184,20 @@ final class KeyDerivation {
             span.finish(status: .internalError)
             throw error
         }
+    }
+
+    /// Legacy share key derivation using the fixed salt from v1.
+    /// Used as a fallback when syncing existing shares created before per-phrase salt.
+    static func deriveShareKeyLegacy(from phrase: String) throws -> Data {
+        let normalized = normalizeSharePhrase(phrase)
+        let phraseData = Data(normalized.utf8)
+        let salt = "vault-share-v1-salt".data(using: .utf8)!
+        return try deriveKeyPBKDF2(
+            password: phraseData,
+            salt: salt,
+            iterations: 800_000,
+            keyLength: 32
+        )
     }
 
     /// Generates a vault ID from a share phrase for CloudKit lookup.

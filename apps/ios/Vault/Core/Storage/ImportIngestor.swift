@@ -27,10 +27,10 @@ enum ImportIngestor {
     /// Processes all pending batches matching the given vault key.
     /// Decrypts each file, stores it via VaultStorage, and cleans up the batch.
     static func processPendingImports(
-        for vaultKey: Data,
+        for vaultKey: VaultKey,
         onProgress: (@Sendable (ImportProgress) async -> Void)? = nil
     ) async -> ImportResult {
-        let fingerprint = KeyDerivation.keyFingerprint(from: vaultKey)
+        let fingerprint = KeyDerivation.keyFingerprint(from: vaultKey.rawBytes)
         let batches = StagedImportManager.pendingBatches(for: fingerprint)
 
         guard !batches.isEmpty else {
@@ -100,7 +100,7 @@ enum ImportIngestor {
 
     private static func processBatch(
         _ batch: StagedImportManifest,
-        vaultKey: Data,
+        vaultKey: VaultKey,
         completedOffset: Int,
         totalImportable: Int,
         onProgress: (@Sendable (ImportProgress) async -> Void)?
@@ -135,7 +135,7 @@ enum ImportIngestor {
                 try CryptoEngine.decryptStagedFileToURL(
                     from: encryptedFileURL,
                     to: tempURL,
-                    with: vaultKey
+                    with: vaultKey.rawBytes
                 )
 
                 // Optimize media before storing (async — video export needs AVFoundation)
@@ -159,7 +159,7 @@ enum ImportIngestor {
                        let encThumb = StagedImportManager.readEncryptedThumbnail(
                            batchId: batch.batchId, fileId: file.fileId
                        ) {
-                        thumbnailData = try? CryptoEngine.decrypt(encThumb, with: vaultKey)
+                        thumbnailData = try? CryptoEngine.decrypt(encThumb, with: vaultKey.rawBytes)
                     }
 
                     // Generate thumbnail from optimized file if share extension didn't provide one

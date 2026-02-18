@@ -97,7 +97,7 @@ struct VaultView: View {
     @Environment(AppState.self) var appState
     @Environment(SubscriptionManager.self) var subscriptionManager
     @State var files: [VaultFileItem] = []
-    @State var masterKey: Data?
+    @State var masterKey: MasterKey?
     @State var selectedFile: VaultFileItem?
     @State var selectedPhotoIndex: Int?
     @State var showingImportOptions = false

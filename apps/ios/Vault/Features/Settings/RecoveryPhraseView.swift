@@ -99,7 +99,7 @@ struct RecoveryPhraseView: View {
 
         Task {
             do {
-                if let loadedPhrase = try await RecoveryPhraseManager.shared.loadRecoveryPhrase(for: currentKey) {
+                if let loadedPhrase = try await RecoveryPhraseManager.shared.loadRecoveryPhrase(for: currentKey.rawBytes) {
                     await MainActor.run {
                         phrase = loadedPhrase
                     }
@@ -112,7 +112,7 @@ struct RecoveryPhraseView: View {
                         phrase: newPhrase,
                         pattern: [],
                         gridSize: 5,
-                        patternKey: currentKey
+                        patternKey: currentKey.rawBytes
                     )
 
                     await MainActor.run {

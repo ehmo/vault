@@ -131,7 +131,7 @@ final class ImportIngestorTests: XCTestCase {
         )
         try writeManifest(batchId: batchId, batchURL: batchURL, files: [meta])
 
-        let result = await ImportIngestor.processPendingImports(for: key)
+        let result = await ImportIngestor.processPendingImports(for: VaultKey(key))
 
         XCTAssertEqual(result.imported, 0)
         XCTAssertEqual(result.failed, 1)
@@ -186,7 +186,7 @@ final class ImportIngestorTests: XCTestCase {
         )
         try writeManifest(batchId: batchId, batchURL: batchURL, files: [meta])
 
-        let result = await ImportIngestor.processPendingImports(for: key)
+        let result = await ImportIngestor.processPendingImports(for: VaultKey(key))
         XCTAssertEqual(result.imported, 0)
         XCTAssertEqual(result.failed, 0, "Missing .enc means already imported, not failed")
         XCTAssertEqual(result.batchesCleaned, 1, "Batch with all files skipped should be cleaned up")
@@ -242,7 +242,7 @@ final class ImportIngestorTests: XCTestCase {
 
     func testEmptyBatchReturnsZeroCounts() async {
         // No batches staged at all
-        let result = await ImportIngestor.processPendingImports(for: key)
+        let result = await ImportIngestor.processPendingImports(for: VaultKey(key))
         XCTAssertEqual(result.imported, 0)
         XCTAssertEqual(result.failed, 0)
         XCTAssertEqual(result.batchesCleaned, 0)
@@ -253,7 +253,7 @@ final class ImportIngestorTests: XCTestCase {
         let (batchURL, batchId) = try StagedImportManager.createBatch()
         try writeManifest(batchId: batchId, batchURL: batchURL, files: [])
 
-        let result = await ImportIngestor.processPendingImports(for: key)
+        let result = await ImportIngestor.processPendingImports(for: VaultKey(key))
         // Empty batch with 0 files — 0 failed, batch cleaned
         XCTAssertEqual(result.imported, 0)
         XCTAssertEqual(result.failed, 0)
@@ -279,7 +279,7 @@ final class ImportIngestorTests: XCTestCase {
         try writeManifest(batchId: batchId, batchURL: batchURL, files: [meta])
 
         let collector = ProgressCollector()
-        let result = await ImportIngestor.processPendingImports(for: key) { progress in
+        let result = await ImportIngestor.processPendingImports(for: VaultKey(key)) { progress in
             await collector.append(progress)
         }
         let snapshots = await collector.values()
@@ -323,7 +323,7 @@ final class ImportIngestorTests: XCTestCase {
         try writeManifest(batchId: batchId, batchURL: batchURL, files: [missingMeta, failingMeta])
 
         let collector = ProgressCollector()
-        let result = await ImportIngestor.processPendingImports(for: key) { progress in
+        let result = await ImportIngestor.processPendingImports(for: VaultKey(key)) { progress in
             await collector.append(progress)
         }
         let snapshots = await collector.values()
@@ -346,7 +346,7 @@ final class ImportIngestorTests: XCTestCase {
         let wrongKey = CryptoEngine.generateRandomBytes(count: 32)!
         // The batch was staged for the original key fingerprint, so using a
         // different key means pendingBatches won't find it.
-        let result = await ImportIngestor.processPendingImports(for: wrongKey)
+        let result = await ImportIngestor.processPendingImports(for: VaultKey(wrongKey))
         XCTAssertEqual(result.imported, 0)
         XCTAssertEqual(result.failed, 0, "Wrong fingerprint means batch not found, not failed")
     }
@@ -378,7 +378,7 @@ final class ImportIngestorTests: XCTestCase {
         )
         try writeManifest(batchId: batchId, batchURL: batchURL, files: [meta])
 
-        let result = await ImportIngestor.processPendingImports(for: key)
+        let result = await ImportIngestor.processPendingImports(for: VaultKey(key))
         XCTAssertEqual(result.imported, 0)
         XCTAssertEqual(result.failed, 1)
         XCTAssertNotNil(result.failureReason)

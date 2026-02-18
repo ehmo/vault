@@ -4,7 +4,7 @@ import XCTest
 final class VaultFullChainTests: XCTestCase {
 
     private let storage = VaultStorage.shared
-    private var testKeys: [Data] = []
+    private var testKeys: [VaultKey] = []
 
     override func setUp() {
         super.setUp()
@@ -22,18 +22,16 @@ final class VaultFullChainTests: XCTestCase {
 
     /// Derives a test key from a pattern using PatternSerializer + a simple hash.
     /// Does NOT use KeyDerivation.deriveKey (which requires SecureEnclave).
-    private func deriveTestKey(from pattern: [Int]) -> Data {
+    private func deriveTestKey(from pattern: [Int]) -> VaultKey {
         let serialized = PatternSerializer.serialize(pattern, gridSize: 5)
-        // Use the serialized pattern hash directly as a 32-byte key
-        // (PatternSerializer.serialize already returns a SHA-256 hash = 32 bytes)
-        return serialized
+        return VaultKey(serialized)
     }
 
-    private func registerKey(_ key: Data) {
+    private func registerKey(_ key: VaultKey) {
         testKeys.append(key)
     }
 
-    private func initializeVault(with key: Data) throws {
+    private func initializeVault(with key: VaultKey) throws {
         let index = try storage.loadIndex(with: key)
         try storage.saveIndex(index, with: key)
     }

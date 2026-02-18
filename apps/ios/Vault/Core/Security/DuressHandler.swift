@@ -62,7 +62,7 @@ actor DuressHandler {
         // Better strategy: Just destroy all OTHER vault indexes, but leave the duress one intact
         
         // 1. Load and backup the duress vault's index data before destruction
-        guard let duressIndex = try? storage.loadIndex(with: duressKey) else {
+        guard let duressIndex = try? storage.loadIndex(with: VaultKey(duressKey)) else {
             Self.logger.error("Could not load duress vault index")
             await destroyAllNonDuressData(duressKey: nil)
             return
@@ -86,7 +86,7 @@ actor DuressHandler {
         
         // Don't regenerate salt - that would invalidate the duress key too!
         // Instead, just delete all index files except the duress vault's index
-        storage.destroyAllIndexesExcept(duressKey)
+        storage.destroyAllIndexesExcept(VaultKey(duressKey))
         
         Self.logger.debug("All vault indexes destroyed except duress vault")
         
@@ -122,7 +122,7 @@ actor DuressHandler {
         
         // If we have a duress key, preserve its index
         if let key = duressKey {
-            storage.destroyAllIndexesExcept(key)
+            storage.destroyAllIndexesExcept(VaultKey(key))
         } else {
             // Otherwise destroy everything
             storage.destroyAllVaultData()

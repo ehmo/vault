@@ -382,7 +382,7 @@ struct PatternSetupView: View {
                     EmbraceManager.shared.addBreadcrumb(category: "onboarding.complete", data: ["gridSize": patternState.gridSize])
 
                     isSaving = false
-                    appState.currentVaultKey = key
+                    appState.currentVaultKey = VaultKey(key)
                     let letters = GridLetterManager.shared.vaultName(for: pattern)
                     appState.updateVaultName(letters.isEmpty ? "Vault" : "Vault \(letters)")
                     step = .recovery
@@ -425,7 +425,7 @@ struct PatternSetupView: View {
 
         Task {
             let phrase = customPhrase.trimmingCharacters(in: .whitespacesAndNewlines)
-            let result = await coordinator.saveCustomPhrase(phrase, pattern: firstPattern, gridSize: patternState.gridSize, key: key)
+            let result = await coordinator.saveCustomPhrase(phrase, pattern: firstPattern, gridSize: patternState.gridSize, key: key.rawBytes)
 
             await MainActor.run {
                 isSaving = false

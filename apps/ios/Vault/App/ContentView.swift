@@ -75,7 +75,7 @@ struct ContentView: View {
 
             // Trigger silent background backup if enabled and overdue
             if let key = appState.currentVaultKey {
-                iCloudBackupManager.shared.performBackupIfNeeded(with: key)
+                iCloudBackupManager.shared.performBackupIfNeeded(with: key.rawBytes)
             }
 
             guard !reduceMotion else { return }

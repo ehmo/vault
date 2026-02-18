@@ -249,7 +249,7 @@ struct VaultSettingsView: View {
         EmbraceManager.shared.addBreadcrumb(category: "settings.duressToggled")
         Task {
             do {
-                try await DuressHandler.shared.setAsDuressVault(key: key)
+                try await DuressHandler.shared.setAsDuressVault(key: key.rawBytes)
             } catch {
                 EmbraceManager.shared.captureError(error)
             }
@@ -292,8 +292,8 @@ struct VaultSettingsView: View {
 
         // Clean up recovery data and duress status
         Task {
-            try? await RecoveryPhraseManager.shared.deleteRecoveryData(for: key)
-            if await DuressHandler.shared.isDuressKey(key) {
+            try? await RecoveryPhraseManager.shared.deleteRecoveryData(for: key.rawBytes)
+            if await DuressHandler.shared.isDuressKey(key.rawBytes) {
                 await DuressHandler.shared.clearDuressVault()
             }
         }
@@ -308,7 +308,7 @@ struct VaultSettingsView: View {
         Task {
             do {
                 do {
-                    _ = try await RecoveryPhraseManager.shared.regenerateRecoveryPhrase(for: key)
+                    _ = try await RecoveryPhraseManager.shared.regenerateRecoveryPhrase(for: key.rawBytes)
                 } catch RecoveryError.vaultNotFound {
                     // No existing recovery data — create fresh entry
                     vaultSettingsLogger.info("No recovery data found, creating new recovery phrase")
@@ -317,7 +317,7 @@ struct VaultSettingsView: View {
                         phrase: newPhrase,
                         pattern: appState.currentPattern ?? [],
                         gridSize: 5,
-                        patternKey: key
+                        patternKey: key.rawBytes
                     )
                 }
                 vaultSettingsLogger.debug("Recovery phrase regenerated")
@@ -342,8 +342,8 @@ struct VaultSettingsView: View {
                 let totalSize = files.reduce(0) { $0 + Int64($1.size) }
                 
                 // Check if this is the duress vault
-                let ownerFingerprint = KeyDerivation.keyFingerprint(from: key)
-                let duressInitiallyEnabled = await DuressHandler.shared.isDuressKey(key)
+                let ownerFingerprint = KeyDerivation.keyFingerprint(from: key.rawBytes)
+                let duressInitiallyEnabled = await DuressHandler.shared.isDuressKey(key.rawBytes)
 
                 // Load sharing info
                 let index = try VaultStorage.shared.loadIndex(with: key)
@@ -862,7 +862,7 @@ struct ChangePatternView: View {
                 let enteredKey = try await KeyDerivation.deriveKey(from: pattern, gridSize: patternState.gridSize)
                 
                 await MainActor.run {
-                    if enteredKey == currentKey {
+                    if enteredKey == currentKey.rawBytes {
                         // Pattern verified - move to next step
                         vaultSettingsLogger.debug("Current pattern verified")
                         flow.transitionToCreate(currentPattern: pattern)
@@ -896,7 +896,7 @@ struct ChangePatternView: View {
                 // Pattern valid — don't show feedback yet (avoids brief flash before transition)
                 do {
                     let newKey = try await KeyDerivation.deriveKey(from: pattern, gridSize: patternState.gridSize)
-                    let hasFiles = VaultStorage.shared.vaultHasFiles(for: newKey)
+                    let hasFiles = VaultStorage.shared.vaultHasFiles(for: VaultKey(newKey))
 
                     await MainActor.run {
                         if hasFiles {
@@ -962,7 +962,7 @@ struct ChangePatternView: View {
                 vaultSettingsLogger.trace("New key derived")
                 
                 // 2. Change vault key (instant operation - only re-encrypts master key)
-                try VaultStorage.shared.changeVaultKey(from: oldKey, to: newKey)
+                try VaultStorage.shared.changeVaultKey(from: oldKey, to: VaultKey(newKey))
                 
                 vaultSettingsLogger.debug("Vault key changed")
                 
@@ -982,15 +982,15 @@ struct ChangePatternView: View {
                 vaultSettingsLogger.debug("Recovery phrase saved with new key")
                 
                 // 5. Delete old recovery data
-                try await RecoveryPhraseManager.shared.deleteRecoveryData(for: oldKey)
-                
+                try await RecoveryPhraseManager.shared.deleteRecoveryData(for: oldKey.rawBytes)
+
                 vaultSettingsLogger.debug("Old recovery data deleted")
                 
                 EmbraceManager.shared.addBreadcrumb(category: "settings.patternChanged")
 
                 // 6. Update app state with new key
                 await MainActor.run {
-                    appState.currentVaultKey = newKey
+                    appState.currentVaultKey = VaultKey(newKey)
                     flow.complete(with: recoveryPhrase)
 
                     vaultSettingsLogger.info("Pattern change complete")
@@ -1217,7 +1217,7 @@ struct CustomRecoveryPhraseInputView: View {
                 let phrase = customPhrase.trimmingCharacters(in: .whitespacesAndNewlines)
                 do {
                     _ = try await RecoveryPhraseManager.shared.regenerateRecoveryPhrase(
-                        for: key,
+                        for: key.rawBytes,
                         customPhrase: phrase
                     )
                 } catch RecoveryError.vaultNotFound {
@@ -1229,7 +1229,7 @@ struct CustomRecoveryPhraseInputView: View {
                         phrase: phrase,
                         pattern: pattern,
                         gridSize: 5,
-                        patternKey: key
+                        patternKey: key.rawBytes
                     )
                 }
 

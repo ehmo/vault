@@ -30,7 +30,7 @@ final class FileImporter {
 
     // MARK: - Import Methods
 
-    func importFromURL(_ url: URL, with key: Data) async throws -> UUID {
+    func importFromURL(_ url: URL, with key: VaultKey) async throws -> UUID {
         guard url.startAccessingSecurityScopedResource() else {
             throw ImportError.accessDenied
         }
@@ -46,12 +46,12 @@ final class FileImporter {
         return try storage.storeFile(data: data, filename: filename, mimeType: mimeType, with: key, thumbnailData: thumbnail)
     }
 
-    func importData(_ data: Data, filename: String, mimeType: String, with key: Data) throws -> UUID {
+    func importData(_ data: Data, filename: String, mimeType: String, with key: VaultKey) throws -> UUID {
         let thumbnail = generateThumbnail(from: data, mimeType: mimeType)
         return try storage.storeFile(data: data, filename: filename, mimeType: mimeType, with: key, thumbnailData: thumbnail)
     }
 
-    func importImageData(_ imageData: Data, with key: Data) throws -> UUID {
+    func importImageData(_ imageData: Data, with key: VaultKey) throws -> UUID {
         let filename = "IMG_\(Int(Date().timeIntervalSince1970)).jpg"
         let thumbnail = generateThumbnail(from: imageData, mimeType: "image/jpeg")
         return try storage.storeFile(data: imageData, filename: filename, mimeType: "image/jpeg", with: key, thumbnailData: thumbnail)
@@ -130,7 +130,7 @@ final class FileImporter {
 // MARK: - Live Photo Support
 
 extension FileImporter {
-    func importLivePhoto(imageData: Data, videoData: Data, with key: Data) throws -> (imageId: UUID, videoId: UUID) {
+    func importLivePhoto(imageData: Data, videoData: Data, with key: VaultKey) throws -> (imageId: UUID, videoId: UUID) {
         let imageFilename = "LIVE_\(Int(Date().timeIntervalSince1970)).jpg"
         let videoFilename = "LIVE_\(Int(Date().timeIntervalSince1970)).mov"
 

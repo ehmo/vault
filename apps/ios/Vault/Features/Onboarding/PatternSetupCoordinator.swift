@@ -5,10 +5,10 @@ struct PatternSetupCoordinator {
         try await KeyDerivation.deriveKey(from: pattern, gridSize: gridSize)
     }
     var vaultExists: (Data) -> Bool = { key in
-        VaultStorage.shared.vaultHasFiles(for: key)
+        VaultStorage.shared.vaultHasFiles(for: VaultKey(key))
     }
     var saveIndex: (VaultStorage.VaultIndex, Data) throws -> Void = { index, key in
-        try VaultStorage.shared.saveIndex(index, with: key)
+        try VaultStorage.shared.saveIndex(index, with: VaultKey(key))
     }
     var saveRecoveryPhrase: (String, [Int], Int, Data) async throws -> Void = { phrase, pattern, gridSize, key in
         try await RecoveryPhraseManager.shared.saveRecoveryPhrase(

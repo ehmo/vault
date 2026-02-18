@@ -134,7 +134,7 @@ final class CloudKitSharingManager {
         shareVaultId: String,
         phrase: String,
         vaultData: Data,
-        shareKey: Data,
+        shareKey: ShareKey,
         policy: VaultStorage.SharePolicy,
         ownerFingerprint: String,
         onProgress: ((Int, Int) -> Void)? = nil
@@ -202,7 +202,7 @@ final class CloudKitSharingManager {
     func syncSharedVault(
         shareVaultId: String,
         vaultData: Data,
-        shareKey _: Data,
+        shareKey _: ShareKey,
         currentVersion: Int,
         onProgress: ((Int, Int) -> Void)? = nil
     ) async throws {
@@ -319,7 +319,10 @@ final class CloudKitSharingManager {
     ) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
         let transaction = EmbraceManager.shared.startTransaction(name: "share.download", operation: "share.download")
         let phraseVaultId = Self.vaultId(from: phrase)
-        let shareKey = try KeyDerivation.deriveShareKey(from: phrase)
+        // Try v2 (per-phrase salt) key first, fall back to v1 (fixed salt) for existing shares
+        let shareKeyV2 = ShareKey(try KeyDerivation.deriveShareKey(from: phrase))
+        var shareKey = shareKeyV2
+        let shareKeyV1: ShareKey? = (try? KeyDerivation.deriveShareKeyLegacy(from: phrase)).map { ShareKey($0) }
 
         // Fetch manifest
         let manifestRecordId = CKRecord.ID(recordName: phraseVaultId)
@@ -350,13 +353,22 @@ final class CloudKitSharingManager {
             throw CloudKitSharingError.invalidData
         }
 
-        // Decrypt policy
+        // Decrypt policy — try v2 key first, fall back to v1 for legacy shares
         var policy = VaultStorage.SharePolicy()
         if let policyAsset = manifest["policy"] as? CKAsset,
            let policyURL = policyAsset.fileURL {
             let encryptedPolicy = try Data(contentsOf: policyURL)
-            let decryptedPolicy = try CryptoEngine.decrypt(encryptedPolicy, with: shareKey)
-            policy = try JSONDecoder().decode(VaultStorage.SharePolicy.self, from: decryptedPolicy)
+            if let decryptedPolicy = try? CryptoEngine.decrypt(encryptedPolicy, with: shareKeyV2.rawBytes),
+               let decoded = try? JSONDecoder().decode(VaultStorage.SharePolicy.self, from: decryptedPolicy) {
+                policy = decoded
+            } else if let v1Key = shareKeyV1,
+                      let decryptedPolicy = try? CryptoEngine.decrypt(encryptedPolicy, with: v1Key.rawBytes),
+                      let decoded = try? JSONDecoder().decode(VaultStorage.SharePolicy.self, from: decryptedPolicy) {
+                shareKey = v1Key // This share was encrypted with the legacy key
+                policy = decoded
+            } else {
+                throw CloudKitSharingError.decryptionFailed
+            }
         }
 
         // Download chunks in parallel (max 4 concurrent)
@@ -372,7 +384,7 @@ final class CloudKitSharingManager {
         let decryptedData: Data
         if remoteVersion < 2 {
             do {
-                decryptedData = try CryptoEngine.decrypt(encryptedData, with: shareKey)
+                decryptedData = try CryptoEngine.decrypt(encryptedData, with: shareKey.rawBytes)
             } catch {
                 throw CloudKitSharingError.decryptionFailed
             }
@@ -435,7 +447,7 @@ final class CloudKitSharingManager {
     /// Downloads updated vault data for a recipient (no claim check needed - already claimed).
     func downloadUpdatedVault(
         shareVaultId: String,
-        shareKey: Data,
+        shareKey: ShareKey,
         onProgress: ((Int, Int) -> Void)? = nil
     ) async throws -> Data {
         // Find manifest
@@ -469,7 +481,7 @@ final class CloudKitSharingManager {
         // v1: outer encryption layer; v2+: no outer encryption
         if remoteVersion < 2 {
             do {
-                return try CryptoEngine.decrypt(rawData, with: shareKey)
+                return try CryptoEngine.decrypt(rawData, with: shareKey.rawBytes)
             } catch {
                 throw CloudKitSharingError.decryptionFailed
             }
@@ -727,13 +739,13 @@ final class CloudKitSharingManager {
     func saveManifest(
         shareVaultId: String,
         phraseVaultId: String,
-        shareKey: Data,
+        shareKey: ShareKey,
         policy: VaultStorage.SharePolicy,
         ownerFingerprint: String,
         totalChunks: Int
     ) async throws {
         let policyData = try JSONEncoder().encode(policy)
-        let encryptedPolicy = try CryptoEngine.encrypt(policyData, with: shareKey)
+        let encryptedPolicy = try CryptoEngine.encrypt(policyData, with: shareKey.rawBytes)
 
         let manifestRecordId = CKRecord.ID(recordName: phraseVaultId)
         let manifest = CKRecord(recordType: manifestRecordType, recordID: manifestRecordId)

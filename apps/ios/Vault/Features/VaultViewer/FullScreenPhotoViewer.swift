@@ -3,8 +3,8 @@ import AVKit
 
 struct FullScreenPhotoViewer: View {
     let files: [VaultFileItem]
-    let vaultKey: Data?
-    let masterKey: Data?
+    let vaultKey: VaultKey?
+    let masterKey: MasterKey?
     let initialIndex: Int
     var onDelete: ((UUID) -> Void)?
     var allowDownloads: Bool = true
@@ -22,7 +22,7 @@ struct FullScreenPhotoViewer: View {
     @State private var verticalDismissOffset: CGFloat = 0
     @State private var currentZoomScale: CGFloat = 1.0
 
-    init(files: [VaultFileItem], vaultKey: Data?, masterKey: Data? = nil, initialIndex: Int,
+    init(files: [VaultFileItem], vaultKey: VaultKey?, masterKey: MasterKey? = nil, initialIndex: Int,
          onDelete: ((UUID) -> Void)? = nil, allowDownloads: Bool = true) {
         self.files = files
         self.vaultKey = vaultKey
@@ -256,7 +256,7 @@ struct FullScreenPhotoViewer: View {
 
         if isVideo {
             guard let masterKey = masterKey, file.hasThumbnail else { return }
-            if let uiImage = await ThumbnailCache.shared.decryptAndCache(id: file.id, masterKey: masterKey) {
+            if let uiImage = await ThumbnailCache.shared.decryptAndCache(id: file.id, masterKey: masterKey.rawBytes) {
                 images[file.id] = uiImage
             }
         } else {

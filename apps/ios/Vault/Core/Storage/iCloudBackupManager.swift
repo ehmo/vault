@@ -113,7 +113,7 @@ final class iCloudBackupManager: @unchecked Sendable {
         // Read vault index to get blob descriptors
         onProgress(.readingVault)
         try Task.checkCancellation()
-        let index = try VaultStorage.shared.loadIndex(with: key)
+        let index = try VaultStorage.shared.loadIndex(with: VaultKey(key))
 
         // Pack all blobs (used portions only) + all index files off-main.
         let payload = try await packBackupPayloadOffMain(index: index, key: key)

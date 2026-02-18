@@ -137,7 +137,7 @@ extension VaultView {
         isImportingPendingFiles = true
         UIApplication.shared.isIdleTimerDisabled = true
 
-        let fingerprint = KeyDerivation.keyFingerprint(from: vaultKey)
+        let fingerprint = KeyDerivation.keyFingerprint(from: vaultKey.rawBytes)
         let initialPendingCount = StagedImportManager.pendingImportableFileCount(for: fingerprint)
         if initialPendingCount > 0 {
             importProgress = (0, initialPendingCount)
@@ -220,7 +220,7 @@ extension VaultView {
                     )
                 }
                 await MainActor.run {
-                    self.masterKey = result.masterKey
+                    self.masterKey = MasterKey(result.masterKey)
                     self.files = items
                     self.isLoading = false
 
@@ -276,7 +276,7 @@ extension VaultView {
                     optimizedURL, filename: filename, mimeType: mimeType,
                     with: key, thumbnailData: thumbnail
                 )
-                let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: currentMasterKey ?? key) }
+                let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: currentMasterKey?.rawBytes ?? key.rawBytes) }
                 if let encThumb {
                     await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
                 }
@@ -329,7 +329,7 @@ extension VaultView {
 
     func performPhotoImport(_ results: [PHPickerResult]) {
         guard let key = appState.currentVaultKey else { return }
-        let encryptionKey = self.masterKey ?? key
+        let encryptionKey = self.masterKey?.rawBytes ?? key.rawBytes
         let count = results.count
         let optimizationMode = MediaOptimizer.Mode(rawValue: fileOptimization) ?? .optimized
 
@@ -593,7 +593,7 @@ extension VaultView {
 
     func performFileImport(_ urls: [URL]) {
         guard let key = appState.currentVaultKey else { return }
-        let encryptionKey = self.masterKey ?? key
+        let encryptionKey = self.masterKey?.rawBytes ?? key.rawBytes
         let count = urls.count
         let showProgress = count > 1
         let optimizationMode = MediaOptimizer.Mode(rawValue: fileOptimization) ?? .optimized

@@ -9,9 +9,9 @@ extension VaultView {
         ScrollView {
             if let masterKey {
                 if useDateGrouping {
-                    dateGroupedContentView(visible: visible, masterKey: masterKey)
+                    dateGroupedContentView(visible: visible, masterKey: masterKey.rawBytes)
                 } else {
-                    flatContentView(visible: visible, masterKey: masterKey)
+                    flatContentView(visible: visible, masterKey: masterKey.rawBytes)
                 }
             } else {
                 ProgressView("Decrypting...")

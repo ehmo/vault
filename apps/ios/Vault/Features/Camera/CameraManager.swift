@@ -476,7 +476,7 @@ final class CameraManager: NSObject, @unchecked Sendable {
     }
 
     /// Captures a photo and imports it into the vault using FileImporter.
-    func captureAndImport(vaultKey: Data) async throws -> UUID {
+    func captureAndImport(vaultKey: VaultKey) async throws -> UUID {
         let jpegData = try await capturePhotoData()
         return try FileImporter.shared.importImageData(jpegData, with: vaultKey)
     }

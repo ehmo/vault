@@ -18,7 +18,7 @@ final class DuressHandlerTests: XCTestCase {
         await handler.clearDuressVault()
         // Clean up all vault indexes created during tests
         for key in testKeys {
-            try? storage.deleteVaultIndex(for: key)
+            try? storage.deleteVaultIndex(for: VaultKey(key))
         }
         secureEnclave.resetWipeCounter()
         try await super.tearDown()
@@ -31,7 +31,8 @@ final class DuressHandlerTests: XCTestCase {
     }
 
     private func createVaultWithFiles(key: Data, fileCount: Int = 1) throws {
-        var index = try storage.loadIndex(with: key)
+        let vaultKey = VaultKey(key)
+        var index = try storage.loadIndex(with: vaultKey)
         for i in 0..<fileCount {
             let entry = VaultStorage.VaultIndex.VaultFileEntry(
                 fileId: UUID(),
@@ -48,7 +49,7 @@ final class DuressHandlerTests: XCTestCase {
             )
             index.files.append(entry)
         }
-        try storage.saveIndex(index, with: key)
+        try storage.saveIndex(index, with: vaultKey)
     }
 
     // MARK: - setAsDuressVault / isDuressKey
@@ -114,17 +115,17 @@ final class DuressHandlerTests: XCTestCase {
 
         try await handler.setAsDuressVault(key: duressKey)
 
-        XCTAssertTrue(storage.vaultExists(for: duressKey))
-        XCTAssertTrue(storage.vaultExists(for: normalKey1))
-        XCTAssertTrue(storage.vaultExists(for: normalKey2))
+        XCTAssertTrue(storage.vaultExists(for: VaultKey(duressKey)))
+        XCTAssertTrue(storage.vaultExists(for: VaultKey(normalKey1)))
+        XCTAssertTrue(storage.vaultExists(for: VaultKey(normalKey2)))
 
         await handler.triggerDuress(preservingKey: duressKey)
 
-        XCTAssertTrue(storage.vaultExists(for: duressKey), "Duress vault should survive trigger")
-        XCTAssertFalse(storage.vaultExists(for: normalKey1), "Normal vault 1 should be destroyed")
-        XCTAssertFalse(storage.vaultExists(for: normalKey2), "Normal vault 2 should be destroyed")
+        XCTAssertTrue(storage.vaultExists(for: VaultKey(duressKey)), "Duress vault should survive trigger")
+        XCTAssertFalse(storage.vaultExists(for: VaultKey(normalKey1)), "Normal vault 1 should be destroyed")
+        XCTAssertFalse(storage.vaultExists(for: VaultKey(normalKey2)), "Normal vault 2 should be destroyed")
 
-        let duressIndex = try storage.loadIndex(with: duressKey)
+        let duressIndex = try storage.loadIndex(with: VaultKey(duressKey))
         XCTAssertEqual(duressIndex.files.count, 2, "Duress vault should retain all files")
     }
 
@@ -148,7 +149,7 @@ final class DuressHandlerTests: XCTestCase {
 
         await handler.triggerDuress(preservingKey: duressKey)
 
-        XCTAssertFalse(storage.vaultExists(for: normalKey), "Normal vault should be destroyed even when duress vault missing")
+        XCTAssertFalse(storage.vaultExists(for: VaultKey(normalKey)), "Normal vault should be destroyed even when duress vault missing")
     }
 
     // MARK: - performNuclearWipe
@@ -162,8 +163,8 @@ final class DuressHandlerTests: XCTestCase {
 
         await handler.performNuclearWipe(secure: false)
 
-        XCTAssertFalse(storage.vaultExists(for: key1), "Vault 1 should be destroyed")
-        XCTAssertFalse(storage.vaultExists(for: key2), "Vault 2 should be destroyed")
+        XCTAssertFalse(storage.vaultExists(for: VaultKey(key1)), "Vault 1 should be destroyed")
+        XCTAssertFalse(storage.vaultExists(for: VaultKey(key2)), "Vault 2 should be destroyed")
 
         let hasDuress = await handler.hasDuressVault
         XCTAssertFalse(hasDuress, "Duress should be cleared")

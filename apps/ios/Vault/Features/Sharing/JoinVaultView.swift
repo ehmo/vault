@@ -20,7 +20,7 @@ struct JoinVaultView: View {
     @State private var validationResult: PatternValidationResult?
     @State private var errorMessage: String?
     @State private var showingOverwriteConfirmation = false
-    @State private var pendingOverwriteKey: Data?
+    @State private var pendingOverwriteKey: VaultKey?
     @State private var existingVaultNameForOverwrite = "Vault"
     @State private var existingFileCountForOverwrite = 0
 
@@ -85,7 +85,7 @@ struct JoinVaultView: View {
                 existingVaultNameForOverwrite = "Vault TEST"
                 existingFileCountForOverwrite = 2
                 let seed = Data("MAESTRO_JOIN_OVERWRITE_TEST_KEY".utf8)
-                pendingOverwriteKey = Data(SHA256.hash(data: seed))
+                pendingOverwriteKey = VaultKey(Data(SHA256.hash(data: seed)))
                 showingOverwriteConfirmation = true
             }
             #endif
@@ -305,7 +305,7 @@ struct JoinVaultView: View {
         }
     }
 
-    private func setupSharedVault(forceOverwrite: Bool = false, precomputedPatternKey: Data? = nil) async {
+    private func setupSharedVault(forceOverwrite: Bool = false, precomputedPatternKey: VaultKey? = nil) async {
         let trimmedPhrase = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
@@ -345,14 +345,15 @@ struct JoinVaultView: View {
         }
     }
 
-    private func resolvePatternKey(precomputedPatternKey: Data?) async throws -> Data {
+    private func resolvePatternKey(precomputedPatternKey: VaultKey?) async throws -> VaultKey {
         if let precomputedPatternKey {
             return precomputedPatternKey
         }
-        return try await KeyDerivation.deriveKey(from: newPattern, gridSize: 5)
+        let keyData = try await KeyDerivation.deriveKey(from: newPattern, gridSize: 5)
+        return VaultKey(keyData)
     }
 
-    private func prepareOverwriteConfirmation(for patternKey: Data) {
+    private func prepareOverwriteConfirmation(for patternKey: VaultKey) {
         let letters = GridLetterManager.shared.vaultName(for: newPattern)
         existingVaultNameForOverwrite = letters.isEmpty ? "Vault" : "Vault \(letters)"
 
@@ -366,13 +367,13 @@ struct JoinVaultView: View {
         showingOverwriteConfirmation = true
     }
 
-    private func overwriteExistingVaultIfNeeded(patternKey: Data) async throws {
+    private func overwriteExistingVaultIfNeeded(patternKey: VaultKey) async throws {
         if VaultStorage.shared.vaultExists(for: patternKey) {
-            if await DuressHandler.shared.isDuressKey(patternKey) {
+            if await DuressHandler.shared.isDuressKey(patternKey.rawBytes) {
                 await DuressHandler.shared.clearDuressVault()
             }
             try VaultStorage.shared.deleteVaultIndex(for: patternKey)
-            try? await RecoveryPhraseManager.shared.deleteRecoveryData(for: patternKey)
+            try? await RecoveryPhraseManager.shared.deleteRecoveryData(for: patternKey.rawBytes)
         }
     }
 

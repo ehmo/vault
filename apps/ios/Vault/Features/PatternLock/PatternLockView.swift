@@ -204,7 +204,7 @@ struct PatternLockView: View {
 
             // Check if this pattern creates a new vault and if the user is at the free limit
             if !subscriptionManager.isPremium, let key = derivedKey,
-               !VaultStorage.shared.vaultExists(for: key) {
+               !VaultStorage.shared.vaultExists(for: VaultKey(key)) {
                 let vaultCount = VaultStorage.shared.existingVaultCount()
                 if !subscriptionManager.canCreateVault(currentCount: vaultCount) {
                     await MainActor.run {
@@ -320,7 +320,7 @@ struct RecoveryPhraseInputView: View {
                 
                 // Use the recovered pattern key to unlock the vault
                 await MainActor.run {
-                    appState.currentVaultKey = patternKey
+                    appState.currentVaultKey = VaultKey(patternKey)
                     appState.isUnlocked = true
                     dismiss()
                     

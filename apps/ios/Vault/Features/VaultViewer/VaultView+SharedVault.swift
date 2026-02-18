@@ -146,13 +146,14 @@ extension VaultView {
             let index = try VaultStorage.shared.loadIndex(with: key)
 
             // Use the stored phrase-derived share key
-            guard let shareKey = index.shareKeyData else {
+            guard let shareKeyData = index.shareKeyData else {
                 #if DEBUG
                 print("❌ [VaultView] No share key stored in vault index")
                 #endif
                 return
             }
 
+            let shareKey = ShareKey(shareKeyData)
             let data = try await CloudKitSharingManager.shared.downloadUpdatedVault(
                 shareVaultId: vaultId,
                 shareKey: shareKey
@@ -160,10 +161,10 @@ extension VaultView {
 
             if SVDFSerializer.isSVDF(data) {
                 // SVDF v4 delta import: only import new files, delete removed files
-                try await importSVDFDelta(data: data, shareKey: shareKey, vaultKey: key, index: index)
+                try await importSVDFDelta(data: data, shareKey: shareKeyData, vaultKey: key, index: index)
             } else {
                 // Legacy v1-v3: full wipe-and-replace
-                try await importLegacyFull(data: data, shareKey: shareKey, vaultKey: key, index: index)
+                try await importLegacyFull(data: data, shareKey: shareKeyData, vaultKey: key, index: index)
             }
 
             // Store the new version to avoid false "new files available"
@@ -185,7 +186,7 @@ extension VaultView {
     }
 
     /// SVDF v4 delta import: parse manifest, diff file IDs vs local, import only new files.
-    func importSVDFDelta(data: Data, shareKey: Data, vaultKey: Data, index: VaultStorage.VaultIndex) async throws {
+    func importSVDFDelta(data: Data, shareKey: Data, vaultKey: VaultKey, index: VaultStorage.VaultIndex) async throws {
         let manifest = try SVDFSerializer.parseManifest(from: data, shareKey: shareKey)
         let remoteFileIds = Set(manifest.filter { !$0.deleted }.map { $0.id })
         let localFileIds = Set(index.files.filter { !$0.isDeleted }.map { $0.fileId.uuidString })
@@ -224,7 +225,7 @@ extension VaultView {
     }
 
     /// Legacy v1-v3 full wipe-and-replace import.
-    func importLegacyFull(data: Data, shareKey: Data, vaultKey: Data, index: VaultStorage.VaultIndex) async throws {
+    func importLegacyFull(data: Data, shareKey: Data, vaultKey: VaultKey, index: VaultStorage.VaultIndex) async throws {
         let sharedVault = try SharedVaultData.decode(from: data)
 
         // Delete all existing files

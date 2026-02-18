@@ -133,7 +133,7 @@ final class BackgroundShareTransferManager {
     private var currentBGProcessingTask: BGProcessingTask?
     private var currentBgTaskId: UIBackgroundTaskIdentifier = .invalid
     private var isUploadOperation: Bool = true
-    private var vaultKeyProvider: (() -> Data?)?
+    private var vaultKeyProvider: (() -> VaultKey?)?
 
     private var targetProgress: Int = 0
     private(set) var displayProgress: Int = 0
@@ -144,7 +144,7 @@ final class BackgroundShareTransferManager {
 
     // MARK: - External Integration
 
-    func setVaultKeyProvider(_ provider: @escaping () -> Data?) {
+    func setVaultKeyProvider(_ provider: @escaping () -> VaultKey?) {
         vaultKeyProvider = provider
     }
 
@@ -277,7 +277,7 @@ final class BackgroundShareTransferManager {
 
     /// Starts a background upload of vault data. All crypto material is captured by value.
     func startBackgroundUpload(
-        vaultKey: Data,
+        vaultKey: VaultKey,
         phrase: String,
         hasExpiration: Bool,
         expiresAt: Date?,
@@ -321,7 +321,7 @@ final class BackgroundShareTransferManager {
 
                 let shareVaultId = CloudKitSharingManager.generateShareVaultId()
                 Self.setUploadLifecycleMarker(phase: "key_derivation", shareVaultId: shareVaultId)
-                let shareKey = try KeyDerivation.deriveShareKey(from: capturedPhrase)
+                let shareKey = ShareKey(try KeyDerivation.deriveShareKey(from: capturedPhrase))
                 Self.logger.info("[upload-telemetry] PBKDF2 key derivation: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - phaseStart))s")
                 phaseStart = CFAbsoluteTimeGetCurrent()
 
@@ -341,7 +341,7 @@ final class BackgroundShareTransferManager {
                 guard let encryptedMasterKey = index.encryptedMasterKey else {
                     throw VaultStorageError.corruptedData
                 }
-                let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: capturedVaultKey)
+                let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: capturedVaultKey.rawBytes)
                 Self.logger.info("[upload-telemetry] loadIndex + decryptMasterKey: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - phaseStart))s")
                 phaseStart = CFAbsoluteTimeGetCurrent()
                 await self?.setTargetProgress(keyPhaseEnd, message: "Preparing vault...")
@@ -352,7 +352,7 @@ final class BackgroundShareTransferManager {
                 let capturedShareKey = shareKey
 
                 let metadata = SharedVaultData.SharedVaultMetadata(
-                    ownerFingerprint: KeyDerivation.keyFingerprint(from: capturedVaultKey),
+                    ownerFingerprint: KeyDerivation.keyFingerprint(from: capturedVaultKey.rawBytes),
                     sharedAt: Date()
                 )
 
@@ -388,7 +388,7 @@ final class BackgroundShareTransferManager {
                             var encryptedThumb: Data? = nil
                             if let thumbData = entry.thumbnailData {
                                 let decryptedThumb = try CryptoEngine.decrypt(thumbData, with: capturedMasterKey)
-                                encryptedThumb = try CryptoEngine.encrypt(decryptedThumb, with: capturedShareKey)
+                                encryptedThumb = try CryptoEngine.encrypt(decryptedThumb, with: capturedShareKey.rawBytes)
                                 if let encryptedThumb {
                                     try? syncCache.saveEncryptedThumb(header.fileId.uuidString, data: encryptedThumb)
                                 }
@@ -412,7 +412,7 @@ final class BackgroundShareTransferManager {
                         pendingTempURLForCleanup = nil
                     },
                     metadata: metadata,
-                    shareKey: capturedShareKey
+                    shareKey: capturedShareKey.rawBytes
                 )
                 Self.logger.info("[upload-telemetry] all files streamed to SVDF: \(String(format: "%.2f", CFAbsoluteTimeGetCurrent() - phaseStart))s")
                 phaseStart = CFAbsoluteTimeGetCurrent()
@@ -434,9 +434,9 @@ final class BackgroundShareTransferManager {
                 let pendingState = PendingUploadState(
                     shareVaultId: shareVaultId,
                     phraseVaultId: phraseVaultId,
-                    shareKeyData: shareKey,
+                    shareKeyData: shareKey.rawBytes,
                     policy: policy,
-                    ownerFingerprint: KeyDerivation.keyFingerprint(from: capturedVaultKey),
+                    ownerFingerprint: KeyDerivation.keyFingerprint(from: capturedVaultKey.rawBytes),
                     totalChunks: totalChunks,
                     sharedFileIds: svdfResult.fileIds,
                     svdfManifest: svdfResult.manifest,
@@ -455,7 +455,7 @@ final class BackgroundShareTransferManager {
                     vaultData: encodedData,
                     shareKey: shareKey,
                     policy: policy,
-                    ownerFingerprint: KeyDerivation.keyFingerprint(from: capturedVaultKey),
+                    ownerFingerprint: KeyDerivation.keyFingerprint(from: capturedVaultKey.rawBytes),
                     onProgress: { current, total in
                         Task { @MainActor [weak self] in
                             guard let self else { return }
@@ -497,7 +497,7 @@ final class BackgroundShareTransferManager {
                     createdAt: Date(),
                     policy: policy,
                     lastSyncedAt: Date(),
-                    shareKeyData: shareKey,
+                    shareKeyData: shareKey.rawBytes,
                     syncSequence: 1
                 )
 
@@ -530,7 +530,7 @@ final class BackgroundShareTransferManager {
     /// Resumes a previously interrupted upload by querying CloudKit for already-uploaded
     /// chunks and only uploading the missing ones. Skips all crypto (PBKDF2, re-encryption,
     /// SVDF build) since those results are persisted to disk.
-    func resumePendingUpload(vaultKey: Data?) {
+    func resumePendingUpload(vaultKey: VaultKey?) {
         guard let pending = Self.loadPendingUploadState() else {
             Self.logger.warning("[resume] No pending upload found")
             return
@@ -619,7 +619,7 @@ final class BackgroundShareTransferManager {
                 try await CloudKitSharingManager.shared.saveManifest(
                     shareVaultId: capturedPending.shareVaultId,
                     phraseVaultId: capturedPending.phraseVaultId,
-                    shareKey: capturedPending.shareKeyData,
+                    shareKey: ShareKey(capturedPending.shareKeyData),
                     policy: capturedPending.policy,
                     ownerFingerprint: capturedPending.ownerFingerprint,
                     totalChunks: capturedPending.totalChunks
@@ -683,7 +683,7 @@ final class BackgroundShareTransferManager {
     /// Downloads and imports a shared vault entirely in the background.
     func startBackgroundDownloadAndImport(
         phrase: String,
-        patternKey: Data
+        patternKey: VaultKey
     ) {
         activeTask?.cancel()
         isUploadOperation = false
@@ -725,10 +725,10 @@ final class BackgroundShareTransferManager {
 
                 guard !Task.isCancelled else { return }
 
-                let shareKey = try KeyDerivation.deriveShareKey(from: capturedPhrase)
+                let shareKey = ShareKey(try KeyDerivation.deriveShareKey(from: capturedPhrase))
                 let sharedVault: SharedVaultData
                 if SVDFSerializer.isSVDF(result.data) {
-                    sharedVault = try SVDFSerializer.deserialize(from: result.data, shareKey: shareKey)
+                    sharedVault = try SVDFSerializer.deserialize(from: result.data, shareKey: shareKey.rawBytes)
                 } else {
                     sharedVault = try SharedVaultData.decode(from: result.data)
                 }
@@ -740,12 +740,12 @@ final class BackgroundShareTransferManager {
                         // Shared payloads may be single-shot AES-GCM or VCSE streaming
                         // ciphertext depending on source file size. Use staged decrypt so
                         // large-file shares don't fail with CryptoKitError auth errors.
-                        let decrypted = try CryptoEngine.decryptStaged(file.encryptedContent, with: shareKey)
+                        let decrypted = try CryptoEngine.decryptStaged(file.encryptedContent, with: shareKey.rawBytes)
                         let thumbnailData = Self.resolveThumbnail(
                             encryptedThumbnail: file.encryptedThumbnail,
                             mimeType: file.mimeType,
                             decryptedData: decrypted,
-                            shareKey: shareKey
+                            shareKey: shareKey.rawBytes
                         )
 
                         _ = try VaultStorage.shared.storeFile(
@@ -770,7 +770,7 @@ final class BackgroundShareTransferManager {
                 index.sharedVaultId = result.shareVaultId
                 index.sharePolicy = result.policy
                 index.openCount = 0
-                index.shareKeyData = shareKey
+                index.shareKeyData = shareKey.rawBytes
                 index.sharedVaultVersion = result.version
                 try VaultStorage.shared.saveIndex(index, with: capturedPatternKey)
 

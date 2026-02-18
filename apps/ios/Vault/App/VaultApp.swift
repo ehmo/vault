@@ -61,7 +61,7 @@ struct VaultApp: App {
 @Observable
 final class AppState {
     var isUnlocked = false
-    var currentVaultKey: Data?
+    var currentVaultKey: VaultKey?
     var currentPattern: [Int]?
     var showOnboarding = false
     var isLoading = false
@@ -258,7 +258,7 @@ final class AppState {
                 return false
             }
 
-            currentVaultKey = key
+            currentVaultKey = VaultKey(key)
             currentPattern = pattern
             let letters = GridLetterManager.shared.vaultName(for: pattern)
             vaultName = letters.isEmpty ? "Vault" : "Vault \(letters)"
@@ -267,7 +267,7 @@ final class AppState {
 
             // Check if this is a shared vault
             let indexSpan = EmbraceManager.shared.startSpan(parent: transaction, operation: "storage.index_load", description: "Load vault index")
-            if let index = try? VaultStorage.shared.loadIndex(with: key) {
+            if let index = try? VaultStorage.shared.loadIndex(with: VaultKey(key)) {
                 isSharedVault = index.isSharedVault ?? false
                 let fileCount = index.files.filter { !$0.isDeleted }.count
                 transaction.setTag(value: "\(fileCount)", key: "fileCount")
@@ -366,20 +366,21 @@ final class AppState {
                 nextOffset: 0,
                 totalSize: 500 * 1024 * 1024
             )
-            try? VaultStorage.shared.saveIndex(emptyIndex, with: testKey)
+            try? VaultStorage.shared.saveIndex(emptyIndex, with: VaultKey(testKey))
         }
 
         // Initialize empty vault if needed
-        if !VaultStorage.shared.vaultExists(for: testKey) {
+        let testVaultKey = VaultKey(testKey)
+        if !VaultStorage.shared.vaultExists(for: testVaultKey) {
             let emptyIndex = VaultStorage.VaultIndex(
                 files: [],
                 nextOffset: 0,
                 totalSize: 500 * 1024 * 1024
             )
-            try? VaultStorage.shared.saveIndex(emptyIndex, with: testKey)
+            try? VaultStorage.shared.saveIndex(emptyIndex, with: testVaultKey)
         }
 
-        currentVaultKey = testKey
+        currentVaultKey = testVaultKey
         currentPattern = testPattern
         vaultName = "Test Vault"
         isUnlocked = true
@@ -388,12 +389,12 @@ final class AppState {
 
         // Seed test files if requested
         if ProcessInfo.processInfo.arguments.contains("-MAESTRO_SEED_FILES") {
-            seedTestFiles(key: testKey)
+            seedTestFiles(key: testVaultKey)
         }
     }
 
     /// Seeds the vault with dummy test files for Maestro flows that need files present.
-    private func seedTestFiles(key: Data) {
+    private func seedTestFiles(key: VaultKey) {
         // Check if files already exist to avoid duplicates on re-launch
         guard let index = try? VaultStorage.shared.loadIndex(with: key),
               index.files.filter({ !$0.isDeleted }).isEmpty else {

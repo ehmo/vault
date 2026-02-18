@@ -3,7 +3,7 @@ import QuickLook
 
 struct SecureImageViewer: View {
     let file: VaultFileItem
-    let vaultKey: Data?
+    let vaultKey: VaultKey?
     var onDelete: ((UUID) -> Void)? = nil
     var allowDownloads: Bool = true
 

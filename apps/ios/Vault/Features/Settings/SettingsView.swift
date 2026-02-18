@@ -847,7 +847,7 @@ struct iCloudBackupSettingsView: View {
                 }
             }
             do {
-                try await backupManager.performBackup(with: key, onProgress: { stage in
+                try await backupManager.performBackup(with: key.rawBytes, onProgress: { stage in
                     Task { @MainActor in
                         backupStage = stage
                     }

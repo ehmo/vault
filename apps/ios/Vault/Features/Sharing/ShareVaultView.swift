@@ -117,7 +117,7 @@ struct ShareVaultView: View {
 
         let generation = initializationGeneration &+ 1
         initializationGeneration = generation
-        currentOwnerFingerprint = KeyDerivation.keyFingerprint(from: key)
+        currentOwnerFingerprint = KeyDerivation.keyFingerprint(from: key.rawBytes)
 
         do {
             async let accountStatusTask = CloudKitSharingManager.shared.checkiCloudStatus()
@@ -786,7 +786,7 @@ struct ShareVaultView: View {
         let activeShares: [VaultStorage.ShareRecord]
     }
 
-    private static func loadLocalSnapshot(vaultKey: Data) async throws -> LocalSnapshot {
+    private static func loadLocalSnapshot(vaultKey: VaultKey) async throws -> LocalSnapshot {
         try await Task.detached(priority: .userInitiated) {
             let index = try VaultStorage.shared.loadIndex(with: vaultKey)
             let estimatedSize = index.files.filter { !$0.isDeleted }.reduce(0) { $0 + $1.size }
@@ -797,7 +797,7 @@ struct ShareVaultView: View {
         }.value
     }
 
-    private static func loadActiveShares(vaultKey: Data) async throws -> [VaultStorage.ShareRecord] {
+    private static func loadActiveShares(vaultKey: VaultKey) async throws -> [VaultStorage.ShareRecord] {
         try await Task.detached(priority: .utility) {
             let index = try VaultStorage.shared.loadIndex(with: vaultKey)
             return index.activeShares ?? []
@@ -805,7 +805,7 @@ struct ShareVaultView: View {
     }
 
     private func reconcileConsumedShares(
-        vaultKey: Data,
+        vaultKey: VaultKey,
         initialShares: [VaultStorage.ShareRecord],
         generation: Int
     ) async {

@@ -26,7 +26,7 @@ final class ShareSyncManager {
 
     private var debounceTask: Task<Void, Never>?
     private var syncTask: Task<Void, Never>?
-    private var deferredSyncVaultKey: Data?
+    private var deferredSyncVaultKey: VaultKey?
     private var currentBgTaskId: UIBackgroundTaskIdentifier = .invalid
     private let debounceInterval: TimeInterval = 5
 
@@ -35,7 +35,7 @@ final class ShareSyncManager {
     // MARK: - Trigger Sync
 
     /// Called when vault files change. Debounces briefly, then syncs to all share targets.
-    func scheduleSync(vaultKey: Data) {
+    func scheduleSync(vaultKey: VaultKey) {
         debounceTask?.cancel()
         debounceTask = Task { [weak self] in
             do {
@@ -49,14 +49,14 @@ final class ShareSyncManager {
     }
 
     /// Immediately syncs vault data to all active share recipients.
-    func syncNow(vaultKey: Data) {
+    func syncNow(vaultKey: VaultKey) {
         debounceTask?.cancel()
         Task { await requestSync(vaultKey: vaultKey) }
     }
 
     // MARK: - Sync Implementation
 
-    private func requestSync(vaultKey: Data) async {
+    private func requestSync(vaultKey: VaultKey) async {
         if syncTask != nil {
             deferredSyncVaultKey = vaultKey
             return
@@ -97,7 +97,7 @@ final class ShareSyncManager {
         }
     }
 
-    private func performSync(vaultKey: Data) async {
+    private func performSync(vaultKey: VaultKey) async {
         beginBackgroundExecution()
         defer { endBackgroundExecution() }
 
@@ -146,14 +146,14 @@ final class ShareSyncManager {
                     continue
                 }
                 // Use the stored phrase-derived share key
-                guard let shareKey = share.shareKeyData else {
+                guard let shareKeyData = share.shareKeyData else {
                     missingKeyCount += 1
                     continue
                 }
 
                 let capturedIndex = index
                 let capturedVaultKey = vaultKey
-                let capturedShareKey = shareKey
+                let capturedShareKey = ShareKey(shareKeyData)
                 let capturedShareId = share.id
 
                 // Build SVDF to a temp file off main thread (streaming, O(largest_file) memory)
@@ -261,14 +261,14 @@ final class ShareSyncManager {
     /// Peak memory is O(largest_file) instead of O(total_vault_size).
     nonisolated private static func buildIncrementalSharedVaultData(
         index: VaultStorage.VaultIndex,
-        vaultKey: Data,
-        shareKey: Data,
+        vaultKey: VaultKey,
+        shareKey: ShareKey,
         shareVaultId: String
     ) throws -> (svdfFileURL: URL, chunkHashes: [String], syncState: ShareSyncCache.SyncState) {
         guard let encryptedMasterKey = index.encryptedMasterKey else {
             throw VaultStorageError.corruptedData
         }
-        let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey)
+        let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey.rawBytes)
 
         let cache = ShareSyncCache(shareVaultId: shareVaultId)
         let priorState = cache.loadSyncState()
@@ -289,7 +289,7 @@ final class ShareSyncManager {
             || (priorState.map { cache.needsCompaction($0) } ?? true)
 
         let metadata = SharedVaultData.SharedVaultMetadata(
-            ownerFingerprint: KeyDerivation.keyFingerprint(from: vaultKey),
+            ownerFingerprint: KeyDerivation.keyFingerprint(from: vaultKey.rawBytes),
             sharedAt: Date()
         )
 
@@ -312,7 +312,7 @@ final class ShareSyncManager {
                     )
                 },
                 metadata: metadata,
-                shareKey: shareKey
+                shareKey: shareKey.rawBytes
             )
             manifest = result.manifest
         } else {
@@ -333,7 +333,7 @@ final class ShareSyncManager {
                 },
                 removedFileIds: removedFileIds,
                 metadata: metadata,
-                shareKey: shareKey
+                shareKey: shareKey.rawBytes
             )
         }
 
@@ -369,7 +369,7 @@ final class ShareSyncManager {
         entry: VaultStorage.VaultIndex.VaultFileEntry,
         index: VaultStorage.VaultIndex,
         masterKey: Data,
-        shareKey: Data,
+        shareKey: ShareKey,
         cache: ShareSyncCache
     ) throws -> SharedVaultData.SharedFile {
         let fileIdStr = entry.fileId.uuidString
@@ -382,7 +382,7 @@ final class ShareSyncManager {
             let (_, content) = try VaultStorage.shared.retrieveFileContent(
                 entry: entry, index: index, masterKey: masterKey
             )
-            reencrypted = try CryptoEngine.encrypt(content, with: shareKey)
+            reencrypted = try CryptoEngine.encrypt(content, with: shareKey.rawBytes)
             try? cache.saveEncryptedFile(fileIdStr, data: reencrypted)
         }
 
@@ -392,7 +392,7 @@ final class ShareSyncManager {
             encryptedThumb = cached
         } else if let thumbData = entry.thumbnailData {
             let decryptedThumb = try CryptoEngine.decrypt(thumbData, with: masterKey)
-            let encThumb = try CryptoEngine.encrypt(decryptedThumb, with: shareKey)
+            let encThumb = try CryptoEngine.encrypt(decryptedThumb, with: shareKey.rawBytes)
             try? cache.saveEncryptedThumb(fileIdStr, data: encThumb)
             encryptedThumb = encThumb
         } else {

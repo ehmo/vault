@@ -3,7 +3,7 @@ import AVKit
 
 struct SecureVideoPlayer: View {
     let file: VaultFileItem
-    let vaultKey: Data?
+    let vaultKey: VaultKey?
 
     @Environment(\.dismiss) private var dismiss
     @State private var player: AVPlayer?

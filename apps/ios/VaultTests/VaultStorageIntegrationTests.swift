@@ -3,13 +3,13 @@ import XCTest
 
 final class VaultStorageIntegrationTests: XCTestCase {
 
-    private var testKey: Data!
-    private var extraKeys: [Data] = []
+    private var testKey: VaultKey!
+    private var extraKeys: [VaultKey] = []
     private let storage = VaultStorage.shared
 
     override func setUp() {
         super.setUp()
-        testKey = CryptoEngine.generateRandomBytes(count: 32)!
+        testKey = VaultKey(CryptoEngine.generateRandomBytes(count: 32)!)
         extraKeys = []
     }
 
@@ -44,7 +44,7 @@ final class VaultStorageIntegrationTests: XCTestCase {
     }
 
     func testVaultExistsReturnsFalseForUnknownKey() {
-        let randomKey = CryptoEngine.generateRandomBytes(count: 32)!
+        let randomKey = VaultKey(CryptoEngine.generateRandomBytes(count: 32)!)
         extraKeys.append(randomKey)
         XCTAssertFalse(storage.vaultExists(for: randomKey))
     }
@@ -171,7 +171,7 @@ final class VaultStorageIntegrationTests: XCTestCase {
             with: testKey
         )
 
-        let newKey = CryptoEngine.generateRandomBytes(count: 32)!
+        let newKey = VaultKey(CryptoEngine.generateRandomBytes(count: 32)!)
         extraKeys.append(newKey)
 
         try storage.changeVaultKey(from: testKey, to: newKey)
