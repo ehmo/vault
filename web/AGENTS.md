@@ -46,7 +46,10 @@ Defined in `styles/input.css` as `@theme` variables, used as `bg-vault-bg`, `tex
 ## Shared Frontend Assets
 
 - Shared cross-page chrome styles live in `styles/site-shared.css` (header, nav, footer, buttons, responsive nav behavior).
+- Use `.btn-nav` (in `styles/site-shared.css`) for compact header CTA sizing instead of repeating inline button styles.
 - Shared theme toggle behavior lives in `assets/theme-toggle.js` (`vaultaire-theme` localStorage key, `☀︎/☽` icon swap, `vaultaire-themechange` event).
+- Shared competitor icon fallback behavior lives in `assets/compare-icon-fallback.js` (replace duplicated per-page inline scripts on compare pages).
+- Competitor icons are stored locally in `assets/compare-icons/` (App Store sourced) and should be referenced by relative paths from compare pages, not hotlinked from `is1-ssl.mzstatic.com`.
 - Keep per-page `<style>` blocks focused on page-specific layout/content only.
 - `index.html` still contains an embedded style block for the hero/mockup experience; when changing global chrome (header/footer/mobile spacing), mirror equivalent adjustments there so home does not drift from shared pages.
 
@@ -80,3 +83,5 @@ The `apple-app-site-association` file MUST:
 - For nested compare pages (`/compare/<slug>/review/`), header nav links and shared script paths must use `../../../` depth; top-level compare pages use `../`, comparison detail pages use `../../`.
 - Keep compare-specific layout in `compare/styles.css`, but always import and rely on `styles/site-shared.css` for shared chrome so header/footer/theme behavior stays identical across pages.
 - Compare icon URLs from App Store can fail intermittently; attach a local fallback (`/assets/compare-fallback-icon.svg`) for all competitor icon images so cards/lists never render broken placeholders.
+- For all-caps headings, keep positive tracking (around `0.02em`-`0.03em`) and avoid negative letter-spacing; keep body/legal copy at `1rem`+ with line-height near `1.6` for readability.
+- For compare detail pages, breadcrumb display text and BreadcrumbList item #3 label must always start with `Vaultaire vs ...` (never just `vs ...`).

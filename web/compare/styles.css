@@ -3,7 +3,7 @@
 /* Compare section specific styles */
 
 body {
-  line-height: 1.6;
+  line-height: 1.65;
 }
 
 ul {
@@ -15,7 +15,7 @@ ul {
 /* ── Breadcrumbs ── */
 .breadcrumbs {
   padding: 100px 0 0;
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   color: var(--text-secondary);
 }
 
@@ -88,7 +88,8 @@ ul {
 
 .compare-section p {
   color: var(--text-secondary);
-  font-size: 0.99rem;
+  font-size: 1rem;
+  line-height: 1.65;
   margin-bottom: 16px;
   max-width: 800px;
 }
@@ -151,7 +152,8 @@ ul {
 
 .compare-table .feature-note {
   display: block;
-  font-size: 0.82rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
   color: var(--text-secondary);
   margin-top: 2px;
 }
@@ -233,7 +235,8 @@ ul {
 }
 
 .pricing-tier .tier-details {
-  font-size: 0.88rem;
+  font-size: 0.94rem;
+  line-height: 1.55;
   color: var(--text-secondary);
 }
 
@@ -267,14 +270,15 @@ ul {
 .review-card .review-complaint {
   font-weight: 600;
   color: var(--highlight);
-  font-size: 0.95rem;
+  font-size: 1rem;
   margin-bottom: 8px;
 }
 
 .review-card .review-quote {
   font-style: italic;
   color: var(--text-secondary);
-  font-size: 0.92rem;
+  font-size: 0.98rem;
+  line-height: 1.65;
   margin-bottom: 12px;
   padding-left: 16px;
   border-left: 2px solid color-mix(in srgb, var(--text) 20%, transparent 80%);
@@ -282,7 +286,8 @@ ul {
 
 .review-card .review-response {
   color: var(--text);
-  font-size: 0.92rem;
+  font-size: 0.98rem;
+  line-height: 1.65;
 }
 
 .review-card .review-response strong {
@@ -416,9 +421,9 @@ ul {
 }
 
 .compare-card-content .card-diff {
-  font-size: 0.88rem;
+  font-size: 0.96rem;
   color: var(--text-secondary);
-  line-height: 1.4;
+  line-height: 1.55;
 }
 
 /* ── Review Article ── */
@@ -516,7 +521,7 @@ ul {
   }
 
   .compare-table {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
   }
 
   .compare-table thead th,

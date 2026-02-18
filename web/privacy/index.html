@@ -29,7 +29,7 @@
       font-family: var(--font-display);
       font-size: clamp(2rem, 4.2vw, 2.8rem);
       line-height: 1.1;
-      letter-spacing: -0.02em;
+      letter-spacing: 0.02em;
     }
 
     .updated {
@@ -44,12 +44,14 @@
       font-size: 1.12rem;
       font-weight: 700;
       color: var(--text);
+      letter-spacing: 0.02em;
     }
 
     p, li {
       color: var(--text-secondary);
       margin: 0;
-      font-size: 0.98rem;
+      font-size: 1rem;
+      line-height: 1.62;
     }
 
     ul {
@@ -90,7 +92,7 @@
           <span class="theme-icon" id="theme-icon">☀︎</span>
           <span id="theme-label">Light</span>
         </button>
-        <a href="https://apps.apple.com/app/vaultaire/id6740526623" class="btn btn-primary" style="padding: 12px 24px; font-size: 0.9rem;">Get App</a>
+        <a href="https://apps.apple.com/app/vaultaire/id6740526623" class="btn btn-primary btn-nav">Get App</a>
       </div>
     </div>
   </header>
@@ -172,7 +174,7 @@
   <footer>
     <div class="container footer-content">
       <div class="footer-brand">
-        <h4 style="color: var(--text)">Vaultaire</h4>
+        <h4>Vaultaire</h4>
         <p>&copy; 2026 Wraxle LLC</p>
       </div>
       <div class="footer-links">
@@ -199,6 +201,6 @@
     </div>
   </footer>
 
-  <script src="../assets/theme-toggle.js"></script>
+  <script src="../assets/theme-toggle.js" defer></script>
 </body>
 </html>

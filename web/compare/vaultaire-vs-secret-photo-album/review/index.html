@@ -39,7 +39,7 @@
           <span class="theme-icon" id="theme-icon">☀︎</span>
           <span id="theme-label">Light</span>
         </button>
-        <a href="https://apps.apple.com/app/vaultaire/id6740526623" class="btn btn-primary" style="padding: 12px 24px; font-size: 0.9rem;">Get App</a>
+        <a href="https://apps.apple.com/app/vaultaire/id6740526623" class="btn btn-primary btn-nav">Get App</a>
       </div>
     </div>
   </header>
@@ -121,7 +121,7 @@
   <footer>
     <div class="container footer-content">
       <div class="footer-brand">
-        <h4 style="color: var(--text)">Vaultaire</h4>
+        <h4>Vaultaire</h4>
         <p>&copy; 2026 Wraxle LLC</p>
       </div>
       <div class="footer-links">
@@ -146,19 +146,8 @@
       </div>
     </div>
   </footer>
-  <script>
-    (function () {
-      const fallbackIcon = "/assets/compare-fallback-icon.svg";
-      document.querySelectorAll('img[src*="is1-ssl.mzstatic.com"], img[data-competitor-icon]').forEach((img) => {
-        img.addEventListener("error", () => {
-          if (img.dataset.fallbackApplied === "1") return;
-          img.dataset.fallbackApplied = "1";
-          img.src = fallbackIcon;
-        });
-      });
-    })();
-  </script>
 
-  <script src="../../../assets/theme-toggle.js"></script>
+  <script src="../../../assets/compare-icon-fallback.js" defer></script>
+  <script src="../../../assets/theme-toggle.js" defer></script>
 </body>
 </html>

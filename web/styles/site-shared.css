@@ -50,7 +50,7 @@ h5,
 h6 {
   font-family: var(--font-display);
   text-transform: uppercase;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.03em;
 }
 
 a {
@@ -171,6 +171,11 @@ header {
   color: var(--accent-contrast);
 }
 
+.btn-nav {
+  padding: 12px 24px;
+  font-size: 0.9rem;
+}
+
 .btn-primary::before {
   content: '';
   position: absolute;
@@ -240,6 +245,11 @@ footer {
 
 .footer-brand {
   width: 100%;
+}
+
+.footer-brand h4 {
+  margin: 0;
+  color: var(--text);
 }
 
 .footer-brand p {
