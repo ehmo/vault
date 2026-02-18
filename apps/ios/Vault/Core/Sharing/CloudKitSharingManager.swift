@@ -100,6 +100,25 @@ final class CloudKitSharingManager {
         }
     }
 
+    // MARK: - Manifest Update Helper
+
+    /// Queries the manifest record for a shareVaultId, increments version, and saves.
+    private func updateManifestRecord(shareVaultId: String, chunkCount: Int, currentVersion: Int? = nil) async throws {
+        let predicate = NSPredicate(format: "shareVaultId == %@", shareVaultId)
+        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
+        let results = try await publicDatabase.records(matching: query)
+
+        for (_, result) in results.matchResults {
+            if let record = try? result.get() {
+                let version = currentVersion ?? (record["version"] as? Int) ?? 3
+                record["version"] = version + 1
+                record["updatedAt"] = Date()
+                record["chunkCount"] = chunkCount
+                try await saveWithRetry(record)
+            }
+        }
+    }
+
     // MARK: - Upload (Chunked)
 
     /// Uploads vault data to CloudKit in chunks for a specific share vault ID.
@@ -204,20 +223,7 @@ final class CloudKitSharingManager {
             onProgress: onProgress
         )
 
-        // Update manifest version & timestamp
-        // Find the manifest that references this shareVaultId
-        let predicate = NSPredicate(format: "shareVaultId == %@", shareVaultId)
-        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
-        let results = try await publicDatabase.records(matching: query)
-
-        for (_, result) in results.matchResults {
-            if let record = try? result.get() {
-                record["version"] = currentVersion + 1
-                record["updatedAt"] = Date()
-                record["chunkCount"] = totalChunks
-                try await publicDatabase.save(record)
-            }
-        }
+        try await updateManifestRecord(shareVaultId: shareVaultId, chunkCount: totalChunks, currentVersion: currentVersion)
     }
 
     /// Incrementally syncs SVDF data by only uploading chunks whose content changed.
@@ -260,20 +266,7 @@ final class CloudKitSharingManager {
 
         Self.logger.info("[sync-incremental] \(uploadedCount)/\(totalChunks) chunks uploaded for \(shareVaultId, privacy: .public)")
 
-        // Update manifest
-        let predicate = NSPredicate(format: "shareVaultId == %@", shareVaultId)
-        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
-        let results = try await publicDatabase.records(matching: query)
-
-        for (_, result) in results.matchResults {
-            if let record = try? result.get() {
-                let currentVersion = (record["version"] as? Int) ?? 3
-                record["version"] = currentVersion + 1
-                record["updatedAt"] = Date()
-                record["chunkCount"] = totalChunks
-                try await saveWithRetry(record)
-            }
-        }
+        try await updateManifestRecord(shareVaultId: shareVaultId, chunkCount: totalChunks)
     }
 
     /// Incrementally syncs SVDF data from a file on disk.
@@ -312,20 +305,7 @@ final class CloudKitSharingManager {
 
         Self.logger.info("[sync-incremental] \(changedIndices.count)/\(totalChunks) chunks uploaded for \(shareVaultId, privacy: .public)")
 
-        // Update manifest
-        let predicate = NSPredicate(format: "shareVaultId == %@", shareVaultId)
-        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
-        let results = try await publicDatabase.records(matching: query)
-
-        for (_, result) in results.matchResults {
-            if let record = try? result.get() {
-                let currentVersion = (record["version"] as? Int) ?? 3
-                record["version"] = currentVersion + 1
-                record["updatedAt"] = Date()
-                record["chunkCount"] = totalChunks
-                try await saveWithRetry(record)
-            }
-        }
+        try await updateManifestRecord(shareVaultId: shareVaultId, chunkCount: totalChunks)
     }
 
     // MARK: - Download (Chunked)

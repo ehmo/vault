@@ -628,6 +628,69 @@ final class VaultStorage {
         return urls
     }
 
+    // MARK: - Blob Pool Write Helper
+
+    struct BlobWriteResult {
+        let writeOffset: Int
+        let blobId: String
+        let blobIdx: Int
+        let handle: FileHandle
+    }
+
+    /// Finds a blob with enough space (or creates one), opens a FileHandle at the write offset.
+    /// Caller is responsible for closing the handle and calling `finalizeBlobWrite` after writing.
+    private func allocateBlobSpace(size: Int, index: inout VaultIndex) throws -> BlobWriteResult {
+        var targetBlobIndex: Int? = nil
+        if let blobs = index.blobs {
+            for (i, blob) in blobs.enumerated() {
+                if blob.cursor + size <= blob.capacity {
+                    targetBlobIndex = i
+                    break
+                }
+            }
+        }
+
+        if targetBlobIndex == nil {
+            guard let newBlob = createExpansionBlob() else {
+                throw VaultStorageError.writeError
+            }
+            if index.blobs == nil { index.blobs = [] }
+            index.blobs!.append(newBlob)
+            targetBlobIndex = index.blobs!.count - 1
+        }
+
+        guard let blobIdx = targetBlobIndex, let blobs = index.blobs else {
+            throw VaultStorageError.writeError
+        }
+        let writeOffset = blobs[blobIdx].cursor
+        let targetBlobId = blobs[blobIdx].blobId
+        let targetURL = blobURL(for: targetBlobId, in: index)
+
+        guard let handle = try? FileHandle(forWritingTo: targetURL) else {
+            throw VaultStorageError.writeError
+        }
+
+        try handle.seek(toOffset: UInt64(writeOffset))
+
+        return BlobWriteResult(
+            writeOffset: writeOffset,
+            blobId: targetBlobId,
+            blobIdx: blobIdx,
+            handle: handle
+        )
+    }
+
+    /// Updates blob cursor and global cursor after writing data to the blob.
+    private func finalizeBlobWrite(size: Int, result: BlobWriteResult, index: inout VaultIndex) {
+        let newCursor = result.writeOffset + size
+        index.blobs![result.blobIdx].cursor = newCursor
+
+        if result.blobId == "primary" {
+            writeGlobalCursor(newCursor)
+            index.nextOffset = newCursor
+        }
+    }
+
     // MARK: - File Operations
 
     func storeFile(data: Data, filename: String, mimeType: String, with key: Data, thumbnailData: Data? = nil, duration: TimeInterval? = nil) throws -> UUID {
@@ -665,104 +728,37 @@ final class VaultStorage {
 
         let fileData = encryptedFile.encryptedContent
         let fileSize = fileData.count
-        
-        #if DEBUG
-        print("💾 [VaultStorage] File encrypted with master key. Size: \(fileSize) bytes")
-        #endif
 
-        // Find a blob with enough space
-        var targetBlobIndex: Int? = nil
-        if let blobs = index.blobs {
-            for (i, blob) in blobs.enumerated() {
-                if blob.cursor + fileSize <= blob.capacity {
-                    targetBlobIndex = i
-                    break
-                }
-            }
-        }
+        let blobWrite = try allocateBlobSpace(size: fileSize, index: &index)
+        defer { try? blobWrite.handle.close() }
 
-        // No blob has space — expand automatically
-        if targetBlobIndex == nil {
-            guard let newBlob = createExpansionBlob() else {
-                throw VaultStorageError.writeError
-            }
-
-            if index.blobs == nil { index.blobs = [] }
-            index.blobs!.append(newBlob)
-            targetBlobIndex = index.blobs!.count - 1
-        }
-
-        guard let blobIdx = targetBlobIndex, let blobs = index.blobs else {
-            throw VaultStorageError.writeError
-        }
-        let writeOffset = blobs[blobIdx].cursor
-        let targetBlobId = blobs[blobIdx].blobId
-        let targetURL = blobURL(for: targetBlobId, in: index)
-
-        #if DEBUG
-        print("💾 [VaultStorage] Writing to blob '\(targetBlobId)' at offset \(writeOffset)")
-        #endif
-
-        // Write to blob
-        guard let handle = try? FileHandle(forWritingTo: targetURL) else {
-            #if DEBUG
-            print("❌ [VaultStorage] Cannot open blob file for writing")
-            #endif
-            throw VaultStorageError.writeError
-        }
-        defer { try? handle.close() }
-
-        try handle.seek(toOffset: UInt64(writeOffset))
-        handle.write(fileData)
-
-        #if DEBUG
-        print("💾 [VaultStorage] Data written to blob at offset \(writeOffset)")
-        #endif
+        blobWrite.handle.write(fileData)
 
         // Encrypt thumbnail with MASTER KEY if provided
         var encryptedThumbnail: Data? = nil
         if let thumbnail = thumbnailData {
             encryptedThumbnail = try? CryptoEngine.encrypt(thumbnail, with: masterKey)
-            #if DEBUG
-            print("💾 [VaultStorage] Thumbnail encrypted with master key")
-            #endif
         }
 
-        // Update blob cursor
-        let newCursor = writeOffset + fileSize
-        index.blobs![blobIdx].cursor = newCursor
+        finalizeBlobWrite(size: fileSize, result: blobWrite, index: &index)
 
-        // For primary blob, also update the XOR footer cursor (v2 compat)
-        if targetBlobId == "primary" {
-            writeGlobalCursor(newCursor)
-            index.nextOffset = newCursor
-        }
-
-        // Update index
         let entry = VaultIndex.VaultFileEntry(
             fileId: encryptedFile.header.fileId,
-            offset: writeOffset,
+            offset: blobWrite.writeOffset,
             size: fileSize,
             encryptedHeaderPreview: fileData.prefix(64),
             isDeleted: false,
             thumbnailData: encryptedThumbnail,
             mimeType: mimeType,
             filename: filename,
-            blobId: targetBlobId == "primary" ? nil : targetBlobId,
+            blobId: blobWrite.blobId == "primary" ? nil : blobWrite.blobId,
             createdAt: Date(),
             duration: duration
         )
         index.files.append(entry)
 
         try saveIndex(index, with: key)
-
         span.finish(status: .ok)
-
-        #if DEBUG
-        print("✅ [VaultStorage] File stored successfully with ID: \(encryptedFile.header.fileId)")
-        print("✅ [VaultStorage] New index: \(index.files.count) files, blob '\(targetBlobId)' cursor: \(newCursor)")
-        #endif
-
         return encryptedFile.header.fileId
     }
 
@@ -791,64 +787,28 @@ final class VaultStorage {
             let fileData = encryptedFile.encryptedContent
             let fileSize = fileData.count
 
-            // Find a blob with enough space
-            var targetBlobIndex: Int? = nil
-            if let blobs = index.blobs {
-                for (j, blob) in blobs.enumerated() {
-                    if blob.cursor + fileSize <= blob.capacity {
-                        targetBlobIndex = j
-                        break
-                    }
-                }
-            }
+            let blobWrite = try allocateBlobSpace(size: fileSize, index: &index)
+            defer { try? blobWrite.handle.close() }
 
-            if targetBlobIndex == nil {
-                guard let newBlob = createExpansionBlob() else {
-                    throw VaultStorageError.writeError
-                }
-                if index.blobs == nil { index.blobs = [] }
-                index.blobs!.append(newBlob)
-                targetBlobIndex = index.blobs!.count - 1
-            }
-
-            guard let blobIdx = targetBlobIndex, let blobs = index.blobs else {
-                throw VaultStorageError.writeError
-            }
-            let writeOffset = blobs[blobIdx].cursor
-            let targetBlobId = blobs[blobIdx].blobId
-            let targetURL = blobURL(for: targetBlobId, in: index)
-
-            guard let handle = try? FileHandle(forWritingTo: targetURL) else {
-                throw VaultStorageError.writeError
-            }
-            defer { try? handle.close() }
-
-            try handle.seek(toOffset: UInt64(writeOffset))
-            handle.write(fileData)
+            blobWrite.handle.write(fileData)
 
             var encryptedThumbnail: Data? = nil
             if let thumbnail = file.thumbnailData {
                 encryptedThumbnail = try? CryptoEngine.encrypt(thumbnail, with: masterKey)
             }
 
-            let newCursor = writeOffset + fileSize
-            index.blobs![blobIdx].cursor = newCursor
-
-            if targetBlobId == "primary" {
-                writeGlobalCursor(newCursor)
-                index.nextOffset = newCursor
-            }
+            finalizeBlobWrite(size: fileSize, result: blobWrite, index: &index)
 
             let entry = VaultIndex.VaultFileEntry(
                 fileId: encryptedFile.header.fileId,
-                offset: writeOffset,
+                offset: blobWrite.writeOffset,
                 size: fileSize,
                 encryptedHeaderPreview: fileData.prefix(64),
                 isDeleted: false,
                 thumbnailData: encryptedThumbnail,
                 mimeType: file.mimeType,
                 filename: file.filename,
-                blobId: targetBlobId == "primary" ? nil : targetBlobId,
+                blobId: blobWrite.blobId == "primary" ? nil : blobWrite.blobId,
                 createdAt: Date()
             )
             index.files.append(entry)
@@ -893,47 +853,17 @@ final class VaultStorage {
         let encContentSize = CryptoEngine.encryptedContentSize(forFileOfSize: originalFileSize)
         let totalSize = 4 + encryptedHeader.count + encContentSize
 
-        // Find a blob with enough space
-        var targetBlobIndex: Int? = nil
-        if let blobs = index.blobs {
-            for (i, blob) in blobs.enumerated() {
-                if blob.cursor + totalSize <= blob.capacity {
-                    targetBlobIndex = i
-                    break
-                }
-            }
-        }
-
-        if targetBlobIndex == nil {
-            guard let newBlob = createExpansionBlob() else {
-                throw VaultStorageError.writeError
-            }
-            if index.blobs == nil { index.blobs = [] }
-            index.blobs!.append(newBlob)
-            targetBlobIndex = index.blobs!.count - 1
-        }
-
-        guard let blobIdx = targetBlobIndex, let blobs = index.blobs else {
-            throw VaultStorageError.writeError
-        }
-        let writeOffset = blobs[blobIdx].cursor
-        let targetBlobId = blobs[blobIdx].blobId
-        let targetURL = blobURL(for: targetBlobId, in: index)
-
-        guard let handle = try? FileHandle(forWritingTo: targetURL) else {
-            throw VaultStorageError.writeError
-        }
-        defer { try? handle.close() }
+        let blobWrite = try allocateBlobSpace(size: totalSize, index: &index)
+        defer { try? blobWrite.handle.close() }
 
         // Write header to blob
-        try handle.seek(toOffset: UInt64(writeOffset))
         var headerSize = UInt32(encryptedHeader.count)
         let headerSizeData = Data(bytes: &headerSize, count: 4)
-        handle.write(headerSizeData)
-        handle.write(encryptedHeader)
+        blobWrite.handle.write(headerSizeData)
+        blobWrite.handle.write(encryptedHeader)
 
         // Stream-encrypt content directly to blob — peak memory: ~256KB
-        try CryptoEngine.encryptFileStreamingToHandle(from: fileURL, to: handle, with: masterKey)
+        try CryptoEngine.encryptFileStreamingToHandle(from: fileURL, to: blobWrite.handle, with: masterKey)
 
         // Build header preview for index (first 64 bytes of on-disk format)
         var headerPreview = Data()
@@ -945,31 +875,24 @@ final class VaultStorage {
             encryptedThumbnail = try? CryptoEngine.encrypt(thumbnail, with: masterKey)
         }
 
-        let newCursor = writeOffset + totalSize
-        index.blobs![blobIdx].cursor = newCursor
-
-        if targetBlobId == "primary" {
-            writeGlobalCursor(newCursor)
-            index.nextOffset = newCursor
-        }
+        finalizeBlobWrite(size: totalSize, result: blobWrite, index: &index)
 
         let entry = VaultIndex.VaultFileEntry(
             fileId: fileId,
-            offset: writeOffset,
+            offset: blobWrite.writeOffset,
             size: totalSize,
             encryptedHeaderPreview: headerPreview,
             isDeleted: false,
             thumbnailData: encryptedThumbnail,
             mimeType: mimeType,
             filename: filename,
-            blobId: targetBlobId == "primary" ? nil : targetBlobId,
+            blobId: blobWrite.blobId == "primary" ? nil : blobWrite.blobId,
             createdAt: Date(),
             duration: duration
         )
         index.files.append(entry)
 
         try saveIndex(index, with: key)
-
         return fileId
     }
 
