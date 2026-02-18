@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "fb6c9c2cf331",
+  "session_id": "0573b445-1cd2-4d1c-82c7-564fdf7898a4",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T07:53:41.991057Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift"
+  ],
+  "agent": "Claude Code",
+  "checkpoint_transcript_start": 157,
+  "transcript_lines_at_start": 157,
+  "token_usage": {
+    "input_tokens": 33,
+    "cache_creation_tokens": 30262,
+    "cache_read_tokens": 2934607,
+    "output_tokens": 833,
+    "api_call_count": 30
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T07:53:41.890007Z",
+    "agent_lines": 8,
+    "human_added": 0,
+    "human_modified": 1,
+    "human_removed": 1,
+    "total_committed": 9,
+    "agent_percentage": 88.88888888888889
+  }
+}
