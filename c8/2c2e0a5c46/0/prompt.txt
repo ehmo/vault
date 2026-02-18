@@ -1,0 +1,417 @@
+Implement the following plan:
+
+# Plan: Fix OOM Crash When Scrolling Large Vault
+
+## Context
+
+App crashes when user adds lots of files and scrolls through them. Root cause: out-of-memory termination from three compounding issues:
+
+1. **All encrypted thumbnail `Data` blobs (~30-60KB each) held in `@State var files`** — with 500 files = 15-30MB of encrypted data in view state
+2. **`cellFrames` PreferenceKey dictionary grows unbounded** — tracks CGRect for every cell ever scrolled past, never shrinks, triggers state updates per cell
+3. **`computeVisibleFiles()` recomputed on every body evaluation** — filters, sorts, and rebuilds dictionary for all files on main thread per render
+
+## Fix 1: Move encrypted thumbnails out of VaultFileItem (Critical)
+
+**Problem**: `VaultFileItem.encryptedThumbnail: Data?` holds 30-60KB per file. The `files` array is `@State` so SwiftUI diffs it on every render.
+
+**Solution**: Store encrypted thumbnails in `ThumbnailCache` actor instead of in the model.
+
+Files:
+- `apps/ios/Vault/Core/Cache/ThumbnailCache.swift` — Add `encryptedThumbnails: [UUID: Data]` storage + `storeEncrypted(id:data:)` + `encryptedThumbnail(for:) -> Data?`
+- `apps/ios/Vault/Features/VaultViewer/VaultView.swift` — Remove `encryptedThumbnail` from `VaultFileItem`, add `hasThumbnail: Bool` flag instead
+- `apps/ios/Vault/Features/VaultViewer/VaultView+Actions.swift` — In `loadFiles()`, populate ThumbnailCache with encrypted data, set `hasThumbnail` on items
+- `apps/ios/Vault/UI/Components/AsyncThumbnailView.swift` — Change to take `hasThumbnail: Bool` instead of `encryptedThumbnail: Data?`, fetch encrypted data from ThumbnailCache
+- `apps/ios/Vault/Features/VaultViewer/PhotosGridView.swift` — Update `cellView` to pass `hasThumbnail`
+- `apps/ios/Vault/Features/VaultViewer/FilesGridView.swift` — Same
+- `apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift` — Update if it uses encryptedThumbnail
+
+## Fix 2: Only track cellFrames when editing (High)
+
+**Problem**: Both `PhotosGridView` and `FilesGridView` always track `cellFrames` via PreferenceKey, even when not editing. The dictionary grows unbounded as user scrolls.
+
+**Solution**: Conditionally attach the GeometryReader preference only when `isEditing`.
+
+Files:
+- `apps/ios/Vault/Features/VaultViewer/PhotosGridView.swift` — Wrap `.background(GeometryReader...)` in `if isEditing`
+- `apps/ios/Vault/Features/VaultViewer/FilesGridView.swift` — Same
+- Both files: Clear `cellFrames` when `isEditing` transitions to false
+
+## Fix 3: Cache computeVisibleFiles result (Medium)
+
+**Problem**: `computeVisibleFiles()` called in `body`, plus `sortedFiles` and `splitFiles` computed properties also call it. Each call filters + sorts entire array.
+
+**Solution**: Memoize the result. Compute once per dependency change, not per render.
+
+Files:
+- `apps/ios/Vault/Features/VaultViewer/VaultView.swift` — Add `@State private var cachedVisible: VisibleFiles?` + invalidation on `files`/`searchText`/`fileFilter`/`sortOrder` changes. Use `.onChange(of:)` to invalidate. Remove `sortedFiles` and `splitFiles` computed properties if unused outside body.
+
+## Verification
+
+1. Build succeeds with no warnings in project code
+2. Add 200+ files to vault via test seeding
+3. Scroll rapidly through grid — no crash, smooth scrolling
+4. Memory profile stays under ~100MB during scroll
+5. Edit mode drag-to-select still works (cellFrames tracked when editing)
+6. Existing XCUITests still pass
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+The vault filter defaults to media when vault is opened even though files were added. If one file was added, it should default to all. This needs to persist accross closing and opening the app
+
+Also fix this
+
+Fix 3: Cache computeVisibleFiles (Deferred)
+
+  - Attempted but deferred — VaultView's body is at the Swift type-checker complexity ceiling and adding cached state triggered unable to type-check expression
+  errors
+  - Logged as a future improvement in scratch pad
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+**Message 1 - User's Initial Request:**
+The user asked to implement a plan to fix OOM crash when scrolling large vault. The plan had 3 fixes:
+1. Move encrypted thumbnails out of VaultFileItem (Critical)
+2. Only track cellFrames when editing (High)
+3. Cache computeVisibleFiles result (Medium)
+
+**Assistant's Actions for Fix 1:**
+- Read all relevant files: ThumbnailCache.swift, VaultView.swift, VaultView+Actions.swift, AsyncThumbnailView.swift, PhotosGridView.swift, FilesGridView.swift, FullScreenPhotoViewer.swift
+- Added encrypted thumbnail storage to ThumbnailCache actor (storeEncrypted, encryptedThumbnail, decryptAndCache overload)
+- Changed VaultFileItem: replaced `encryptedThumbnail: Data?` with `hasThumbnail: Bool`
+- Updated AsyncThumbnailView to use hasThumbnail + fetch from cache
+- Updated loadFiles() to store encrypted data in ThumbnailCache before creating VaultFileItem
+- Updated handleCapturedImage(), performPhotoImport() (2 paths), performFileImport() (2 paths)
+- Updated PhotosGridView, FilesGridView, FullScreenPhotoViewer
+- Updated SecureImageViewer and SecureVideoPlayer previews
+- Updated test files: VaultFileItemTests.swift, DateGroupingTests.swift
+
+**Assistant's Actions for Fix 2:**
+- Wrapped GeometryReader preference in `if isEditing` in both PhotosGridView and FilesGridView
+- Added `.onChange(of: isEditing)` to clear cellFrames dictionary when editing ends
+
+**Assistant's Actions for Fix 3 (First Attempt - Failed):**
+- Tried adding `@State private var cachedVisible` and `resolveVisibleFiles()` 
+- Build failed with "the compiler is unable to type-check this expression in reasonable time"
+- Tried multiple variations (cachedVisible as optional, version counter, etc.) - all failed
+- Root cause: VaultView.body is at the Swift type-checker complexity ceiling
+- Reverted Fix 3 changes, kept Fix 1 + Fix 2
+
+**Build & Test:**
+- Build succeeded with no project warnings
+- All 303 tests passed (292 unit + 11 UI)
+- Committed and pushed: `7292d38`
+
+**Scratch Pad Update:**
+- Added Session 103 entry with all learnings
+- Committed and pushed: `5cab468`
+
+**Message 2 - User's Second Request:**
+Two items:
+1. File filter defaults to media when vault is opened even though files were added. Should default to "all" and persist across app launches.
+2. Fix the deferred Fix 3 (cache computeVisibleFiles)
+
+**Assistant's Actions for File Filter:**
+- Changed `@State var fileFilter: FileFilter = .media` to `@AppStorage("vaultFileFilter") var fileFilter: FileFilter = .all`
+- Updated filter icon indicator from checking `.media` to checking `.all`
+- Updated auto-switch logic after photo import
+
+**Assistant's Actions for Fix 3 (Second Attempt - Succeeded):**
+- Different approach: thread `visible` through view hierarchy instead of caching in state
+- Changed `topSafeAreaContent` from computed property to `func topSafeAreaContent(visible: VisibleFiles)`
+- Changed `editModeControls` from computed property to `func editModeControls(visible: VisibleFiles)`
+- Updated body to pass `visible` parameter: `topSafeAreaContent(visible: visible)`
+- Removed `sortedFiles` computed property entirely
+- Build succeeded, all 303 tests passed
+- Committed and pushed: `a6f60b7`
+
+**Message 3 - User's Bug Report (mid-work):**
+User reported: "Found new bug. When I try to sync up the vault for sharing it crashes" with console logs showing:
+- Multiple "Skipping oversized file" messages (videos 276-439MB)
+- SpringBoard scene invalidation (app killed)
+- CFPrefs container warning
+
+**Assistant's Investigation of Sharing Crash:**
+- Found `ShareSyncManager.buildIncrementalSharedVaultData` accumulates ALL file content in memory
+- `sharedFiles` array holds re-encrypted content for all non-skipped files
+- `buildFull` creates another copy as `svdfData`
+- Peak memory = 2x all file content
+- Discovered `SVDFSerializer.buildFullStreaming` already exists but isn't used by sync path
+- Was actively reading `CloudKitSharingManager.syncSharedVaultIncremental` to understand how it receives data
+- Investigation was interrupted by the summary request
+
+**Key Files Read/Modified:**
+
+Files modified:
+1. ThumbnailCache.swift - Added encryptedThumbnails storage
+2. VaultView.swift - Changed VaultFileItem, fileFilter, removed sortedFiles, threaded visible
+3. VaultView+Actions.swift - Updated all VaultFileItem creation sites
+4. AsyncThumbnailView.swift - Changed to use hasThumbnail + cache
+5. PhotosGridView.swift - Conditional cellFrames + hasThumbnail
+6. FilesGridView.swift - Conditional cellFrames + hasThumbnail
+7. FullScreenPhotoViewer.swift - Video thumbnail from cache
+8. SecureImageViewer.swift - Preview fix
+9. SecureVideoPlayer.swift - Preview fix
+10. VaultView+Toolbar.swift - Threaded visible, filter icon
+11. VaultFileItemTests.swift - Test fix
+12. DateGroupingTests.swift - Test fix
+13. .scratch-pad.md - Session 103 entry
+
+Files investigated (sharing crash):
+- ShareSyncManager.swift - Found OOM root cause
+- SVDFSerializer.swift - Found streaming alternative exists
+- CloudKitSharingManager.swift - Understanding upload API
+
+Summary:
+1. Primary Request and Intent:
+   - **Initial request**: Implement a 3-fix plan to resolve OOM crash when scrolling large vault in iOS app (Vaultaire). The three fixes were: (1) Move encrypted thumbnails out of VaultFileItem @State array into ThumbnailCache actor [Critical], (2) Only track cellFrames PreferenceKey when editing [High], (3) Cache computeVisibleFiles result [Medium].
+   - **Second request**: (a) Change file filter default from `.media` to `.all` and persist across app launches. (b) Fix the deferred Fix 3 (computeVisibleFiles caching).
+   - **Third request (bug report)**: "Found new bug. When I try to sync up the vault for sharing it crashes" — with console logs showing oversized file skipping and SpringBoard killing the app.
+
+2. Key Technical Concepts:
+   - SwiftUI `@State` arrays holding `Data` blobs cause memory pressure because SwiftUI diffs the entire array on every body evaluation
+   - Actor-isolated caches (ThumbnailCache) for separating bulk data from view state
+   - PreferenceKey dictionaries (`cellFrames`) grow unbounded in LazyVGrid when always attached
+   - Swift type-checker body complexity limits — VaultView.body is at the ceiling
+   - Threading computed results through view hierarchy via function parameters vs. storing in @State
+   - `@AppStorage` for persisting enum preferences (FileFilter: String raw value)
+   - SVDF (Shared Vault Data Format) streaming vs in-memory building
+   - OOM during share sync: `buildIncrementalSharedVaultData` accumulates all file content + SVDF in memory (2x total)
+
+3. Files and Code Sections:
+
+   - **`apps/ios/Vault/Core/Cache/ThumbnailCache.swift`**
+     - Core of Fix 1: Added encrypted thumbnail storage to actor-isolated cache
+     - Changes: Added `encryptedThumbnails: [UUID: Data]` dictionary, `storeEncrypted(id:data:)`, `encryptedThumbnail(for:)`, new `decryptAndCache(id:masterKey:)` overload, clear clears both caches
+     ```swift
+     actor ThumbnailCache {
+         static let shared = ThumbnailCache()
+         private let cache = NSCache<NSString, UIImage>()
+         private var encryptedThumbnails: [UUID: Data] = [:]
+         // ...
+         func storeEncrypted(id: UUID, data: Data) {
+             encryptedThumbnails[id] = data
+         }
+         func encryptedThumbnail(for id: UUID) -> Data? {
+             encryptedThumbnails[id]
+         }
+         func decryptAndCache(id: UUID, masterKey: Data) -> UIImage? {
+             if let cached = image(for: id) { return cached }
+             guard let encrypted = encryptedThumbnails[id] else { return nil }
+             do {
+                 let decrypted = try CryptoEngine.decrypt(encrypted, with: masterKey)
+                 guard let uiImage = UIImage(data: decrypted) else { return nil }
+                 setImage(uiImage, for: id)
+                 return uiImage
+             } catch { return nil }
+         }
+         func clear() {
+             cache.removeAllObjects()
+             encryptedThumbnails.removeAll()
+         }
+     }
+     ```
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView.swift`**
+     - Central file for all three fixes
+     - Fix 1: Changed `VaultFileItem.encryptedThumbnail: Data?` → `hasThumbnail: Bool`
+     - Fix 3: Removed `sortedFiles` computed property, threaded `visible` parameter through body
+     - Filter: Changed `@State var fileFilter: FileFilter = .media` → `@AppStorage("vaultFileFilter") var fileFilter: FileFilter = .all`
+     ```swift
+     struct VaultFileItem: Identifiable, Sendable {
+         let id: UUID
+         let size: Int
+         let hasThumbnail: Bool  // was: encryptedThumbnail: Data?
+         let mimeType: String?
+         let filename: String?
+         let createdAt: Date?
+         let duration: TimeInterval?
+         init(id: UUID, size: Int, hasThumbnail: Bool = false, mimeType: String?, filename: String?, createdAt: Date? = nil, duration: TimeInterval? = nil) { ... }
+     }
+     ```
+     - Body now passes visible to topSafeAreaContent:
+     ```swift
+     .safeAreaInset(edge: .top, spacing: 0) {
+         topSafeAreaContent(visible: visible)
+     }
+     ```
+     - `sortedFiles` computed property was REMOVED (was calling `computeVisibleFiles().all` redundantly)
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView+Actions.swift`**
+     - Updated ALL 6 VaultFileItem creation sites to use `hasThumbnail` and store encrypted data in ThumbnailCache
+     - loadFiles() now stores encrypted thumbnails in cache before creating items:
+     ```swift
+     for entry in result.files {
+         if let encThumb = entry.encryptedThumbnail {
+             await ThumbnailCache.shared.storeEncrypted(id: entry.fileId, data: encThumb)
+         }
+     }
+     let items = result.files.map { entry in
+         VaultFileItem(
+             id: entry.fileId, size: entry.size,
+             hasThumbnail: entry.encryptedThumbnail != nil,
+             mimeType: entry.mimeType, filename: entry.filename,
+             createdAt: entry.createdAt, duration: entry.duration
+         )
+     }
+     ```
+     - All import paths (handleCapturedImage, performPhotoImport video/image, performFileImport video/file) follow same pattern: encrypt thumbnail → store in ThumbnailCache → create VaultFileItem with hasThumbnail flag
+     - Updated photo import auto-switch to: `if imported > 0 && self.fileFilter != .all && self.fileFilter != .media { self.fileFilter = .all }`
+
+   - **`apps/ios/Vault/UI/Components/AsyncThumbnailView.swift`**
+     - Changed from receiving `encryptedThumbnail: Data?` to `hasThumbnail: Bool`
+     - Now fetches encrypted data from ThumbnailCache instead of receiving it directly
+     ```swift
+     struct AsyncThumbnailView: View {
+         let fileId: UUID
+         let hasThumbnail: Bool
+         let masterKey: Data
+         var contentMode: ContentMode = .fill
+         @State private var image: UIImage?
+         var body: some View {
+             Group {
+                 if let image { Image(uiImage: image).resizable().aspectRatio(contentMode: contentMode) }
+                 else { Color.vaultSurface }
+             }
+             .task(id: fileId) {
+                 guard hasThumbnail else { return }
+                 if let cached = await ThumbnailCache.shared.image(for: fileId) { image = cached; return }
+                 let result = await ThumbnailCache.shared.decryptAndCache(id: fileId, masterKey: masterKey)
+                 if !Task.isCancelled { image = result }
+             }
+         }
+     }
+     ```
+
+   - **`apps/ios/Vault/Features/VaultViewer/PhotosGridView.swift`**
+     - Fix 2: Wrapped GeometryReader in `if isEditing` and added cleanup on editing end
+     ```swift
+     .background {
+         if isEditing {
+             GeometryReader { geo in
+                 Color.clear.preference(key: PhotoCellFramePreference.self,
+                     value: [file.id: geo.frame(in: .named("photosGrid"))])
+             }
+         }
+     }
+     ```
+     ```swift
+     .onChange(of: isEditing) { _, editing in
+         if !editing { cellFrames.removeAll() }
+     }
+     ```
+     - Fix 1: Updated AsyncThumbnailView call to use `hasThumbnail: file.hasThumbnail`
+
+   - **`apps/ios/Vault/Features/VaultViewer/FilesGridView.swift`**
+     - Same Fix 2 changes as PhotosGridView (conditional GeometryReader + cleanup)
+     - Fix 1: Updated condition from `file.encryptedThumbnail != nil` to `file.hasThumbnail` and AsyncThumbnailView params
+
+   - **`apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift`**
+     - Fix 1: Video thumbnail loading changed from inline decrypt to ThumbnailCache
+     ```swift
+     if isVideo {
+         guard let masterKey = masterKey, file.hasThumbnail else { return }
+         if let uiImage = await ThumbnailCache.shared.decryptAndCache(id: file.id, masterKey: masterKey) {
+             await MainActor.run { images[file.id] = uiImage }
+         }
+     }
+     ```
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView+Toolbar.swift`**
+     - Fix 3: Changed `topSafeAreaContent` from property to function accepting visible parameter
+     - Changed `editModeControls` from property to function accepting visible parameter
+     - Replaced all `sortedFiles` references with `allVisible` (from visible.all)
+     - Updated filter icon: `fileFilter == .all` instead of `fileFilter == .media`
+     ```swift
+     func topSafeAreaContent(visible: VisibleFiles) -> some View { ... }
+     private func editModeControls(visible: VisibleFiles) -> some View {
+         let allVisible = visible.all
+         return Group {
+             Button {
+                 withAnimation(.easeInOut(duration: 0.2)) {
+                     if selectedIds.count == allVisible.count { selectedIds.removeAll() }
+                     else { selectedIds = Set(allVisible.map(\.id)) }
+                 }
+             } label: {
+                 Text(selectedIds.count == allVisible.count ? "Deselect All" : "Select All (\(allVisible.count))")
+                 ...
+             }
+         }
+     }
+     ```
+
+   - **`apps/ios/Vault/Features/VaultViewer/SecureImageViewer.swift`** and **`SecureVideoPlayer.swift`**
+     - Preview code updated: `encryptedThumbnail: nil` → `hasThumbnail: false`
+
+   - **`apps/ios/VaultTests/VaultFileItemTests.swift`** and **`DateGroupingTests.swift`**
+     - Test code updated: `encryptedThumbnail: nil` → `hasThumbnail: false`
+
+   - **`apps/ios/Vault/Core/Sharing/ShareSyncManager.swift`** (READ ONLY - crash investigation)
+     - `maxInMemoryReencryptBytes = 256 * 1024 * 1024` (256MB per-file limit)
+     - `buildIncrementalSharedVaultData` accumulates ALL re-encrypted file content in `sharedFiles` array
+     - Then `buildFull` or `buildIncremental` creates another copy as `svdfData`
+     - Peak memory = 2x total file content — OOM with many files
+
+   - **`apps/ios/Vault/Core/Sharing/SVDFSerializer.swift`** (READ ONLY - crash investigation)
+     - `buildFull` — in-memory, used by sync path (PROBLEM)
+     - `buildFullStreaming` — file-based, exists but NOT used by sync (SOLUTION)
+     - `buildFullStreamingFromPlaintext` — used by initial upload paths
+     - `buildIncremental` — loads priorData + appends new files, all in memory
+
+   - **`apps/ios/Vault/Core/Sharing/CloudKitSharingManager.swift`** (READ ONLY - crash investigation)
+     - `syncSharedVaultIncremental` receives `svdfData: Data` — full SVDF in memory
+
+   - **`.scratch-pad.md`**
+     - Added Session 103 entry with OOM fix learnings
+     - Key learning: "SwiftUI @State arrays holding Data blobs are a major memory hazard"
+
+4. Errors and Fixes:
+   - **Fix 3 first attempt - Swift type-checker failure**: Adding `@State private var cachedVisible` to VaultView caused "the compiler is unable to type-check this expression in reasonable time" at body. Tried multiple approaches (optional cached, version counter, `.onChange(of: files)` with Equatable). All failed. Root cause: VaultView.body is at the Swift type-checker complexity ceiling. Fixed by: reverting all Fix 3 state changes, later succeeded with a different approach (threading visible as function parameter).
+   - **Test build failure - encryptedThumbnail references**: VaultFileItemTests.swift and DateGroupingTests.swift still had `encryptedThumbnail: nil` in VaultFileItem constructors. Fixed by replacing with `hasThumbnail: false`.
+   - **Simulator UUID stale**: `iPhone 16 Pro` simulator not found. Fixed by using available `iPhone 17 Pro` UUID, then switching to booted `iPhone 17` simulator.
+   - **SecureImageViewer/SecureVideoPlayer read-before-edit**: Edit tool rejected edits because files hadn't been read. Fixed by reading the files first.
+
+5. Problem Solving:
+   - **Solved**: OOM from encrypted thumbnail Data in @State (Fix 1) — moved to ThumbnailCache actor
+   - **Solved**: Unbounded cellFrames dictionary growth (Fix 2) — conditional on isEditing
+   - **Solved**: Redundant computeVisibleFiles calls (Fix 3) — threaded visible through hierarchy
+   - **Solved**: File filter defaulting to media — changed to .all with @AppStorage persistence
+   - **In Progress**: Sharing sync OOM crash — identified root cause (all file content held in memory during sync), found streaming API exists but isn't used by sync path. Investigation was interrupted.
+
+6. All User Messages:
+   - **Message 1**: "Implement the following plan: [3-fix OOM crash plan with detailed file lists and approach]" — with link to plan transcript
+   - **Message 2**: "The vault filter defaults to media when vault is opened even though files were added. If one file was added, it should default to all. This needs to persist across closing and opening the app. Also fix this: Fix 3: Cache computeVisibleFiles (Deferred)"
+   - **Message 3 (injected mid-work via system-reminder)**: "Found new bug. When I try to sync up the vault for sharing it crashes" — with detailed console error logs showing oversized file skipping, SpringBoard scene invalidation, and CFPrefs container warnings
+
+7. Pending Tasks:
+   - **Sharing sync crash fix**: Root cause identified (OOM from in-memory SVDF building in ShareSyncManager). The streaming API (`buildFullStreaming`) exists in SVDFSerializer but the sync path uses the in-memory `buildFull`. Need to refactor `buildIncrementalSharedVaultData` to use streaming. Was actively investigating `CloudKitSharingManager.syncSharedVaultIncremental` to understand how svdfData is consumed.
+   - **Session close protocol**: Need to update .scratch-pad.md with session learnings for the filter fix and Fix 3 success, and the sharing crash investigation findings.
+
+8. Current Work:
+   Immediately before this summary request, I was investigating the sharing sync crash reported by the user. I had:
+   - Created task #126 "Investigate sharing sync crash" (status: in_progress)
+   - Traced the OOM to `ShareSyncManager.buildIncrementalSharedVaultData` (line 254) which accumulates ALL re-encrypted file content in a `sharedFiles` array, then passes it to `SVDFSerializer.buildFull` which creates another in-memory copy
+   - Found that `SVDFSerializer.buildFullStreaming` (line 141) already exists and writes to FileHandle one file at a time — but the sync path doesn't use it
+   - Was reading `CloudKitSharingManager.syncSharedVaultIncremental` (line 224) to understand how `svdfData: Data` is consumed (it chunks the data for CloudKit upload)
+   - Had not yet written any code for the fix
+
+   Git state: Two commits pushed:
+   - `7292d38` - fix: resolve OOM crash when scrolling large vault (Fix 1 + Fix 2)
+   - `a6f60b7` - fix: default file filter to All and persist across launches (Filter + Fix 3)
+
+9. Optional Next Step:
+   Continue fixing the sharing sync crash. The user explicitly said: "Found new bug. When I try to sync up the vault for sharing it crashes". I was actively investigating this and had identified the root cause and potential solution:
+   - Refactor `ShareSyncManager.buildIncrementalSharedVaultData` to use `SVDFSerializer.buildFullStreaming` for the full rebuild path, loading/re-encrypting one file at a time instead of accumulating all in memory
+   - For the incremental path, only new files are processed (should be few), but `priorData: Data` in `buildIncremental` also loads the full prior SVDF
+   - Need to also handle `syncSharedVaultIncremental` which takes `svdfData: Data` — may need to read from file URL instead
+   - The `computeChunkHashes` and CloudKit upload both need the full data, but could read from disk in chunks
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
