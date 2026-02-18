@@ -1,0 +1,106 @@
+Implement the following plan:
+
+# Plan: Fix Blank Screen, ITMS-90863, and Implement XCUITests
+
+## Pre-requisites: Fix Two Urgent Bugs First
+
+### Bug 1: Blank Screen on Return from Background (P0)
+
+**Root cause**: `applyAppearanceToAllWindows()` sets `window.rootViewController?.view.backgroundColor = resolvedColor` on EVERY `didBecomeActive` and `didBecomeKey` notification. This paints an opaque UIKit layer over SwiftUI content. Combined with `UIView.performWithoutAnimation` + `CATransaction.setDisableActions(true)`, it disrupts SwiftUI's rendering pipeline when the app returns from background.
+
+User confirms: "components are still there, just not visible" — meaning SwiftUI views exist and respond to touches, but the UIKit background layer covers them visually.
+
+**Fix**:
+1. **Remove `window.rootViewController?.view.backgroundColor = resolvedColor`** from `applyAppearanceToAllWindows()` — SwiftUI already paints `Color.vaultBackground.ignoresSafeArea()` on every screen
+2. **Remove same line from `earlyAppearanceObserver`** in AppDelegate
+3. **Stop calling `applyAppearanceToAllWindows()` on every `didBecomeActive`/`didBecomeKey`** — only call it on `onAppear` (once) and when appearance mode actually changes. The `overrideUserInterfaceStyle` persists on the window.
+4. Keep `window.backgroundColor = resolvedColor` (safe — just the window chrome behind SwiftUI)
+
+Files:
+- `apps/ios/Vault/App/VaultApp.swift` — lines 180-207 (applyAppearanceToAllWindows), lines 34-44 (notification handlers), lines 473-482 (earlyAppearanceObserver)
+
+### Bug 2: ITMS-90863 MetricKit Warning (P1)
+
+`SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO` is already on all targets. Apple still scans binaries and warns about `libswiftMetricKit.dylib` (from Embrace SDK dependency).
+
+**Fix**: Add `-weak_framework MetricKit` to Other Linker Flags for main app target (Debug + Release). Weak-linking makes MetricKit optional, satisfying Apple's binary checker.
+
+Files:
+- `apps/ios/Vault.xcodeproj/project.pbxproj` — add `OTHER_LDFLAGS` with `-weak_framework MetricKit`
+
+---
+
+## XCUITest Implementation
+
+### Architecture
+
+```
+apps/ios/VaultUITests/
+  Base/
+    BaseUITest.swift              — Shared setup, launch config, screenshot-on-failure
+    XCUIElement+Helpers.swift     — waitForNonExistence, waitForEnabled extensions
+  Screens/                        — Page Objects (one per screen)
+    PatternLockScreen.swift
+    VaultScreen.swift
+    SettingsScreen.swift
+    OnboardingScreen.swift
+    RecoveryPhraseScreen.swift
+    ChangePatternScreen.swift
+  Tests/
+    OnboardingUITests.swift       — Full onboarding happy path
+    UnlockUITests.swift           — Pattern lock, recovery phrase unlock
+    VaultViewerUITests.swift      — Empty state, file grid, import, view, lock
+    SettingsUITests.swift         — Navigation, change pattern, regen phrase, delete vault
+    AppearanceUITests.swift       — Light/dark/system mode switching
+  Shared/
+    AccessibilityIDs.swift        — Enum with all IDs (shared with app target)
+```
+
+### Key Design Decisions
+
+1. **Reuse existing `-MAESTRO_TEST` infrastructure** — Same auto-unlock, test key, file seeding. Rename nothing (avoid breaking Maestro).
+2. **Add `-XCUITEST_MODE` flag** for XCUITest-specific behavior (disable animations)
+3. **Page Object pattern** with `@discardableResult` action methods returning destination screens
+4. **Screenshot on failure** via `record(_:)` override in BaseUITest
+5. **Pattern lock bypass** — Use `-MAESTRO_TEST` for most tests; only test pattern drawing in dedicated tests (using accessibility actions, not gesture simulation)
+6. **Animation disabling** — Add `UIView.setAnimationsEnabled(false)` + `window.layer.speed = 100` when `-XCUITEST_MODE` detected
+
+### Critical Paths to Test (12 tests, P0)
+
+| # | Test | What it validates |
+|---|------|-------------------|
+| 1 | `test_onboarding_happyPath` | Welcome → Permissions → Analytics → Skip Paywall → ThankYou → Pattern setup → Vault unlocked |
+| 2 | `test_unlock_showsVault` | Auto-unlock shows vault add button and settings gear |
+| 3 | `test_emptyVault_showsEmptyState` | Fresh vault displays empty state container |
+| 4 | `test_populatedVault_showsFiles` | Seeded vault shows file grid, search, select button |
+| 5 | `test_lockButton_returnsToPatternLock` | Lock button → pattern lock screen with "Draw your pattern" |
+| 6 | `test_settings_opensAndCloses` | Settings gear → VaultSettingsView with all sections → Done dismisses |
+| 7 | `test_changePattern_flow` | Settings → Change pattern → (skip verify) → create → confirm → recovery phrase shown |
+| 8 | `test_regenerateRecoveryPhrase` | Settings → Regenerate → confirm → phrase view displayed |
+| 9 | `test_deleteVault_confirmsAndLocks` | Settings → Delete vault → confirm → returns to pattern lock |
+| 10 | `test_appearance_lightDarkSystem` | App Settings → Appearance → switch modes |
+| 11 | `test_fileViewer_openAndDismiss` | Tap file → full screen viewer → Done |
+| 12 | `test_editMode_selectAndDelete` | Select button → select all → delete → confirm |
+
+### Setup Steps
+
+1. Create `VaultUITests` target in Xcode project (pbxproj)
+2. Add to Vault.xcscheme TestAction
+3. Create directory structure and files
+4. Add `-XCUITEST_MODE` handling to app (disable animations)
+5. Build shared `AccessibilityIDs.swift` (add to both targets)
+6. Implement BaseUITest, helpers, page objects
+7. Implement 12 P0 test cases
+8. Run and verify all pass
+
+### Verification
+
+```bash
+cd apps/ios && xcodebuild test \
+  -scheme Vault \
+  -destination "platform=iOS Simulator,id=C11BE9C2-9BEF-4934-9839-FB3D38F75DC8" \
+  -only-testing:VaultUITests
+```
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl

@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "2cdba9ee1a38",
+  "session_id": "7857eed9-5f1a-466b-8eac-b67cd576ad3d",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T00:26:17.212215Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault.xcodeproj/xcshareddata/xcschemes/Vault.xcscheme",
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/VaultUITests/Base/BaseUITest.swift",
+    "apps/ios/VaultUITests/Base/XCUIElement+Helpers.swift",
+    "apps/ios/VaultUITests/Screens/ChangePatternScreen.swift",
+    "apps/ios/VaultUITests/Screens/OnboardingScreen.swift",
+    "apps/ios/VaultUITests/Screens/PatternLockScreen.swift",
+    "apps/ios/VaultUITests/Screens/RecoveryPhraseScreen.swift",
+    "apps/ios/VaultUITests/Screens/SettingsScreen.swift",
+    "apps/ios/VaultUITests/Screens/VaultScreen.swift",
+    "apps/ios/VaultUITests/Shared/AccessibilityIDs.swift",
+    "apps/ios/VaultUITests/Tests/AppearanceUITests.swift",
+    "apps/ios/VaultUITests/Tests/OnboardingUITests.swift",
+    "apps/ios/VaultUITests/Tests/SettingsUITests.swift",
+    "apps/ios/VaultUITests/Tests/UnlockUITests.swift",
+    "apps/ios/VaultUITests/Tests/VaultViewerUITests.swift"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 55,
+    "cache_creation_tokens": 83500,
+    "cache_read_tokens": 3571642,
+    "output_tokens": 1108,
+    "api_call_count": 53
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T00:26:16.966825Z",
+    "agent_lines": 1030,
+    "human_added": 83,
+    "human_modified": 88,
+    "human_removed": 0,
+    "total_committed": 1201,
+    "agent_percentage": 85.76186511240633
+  }
+}
