@@ -7,7 +7,19 @@
   "files_touched": [
     "apps/ios/Vault.xcodeproj/project.pbxproj",
     "apps/ios/Vault.xcodeproj/xcshareddata/xcschemes/Vault.xcscheme",
+    "apps/ios/Vault/App/ContentView.swift",
     "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Sharing/CloudKitSharingManager.swift",
+    "apps/ios/Vault/Core/Storage/VaultStorage.swift",
+    "apps/ios/Vault/Core/Telemetry/EmbraceManager.swift",
+    "apps/ios/Vault/Features/Onboarding/PatternSetupCoordinator.swift",
+    "apps/ios/Vault/Features/PatternLock/PatternLockView.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/Vault/Features/Sharing/JoinVaultView.swift",
+    "apps/ios/Vault/Features/Sharing/SharedVaultInviteView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
+    "apps/ios/Vault/Resources/Assets.xcassets/AccentColor.colorset/Contents.json",
     "apps/ios/VaultUITests/Base/BaseUITest.swift",
     "apps/ios/VaultUITests/Base/XCUIElement+Helpers.swift",
     "apps/ios/VaultUITests/Screens/ChangePatternScreen.swift",
@@ -21,7 +33,8 @@
     "apps/ios/VaultUITests/Tests/OnboardingUITests.swift",
     "apps/ios/VaultUITests/Tests/SettingsUITests.swift",
     "apps/ios/VaultUITests/Tests/UnlockUITests.swift",
-    "apps/ios/VaultUITests/Tests/VaultViewerUITests.swift"
+    "apps/ios/VaultUITests/Tests/VaultViewerUITests.swift",
+    "apps/ios/docs/design-decisions.md"
   ],
   "sessions": [
     {
@@ -30,13 +43,20 @@
       "context": "/2c/dba9ee1a38/0/context.md",
       "content_hash": "/2c/dba9ee1a38/0/content_hash.txt",
       "prompt": "/2c/dba9ee1a38/0/prompt.txt"
+    },
+    {
+      "metadata": "/2c/dba9ee1a38/1/metadata.json",
+      "transcript": "/2c/dba9ee1a38/1/full.jsonl",
+      "context": "/2c/dba9ee1a38/1/context.md",
+      "content_hash": "/2c/dba9ee1a38/1/content_hash.txt",
+      "prompt": "/2c/dba9ee1a38/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 55,
-    "cache_creation_tokens": 83500,
-    "cache_read_tokens": 3571642,
-    "output_tokens": 1108,
-    "api_call_count": 53
+    "input_tokens": 96,
+    "cache_creation_tokens": 129405,
+    "cache_read_tokens": 6682224,
+    "output_tokens": 1750,
+    "api_call_count": 77
   }
 }

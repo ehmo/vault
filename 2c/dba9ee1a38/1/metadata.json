@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "2cdba9ee1a38",
+  "session_id": "9b7289fe-1187-481e-8f8a-9f2006fe0683",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T00:26:18.442248Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/App/ContentView.swift",
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Sharing/CloudKitSharingManager.swift",
+    "apps/ios/Vault/Core/Storage/VaultStorage.swift",
+    "apps/ios/Vault/Core/Telemetry/EmbraceManager.swift",
+    "apps/ios/Vault/Features/Onboarding/PatternSetupCoordinator.swift",
+    "apps/ios/Vault/Features/PatternLock/PatternLockView.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/Vault/Features/Sharing/JoinVaultView.swift",
+    "apps/ios/Vault/Features/Sharing/SharedVaultInviteView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
+    "apps/ios/Vault/Resources/Assets.xcassets/AccentColor.colorset/Contents.json",
+    "apps/ios/docs/design-decisions.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "d80e9148-cd5e-4edb-82eb-db7791097726",
+  "checkpoint_transcript_start": 2766,
+  "transcript_lines_at_start": 2766,
+  "token_usage": {
+    "input_tokens": 41,
+    "cache_creation_tokens": 45905,
+    "cache_read_tokens": 3110582,
+    "output_tokens": 642,
+    "api_call_count": 24
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T00:26:17.87006Z",
+    "agent_lines": 231,
+    "human_added": 976,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1207,
+    "agent_percentage": 19.138359569179787
+  }
+}
