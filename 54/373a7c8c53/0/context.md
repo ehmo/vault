@@ -223,3 +223,25 @@ Let me chronologically analyze the conversation:
 
 2. **Initial Work**: The assistant picked up where the...
 
+### Prompt 18
+
+The filter again defaults to media even though documents are present in the vault. It should default to all if one document is present, otherwise to media.
+
+The image viewer is not implemented correctly (see image 2). It pushesh the image up instead in center.
+
+Video works equally poorly (image 3) but also all videos have incorrect aspect ratio. Seems like during the converion they got basterdized. When a video plays it gets centered (image 4) but the video itself is not correctly procesed.
+
+The...
+
+### Prompt 19
+
+[Image: source: /Users/nan/Downloads/IMG_2127.PNG]
+
+[Image: source: /Users/nan/Downloads/IMG_2128.PNG]
+
+[Image: source: /Users/nan/Downloads/IMG_2129.PNG]
+
+### Prompt 20
+
+[Request interrupted by user for tool use]
+

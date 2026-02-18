@@ -1859,3 +1859,29 @@ Summary:
 
 If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
 Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+The filter again defaults to media even though documents are present in the vault. It should default to all if one document is present, otherwise to media.
+
+The image viewer is not implemented correctly (see image 2). It pushesh the image up instead in center.
+
+Video works equally poorly (image 3) but also all videos have incorrect aspect ratio. Seems like during the converion they got basterdized. When a video plays it gets centered (image 4) but the video itself is not correctly procesed.
+
+The zoom of images works poorly. It is thrown all over the screen (see video /Users/nan/Downloads/ScreenRecording_02-17-2026\ 23-23-54_1.MP4). It should work similarly to the native photo app.
+
+Fix all of these. Make sure you write appropriate tests for them and that these never happen again.
+
+When done push to testflight
+
+---
+
+[Image: source: /Users/nan/Downloads/IMG_2127.PNG]
+
+[Image: source: /Users/nan/Downloads/IMG_2128.PNG]
+
+[Image: source: /Users/nan/Downloads/IMG_2129.PNG]
+
+---
+
+[Request interrupted by user for tool use]
