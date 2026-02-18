@@ -3,6 +3,9 @@ import PhotosUI
 import UIKit
 import AVFoundation
 import UniformTypeIdentifiers
+import os.log
+
+private let vmLogger = Logger(subsystem: "app.vaultaire.ios", category: "VaultViewModel")
 
 @MainActor
 @Observable
@@ -147,11 +150,10 @@ final class VaultViewModel {
     }
 
     func loadFiles() {
-        #if DEBUG
-        print("📂 [VaultViewModel] loadFiles() called")
-        #endif
+        vmLogger.debug("loadFiles() called (current files.count=\(self.files.count), importActive=\(self.activeImportTask != nil))")
 
         guard let key = appState?.currentVaultKey else {
+            vmLogger.warning("loadFiles(): no vault key, aborting")
             isLoading = false
             return
         }
@@ -177,6 +179,7 @@ final class VaultViewModel {
                     )
                 }
                 await MainActor.run {
+                    vmLogger.info("loadFiles() loaded \(items.count) files from disk (was \(self.files.count))")
                     self.masterKey = MasterKey(result.masterKey)
                     self.files = items
                     self.isLoading = false
@@ -194,9 +197,7 @@ final class VaultViewModel {
                     EmbraceManager.shared.addBreadcrumb(category: "vault.opened", data: ["fileCount": items.count])
                 }
             } catch {
-                #if DEBUG
-                print("❌ [VaultViewModel] Error loading files: \(error)")
-                #endif
+                vmLogger.error("loadFiles() failed: \(error.localizedDescription, privacy: .public)")
                 await MainActor.run {
                     self.files = []
                     self.isLoading = false
@@ -349,19 +350,12 @@ final class VaultViewModel {
                     await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
                 }
                 await MainActor.run {
-                    self.files.append(VaultFileItem(
-                        id: fileId,
-                        size: fileSize,
-                        hasThumbnail: encThumb != nil,
-                        mimeType: mimeType,
-                        filename: filename,
-                        createdAt: Date()
-                    ))
-                    if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: self.files.count) {
+                    if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: self.files.count + 1) {
                         self.toastMessage = .milestone(milestone)
                     } else {
                         self.toastMessage = .fileEncrypted()
                     }
+                    self.loadFiles()
                 }
 
                 await ShareSyncManager.shared.scheduleSync(vaultKey: key)
@@ -550,7 +544,10 @@ final class VaultViewModel {
             let failed = failedCount
             let errorReason = lastErrorReason
             await MainActor.run {
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled else {
+                    vmLogger.warning("Photo import task cancelled before completion (imported=\(imported), failed=\(failed))")
+                    return
+                }
                 self.importProgress = nil
                 UIApplication.shared.isIdleTimerDisabled = false
                 if failed > 0 && imported == 0 {
@@ -562,8 +559,11 @@ final class VaultViewModel {
                 } else {
                     self.toastMessage = .filesImported(imported)
                 }
+                vmLogger.info("Photo import complete: imported=\(imported), failed=\(failed), files.count=\(self.files.count)")
+                // Safety net: reload from disk to ensure in-memory state matches persisted state.
+                // Guards against edge cases where files were stored but in-memory array diverged.
                 if imported > 0 {
-                    self.updateFilterAfterImport()
+                    self.loadFiles()
                 }
             }
 
@@ -698,7 +698,10 @@ final class VaultViewModel {
             let failed = failedCount
             let errorReason = lastErrorReason
             await MainActor.run {
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled else {
+                    vmLogger.warning("File import task cancelled before completion (imported=\(imported), failed=\(failed))")
+                    return
+                }
                 self.importProgress = nil
                 UIApplication.shared.isIdleTimerDisabled = false
                 if failed > 0 && imported == 0 {
@@ -708,8 +711,9 @@ final class VaultViewModel {
                 } else {
                     self.toastMessage = .filesImported(imported)
                 }
+                vmLogger.info("File import complete: imported=\(imported), failed=\(failed), files.count=\(self.files.count)")
                 if imported > 0 {
-                    self.updateFilterAfterImport()
+                    self.loadFiles()
                 }
             }
 
@@ -891,6 +895,9 @@ final class VaultViewModel {
     // MARK: - Vault Key Change
 
     func handleVaultKeyChange(oldKey: VaultKey?, newKey: VaultKey?) {
+        if activeImportTask != nil {
+            vmLogger.warning("Vault key changed during active import — cancelling import (files.count=\(self.files.count))")
+        }
         activeImportTask?.cancel()
         activeImportTask = nil
         importProgress = nil
@@ -898,6 +905,7 @@ final class VaultViewModel {
         UIApplication.shared.isIdleTimerDisabled = false
 
         if oldKey != newKey {
+            vmLogger.info("Vault key changed: clearing files (had \(self.files.count) files)")
             files = []
             masterKey = nil
             Task { await ThumbnailCache.shared.clear() }
