@@ -3,7 +3,7 @@
   "checkpoint_id": "2cdba9ee1a38",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "apps/ios/Vault.xcodeproj/project.pbxproj",
     "apps/ios/Vault.xcodeproj/xcshareddata/xcschemes/Vault.xcscheme",
@@ -14,6 +14,7 @@
     "apps/ios/Vault/Core/Telemetry/EmbraceManager.swift",
     "apps/ios/Vault/Features/Onboarding/PatternSetupCoordinator.swift",
     "apps/ios/Vault/Features/PatternLock/PatternLockView.swift",
+    "apps/ios/Vault/Features/Settings/RecoveryPhraseView.swift",
     "apps/ios/Vault/Features/Settings/SettingsView.swift",
     "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
     "apps/ios/Vault/Features/Sharing/JoinVaultView.swift",
@@ -53,10 +54,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 96,
-    "cache_creation_tokens": 129405,
-    "cache_read_tokens": 6682224,
-    "output_tokens": 1750,
-    "api_call_count": 77
+    "input_tokens": 206,
+    "cache_creation_tokens": 211306,
+    "cache_read_tokens": 16940471,
+    "output_tokens": 13130,
+    "api_call_count": 160
   }
 }

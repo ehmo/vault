@@ -3,13 +3,14 @@
   "checkpoint_id": "2cdba9ee1a38",
   "session_id": "7857eed9-5f1a-466b-8eac-b67cd576ad3d",
   "strategy": "manual-commit",
-  "created_at": "2026-02-18T00:26:17.212215Z",
+  "created_at": "2026-02-18T00:53:48.479157Z",
   "branch": "main",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "apps/ios/Vault.xcodeproj/project.pbxproj",
     "apps/ios/Vault.xcodeproj/xcshareddata/xcschemes/Vault.xcscheme",
     "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Features/Settings/RecoveryPhraseView.swift",
     "apps/ios/VaultUITests/Base/BaseUITest.swift",
     "apps/ios/VaultUITests/Base/XCUIElement+Helpers.swift",
     "apps/ios/VaultUITests/Screens/ChangePatternScreen.swift",
@@ -26,20 +27,22 @@
     "apps/ios/VaultUITests/Tests/VaultViewerUITests.swift"
   ],
   "agent": "Claude Code",
+  "checkpoint_transcript_start": 570,
+  "transcript_lines_at_start": 570,
   "token_usage": {
-    "input_tokens": 55,
-    "cache_creation_tokens": 83500,
-    "cache_read_tokens": 3571642,
-    "output_tokens": 1108,
-    "api_call_count": 53
+    "input_tokens": 165,
+    "cache_creation_tokens": 165401,
+    "cache_read_tokens": 13829889,
+    "output_tokens": 12488,
+    "api_call_count": 136
   },
   "initial_attribution": {
-    "calculated_at": "2026-02-18T00:26:16.966825Z",
-    "agent_lines": 1030,
-    "human_added": 83,
-    "human_modified": 88,
+    "calculated_at": "2026-02-18T00:53:48.134399Z",
+    "agent_lines": 8,
+    "human_added": 99,
+    "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 1201,
-    "agent_percentage": 85.76186511240633
+    "total_committed": 107,
+    "agent_percentage": 7.476635514018691
   }
 }
