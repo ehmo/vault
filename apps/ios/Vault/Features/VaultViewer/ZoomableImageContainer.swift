@@ -78,6 +78,14 @@ struct ZoomableImageContainer: UIViewRepresentable {
             context.coordinator.lastContainerSize = containerSize
             layoutImageView(imageView, in: scrollView)
         }
+
+        // Ensure final centering after Auto Layout has resolved scrollView bounds.
+        // Without this pass, initial layout can run with stale/zero bounds and leave
+        // portrait media visually pinned near the top.
+        DispatchQueue.main.async {
+            guard let currentImageView = scrollView.viewWithTag(100) as? UIImageView else { return }
+            Self.centerImageView(currentImageView, in: scrollView)
+        }
     }
 
     private func layoutImageView(_ imageView: UIImageView, in scrollView: UIScrollView) {
@@ -94,7 +102,14 @@ struct ZoomableImageContainer: UIViewRepresentable {
         imageView.frame = CGRect(x: 0, y: 0, width: fittedWidth, height: fittedHeight)
         scrollView.contentSize = CGSize(width: fittedWidth, height: fittedHeight)
 
-        Self.centerImageView(imageView, in: scrollView)
+        // Use containerSize directly — scrollView.bounds may not be resolved yet on first render,
+        // which causes the image to appear pinned to the top (yOffset computed as 0).
+        let xOffset = max(0, (containerSize.width - fittedWidth) / 2)
+        let yOffset = max(0, (containerSize.height - fittedHeight) / 2)
+        imageView.center = CGPoint(
+            x: fittedWidth / 2 + xOffset,
+            y: fittedHeight / 2 + yOffset
+        )
     }
 
     static func centerImageView(_ imageView: UIImageView, in scrollView: UIScrollView) {

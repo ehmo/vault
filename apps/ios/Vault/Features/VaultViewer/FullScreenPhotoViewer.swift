@@ -315,11 +315,9 @@ struct FullScreenPhotoViewer: View {
         let maxDim = max(width, height)
 
         if maxDim <= maxPixelSize {
-            // Image is already small enough — decode at full resolution
-            guard let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
-                return UIImage(data: data)
-            }
-            return UIImage(cgImage: cgImage)
+            // Image is already small enough — use UIImage(data:) to preserve EXIF orientation.
+            // CGImageSourceCreateImageAtIndex with nil options strips orientation metadata.
+            return UIImage(data: data)
         }
 
         // Downsample to target size
