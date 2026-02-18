@@ -21,17 +21,23 @@ enum OnboardingStep: Int, CaseIterable {
 }
 
 struct OnboardingView: View {
+    /// When set, the view is shown in replay mode: pattern setup is skipped and
+    /// tapping "Continue" on the final step calls this closure instead.
+    var onReplayDismiss: (() -> Void)? = nil
+
     @Environment(AppState.self) private var appState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var currentStep: OnboardingStep = .welcome
     @State private var showPatternSetup = false
+
+    private var isReplay: Bool { onReplayDismiss != nil }
 
     var body: some View {
         if showPatternSetup {
             PatternSetupView(onComplete: { completeOnboarding() })
         } else {
             VStack(spacing: 0) {
-                // Progress bar + back arrow
+                // Progress bar + back arrow (+ close button in replay mode)
                 HStack(spacing: 8) {
                     Button {
                         if let prev = currentStep.previous() {
@@ -68,6 +74,16 @@ struct OnboardingView: View {
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(.vaultSecondaryText)
                             .accessibilityIdentifier("paywall_skip")
+                    } else if isReplay {
+                        Button {
+                            onReplayDismiss?()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(.vaultSecondaryText)
+                        }
+                        .accessibilityLabel("Close")
+                        .accessibilityIdentifier("onboarding_replay_close")
                     }
                 }
                 .padding(.horizontal, 20)
@@ -86,7 +102,11 @@ struct OnboardingView: View {
                     PaywallStepView(onContinue: { advance() })
                 case .thankYou:
                     ThankYouView(onContinue: {
-                        withAnimation(animation) { showPatternSetup = true }
+                        if let dismiss = onReplayDismiss {
+                            dismiss()
+                        } else {
+                            withAnimation(animation) { showPatternSetup = true }
+                        }
                     })
                 }
             }

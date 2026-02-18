@@ -22,6 +22,7 @@ struct AppSettingsView: View {
     @State private var isRestoringPurchases = false
     @State private var showingClearStagedConfirmation = false
     @State private var pendingStagedSize: Int64 = 0
+    @State private var showingOnboardingReplay = false
 
     #if DEBUG
     @State private var showingDebugResetConfirmation = false
@@ -188,7 +189,15 @@ struct AppSettingsView: View {
                     Text("1.0.0")
                         .foregroundStyle(.vaultSecondaryText)
                 }
-                
+
+                Button {
+                    showingOnboardingReplay = true
+                } label: {
+                    Text("Review Onboarding")
+                }
+                .foregroundStyle(.primary)
+                .accessibilityIdentifier("app_review_onboarding")
+
                 #if DEBUG
                 HStack {
                     Text("Build Configuration")
@@ -316,6 +325,11 @@ struct AppSettingsView: View {
         .premiumPaywall(isPresented: $showingPaywall)
         .manageSubscriptionsSheet(isPresented: $showingCustomerCenter)
         .ignoresSafeArea(.keyboard)
+        .fullScreenCover(isPresented: $showingOnboardingReplay) {
+            OnboardingView(onReplayDismiss: { showingOnboardingReplay = false })
+                .environment(appState)
+                .environment(SubscriptionManager.shared)
+        }
     }
 
     private func performNuclearWipe() {
