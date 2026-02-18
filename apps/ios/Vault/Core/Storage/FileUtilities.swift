@@ -45,4 +45,11 @@ enum FileUtilities {
         default: return "application/octet-stream"
         }
     }
+
+    /// Best-effort cleanup of temporary files.
+    /// Silently ignores errors - use only for non-critical temp file cleanup.
+    static func cleanupTemporaryFile(at url: URL?) {
+        guard let url = url else { return }
+        try? FileManager.default.removeItem(at: url)
+    }
 }

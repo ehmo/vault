@@ -74,7 +74,7 @@ actor MediaOptimizer {
         CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
 
         guard CGImageDestinationFinalize(destination) else {
-            try? FileManager.default.removeItem(at: tempURL)
+            FileUtilities.cleanupTemporaryFile(at: tempURL)
             throw OptimizationError.heicEncodingFailed
         }
 
@@ -141,7 +141,7 @@ actor MediaOptimizer {
         CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
 
         guard CGImageDestinationFinalize(destination) else {
-            try? FileManager.default.removeItem(at: tempURL)
+            FileUtilities.cleanupTemporaryFile(at: tempURL)
             return (fileURL, mimeType, false)
         }
 

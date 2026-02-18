@@ -77,7 +77,7 @@ struct SecureImageViewer: View {
         .onChange(of: shareURL) { _, url in
             guard let url else { return }
             ShareSheetHelper.present(items: [url]) {
-                try? FileManager.default.removeItem(at: url)
+                FileUtilities.cleanupTemporaryFile(at: url)
                 self.shareURL = nil
             }
         }
@@ -166,10 +166,8 @@ struct SecureImageViewer: View {
 
     private func cleanup() {
         image = nil
-        if let url = tempFileURL {
-            try? FileManager.default.removeItem(at: url)
-            tempFileURL = nil
-        }
+        FileUtilities.cleanupTemporaryFile(at: tempFileURL)
+        tempFileURL = nil
     }
 
     private func exportFile() {

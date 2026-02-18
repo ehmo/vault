@@ -290,7 +290,7 @@ final class VaultViewModel {
 
     func cleanupExportFiles() {
         for url in exportURLs {
-            try? FileManager.default.removeItem(at: url)
+            FileUtilities.cleanupTemporaryFile(at: url)
         }
         exportURLs = []
     }
