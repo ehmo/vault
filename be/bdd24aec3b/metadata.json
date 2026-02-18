@@ -23,6 +23,8 @@
     "apps/ios/maestro/flows/viewer/photo_navigation.yaml",
     "docs/ios-app-design.md",
     "docs/manifesto.md",
+    "web/compare/index.html",
+    "web/compare/styles.css",
     "web/index.html",
     "web/redesign-draft.html"
   ],
@@ -33,13 +35,20 @@
       "context": "/be/bdd24aec3b/0/context.md",
       "content_hash": "/be/bdd24aec3b/0/content_hash.txt",
       "prompt": "/be/bdd24aec3b/0/prompt.txt"
+    },
+    {
+      "metadata": "/be/bdd24aec3b/1/metadata.json",
+      "transcript": "/be/bdd24aec3b/1/full.jsonl",
+      "context": "/be/bdd24aec3b/1/context.md",
+      "content_hash": "/be/bdd24aec3b/1/content_hash.txt",
+      "prompt": "/be/bdd24aec3b/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 18,
-    "cache_creation_tokens": 164016,
-    "cache_read_tokens": 706718,
-    "output_tokens": 78,
-    "api_call_count": 11
+    "input_tokens": 46,
+    "cache_creation_tokens": 248835,
+    "cache_read_tokens": 2104029,
+    "output_tokens": 1899,
+    "api_call_count": 33
   }
 }

@@ -1,0 +1,181 @@
+Implement the following plan:
+
+# Plan: Competitor Comparison Pages for Vaultaire Website
+
+## Context
+
+Build 21 static HTML pages comparing Vaultaire against the top 10 photo vault competitors on the App Store. Pages live at `web/compare/` and serve dual purpose: SEO (rank for "[competitor] alternative" and "vaultaire vs [competitor]" queries) and conversion (show Vaultaire's encryption advantage over competitors that mostly use PIN screens over unencrypted files).
+
+## The 10 competitors
+
+| # | App | Slug | ID | Ratings |
+|---|-----|------|----|---------|
+| 1 | Private Photo Vault - Pic Safe | `private-photo-vault` | 417571834 | 998K |
+| 2 | Secret Photo Vault: Keepsafe | `keepsafe` | 510873505 | 369K |
+| 3 | Privault | `privault` | 1186436980 | 77K |
+| 4 | SPV - Photo Vault | `spv` | 1449239240 | 68K |
+| 5 | Secret Photo Album SA | `secret-photo-album` | 1174964304 | 39K |
+| 6 | PV Secret Photo Album | `pv-secret-photo-album` | 867586326 | 30K |
+| 7 | Calculator# Hide Photos Videos | `calculator-hide-photos` | 1165276801 | 29K |
+| 8 | Secret Photo Vault Lock Photos | `secret-photo-vault` | 448033053 | 27K |
+| 9 | Hide it Pro | `hide-it-pro` | 523488488 | 24K |
+| 10 | Safe Lock - Hidden Photo Vault | `safe-lock` | 1195429570 | 24K |
+
+## File structure
+
+```
+web/compare/
+├── index.html                              # Grid of competitor cards
+├── styles.css                              # Shared CSS for all compare pages
+├── vaultaire-vs-private-photo-vault/
+│   ├── index.html                          # Comparison page
+│   └── review/index.html                   # Long-form article
+├── vaultaire-vs-keepsafe/
+│   ├── index.html
+│   └── review/index.html
+├── ... (8 more competitor directories)
+
+outputs/vaultaire/competitors/
+├── private-photo-vault.json                # Scraped data + review themes
+├── keepsafe.json
+├── ... (8 more)
+```
+
+Total: 1 CSS + 1 index + 10 comparison pages + 10 review articles = 22 new files + 10 data JSONs. 5 existing pages get footer updates.
+
+## Phase 1: Data collection
+
+For each of the 10 competitors:
+1. Fetch current metadata from iTunes lookup API (`itunes.apple.com/lookup?id=APPID`) — includes `price` and `formattedPrice`
+2. Scrape App Store web page for reviews (focus on 1-3 star negative reviews)
+3. Scrape App Store page for in-app purchase pricing (subscription tiers, lifetime options)
+4. Analyze competitor description to fill 17-feature boolean table
+5. Identify top 3-5 complaint themes from negative reviews
+6. Write positioning statement and Vaultaire response for each complaint
+7. Document pricing: free tier limits, subscription prices, what's locked behind paywall
+
+Store as JSON in `outputs/vaultaire/competitors/[slug].json`. Reuse existing data from `outputs/vaultaire/01-research/raw-data/` where available.
+
+## Phase 2: Infrastructure
+
+### `web/compare/styles.css` (shared)
+
+Extract CSS from existing inner pages (manifesto/privacy pattern). Contains:
+- CSS variables (`--bg`, `--surface`, `--text`, `--accent`, `--highlight`) with dark/light theme
+- Header/nav (glassmorphism, logo toggle, nav-links)
+- Footer (existing links + new compare links row)
+- Compare-specific: `.compare-hero`, `.compare-table`, `.compare-section`, `.compare-reviews`, `.compare-cta`, `.compare-card`, `.breadcrumbs`, `.review-article`
+- Responsive at 900px and 768px breakpoints
+- Angular/beveled aesthetic matching main site (clip-path buttons, Space Grotesk headings, Plus Jakarta Sans body)
+
+### `web/compare/index.html` (compare landing)
+
+Grid of 10 competitor cards. Each card: hotlinked icon, "Vaultaire vs X" heading, rating count, one-line differentiator. Links to comparison page.
+
+SEO: title "Vaultaire vs Competitors | Photo Vault Comparison", Schema.org ItemList.
+
+### Footer updates (5 existing pages)
+
+Add to all pages:
+1. "Compare" link in main footer-links row
+2. New `footer-compare` row with all 10 competitor page links (for SEO internal linking)
+3. Small inline CSS addition for `footer-compare` styling (since existing pages use inline CSS)
+
+Pages: `index.html`, `manifesto/index.html`, `privacy/index.html`, `terms/index.html`, `s/index.html`
+
+Path prefixes: root pages use `compare/...`, sub-pages use `../compare/...`
+
+## Phase 3: Comparison pages (10 pages)
+
+URL: `web/compare/vaultaire-vs-[slug]/index.html`
+
+Each page structure:
+1. Breadcrumbs: Home / Compare / vs [Competitor]
+2. Hero: competitor icon (hotlinked Apple CDN), "Vaultaire vs [Competitor]" h1, positioning statement
+3. Feature table: 17 rows, Vaultaire vs Competitor columns, checkmarks + notes
+4. Pricing comparison: side-by-side tiers showing what each tier includes, Vaultaire vs competitor
+5. 3-4 deep-dive sections (encryption, duress, privacy, user complaints)
+6. "What users say" section (scraped review complaints + how Vaultaire addresses them)
+7. CTA: Download Vaultaire
+8. Link to full review article
+9. "More comparisons" nav linking to other 9 pages
+
+SEO per page: unique title/description, canonical URL, og: tags, Schema.org SoftwareApplication, keywords from ASO research.
+
+### 17-feature comparison table (consistent across all pages)
+
+1. AES-256-GCM encryption
+2. Secure Enclave hardware keys
+3. Pattern lock (not PIN)
+4. Multiple independent vaults
+5. Duress vault (destroy on trigger)
+6. Zero-knowledge architecture (no accounts)
+7. Encrypted iCloud backup
+8. Encrypted vault sharing
+9. Recovery phrase
+10. No biometrics (by design)
+11. Photos, Videos & Files support
+12. Media optimization (HEIC/HEVC)
+13. Free tier available
+14. No ads in free tier
+15. Share sheet import
+16. Camera capture
+17. Offline-only by default
+
+### Pricing comparison section (on each page, below feature table)
+
+Side-by-side pricing breakdown. Vaultaire pricing:
+- **Free**: 1 vault, 100 files, pattern lock, AES-256 encryption, camera/photo import
+- **Pro Monthly**: $1.99/mo — unlimited vaults, unlimited files, duress vault, iCloud backup, vault sharing
+- **Pro Annual**: $9.99/yr — same as monthly, 58% savings
+- **Pro Lifetime**: $29.99 one-time — all Pro features forever
+
+For each competitor, show their equivalent tiers and what's included/excluded. Highlight where Vaultaire's free tier includes features competitors lock behind paywalls (e.g., real encryption in the free tier). Also highlight where Vaultaire's paid tier is cheaper for equivalent features.
+
+## Phase 4: Review articles (10 pages)
+
+URL: `web/compare/vaultaire-vs-[slug]/review/index.html`
+
+Long-form blog-post style. Structure:
+1. "[Competitor] Review: Is It Worth It in 2026?" h1
+2. Overview of competitor
+3. Feature-by-feature analysis with Vaultaire comparison
+4. Pricing analysis
+5. User complaints deep-dive (expanded, with quotes from scraped reviews)
+6. How Vaultaire addresses each pain point
+7. Verdict + CTA
+
+SEO targets: "[competitor] alternative", "[competitor] review 2026", "is [competitor] safe"
+
+All copy run through /humanizer skill.
+
+## Phase 5: SEO audit + polish
+
+- Verify all internal links work (no broken hrefs)
+- Verify canonical URLs, og: tags, meta descriptions are unique per page
+- Check Schema.org JSON-LD validity
+- Test mobile rendering at 375px, 768px, 1024px
+- Verify theme toggle on all new pages
+- Verify breadcrumbs link correctly
+- Check all competitor icon URLs load
+
+## Design decisions
+
+- **Shared CSS** (new pattern): compare pages use `<link href="../styles.css">` instead of inline styles. Existing pages keep inline CSS unchanged.
+- **Competitor icons**: hotlink from Apple CDN (`is1-ssl.mzstatic.com`). No local hosting. Avoids trademark issues.
+- **No templating engine**: pages are hand-written static HTML (matches existing site). Trade-off: more repetition, but no build complexity.
+- **Relative paths**: compare/index.html uses `../` for root, comparison pages use `../../`, review pages use `../../../`
+
+## Verification
+
+1. All 22 new pages render correctly in browser (dark + light theme)
+2. Mobile layout works at 375px width
+3. All footer links across 27 pages point to valid destinations
+4. Competitor icons load from Apple CDN
+5. Schema.org validates via Google Rich Results Test
+6. No broken internal links
+7. Each page has unique title + meta description
+8. Deploy to Cloudflare Pages and verify live
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
