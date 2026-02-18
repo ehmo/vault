@@ -104,6 +104,33 @@ final class ShareLinkEncoderTests: XCTestCase {
         XCTAssertEqual(extracted, original)
     }
 
+    func testPhraseFromCustomSchemeURL() {
+        let original = "purple ocean hidden star"
+        let encoded = ShareLinkEncoder.encode(original)
+        let url = URL(string: "vaultaire://s#\(encoded)")!
+        let extracted = ShareLinkEncoder.phrase(from: url)
+
+        XCTAssertEqual(extracted, original)
+    }
+
+    func testPhraseFromCustomSchemePathURL() {
+        let original = "amber valley calm stone"
+        let encoded = ShareLinkEncoder.encode(original)
+        let url = URL(string: "vaultaire:///s#\(encoded)")!
+        let extracted = ShareLinkEncoder.phrase(from: url)
+
+        XCTAssertEqual(extracted, original)
+    }
+
+    func testPhraseFromQueryFallbackWhenFragmentMissing() {
+        let original = "query fallback phrase"
+        let encoded = ShareLinkEncoder.encode(original)
+        let url = URL(string: "https://vaultaire.app/s?p=\(encoded)")!
+        let extracted = ShareLinkEncoder.phrase(from: url)
+
+        XCTAssertEqual(extracted, original)
+    }
+
     // MARK: - Invalid URL Handling
 
     func testPhraseFromWrongHostReturnsNil() {
@@ -116,6 +143,13 @@ final class ShareLinkEncoderTests: XCTestCase {
     func testPhraseFromWrongPathReturnsNil() {
         let encoded = ShareLinkEncoder.encode("some phrase here now")
         let url = URL(string: "https://vaultaire.app/wrong#\(encoded)")!
+
+        XCTAssertNil(ShareLinkEncoder.phrase(from: url))
+    }
+
+    func testPhraseFromWrongCustomSchemeHostReturnsNil() {
+        let encoded = ShareLinkEncoder.encode("some phrase here now")
+        let url = URL(string: "vaultaire://wrong#\(encoded)")!
 
         XCTAssertNil(ShareLinkEncoder.phrase(from: url))
     }

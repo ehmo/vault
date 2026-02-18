@@ -1,5 +1,6 @@
 # Xcode
 build/
+build_*/
 *.pbxuser
 !default.pbxuser
 *.mode1v3
@@ -63,5 +64,8 @@ Secrets/
 
 # Web
 node_modules/
-web/styles/output.css
-.wrangler/
+apps/web/styles/output.css
+apps/web/.wrangler/
+
+# Outputs
+outputs/

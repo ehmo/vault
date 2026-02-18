@@ -11,13 +11,12 @@ This document describes the design of the **entire monorepo**: iOS app, website,
 The repository is a monorepo with three primary product-facing surfaces:
 
 1. `apps/ios/` - Main iOS app and Share Extension.
-2. `web/` - Static marketing + legal + universal-link support pages.
+2. `apps/web/` - Static marketing + legal + universal-link support pages.
 3. `design/` - Shared visual assets and brand source files.
 
 Supporting directories:
 
 1. `docs/` - Product and technical documentation.
-2. `outputs/` - Build artifacts or generated outputs.
 
 ## Architectural Principles
 
@@ -34,7 +33,7 @@ Supporting directories:
 | `apps/ios/Vault/` | Core app, cryptography, storage, sharing, onboarding, settings | iOS 17+ |
 | `apps/ios/Vault/Extensions/ShareExtension/` | Inbound share flow from Photos/Files | iOS Share Extension |
 | `apps/ios/maestro/` | End-to-end test automation flows | Maestro |
-| `web/` | Landing page, legal pages, AASA, redirects | Cloudflare Pages |
+| `apps/web/` | Landing page, legal pages, AASA, redirects | Cloudflare Pages |
 | `docs/` | Architecture/security/product docs | Markdown |
 | `design/` | Logos and visual design material | Design assets |
 
@@ -145,6 +144,6 @@ Brand and style consistency is enforced across app and web:
 
 ## Evolution Strategy
 
-1. Keep monorepo split by runtime boundary (`apps/ios`, `web`, `docs`, `design`).
+1. Keep monorepo split by runtime boundary (`apps/ios`, `apps/web`, `docs`, `design`).
 2. Treat docs and Maestro flows as first-class change artifacts.
 3. Preserve stable semantic UI tokens and architecture invariants while iterating features.

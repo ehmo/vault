@@ -57,8 +57,8 @@ Defined in `styles/input.css` as `@theme` variables, used as `bg-vault-bg`, `tex
 
 Cloudflare Pages project `vaultaire-web`:
 - Build command: `npm run build`
-- Build output directory: `.` (root of web/)
-- Root directory: `web/`
+- Build output directory: `.` (root of apps/web/)
+- Root directory: `apps/web/`
 
 Deploy manually: `npx wrangler pages deploy . --project-name vaultaire-web`
 
@@ -87,3 +87,5 @@ The `apple-app-site-association` file MUST:
 - Keep the primary nav item set in sync across all pages, including home. If compare exists in secondary pages, include `Compare` on `index.html` header nav too.
 - For compare detail pages, breadcrumb display text and BreadcrumbList item #3 label must always start with `Vaultaire vs ...` (never just `vs ...`).
 - Keep SEO baseline files explicit in repo root: `robots.txt` (allow crawl + sitemap link), `sitemap.xml` (real XML file + `/sitemap.xml` XML content-type header), and root favicon assets (`/favicon.png`, `/apple-touch-icon.png`) linked from page heads.
+- Invite fallback page (`/s`) should use native iOS Smart App Banner only (no custom in-page app-store banner UI) with a static `<meta name="apple-itunes-app" content="app-id=6758529311">`. Do not mutate the Smart App Banner meta tag at runtime via JavaScript.
+- Safari keeps same-domain universal links in-browser by design. On `/s`, the manual `Open in Vaultaire` action should deep-link to custom scheme first (include invite token in both `#fragment` and `?p=` for resilience), then optionally fall back to `https://vaultaire.app/s...` if app handoff does not occur.

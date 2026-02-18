@@ -9,7 +9,7 @@ This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get sta
 | Path | Description | Instructions |
 |------|-------------|--------------|
 | `apps/ios/` | iOS app (SwiftUI, CloudKit, CryptoKit) | `apps/ios/AGENTS.md` |
-| `web/` | Static site (Cloudflare Pages, Tailwind, htmx) | `web/AGENTS.md` |
+| `apps/web/` | Static site (Cloudflare Pages, Tailwind, htmx) | `apps/web/AGENTS.md` |
 
 Each subproject has its own `AGENTS.md` with project-specific instructions that take precedence over this file.
 

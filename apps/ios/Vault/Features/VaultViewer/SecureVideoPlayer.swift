@@ -31,11 +31,13 @@ struct SecureVideoPlayer: View {
                     ProgressView()
                 } else if let player = player {
                     VideoPlayer(player: player)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                         .ignoresSafeArea()
                 } else if let error = error {
                     errorView(error)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .task { loadVideo() }
         .onDisappear(perform: cleanup)
@@ -112,4 +114,3 @@ struct SecureVideoPlayer: View {
         vaultKey: nil
     )
 }
-

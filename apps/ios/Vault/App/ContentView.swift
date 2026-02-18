@@ -10,6 +10,16 @@ struct ContentView: View {
 
     @State private var showUnlockTransition = false
 
+    private let capturePollIntervalNanoseconds: UInt64 = 1_000_000_000
+
+    private var enforceCaptureLocking: Bool {
+        #if DEBUG
+        false
+        #else
+        true
+        #endif
+    }
+
     var body: some View {
         ZStack {
             // Static background: correct from frame 1, trait-independent.
@@ -78,6 +88,10 @@ struct ContentView: View {
                 iCloudBackupManager.shared.performBackupIfNeeded(with: key.rawBytes)
             }
 
+            if UIScreen.main.isCaptured {
+                lockForCaptureViolation(trigger: "recording_unlock_check")
+            }
+
             guard !reduceMotion else { return }
             showUnlockTransition = true
             // Delay one frame so the overlay renders at full opacity before fading.
@@ -97,30 +111,29 @@ struct ContentView: View {
             if appState.screenshotDetected && !appState.isUnlocked {
                 appState.screenshotDetected = false
             }
+            if appState.isUnlocked && UIScreen.main.isCaptured {
+                lockForCaptureViolation(trigger: "recording_active_check", showOverlayBeforeLock: true)
+            }
         }
         // Screenshot detection — locks vault when user takes a screenshot
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.userDidTakeScreenshotNotification)) { _ in
-            #if DEBUG
-            if appState.isMaestroTestMode { return }
-            #endif
-            logger.info("Screenshot detected, locking vault")
-            EmbraceManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "screenshot"])
-            appState.screenshotDetected = true
-            Task {
-                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
-                appState.lockVault()
-            }
+            lockForCaptureViolation(trigger: "screenshot", showOverlayBeforeLock: true)
         }
         // Screen recording detection
         .onReceive(NotificationCenter.default.publisher(for: UIScreen.capturedDidChangeNotification)) { notification in
-            #if DEBUG
-            if appState.isMaestroTestMode { return }
-            #endif
             guard let screen = notification.object as? UIScreen else { return }
             if screen.isCaptured {
-                logger.info("Screen recording detected, locking vault")
-                EmbraceManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "recording"])
-                appState.lockVault()
+                lockForCaptureViolation(trigger: "recording_notification", showOverlayBeforeLock: true)
+            }
+        }
+        .task {
+            guard enforceCaptureLocking else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: capturePollIntervalNanoseconds)
+                guard !Task.isCancelled else { break }
+                if UIScreen.main.isCaptured {
+                    lockForCaptureViolation(trigger: "recording_poll", showOverlayBeforeLock: true)
+                }
             }
         }
         // Lock only when the app actually enters background.
@@ -147,6 +160,26 @@ struct ContentView: View {
             }
         }
         #endif
+    }
+
+    private func lockForCaptureViolation(trigger: String, showOverlayBeforeLock: Bool = false) {
+        guard enforceCaptureLocking else { return }
+        guard appState.isUnlocked else { return }
+
+        logger.info("Capture violation detected (\(trigger, privacy: .public)), locking vault")
+        EmbraceManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": trigger])
+
+        if showOverlayBeforeLock {
+            appState.screenshotDetected = true
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                guard appState.isUnlocked else { return }
+                appState.lockVault()
+            }
+            return
+        }
+
+        appState.lockVault()
     }
 }
 

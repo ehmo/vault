@@ -8,6 +8,8 @@ enum ShareLinkEncoder {
 
     private static let shareHost = "vaultaire.app"
     private static let sharePath = "/s"
+    private static let customScheme = "vaultaire"
+    private static let customSchemeHost = "s"
 
     // Version bytes
     private static let versionRaw: UInt8 = 0x01
@@ -26,13 +28,43 @@ enum ShareLinkEncoder {
     }
 
     static func phrase(from url: URL) -> String? {
-        guard let host = url.host,
-              host == shareHost || host.hasSuffix("." + shareHost),
-              url.path == sharePath || url.path == sharePath + "/",
-              let fragment = url.fragment, !fragment.isEmpty else {
+        guard isSupportedShareURL(url) else {
             return nil
         }
-        return decode(fragment)
+
+        if let fragment = url.fragment, !fragment.isEmpty {
+            return decode(fragment)
+        }
+
+        // Optional compatibility path if fragment gets stripped by some handoff flows.
+        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+           let encoded = components.queryItems?.first(where: { $0.name == "p" })?.value,
+           !encoded.isEmpty {
+            return decode(encoded)
+        }
+
+        return nil
+    }
+
+    private static func isSupportedShareURL(_ url: URL) -> Bool {
+        let path = url.path
+
+        if let scheme = url.scheme?.lowercased(), scheme == "https" {
+            guard let host = url.host,
+                  host == shareHost || host.hasSuffix("." + shareHost) else {
+                return false
+            }
+            return path == sharePath || path == sharePath + "/"
+        }
+
+        if let scheme = url.scheme?.lowercased(), scheme == customScheme {
+            if let host = url.host?.lowercased(), host == customSchemeHost {
+                return path.isEmpty || path == "/"
+            }
+            return path == sharePath || path == sharePath + "/"
+        }
+
+        return false
     }
 
     static func encode(_ phrase: String) -> String {
