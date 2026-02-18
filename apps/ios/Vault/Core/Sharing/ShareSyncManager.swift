@@ -3,9 +3,8 @@ import os.log
 import UIKit
 
 private let shareSyncLogger = Logger(subsystem: "app.vaultaire.ios", category: "ShareSync")
-/// Incremental sync currently re-encrypts uncached files in-memory.
-/// Keep this bounded to avoid jetsam when a very large file is added.
-private let maxInMemoryReencryptBytes = 256 * 1024 * 1024
+// Note: No per-file size limit. With streaming SVDF builds, only one file's
+// content is in memory at a time, so arbitrarily large files are safe.
 
 /// Manages background sync of vault data to all active share recipients.
 /// Debounces file changes briefly and uploads to all active share vault IDs.
@@ -157,8 +156,8 @@ final class ShareSyncManager {
                 let capturedShareKey = shareKey
                 let capturedShareId = share.id
 
-                // Build SVDF data incrementally off main thread
-                let buildResult: (svdfData: Data, chunkHashes: [String], syncState: ShareSyncCache.SyncState)
+                // Build SVDF to a temp file off main thread (streaming, O(largest_file) memory)
+                let buildResult: (svdfFileURL: URL, chunkHashes: [String], syncState: ShareSyncCache.SyncState)
                 do {
                     buildResult = try await Task.detached(priority: .userInitiated) {
                         try ShareSyncManager.buildIncrementalSharedVaultData(
@@ -173,22 +172,30 @@ final class ShareSyncManager {
                     continue
                 }
 
+                // Ensure temp file is always cleaned up
+                defer { try? FileManager.default.removeItem(at: buildResult.svdfFileURL) }
+
                 syncProgress = (i + 1, totalShares)
 
-                // Upload using chunk-hash diffing
-                try await CloudKitSharingManager.shared.syncSharedVaultIncremental(
+                // Upload changed chunks from file (reads 2MB at a time)
+                try await CloudKitSharingManager.shared.syncSharedVaultIncrementalFromFile(
                     shareVaultId: share.id,
-                    svdfData: buildResult.svdfData,
+                    svdfFileURL: buildResult.svdfFileURL,
                     newChunkHashes: buildResult.chunkHashes,
                     previousChunkHashes: buildResult.syncState.chunkHashes
                 )
 
-                // Save updated cache
+                // Save updated cache (copies file, doesn't load into memory)
                 let cache = ShareSyncCache(shareVaultId: share.id)
-                try cache.saveSVDF(buildResult.svdfData)
+                try cache.saveSVDF(from: buildResult.svdfFileURL)
+
+                // Get file size for sync state
+                let fileAttrs = try FileManager.default.attributesOfItem(atPath: buildResult.svdfFileURL.path)
+                let svdfSize = (fileAttrs[.size] as? Int) ?? 0
+
                 var updatedState = buildResult.syncState
                 updatedState.chunkHashes = buildResult.chunkHashes
-                updatedState.totalBytes = buildResult.svdfData.count
+                updatedState.totalBytes = svdfSize
                 updatedState.syncSequence += 1
                 try cache.saveSyncState(updatedState)
 
@@ -246,17 +253,18 @@ final class ShareSyncManager {
         }
     }
 
-    // MARK: - Incremental SVDF Build
+    // MARK: - Streaming SVDF Build
 
-    /// Builds SVDF data incrementally using the per-share cache.
+    /// Builds SVDF data by streaming to a temporary file.
     /// Re-encrypts only new files, reuses cached encrypted files for unchanged ones.
     /// Falls back to full rebuild when no prior cache exists or compaction is needed.
+    /// Peak memory is O(largest_file) instead of O(total_vault_size).
     nonisolated private static func buildIncrementalSharedVaultData(
         index: VaultStorage.VaultIndex,
         vaultKey: Data,
         shareKey: Data,
         shareVaultId: String
-    ) throws -> (svdfData: Data, chunkHashes: [String], syncState: ShareSyncCache.SyncState) {
+    ) throws -> (svdfFileURL: URL, chunkHashes: [String], syncState: ShareSyncCache.SyncState) {
         guard let encryptedMasterKey = index.encryptedMasterKey else {
             throw VaultStorageError.corruptedData
         }
@@ -264,7 +272,6 @@ final class ShareSyncManager {
 
         let cache = ShareSyncCache(shareVaultId: shareVaultId)
         let priorState = cache.loadSyncState()
-        let priorSVDF = cache.loadSVDF()
 
         // Current vault file IDs
         let activeFiles = index.files.filter { !$0.isDeleted }
@@ -276,106 +283,66 @@ final class ShareSyncManager {
         let removedFileIds = syncedIds.subtracting(currentFileIds)
 
         // Check if we need a full rebuild
+        let priorSVDFExists = cache.svdfFileExists()
         let needsFullRebuild = priorState == nil
-            || priorSVDF == nil
+            || !priorSVDFExists
             || (priorState.map { cache.needsCompaction($0) } ?? true)
-
-        // Re-encrypt new files (or all files if full rebuild)
-        let filesToEncrypt = needsFullRebuild ? activeFiles : activeFiles.filter { newFileIds.contains($0.fileId.uuidString) }
-
-        var sharedFiles: [SharedVaultData.SharedFile] = []
-        var skippedFiles = 0
-
-        for entry in filesToEncrypt {
-            do {
-                if entry.size > maxInMemoryReencryptBytes {
-                    skippedFiles += 1
-                    let name = entry.filename ?? entry.fileId.uuidString
-                    shareSyncLogger.warning(
-                        "Skipping oversized file \(name, privacy: .public) (\(entry.size / (1024 * 1024))MB) during incremental sync"
-                    )
-                    continue
-                }
-                let fileIdStr = entry.fileId.uuidString
-
-                // Check cache for already-encrypted content
-                let reencrypted: Data
-                if let cached = cache.loadEncryptedFile(fileIdStr) {
-                    reencrypted = cached
-                } else {
-                    let (_, content) = try VaultStorage.shared.retrieveFileContent(
-                        entry: entry, index: index, masterKey: masterKey
-                    )
-                    reencrypted = try CryptoEngine.encrypt(content, with: shareKey)
-                    try? cache.saveEncryptedFile(fileIdStr, data: reencrypted)
-                }
-
-                // Thumbnail
-                let encryptedThumb: Data?
-                if let cached = cache.loadEncryptedThumb(fileIdStr) {
-                    encryptedThumb = cached
-                } else if let thumbData = entry.thumbnailData {
-                    let decryptedThumb = try CryptoEngine.decrypt(thumbData, with: masterKey)
-                    let encThumb = try CryptoEngine.encrypt(decryptedThumb, with: shareKey)
-                    try? cache.saveEncryptedThumb(fileIdStr, data: encThumb)
-                    encryptedThumb = encThumb
-                } else {
-                    encryptedThumb = nil
-                }
-
-                sharedFiles.append(SharedVaultData.SharedFile(
-                    id: entry.fileId,
-                    filename: entry.filename ?? "unknown",
-                    mimeType: entry.mimeType ?? "application/octet-stream",
-                    size: entry.size,
-                    encryptedContent: reencrypted,
-                    createdAt: entry.createdAt ?? Date(),
-                    encryptedThumbnail: encryptedThumb
-                ))
-            } catch {
-                skippedFiles += 1
-                shareSyncLogger.warning("Skipping corrupted file \(entry.fileId, privacy: .public): \(error.localizedDescription, privacy: .public)")
-            }
-        }
 
         let metadata = SharedVaultData.SharedVaultMetadata(
             ownerFingerprint: KeyDerivation.keyFingerprint(from: vaultKey),
             sharedAt: Date()
         )
 
-        // Build SVDF
-        let svdfData: Data
+        // Temp file for streaming SVDF output
+        let svdfFileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("svdf_sync_\(shareVaultId)_\(UUID().uuidString).bin")
+
         let manifest: [SVDFSerializer.FileManifestEntry]
 
         if needsFullRebuild {
-            // Full rebuild — need all files encrypted
-            guard !sharedFiles.isEmpty || skippedFiles == 0 else {
-                throw VaultStorageError.readError
-            }
-
-            let result = try SVDFSerializer.buildFull(
-                files: sharedFiles,
+            // Full rebuild — stream all files one at a time
+            let result = try SVDFSerializer.buildFullStreaming(
+                to: svdfFileURL,
+                fileCount: activeFiles.count,
+                forEachFile: { i in
+                    let entry = activeFiles[i]
+                    return try Self.reencryptFileForShare(
+                        entry: entry, index: index, masterKey: masterKey,
+                        shareKey: shareKey, cache: cache
+                    )
+                },
                 metadata: metadata,
                 shareKey: shareKey
             )
-            svdfData = result.data
             manifest = result.manifest
         } else {
-            // Incremental append
-            let result = try SVDFSerializer.buildIncremental(
-                priorData: priorSVDF!,
+            // Incremental append — stream prior entries from file, append new ones
+            let filesToAppend = activeFiles.filter { newFileIds.contains($0.fileId.uuidString) }
+
+            manifest = try SVDFSerializer.buildIncrementalStreaming(
+                to: svdfFileURL,
+                priorSVDFURL: cache.svdfFileURL,
                 priorManifest: priorState!.manifest,
-                newFiles: sharedFiles,
+                newFileCount: filesToAppend.count,
+                forEachNewFile: { i in
+                    let entry = filesToAppend[i]
+                    return try Self.reencryptFileForShare(
+                        entry: entry, index: index, masterKey: masterKey,
+                        shareKey: shareKey, cache: cache
+                    )
+                },
                 removedFileIds: removedFileIds,
                 metadata: metadata,
                 shareKey: shareKey
             )
-            svdfData = result.data
-            manifest = result.manifest
         }
 
-        // Compute chunk hashes
-        let chunkHashes = ShareSyncCache.computeChunkHashes(svdfData)
+        // Compute chunk hashes by streaming from file
+        let chunkHashes = try ShareSyncCache.computeChunkHashes(from: svdfFileURL)
+
+        // Get file size for sync state
+        let fileAttributes = try FileManager.default.attributesOfItem(atPath: svdfFileURL.path)
+        let totalBytes = (fileAttributes[.size] as? Int) ?? 0
 
         // Compute deleted bytes for compaction tracking
         let deletedBytes = manifest.filter { $0.deleted }.reduce(0) { $0 + $1.size }
@@ -390,9 +357,56 @@ final class ShareSyncManager {
             syncSequence: priorState?.syncSequence ?? 0,
             deletedFileIds: priorState?.deletedFileIds.union(removedFileIds) ?? removedFileIds,
             totalDeletedBytes: deletedBytes,
-            totalBytes: svdfData.count
+            totalBytes: totalBytes
         )
 
-        return (svdfData, chunkHashes, syncState)
+        return (svdfFileURL, chunkHashes, syncState)
+    }
+
+    /// Re-encrypts a single vault file for sharing, using cache when available.
+    /// Returns a SharedFile with the re-encrypted content (held temporarily in memory).
+    nonisolated private static func reencryptFileForShare(
+        entry: VaultStorage.VaultIndex.VaultFileEntry,
+        index: VaultStorage.VaultIndex,
+        masterKey: Data,
+        shareKey: Data,
+        cache: ShareSyncCache
+    ) throws -> SharedVaultData.SharedFile {
+        let fileIdStr = entry.fileId.uuidString
+
+        // Check cache for already-encrypted content
+        let reencrypted: Data
+        if let cached = cache.loadEncryptedFile(fileIdStr) {
+            reencrypted = cached
+        } else {
+            let (_, content) = try VaultStorage.shared.retrieveFileContent(
+                entry: entry, index: index, masterKey: masterKey
+            )
+            reencrypted = try CryptoEngine.encrypt(content, with: shareKey)
+            try? cache.saveEncryptedFile(fileIdStr, data: reencrypted)
+        }
+
+        // Thumbnail
+        let encryptedThumb: Data?
+        if let cached = cache.loadEncryptedThumb(fileIdStr) {
+            encryptedThumb = cached
+        } else if let thumbData = entry.thumbnailData {
+            let decryptedThumb = try CryptoEngine.decrypt(thumbData, with: masterKey)
+            let encThumb = try CryptoEngine.encrypt(decryptedThumb, with: shareKey)
+            try? cache.saveEncryptedThumb(fileIdStr, data: encThumb)
+            encryptedThumb = encThumb
+        } else {
+            encryptedThumb = nil
+        }
+
+        return SharedVaultData.SharedFile(
+            id: entry.fileId,
+            filename: entry.filename ?? "unknown",
+            mimeType: entry.mimeType ?? "application/octet-stream",
+            size: entry.size,
+            encryptedContent: reencrypted,
+            createdAt: entry.createdAt ?? Date(),
+            encryptedThumbnail: encryptedThumb
+        )
     }
 }

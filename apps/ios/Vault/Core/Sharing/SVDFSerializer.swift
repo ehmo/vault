@@ -276,7 +276,115 @@ enum SVDFSerializer {
         return (manifest, fileIds)
     }
 
-    // MARK: - Build Incremental
+    // MARK: - Build Incremental (Streaming to Disk)
+
+    /// Incrementally updates an existing SVDF file by streaming prior file entries
+    /// from the old file and appending new entries one at a time.
+    /// Peak memory is O(largest_file) instead of O(total_vault_size).
+    ///
+    /// - Parameters:
+    ///   - fileURL: Destination file URL for the updated SVDF output.
+    ///   - priorSVDFURL: URL to the existing SVDF file.
+    ///   - priorManifest: The existing file manifest (decrypted).
+    ///   - newFileCount: Number of new files to append.
+    ///   - forEachNewFile: Closure called for each new file index; returns the SharedFile to encode.
+    ///   - removedFileIds: UUIDs of files to mark as deleted.
+    ///   - metadata: Updated metadata.
+    ///   - shareKey: Encryption key for manifest and metadata.
+    /// - Returns: The updated file manifest.
+    static func buildIncrementalStreaming(
+        to fileURL: URL,
+        priorSVDFURL: URL,
+        priorManifest: [FileManifestEntry],
+        newFileCount: Int,
+        forEachNewFile: (Int) throws -> SharedVaultData.SharedFile,
+        removedFileIds: Set<String>,
+        metadata: SharedVaultData.SharedVaultMetadata,
+        shareKey: Data
+    ) throws -> [FileManifestEntry] {
+        // Read header from prior SVDF to find where file entries end
+        let priorHandle = try FileHandle(forReadingFrom: priorSVDFURL)
+        defer { try? priorHandle.close() }
+
+        guard let headerData = try priorHandle.read(upToCount: headerSize),
+              headerData.count >= headerSize else {
+            throw SVDFError.invalidHeader
+        }
+        let header = try parseHeader(from: headerData)
+        let fileEntriesEnd = Int(header.manifestOffset)
+
+        // Create output file
+        FileManager.default.createFile(atPath: fileURL.path, contents: nil)
+        let outHandle = try FileHandle(forWritingTo: fileURL)
+        defer { try? outHandle.close() }
+
+        // Copy prior file entries (header + all file data before manifest)
+        // Stream in 4MB chunks to avoid loading entire prior SVDF
+        priorHandle.seek(toFileOffset: 0)
+        var remaining = fileEntriesEnd
+        let copyChunkSize = 4 * 1024 * 1024
+        while remaining > 0 {
+            let readSize = min(remaining, copyChunkSize)
+            guard let chunk = try priorHandle.read(upToCount: readSize), !chunk.isEmpty else { break }
+            outHandle.write(chunk)
+            remaining -= chunk.count
+        }
+
+        // Update manifest: mark deletions
+        var manifest = priorManifest
+        for i in manifest.indices {
+            if removedFileIds.contains(manifest[i].id) {
+                manifest[i].deleted = true
+            }
+        }
+
+        // Append new file entries one at a time
+        for i in 0..<newFileCount {
+            let file = try forEachNewFile(i)
+            let entryOffset = outHandle.offsetInFile
+            let entrySize = try writeFileEntryStreaming(file, to: outHandle)
+            manifest.append(FileManifestEntry(
+                id: file.id.uuidString,
+                offset: Int(entryOffset),
+                size: entrySize
+            ))
+        }
+
+        let activeCount = manifest.filter { !$0.deleted }.count
+
+        // Encrypt and write manifest
+        let manifestJSON = try JSONEncoder().encode(manifest)
+        let encryptedManifest = try CryptoEngine.encrypt(manifestJSON, with: shareKey)
+        let manifestOffset = outHandle.offsetInFile
+        outHandle.write(encryptedManifest)
+
+        // Encrypt and write metadata
+        let metadataJSON = try JSONEncoder().encode(metadata)
+        let encryptedMetadata = try CryptoEngine.encrypt(metadataJSON, with: shareKey)
+        let metadataOffset = outHandle.offsetInFile
+        outHandle.write(encryptedMetadata)
+
+        let headerFileCount = try checkedUInt32(activeCount, field: "fileCount")
+        let headerManifestSize = try checkedUInt32(encryptedManifest.count, field: "manifestSize")
+        let headerMetadataSize = try checkedUInt32(encryptedMetadata.count, field: "metadataSize")
+
+        // Seek back and write the real header
+        outHandle.seek(toFileOffset: 0)
+        var headerOut = Data(count: headerSize)
+        writeHeader(
+            into: &headerOut,
+            fileCount: headerFileCount,
+            manifestOffset: UInt64(manifestOffset),
+            manifestSize: headerManifestSize,
+            metadataOffset: UInt64(metadataOffset),
+            metadataSize: headerMetadataSize
+        )
+        outHandle.write(headerOut)
+
+        return manifest
+    }
+
+    // MARK: - Build Incremental (In-Memory)
 
     /// Appends new files and marks deletions on an existing SVDF blob.
     /// - Parameters:
@@ -483,7 +591,7 @@ enum SVDFSerializer {
     /// Data buffer for the content. This avoids copying the entire encryptedContent
     /// (~49MB for large files) into a second buffer.
     /// Returns the total bytes written.
-    private static func writeFileEntryStreaming(
+    static func writeFileEntryStreaming(
         _ file: SharedVaultData.SharedFile,
         to handle: FileHandle
     ) throws -> Int {

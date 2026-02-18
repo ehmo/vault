@@ -18,6 +18,9 @@ final class ShareSyncCache: Sendable {
     private let syncStateURL: URL
     private let svdfURL: URL
 
+    /// Public read-only access for streaming from the cached SVDF file.
+    var svdfFileURL: URL { svdfURL }
+
     // MARK: - Sync State
 
     struct SyncState: Codable {
@@ -85,6 +88,11 @@ final class ShareSyncCache: Sendable {
 
     func loadSVDF() -> Data? {
         try? Data(contentsOf: svdfURL)
+    }
+
+    /// Checks whether a cached SVDF file exists without loading it.
+    func svdfFileExists() -> Bool {
+        FileManager.default.fileExists(atPath: svdfURL.path)
     }
 
     func saveSVDF(_ data: Data) throws {

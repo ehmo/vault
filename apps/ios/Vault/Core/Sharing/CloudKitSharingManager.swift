@@ -274,6 +274,58 @@ final class CloudKitSharingManager {
         }
     }
 
+    /// Incrementally syncs SVDF data from a file on disk.
+    /// Computes chunk hashes by streaming, uploads only changed chunks from file,
+    /// and cleans up orphaned chunks. Peak memory is O(chunk_size) ≈ 2MB.
+    func syncSharedVaultIncrementalFromFile(
+        shareVaultId: String,
+        svdfFileURL: URL,
+        newChunkHashes: [String],
+        previousChunkHashes: [String],
+        onProgress: ((Int, Int) -> Void)? = nil
+    ) async throws {
+        let totalChunks = newChunkHashes.count
+
+        // Find changed or new chunk indices
+        let changedIndices = (0..<totalChunks).filter { index in
+            index >= previousChunkHashes.count
+                || previousChunkHashes[index] != newChunkHashes[index]
+        }
+
+        // Upload changed chunks by reading from file
+        try await uploadChunksFromFile(
+            shareVaultId: shareVaultId,
+            fileURL: svdfFileURL,
+            chunkIndices: changedIndices,
+            onProgress: onProgress
+        )
+
+        // Delete orphaned chunks if the blob shrank
+        if totalChunks < previousChunkHashes.count {
+            for orphanIndex in totalChunks..<previousChunkHashes.count {
+                let orphanId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(orphanIndex)")
+                _ = try? await publicDatabase.deleteRecord(withID: orphanId)
+            }
+        }
+
+        Self.logger.info("[sync-incremental] \(changedIndices.count)/\(totalChunks) chunks uploaded for \(shareVaultId, privacy: .public)")
+
+        // Update manifest
+        let predicate = NSPredicate(format: "shareVaultId == %@", shareVaultId)
+        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
+        let results = try await publicDatabase.records(matching: query)
+
+        for (_, result) in results.matchResults {
+            if let record = try? result.get() {
+                let currentVersion = (record["version"] as? Int) ?? 3
+                record["version"] = currentVersion + 1
+                record["updatedAt"] = Date()
+                record["chunkCount"] = totalChunks
+                try await saveWithRetry(record)
+            }
+        }
+    }
+
     // MARK: - Download (Chunked)
 
     /// Downloads and decrypts a shared vault using a share phrase.
