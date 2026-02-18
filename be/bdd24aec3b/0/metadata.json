@@ -3,9 +3,9 @@
   "checkpoint_id": "bebdd24aec3b",
   "session_id": "d7336379-23a0-4da3-a035-fd1f71797470",
   "strategy": "manual-commit",
-  "created_at": "2026-02-18T04:56:59.061905Z",
+  "created_at": "2026-02-18T05:33:47.2916Z",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 0,
   "files_touched": [
     ".scratch-pad.md",
     "apps/ios/Vault.xcodeproj/project.pbxproj",
@@ -17,7 +17,11 @@
     "apps/ios/Vault/Features/VaultViewer/VaultView+Actions.swift",
     "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
     "apps/ios/Vault/Features/VaultViewer/ZoomableImageContainer.swift",
+    "apps/ios/VaultTests/EncryptedBlobTests.swift",
     "apps/ios/VaultTests/MediaOptimizerTests.swift",
+    "apps/ios/VaultTests/NonceChunkSwapTests.swift",
+    "apps/ios/VaultTests/SecureDeleteTests.swift",
+    "apps/ios/VaultTests/VaultFullChainTests.swift",
     "apps/ios/VaultTests/ZoomableImageContainerTests.swift",
     "apps/ios/docs/marketing-copy.md",
     "apps/ios/docs/storage.md",
@@ -30,22 +34,22 @@
   ],
   "agent": "Claude Code",
   "transcript_identifier_at_start": "68204ffe-4715-45d0-9698-33bb33ece9a0",
-  "checkpoint_transcript_start": 1978,
-  "transcript_lines_at_start": 1978,
+  "checkpoint_transcript_start": 2108,
+  "transcript_lines_at_start": 2108,
   "token_usage": {
-    "input_tokens": 18,
-    "cache_creation_tokens": 164016,
-    "cache_read_tokens": 706718,
-    "output_tokens": 78,
-    "api_call_count": 11
+    "input_tokens": 20,
+    "cache_creation_tokens": 35852,
+    "cache_read_tokens": 1642145,
+    "output_tokens": 201,
+    "api_call_count": 14
   },
   "initial_attribution": {
-    "calculated_at": "2026-02-18T04:56:58.248084Z",
-    "agent_lines": 23,
+    "calculated_at": "2026-02-18T05:33:46.437693Z",
+    "agent_lines": 806,
     "human_added": 0,
-    "human_modified": 528,
-    "human_removed": 3537,
-    "total_committed": 551,
-    "agent_percentage": 4.174228675136116
+    "human_modified": 467,
+    "human_removed": 3612,
+    "total_committed": 1273,
+    "agent_percentage": 63.31500392772978
   }
 }

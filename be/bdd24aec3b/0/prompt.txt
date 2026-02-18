@@ -1740,3 +1740,95 @@ Next Steps:
 ---
 
 **Ready to optimize your app store presence? Run the command and follow the master plan!**
+
+---
+
+<task-notification>
+<task-id>a7852c3</task-id>
+<status>completed</status>
+<summary>Agent "ASO full audit for Vaultaire" completed</summary>
+<result>The audit is now complete. Let me provide the summary.
+
+---
+
+The comprehensive ASO audit for Vaultaire is complete. Here is a summary of what was done and the key deliverables.
+
+## What Was Done
+
+**Phase 1 -- Research Review and Refresh:**
+- Read all 19 existing output files across 5 phase folders
+- Refreshed competitor data via iTunes API (Feb 17) -- no competitive landscape changes detected since Feb 12
+- Confirmed Vaultaire still does not appear in iTunes Search API results (indexing or visibility issue flagged as Priority 0)
+- Validated all 180+ app data points remain current
+
+**Phase 2 -- Inconsistency Resolution:**
+Found and fixed 5 cross-file inconsistencies:
+
+1. **Keyword field:** `01-research/keyword-list.md` used single words (correct), while `02-metadata/apple-metadata.md` used multi-word phrases (suboptimal). Standardized to single-word approach with explanatory note added. The recommended field is:
+   ```
+   secret,hide,photos,lock,album,safe,hidden,secure,videos,gallery,backup,AES,password,privacy,encrypt
+   ```
+
+2. **Subtitle:** Three different recommendations across files. Standardized to `Private Photo & File Locker` (27 chars) across all files.
+
+3. **Category primary/secondary:** Research said Photo & Video primary; submission guide said Utilities primary. Resolved in favor of Utilities primary (less competition, better security positioning).
+
+4. **Promotional text character count:** Was listed as 166, 169, and 166 in different places. Verified actual count is 167. Fixed everywhere.
+
+5. **Dates and status:** All files assumed March 5 pre-launch. Updated master plan and optimization files to reflect live status as of Feb 17.
+
+**Phase 3 -- Master Plan and Report Update:**
+- Rewrote `00-MASTER-ACTION-PLAN.md` to shift from pre-launch countdown to post-launch optimization roadmap
+- Rewrote `FINAL-REPORT.md` with updated competitor data, inconsistency log, and current recommendations
+- Updated dates and status across `05-optimization/ongoing-tasks.md` and `05-optimization/action-optimization.md`
+
+## Key Files (All Absolute Paths)
+
+| File | Purpose |
+|------|---------|
+| `REDACTED.md` | Start here -- prioritized action items |
+| `/Users/nan/Work/ai/vault/outputs/vaultaire/FINAL-REPORT.md` | Executive summary and audit findings |
+| `/Users/nan/Work/ai/vault/outputs/vaultaire/02-metadata/apple-metadata.md` | Copy-paste ready metadata |
+| `/Users/nan/Work/ai/vault/outputs/vaultaire/01-research/keyword-list.md` | 27 keywords with data |
+| `/Users/nan/Work/ai/vault/outputs/vaultaire/01-research/competitor-gaps.md` | 8 competitors, 12 gaps |
+| `/Users/nan/Work/ai/vault/outputs/vaultaire/05-optimization/ongoing-tasks.md` | Daily/weekly/monthly schedule |
+| `/Users/nan/Work/ai/vault/outputs/vaultaire/05-optimization/review-responses.md` | 18 review response templates |
+
+## Three Most Important Actions Right Now
+
+1. **Verify search visibility** -- The app does not appear in iTunes Search API results for "vaultaire" or by ID 6740526623. Search for your app on your device's App Store. If it does not appear in search results after being live for 7+ days, contact Apple Developer Support.
+
+2. **Compare live metadata against recommendations** -- Log in to App Store Connect and check whether the optimized keyword field (`secret,hide,photos,lock,album,safe,hidden,secure,videos,gallery,backup,AES,password,privacy,encrypt`) is what's currently live. If the phrase-based version is live, update to the single-word version in your next submission.
+
+3. **Update promotional text today** -- This requires no app submission. Copy the promotional text from `/Users/nan/Work/ai/vault/outputs/vaultaire/02-metadata/apple-metadata.md` and paste it into App Store Connect immediately.</result>
+<usage>total_tokens: 128202
+tool_uses: 72
+duration_ms: 513394</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-nan-Work-ai-vault/tasks/a7852c3.output
+
+---
+
+I want to build a comprehensive sets of pages comparing vaultaire with the competitors for the web.
+
+This should live in the footer of the website. I want you to find top 10 competitors for vaultaire in the itunes store.
+
+For each extract all information you can find, inlcuding last 500 comments. Focus on the negative ones. Then produce side by side page that you store to web/compare and you update all the associated pages. Make sure you match the style of the web and that all style and images load properly.
+
+For the copy, I want you to use one page per competitor. I want you to use the same set of features for vaultaire across all the apps. It's ok to say that competitor has a functionality that we have too if it's important. I am not trying to show they do nothing, but rather that vaultaire is superior.
+
+I want you to a very comprehensive study of each competitor, store the results, then when you gathered all the data run the analysis and start producing the pages. Focus on SEO so the pages rank very well. Use /humanizer to write the copy on each page. You can use /seo-audit audit skill to help you with the copy and structure.
+
+Remember, these pages are static. There is no dynamic router so everything has to pregenerated.
+
+Make sure that the pages are optimized for mobile equally well as they are for desktop.
+
+I want you to be ready to add more competitors down the line.
+
+Use the /Users/nan/Work/ai/vault/outputs/vaultaire folder information from the ASO analysis to target the specific keywords we will need for the apple app store.
+
+Use the AskUserQuestion tool to grill me on everything before you move on onto implementation. Keep track of everything in beads so you don't forget
+
+---
+
+[Request interrupted by user for tool use]

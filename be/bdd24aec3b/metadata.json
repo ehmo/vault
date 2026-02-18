@@ -3,7 +3,7 @@
   "checkpoint_id": "bebdd24aec3b",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 0,
   "files_touched": [
     ".scratch-pad.md",
     "apps/ios/Vault.xcodeproj/project.pbxproj",
@@ -15,7 +15,11 @@
     "apps/ios/Vault/Features/VaultViewer/VaultView+Actions.swift",
     "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
     "apps/ios/Vault/Features/VaultViewer/ZoomableImageContainer.swift",
+    "apps/ios/VaultTests/EncryptedBlobTests.swift",
     "apps/ios/VaultTests/MediaOptimizerTests.swift",
+    "apps/ios/VaultTests/NonceChunkSwapTests.swift",
+    "apps/ios/VaultTests/SecureDeleteTests.swift",
+    "apps/ios/VaultTests/VaultFullChainTests.swift",
     "apps/ios/VaultTests/ZoomableImageContainerTests.swift",
     "apps/ios/docs/marketing-copy.md",
     "apps/ios/docs/storage.md",
@@ -45,10 +49,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 46,
-    "cache_creation_tokens": 248835,
-    "cache_read_tokens": 2104029,
-    "output_tokens": 1899,
-    "api_call_count": 33
+    "input_tokens": 48,
+    "cache_creation_tokens": 120671,
+    "cache_read_tokens": 3039456,
+    "output_tokens": 2022,
+    "api_call_count": 36
   }
 }
