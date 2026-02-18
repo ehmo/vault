@@ -341,12 +341,13 @@ struct FullScreenPhotoViewer: View {
 
         Task.detached(priority: .userInitiated) {
             do {
-                let (header, content) = try VaultStorage.shared.retrieveFile(id: file.id, with: key)
+                // Use streaming decryption to avoid 2x memory peak for large files
+                let (header, tempURL) = try VaultStorage.shared.retrieveFileToTempURL(id: file.id, with: key)
                 let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
                 let ext = (file.filename as NSString?)?.pathExtension ?? header.mimeType.split(separator: "/").last.map(String.init) ?? "bin"
                 let filename = "Export_\(file.id.uuidString).\(ext)"
                 let url = tempDir.appendingPathComponent(filename)
-                try content.write(to: url, options: [.atomic])
+                try FileManager.default.moveItem(at: tempURL, to: url)
                 await MainActor.run {
                     self.shareURL = url
                 }

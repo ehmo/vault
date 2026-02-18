@@ -128,24 +128,28 @@ struct SecureImageViewer: View {
 
         Task {
             do {
-                let (header, content) = try VaultStorage.shared.retrieveFile(id: file.id, with: key)
+                let isImage = (file.mimeType ?? "").hasPrefix("image/")
 
-                // Images: display inline
-                if header.mimeType.hasPrefix("image/"), let uiImage = UIImage(data: content) {
-                    await MainActor.run {
-                        self.image = uiImage
-                        self.isLoading = false
+                if isImage {
+                    // Images: load into memory for display
+                    let (_, content) = try VaultStorage.shared.retrieveFile(id: file.id, with: key)
+                    if let uiImage = UIImage(data: content) {
+                        await MainActor.run {
+                            self.image = uiImage
+                            self.isLoading = false
+                        }
+                        return
                     }
-                    return
                 }
 
-                // All other files: write to temp and present via Quick Look
+                // Non-images (or failed image decode): stream-decrypt to temp file
+                let (_, decryptedURL) = try VaultStorage.shared.retrieveFileToTempURL(id: file.id, with: key)
                 let filename = file.filename ?? "file_\(file.id.uuidString)"
                 let tempDir = FileManager.default.temporaryDirectory
                     .appendingPathComponent("vault_preview", isDirectory: true)
                 try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
                 let tempURL = tempDir.appendingPathComponent(filename)
-                try content.write(to: tempURL)
+                try FileManager.default.moveItem(at: decryptedURL, to: tempURL)
 
                 await MainActor.run {
                     self.tempFileURL = tempURL
@@ -173,11 +177,12 @@ struct SecureImageViewer: View {
 
         Task {
             do {
-                let (_, content) = try VaultStorage.shared.retrieveFile(id: file.id, with: key)
+                // Use streaming decryption to avoid 2x memory peak for large files
+                let (_, decryptedURL) = try VaultStorage.shared.retrieveFileToTempURL(id: file.id, with: key)
                 let filename = file.filename ?? "Export_\(file.id.uuidString)"
                 let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
                 let url = tempDir.appendingPathComponent(filename)
-                try content.write(to: url, options: [.atomic])
+                try FileManager.default.moveItem(at: decryptedURL, to: url)
                 await MainActor.run {
                     shareURL = url
                 }
