@@ -199,7 +199,8 @@ final class VaultViewModel {
             } catch {
                 vmLogger.error("loadFiles() failed: \(error.localizedDescription, privacy: .public)")
                 await MainActor.run {
-                    self.files = []
+                    // Don't clear files on error - preserves in-memory state after imports
+                    // If vault truly failed to load, user would see previous files or empty with error
                     self.isLoading = false
                 }
             }
