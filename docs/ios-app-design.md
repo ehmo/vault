@@ -52,6 +52,7 @@ The app is local-first and key-driven:
 3. `StagedImportManager.swift` and `ImportIngestor.swift` - app-group staged import pipeline.
 4. `iCloudBackupManager.swift` - private CloudKit backup/restore (chunked v2 backup format).
 5. `SecureDelete.swift`, `FileUtilities.swift` - deletion and filesystem helpers.
+6. `MediaOptimizer.swift` - HEIC/HEVC media optimization during import (up to 85% size reduction).
 
 #### Sharing (`Core/Sharing/`)
 

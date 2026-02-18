@@ -80,6 +80,14 @@ You control everything after sharing:
 - Revoke access instantly for any individual recipient
 - Stop all sharing with one tap
 
+### Smart Storage — 85% Smaller, Zero Quality Loss
+
+Vault automatically optimizes your photos and videos as they're encrypted. Images are converted to Apple's HEIC format; videos are transcoded to HEVC at 1080p. The result: files up to 85% smaller with no visible difference.
+
+A 12-megapixel photo that would take 5 MB? Stored in under 1 MB. A 4K video? Compressed to a fraction of its size. Your vault holds dramatically more — without upgrading storage.
+
+Prefer originals? One toggle in Settings switches to full-size storage.
+
 ### No Accounts. No Cloud. No Tracking.
 
 Vault has no sign-up screen because there is no account. No email, no phone number, no identity of any kind.
@@ -135,6 +143,7 @@ When you do share, all data is encrypted on your device before upload. Apple's C
 - **Price:** Free
 - **Size:** Lightweight — no bloat, no ads, no third-party SDKs
 - **Storage:** 50 MB pre-allocated encrypted blob per vault (expandable with premium)
+- **Media Optimization:** HEIC images + HEVC 1080p video (up to 85% smaller, toggleable)
 - **Encryption:** AES-256-GCM via Apple CryptoKit
 - **Key Derivation:** PBKDF2-HMAC-SHA512 (600K–800K iterations)
 - **Hardware Security:** Apple Secure Enclave integration

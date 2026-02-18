@@ -344,11 +344,72 @@ For cross-device migration:
 3. Import on new device
 4. Re-encrypt with new device salt
 
+## Media Optimization
+
+### Overview
+
+Files are automatically optimized during import to reduce storage consumption by up to 85%, while maintaining high visual quality. This applies to all import paths: camera capture, photo picker, file picker, and share extension.
+
+### Setting
+
+`@AppStorage("fileOptimization")` — two options:
+- **Optimized** (default): Converts images to HEIC and videos to HEVC 1080p
+- **Original**: Stores files at original size and format
+
+### Image Pipeline (HEIC via ImageIO)
+
+1. `CGImageSourceCreateWithURL` reads source image
+2. If long edge > 4096px: downsample via `CGImageSourceCreateThumbnailAtIndex`
+3. `CGImageDestinationCreateWithURL` writes HEIC at quality 0.6
+4. Skip if source is already HEIC/HEIF
+5. Peak memory: ~20-50MB (one image bitmap)
+6. Typical reduction: 75-85%
+
+### Video Pipeline (HEVC via AVFoundation)
+
+1. `AVURLAsset` from source file
+2. `AVAssetExportSession` with `AVAssetExportPresetHEVC1920x1080`
+3. Export to temp `.mp4` with network optimization
+4. Skip if source is already HEVC at ≤ 1080p
+5. Peak memory: ~30-80MB (stream-based, independent of video length)
+6. Typical reduction: 85-90%
+
+### Passthrough
+
+Non-media files (PDF, documents, ZIP, etc.) pass through unchanged — no reliable compression without quality loss.
+
+### Filename/MimeType Updates
+
+When optimized, stored filename and mimeType reflect the actual output format:
+- `.jpg` / `.png` → `.heic` (`image/heic`)
+- `.mov` / `.avi` → `.mp4` (`video/mp4`)
+
+### Implementation
+
+`MediaOptimizer` is a Swift actor (thread-safe, sequential access):
+
+```swift
+actor MediaOptimizer {
+    static let shared = MediaOptimizer()
+
+    /// Returns (outputURL, outputMimeType, wasOptimized)
+    func optimize(fileURL: URL, mimeType: String, mode: Mode) async throws -> (URL, String, Bool)
+
+    /// For UIImage from camera
+    func optimizeImage(_ image: UIImage, mode: Mode) async throws -> (URL, String)
+}
+```
+
+Graceful fallback: if optimization fails for any reason, the original file is used unchanged.
+
 ## Code Reference
 
 ```
 Vault/Core/Storage/
 ├── VaultStorage.swift      # Main storage API
 ├── EncryptedBlob.swift     # Low-level blob operations
+├── MediaOptimizer.swift    # HEIC/HEVC import optimization
+├── ImportIngestor.swift    # Staged import processing
+├── FileUtilities.swift     # Thumbnail gen, MIME types
 └── SecureDelete.swift      # Secure file wiping
 ```
