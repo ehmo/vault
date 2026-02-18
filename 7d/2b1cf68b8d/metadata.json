@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "7d2b1cf68b8d",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".scratch-pad.md",
+    "apps/ios/docs/marketing-copy.md",
+    "apps/ios/docs/storage.md",
+    "docs/ios-app-design.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/7d/2b1cf68b8d/0/metadata.json",
+      "transcript": "/7d/2b1cf68b8d/0/full.jsonl",
+      "context": "/7d/2b1cf68b8d/0/context.md",
+      "content_hash": "/7d/2b1cf68b8d/0/content_hash.txt",
+      "prompt": "/7d/2b1cf68b8d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 17,
+    "cache_creation_tokens": 13769,
+    "cache_read_tokens": 1962617,
+    "output_tokens": 1496,
+    "api_call_count": 13
+  }
+}
