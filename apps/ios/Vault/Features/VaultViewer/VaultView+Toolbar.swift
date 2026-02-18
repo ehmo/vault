@@ -16,11 +16,11 @@ extension VaultView {
 
         ToolbarItem(placement: .topBarTrailing) {
             HStack(spacing: 12) {
-                if !files.isEmpty && !subscriptionManager.isPremium {
+                if !viewModel.files.isEmpty && !subscriptionManager.isPremium {
                     StorageRingView(
-                        fileCount: files.count,
+                        fileCount: viewModel.files.count,
                         maxFiles: SubscriptionManager.maxFreeFilesPerVault,
-                        totalBytes: Int64(files.reduce(0) { $0 + $1.size })
+                        totalBytes: Int64(viewModel.files.reduce(0) { $0 + $1.size })
                     )
                 }
 
@@ -37,9 +37,9 @@ extension VaultView {
 
     func topSafeAreaContent(visible: VisibleFiles) -> some View {
         VStack(spacing: 8) {
-            if !files.isEmpty && !showingSettings {
+            if !viewModel.files.isEmpty && !showingSettings {
                 HStack(spacing: 8) {
-                    if isEditing {
+                    if viewModel.isEditing {
                         editModeControls(visible: visible)
                     } else {
                         searchAndFilterControls
@@ -47,18 +47,21 @@ extension VaultView {
                 }
                 .padding(.horizontal)
             }
-            if isSharedVault {
+            if viewModel.isSharedVault {
                 sharedVaultBannerView
             }
             if appState.hasPendingImports {
                 PendingImportBanner(
                     fileCount: appState.pendingImportCount,
-                    onImport: { importPendingFiles() },
-                    isImporting: $isImportingPendingFiles
+                    onImport: { viewModel.importPendingFiles() },
+                    isImporting: Binding(
+                        get: { viewModel.isImportingPendingFiles },
+                        set: { viewModel.isImportingPendingFiles = $0 }
+                    )
                 )
             }
         }
-        .padding(.bottom, (!files.isEmpty && !showingSettings) ? 6 : 0)
+        .padding(.bottom, (!viewModel.files.isEmpty && !showingSettings) ? 6 : 0)
         .background(Color.vaultBackground)
     }
 
@@ -70,14 +73,14 @@ extension VaultView {
             // Select All / Deselect All button
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
-                    if selectedIds.count == allVisible.count {
-                        selectedIds.removeAll()
+                    if viewModel.selectedIds.count == allVisible.count {
+                        viewModel.selectedIds.removeAll()
                     } else {
-                        selectedIds = Set(allVisible.map(\.id))
+                        viewModel.selectedIds = Set(allVisible.map(\.id))
                     }
                 }
             } label: {
-                Text(selectedIds.count == allVisible.count ? "Deselect All" : "Select All (\(allVisible.count))")
+                Text(viewModel.selectedIds.count == allVisible.count ? "Deselect All" : "Select All (\(allVisible.count))")
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
                     .padding(.horizontal, 12)
@@ -90,8 +93,8 @@ extension VaultView {
             // Done button
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
-                    isEditing = false
-                    selectedIds.removeAll()
+                    viewModel.isEditing = false
+                    viewModel.selectedIds.removeAll()
                 }
             } label: {
                 Text("Done")
@@ -112,12 +115,12 @@ extension VaultView {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.vaultSecondaryText)
-                TextField("Search files", text: $searchText)
+                TextField("Search files", text: $viewModel.searchText)
                     .textFieldStyle(.plain)
                     .accessibilityIdentifier("vault_search_field")
-                if !searchText.isEmpty {
+                if !viewModel.searchText.isEmpty {
                     Button {
-                        searchText = ""
+                        viewModel.searchText = ""
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.vaultSecondaryText)
@@ -133,9 +136,9 @@ extension VaultView {
                 Section("Filter") {
                     ForEach(FileFilter.allCases) { filter in
                         Button {
-                            fileFilter = filter
+                            viewModel.fileFilter = filter
                         } label: {
-                            if fileFilter == filter {
+                            if viewModel.fileFilter == filter {
                                 Label(filter.rawValue, systemImage: "checkmark")
                             } else {
                                 Label(filter.rawValue, systemImage: filter.icon)
@@ -146,9 +149,9 @@ extension VaultView {
                 Section("Sort") {
                     ForEach(SortOrder.allCases, id: \.self) { order in
                         Button {
-                            sortOrder = order
+                            viewModel.sortOrder = order
                         } label: {
-                            if sortOrder == order {
+                            if viewModel.sortOrder == order {
                                 Label(order.rawValue, systemImage: "checkmark")
                             } else {
                                 Text(order.rawValue)
@@ -157,7 +160,7 @@ extension VaultView {
                     }
                 }
             } label: {
-                Image(systemName: fileFilter == .all ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
+                Image(systemName: viewModel.fileFilter == .all ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
                     .fontWeight(.medium)
                     .padding(10)
                     .vaultGlassBackground(cornerRadius: 12)
@@ -166,10 +169,10 @@ extension VaultView {
             .accessibilityLabel("Filter and sort")
 
             // Select button (hidden for shared vaults)
-            if !isSharedVault {
+            if !viewModel.isSharedVault {
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        isEditing = true
+                        viewModel.isEditing = true
                     }
                 } label: {
                     Image(systemName: "checkmark.circle")
@@ -188,7 +191,7 @@ extension VaultView {
     var bottomEditBar: some View {
         HStack(spacing: 12) {
             Button(role: .destructive) {
-                showingBatchDeleteConfirmation = true
+                viewModel.showingBatchDeleteConfirmation = true
             } label: {
                 Label("Delete", systemImage: "trash")
                     .font(.subheadline.weight(.semibold))
@@ -200,7 +203,7 @@ extension VaultView {
             .accessibilityIdentifier("vault_edit_delete")
 
             Button {
-                batchExport()
+                viewModel.batchExport()
             } label: {
                 Label("Export", systemImage: "square.and.arrow.up")
                     .font(.subheadline.weight(.semibold))

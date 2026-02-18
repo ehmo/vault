@@ -96,8 +96,9 @@ func groupFilesByDate(_ items: [VaultFileItem], newestFirst: Bool = true) -> [Da
 struct VaultView: View {
     @Environment(AppState.self) var appState
     @Environment(SubscriptionManager.self) var subscriptionManager
-    @State var files: [VaultFileItem] = []
-    @State var masterKey: MasterKey?
+    @State var viewModel = VaultViewModel()
+
+    // UI-only presentation state
     @State var selectedFile: VaultFileItem?
     @State var selectedPhotoIndex: Int?
     @State var showingImportOptions = false
@@ -105,103 +106,20 @@ struct VaultView: View {
     @State var showingPhotoPicker = false
     @State var showingFilePicker = false
     @State var showingSettings = false
-    @State var isLoading = true
-    @State var searchText = ""
-    @AppStorage("vaultFileFilter") var fileFilter: FileFilter = .all
-    @AppStorage("fileOptimization") var fileOptimization = "optimized"
-    @State var sortOrder: SortOrder = .dateNewest
-    @State var isEditing = false
-    @State var selectedIds: Set<UUID> = []
-    @State var showingBatchDeleteConfirmation = false
     @State var showingPaywall = false
     @State var showingFanMenu = false
-    @State var exportURLs: [URL] = []
-    @State var toastMessage: ToastMessage?
-    @State var importProgress: (completed: Int, total: Int)?
-    @State var isDeleteInProgress = false
     @State var showingLimitAlert = false
-    @State var pendingImport: PendingImport?
     @State var limitAlertRemaining = 0
     @State var limitAlertSelected = 0
-    @State var activeImportTask: Task<Void, Never>?
-    @State var activeLoadTask: Task<Void, Never>?
-    @State var isImportingPendingFiles = false
+
     let floatingButtonTrailingInset: CGFloat = 15
     let floatingButtonBottomInset: CGFloat = -15
-
-    // Transfer status
-    var transferManager = BackgroundShareTransferManager.shared
-
-    // Shared vault state
-    @State var hasCountedOpenThisSession = false
-    @State var isSharedVault = false
-    @State var sharePolicy: VaultStorage.SharePolicy?
-    @State var sharedVaultId: String?
-    @State var updateAvailable = false
-    @State var isUpdating = false
-    @State var selfDestructMessage: String?
-    @State var showSelfDestructAlert = false
-
-    // Cached visible files — recomputed via onChange, not on every body evaluation
-    @State private var cachedVisibleFiles = VisibleFiles(all: [], media: [], documents: [], mediaIndexById: [:])
 
     struct VisibleFiles: Equatable {
         let all: [VaultFileItem]
         let media: [VaultFileItem]
         let documents: [VaultFileItem]
         let mediaIndexById: [UUID: Int]
-    }
-
-    func computeVisibleFiles() -> VisibleFiles {
-        var visible = files
-        switch fileFilter {
-        case .all:
-            break
-        case .media:
-            visible = visible.filter {
-                let mime = $0.mimeType ?? ""
-                return mime.hasPrefix("image/") || mime.hasPrefix("video/")
-            }
-        case .documents:
-            visible = visible.filter {
-                let mime = $0.mimeType ?? ""
-                return !mime.hasPrefix("image/") && !mime.hasPrefix("video/")
-            }
-        }
-        if !searchText.isEmpty {
-            visible = visible.filter {
-                ($0.filename ?? "").localizedStandardContains(searchText) ||
-                ($0.mimeType ?? "").localizedStandardContains(searchText)
-            }
-        }
-        switch sortOrder {
-        case .dateNewest:
-            visible.sort { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
-        case .dateOldest:
-            visible.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
-        case .sizeSmallest:
-            visible.sort { $0.size < $1.size }
-        case .sizeLargest:
-            visible.sort { $0.size > $1.size }
-        case .name:
-            visible.sort { ($0.filename ?? "").localizedStandardCompare($1.filename ?? "") == .orderedAscending }
-        }
-
-        let media = visible.filter { $0.isMedia }
-        let documents = visible.filter { !$0.isMedia }
-        let mediaIndexById = Dictionary(
-            uniqueKeysWithValues: media.enumerated().map { ($1.id, $0) }
-        )
-        return VisibleFiles(
-            all: visible,
-            media: media,
-            documents: documents,
-            mediaIndexById: mediaIndexById
-        )
-    }
-
-    var useDateGrouping: Bool {
-        sortOrder == .dateNewest || sortOrder == .dateOldest
     }
 
     /// Keep cover presentation stable while allowing index changes inside the viewer.
@@ -216,15 +134,11 @@ struct VaultView: View {
         )
     }
 
-    private func recomputeVisibleFiles() {
-        cachedVisibleFiles = computeVisibleFiles()
-    }
-
     @ViewBuilder
     private func mainContentView(visible: VisibleFiles) -> some View {
-        if isLoading {
+        if viewModel.isLoading {
             skeletonGridContent
-        } else if files.isEmpty {
+        } else if viewModel.files.isEmpty {
             emptyStateContent
         } else {
             ZStack {
@@ -232,7 +146,7 @@ struct VaultView: View {
                     ContentUnavailableView(
                         "No matching files",
                         systemImage: "magnifyingglass",
-                        description: Text("No files match \"\(searchText.isEmpty ? fileFilter.rawValue : searchText)\"")
+                        description: Text("No files match \"\(viewModel.searchText.isEmpty ? viewModel.fileFilter.rawValue : viewModel.searchText)\"")
                     )
                 } else {
                     fileGridContentView(visible: visible)
@@ -257,7 +171,7 @@ struct VaultView: View {
                 topSafeAreaContent(visible: visible)
             }
             .safeAreaInset(edge: .bottom) {
-                if isEditing && !selectedIds.isEmpty && !files.isEmpty && !showingSettings {
+                if viewModel.isEditing && !viewModel.selectedIds.isEmpty && !viewModel.files.isEmpty && !showingSettings {
                     bottomEditBar
                 }
             }
@@ -273,7 +187,7 @@ struct VaultView: View {
                     .animation(.easeInOut(duration: 0.25), value: showingFanMenu)
             }
             .overlay {
-                if let progress = importProgress {
+                if let progress = viewModel.importProgress {
                     ZStack {
                         Color.black.opacity(0.4)
                             .ignoresSafeArea()
@@ -286,15 +200,15 @@ struct VaultView: View {
                 fanMenuContent
                     .padding(.trailing, floatingButtonTrailingInset)
                     .padding(.bottom, floatingButtonBottomInset)
-                    .opacity(!files.isEmpty && !showingSettings && !isSharedVault && !isEditing ? 1 : 0)
-                    .allowsHitTesting(!files.isEmpty && !showingSettings && !isSharedVault && !isEditing)
+                    .opacity(!viewModel.files.isEmpty && !showingSettings && !viewModel.isSharedVault && !viewModel.isEditing ? 1 : 0)
+                    .allowsHitTesting(!viewModel.files.isEmpty && !showingSettings && !viewModel.isSharedVault && !viewModel.isEditing)
             }
             .overlay(alignment: .bottomTrailing) {
                 mainPlusButtonView
                     .padding(.trailing, floatingButtonTrailingInset)
                     .padding(.bottom, floatingButtonBottomInset)
-                    .opacity(!files.isEmpty && !showingSettings && !isSharedVault && !isEditing ? 1 : 0)
-                    .allowsHitTesting(!files.isEmpty && !showingSettings && !isSharedVault && !isEditing)
+                    .opacity(!viewModel.files.isEmpty && !showingSettings && !viewModel.isSharedVault && !viewModel.isEditing ? 1 : 0)
+                    .allowsHitTesting(!viewModel.files.isEmpty && !showingSettings && !viewModel.isSharedVault && !viewModel.isEditing)
             }
     }
 
@@ -308,17 +222,37 @@ struct VaultView: View {
                 Button("Cancel", role: .cancel) { /* No-op */ }
             }
             .sheet(isPresented: $showingCamera) {
-                SecureCameraView(onCapture: handleCapturedImage)
+                SecureCameraView(onCapture: { imageData in
+                    viewModel.handleCapturedImage(imageData)
+                })
             }
             .sheet(isPresented: $showingPhotoPicker) {
-                PhotoPicker(onPhotosSelected: handleSelectedPhotos)
+                PhotoPicker(onPhotosSelected: { results in
+                    if let limit = viewModel.handleSelectedPhotos(results) {
+                        if limit.remaining == 0 {
+                            showingPaywall = true
+                        } else {
+                            limitAlertSelected = limit.selected
+                            limitAlertRemaining = limit.remaining
+                            showingLimitAlert = true
+                        }
+                    }
+                })
             }
             .fileImporter(
                 isPresented: $showingFilePicker,
                 allowedContentTypes: [.item],
                 allowsMultipleSelection: true
             ) { result in
-                handleImportedFiles(result)
+                if let limit = viewModel.handleImportedFiles(result) {
+                    if limit.remaining == 0 {
+                        showingPaywall = true
+                    } else {
+                        limitAlertSelected = limit.selected
+                        limitAlertRemaining = limit.remaining
+                        showingLimitAlert = true
+                    }
+                }
             }
             .fullScreenCover(isPresented: isPhotoViewerPresented, onDismiss: { selectedPhotoIndex = nil }) {
                 if let initialIndex = selectedPhotoIndex, !visible.media.isEmpty {
@@ -326,14 +260,14 @@ struct VaultView: View {
                     FullScreenPhotoViewer(
                         files: visible.media,
                         vaultKey: appState.currentVaultKey,
-                        masterKey: masterKey,
+                        masterKey: viewModel.masterKey,
                         initialIndex: clampedIndex,
-                        onDelete: isSharedVault ? nil : { deletedId in
-                            if let idx = files.firstIndex(where: { $0.id == deletedId }) {
-                                files.remove(at: idx)
+                        onDelete: viewModel.isSharedVault ? nil : { deletedId in
+                            if let idx = viewModel.files.firstIndex(where: { $0.id == deletedId }) {
+                                viewModel.files.remove(at: idx)
                             }
                         },
-                        allowDownloads: sharePolicy?.allowDownloads ?? true
+                        allowDownloads: viewModel.sharePolicy?.allowDownloads ?? true
                     )
                 } else {
                     Color.vaultBackground.ignoresSafeArea()
@@ -343,13 +277,13 @@ struct VaultView: View {
                 SecureImageViewer(
                     file: file,
                     vaultKey: appState.currentVaultKey,
-                    onDelete: isSharedVault ? nil : { deletedId in
-                        if let idx = files.firstIndex(where: { $0.id == deletedId }) {
-                            files.remove(at: idx)
+                    onDelete: viewModel.isSharedVault ? nil : { deletedId in
+                        if let idx = viewModel.files.firstIndex(where: { $0.id == deletedId }) {
+                            viewModel.files.remove(at: idx)
                         }
                         selectedFile = nil
                     },
-                    allowDownloads: sharePolicy?.allowDownloads ?? true
+                    allowDownloads: viewModel.sharePolicy?.allowDownloads ?? true
                 )
             }
             .fullScreenCover(isPresented: $showingSettings) {
@@ -357,17 +291,17 @@ struct VaultView: View {
                     VaultSettingsView()
                 }
             }
-            .alert("Vault Unavailable", isPresented: $showSelfDestructAlert) {
+            .alert("Vault Unavailable", isPresented: $viewModel.showSelfDestructAlert) {
                 Button("OK") {
-                    selfDestruct()
+                    viewModel.selfDestruct()
                 }
             } message: {
-                Text(selfDestructMessage ?? "This shared vault is no longer available.")
+                Text(viewModel.selfDestructMessage ?? "This shared vault is no longer available.")
             }
-            .toast($toastMessage)
-            .alert("Delete \(selectedIds.count) Files?", isPresented: $showingBatchDeleteConfirmation) {
+            .toast($viewModel.toastMessage)
+            .alert("Delete \(viewModel.selectedIds.count) Files?", isPresented: $viewModel.showingBatchDeleteConfirmation) {
                 Button("Cancel", role: .cancel) { /* No-op */ }
-                Button("Delete", role: .destructive) { batchDelete() }
+                Button("Delete", role: .destructive) { viewModel.batchDelete() }
             } message: {
                 Text("These files will be permanently deleted from the vault.")
             }
@@ -375,15 +309,15 @@ struct VaultView: View {
             .alert("Free Plan Limit", isPresented: $showingLimitAlert) {
                 if limitAlertRemaining > 0 {
                     Button("Import \(limitAlertRemaining) Files") {
-                        proceedWithLimitedImport()
+                        viewModel.proceedWithLimitedImport(limitAlertRemaining: limitAlertRemaining)
                     }
                 }
                 Button("Upgrade to PRO") {
-                    pendingImport = nil
+                    viewModel.pendingImport = nil
                     showingPaywall = true
                 }
                 Button("Cancel", role: .cancel) {
-                    pendingImport = nil
+                    viewModel.pendingImport = nil
                 }
             } message: {
                 if limitAlertRemaining > 0 {
@@ -395,58 +329,40 @@ struct VaultView: View {
     }
 
     var body: some View {
-        let visible = cachedVisibleFiles
+        let visible = viewModel.cachedVisibleFiles
         NavigationStack {
             navigationContent(visible: visible)
         }
         .background { sheetsAndAlerts(visible: visible) }
         .task {
-            loadVault()
-            recomputeVisibleFiles()
+            viewModel.configure(appState: appState, subscriptionManager: subscriptionManager)
+            viewModel.loadVault()
+            viewModel.recomputeVisibleFiles()
             ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "vault_view_task")
         }
         .onChange(of: appState.currentVaultKey) { oldKey, newKey in
-            // Cancel any in-flight imports immediately on vault key change
-            activeImportTask?.cancel()
-            activeImportTask = nil
-            importProgress = nil
-            isDeleteInProgress = false
-            UIApplication.shared.isIdleTimerDisabled = false
-
-            if oldKey != newKey {
-                files = []
-                masterKey = nil
-                Task { await ThumbnailCache.shared.clear() }
-                isLoading = false
-                isSharedVault = false
-            }
-
-            if newKey != nil {
-                ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "vault_key_changed")
-            }
+            viewModel.handleVaultKeyChange(oldKey: oldKey, newKey: newKey)
         }
-        .onChange(of: files) { _, _ in
-            recomputeVisibleFiles()
+        .onChange(of: viewModel.files) { _, _ in
+            viewModel.recomputeVisibleFiles()
         }
-        .onChange(of: searchText) { _, newValue in
-            recomputeVisibleFiles()
+        .onChange(of: viewModel.searchText) { _, newValue in
+            viewModel.recomputeVisibleFiles()
             if !newValue.isEmpty {
                 EmbraceManager.shared.addBreadcrumb(category: "search.used")
             }
         }
-        .onChange(of: sortOrder) { _, _ in
-            recomputeVisibleFiles()
+        .onChange(of: viewModel.sortOrder) { _, _ in
+            viewModel.recomputeVisibleFiles()
         }
-        .onChange(of: fileFilter) { _, _ in
-            recomputeVisibleFiles()
+        .onChange(of: viewModel.fileFilter) { _, _ in
+            viewModel.recomputeVisibleFiles()
             EmbraceManager.shared.addBreadcrumb(category: "filter.changed")
         }
         .onChange(of: showingSettings) { _, isShowing in
             if !isShowing {
-                // Reload file list in case files were deleted or vault changed,
-                // but don't clear existing files to preserve scroll position
-                loadFiles()
-                checkSharedVaultStatus()
+                viewModel.loadFiles()
+                viewModel.checkSharedVaultStatus()
             }
         }
         .onChange(of: showingPhotoPicker) { _, _ in
@@ -455,27 +371,26 @@ struct VaultView: View {
         .onChange(of: showingFilePicker) { _, _ in
             appState.suppressLockForShareSheet = showingPhotoPicker || showingFilePicker
         }
-        .onChange(of: transferManager.status) { _, newStatus in
+        .onChange(of: viewModel.transferManager.status) { _, newStatus in
             if case .importComplete = newStatus {
-                loadVault()
-                // Auto-reset after reload
+                viewModel.loadVault()
                 Task {
                     try? await Task.sleep(for: .seconds(2))
-                    transferManager.reset()
+                    viewModel.transferManager.reset()
                 }
             } else if case .uploadComplete = newStatus {
                 Task {
                     try? await Task.sleep(for: .seconds(2))
-                    transferManager.reset()
+                    viewModel.transferManager.reset()
                 }
             }
         }
-        .onChange(of: exportURLs) { _, urls in
+        .onChange(of: viewModel.exportURLs) { _, urls in
             guard !urls.isEmpty else { return }
             ShareSheetHelper.present(items: urls) {
-                cleanupExportFiles()
-                selectedIds.removeAll()
-                isEditing = false
+                viewModel.cleanupExportFiles()
+                viewModel.selectedIds.removeAll()
+                viewModel.isEditing = false
             }
         }
         .ignoresSafeArea(.keyboard)

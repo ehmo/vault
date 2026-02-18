@@ -17,7 +17,7 @@ extension VaultView {
                     Text("Shared Vault")
                         .font(.caption).fontWeight(.medium)
 
-                    if let expires = sharePolicy?.expiresAt {
+                    if let expires = viewModel.sharePolicy?.expiresAt {
                         Text("Expires: \(expires, style: .date)")
                             .font(.caption2).foregroundStyle(.vaultSecondaryText)
                     }
@@ -25,9 +25,9 @@ extension VaultView {
 
                 Spacer()
 
-                if updateAvailable {
+                if viewModel.updateAvailable {
                     Button(action: { Task { await downloadUpdate() } }) {
-                        if isUpdating {
+                        if viewModel.isUpdating {
                             ProgressView().scaleEffect(0.7)
                         } else {
                             Text("Update Now")
@@ -36,15 +36,15 @@ extension VaultView {
                     }
                     .vaultProminentButtonStyle()
                     .controlSize(.mini)
-                    .disabled(isUpdating)
-                    .accessibilityLabel(isUpdating ? "Updating shared vault" : "Update shared vault")
+                    .disabled(viewModel.isUpdating)
+                    .accessibilityLabel(viewModel.isUpdating ? "Updating shared vault" : "Update shared vault")
                 }
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
             .accessibilityElement(children: .combine)
 
-            if updateAvailable {
+            if viewModel.updateAvailable {
                 HStack {
                     Image(systemName: "arrow.down.circle.fill")
                         .foregroundStyle(.tint)
@@ -60,87 +60,14 @@ extension VaultView {
         .vaultBannerBackground()
     }
 
-    // MARK: - Shared Vault Checks
-
-    func checkSharedVaultStatus() {
-        guard let key = appState.currentVaultKey else { return }
-
-        Task {
-            do {
-                var index = try VaultStorage.shared.loadIndex(with: key)
-
-                let shared = index.isSharedVault ?? false
-                await MainActor.run {
-                    isSharedVault = shared
-                    sharePolicy = index.sharePolicy
-                    sharedVaultId = index.sharedVaultId
-                }
-
-                guard shared else { return }
-
-                // Check expiration
-                if let expires = index.sharePolicy?.expiresAt, Date() > expires {
-                    await MainActor.run {
-                        selfDestructMessage = "This shared vault has expired. The vault owner set an expiration date of \(expires.formatted(date: .abbreviated, time: .omitted)). All shared files have been removed."
-                        showSelfDestructAlert = true
-                    }
-                    return
-                }
-
-                // Check view count — only increment once per unlock session
-                if !hasCountedOpenThisSession {
-                    let currentOpens = (index.openCount ?? 0) + 1
-                    if let maxOpens = index.sharePolicy?.maxOpens, currentOpens > maxOpens {
-                        await MainActor.run {
-                            selfDestructMessage = "This shared vault has reached its maximum number of opens. All shared files have been removed."
-                            showSelfDestructAlert = true
-                        }
-                        return
-                    }
-
-                    // Increment open count
-                    index.openCount = currentOpens
-                    try VaultStorage.shared.saveIndex(index, with: key)
-                    await MainActor.run { hasCountedOpenThisSession = true }
-                }
-
-                // Check for revocation / updates
-                if let vaultId = index.sharedVaultId {
-                    do {
-                        let currentVersion = index.sharedVaultVersion ?? 1
-                        if let _ = try await CloudKitSharingManager.shared.checkForUpdates(
-                            shareVaultId: vaultId, currentVersion: currentVersion
-                        ) {
-                            await MainActor.run {
-                                updateAvailable = true
-                            }
-                        }
-                    } catch CloudKitSharingError.revoked {
-                        await MainActor.run {
-                            selfDestructMessage = "The vault owner has revoked your access to this shared vault. All shared files have been removed."
-                            showSelfDestructAlert = true
-                        }
-                    } catch {
-                        // Network error - continue with cached data
-                        #if DEBUG
-                        print("⚠️ [VaultView] Failed to check for updates: \(error)")
-                        #endif
-                    }
-                }
-            } catch {
-                #if DEBUG
-                print("❌ [VaultView] Failed to check shared vault status: \(error)")
-                #endif
-            }
-        }
-    }
+    // MARK: - Download Update
 
     func downloadUpdate() async {
         guard let key = appState.currentVaultKey,
-              let vaultId = sharedVaultId else { return }
+              let vaultId = viewModel.sharedVaultId else { return }
 
-        isUpdating = true
-        defer { isUpdating = false }
+        viewModel.isUpdating = true
+        defer { viewModel.isUpdating = false }
 
         do {
             let index = try VaultStorage.shared.loadIndex(with: key)
@@ -176,8 +103,8 @@ extension VaultView {
                 try VaultStorage.shared.saveIndex(updatedIndex, with: key)
             }
 
-            updateAvailable = false
-            loadFiles()
+            viewModel.updateAvailable = false
+            viewModel.loadFiles()
         } catch {
             #if DEBUG
             print("❌ [VaultView] Failed to download update: \(error)")
@@ -250,32 +177,5 @@ extension VaultView {
                 thumbnailData: thumbnailData
             )
         }
-    }
-
-    func selfDestruct() {
-        guard let key = appState.currentVaultKey else { return }
-
-        // Delete all files and the vault index
-        do {
-            let index = try VaultStorage.shared.loadIndex(with: key)
-
-            // Signal consumed to sender before deleting local data
-            if let vaultId = index.sharedVaultId {
-                Task {
-                    try? await CloudKitSharingManager.shared.markShareConsumed(shareVaultId: vaultId)
-                }
-            }
-
-            for file in index.files where !file.isDeleted {
-                try? VaultStorage.shared.deleteFile(id: file.fileId, with: key)
-            }
-            try VaultStorage.shared.deleteVaultIndex(for: key)
-        } catch {
-            #if DEBUG
-            print("❌ [VaultView] Self-destruct error: \(error)")
-            #endif
-        }
-
-        appState.lockVault()
     }
 }

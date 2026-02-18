@@ -71,7 +71,7 @@ extension VaultView {
 
     var mainPlusButtonView: some View {
         Button {
-            if subscriptionManager.canAddFile(currentFileCount: files.count) {
+            if subscriptionManager.canAddFile(currentFileCount: viewModel.files.count) {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
                     showingFanMenu.toggle()
                 }

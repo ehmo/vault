@@ -7,8 +7,8 @@ extension VaultView {
     @ViewBuilder
     func fileGridContentView(visible: VisibleFiles) -> some View {
         ScrollView {
-            if let masterKey {
-                if useDateGrouping {
+            if let masterKey = viewModel.masterKey {
+                if viewModel.useDateGrouping {
                     dateGroupedContentView(visible: visible, masterKey: masterKey.rawBytes)
                 } else {
                     flatContentView(visible: visible, masterKey: masterKey.rawBytes)
@@ -21,7 +21,11 @@ extension VaultView {
 
     @ViewBuilder
     func dateGroupedContentView(visible: VisibleFiles, masterKey: Data) -> some View {
-        let groups = groupFilesByDate(visible.all, newestFirst: sortOrder == .dateNewest)
+        let groups = groupFilesByDate(visible.all, newestFirst: viewModel.sortOrder == .dateNewest)
+        let deleteHandler: ((UUID) -> Void)? = viewModel.isSharedVault ? nil : { id in viewModel.deleteFileById(id) }
+        let isEditing = viewModel.isEditing
+        let selectedIds = viewModel.selectedIds
+        let fileFilter = viewModel.fileFilter
         LazyVStack(alignment: .leading, spacing: 0, pinnedViews: .sectionHeaders) {
             ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
                 Section {
@@ -31,15 +35,15 @@ extension VaultView {
                                 EmbraceManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                                 let globalIndex = visible.mediaIndexById[file.id] ?? 0
                                 selectedPhotoIndex = globalIndex
-                            }, onDelete: isSharedVault ? nil : deleteFileById,
-                               isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
+                            }, onDelete: deleteHandler,
+                               isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: { id in viewModel.toggleSelection(id) })
                         } else {
                             FilesGridView(files: group.items, onSelect: { file in
                                 EmbraceManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                                 selectedFile = file
-                            }, onDelete: isSharedVault ? nil : deleteFileById,
+                            }, onDelete: deleteHandler,
                                masterKey: masterKey,
-                               isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
+                               isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: { id in viewModel.toggleSelection(id) })
                         }
                     }
                     .padding(.top, 4)
@@ -60,19 +64,22 @@ extension VaultView {
 
     @ViewBuilder
     func flatContentView(visible: VisibleFiles, masterKey: Data) -> some View {
-        if fileFilter == .media {
+        let deleteHandler: ((UUID) -> Void)? = viewModel.isSharedVault ? nil : { id in viewModel.deleteFileById(id) }
+        let isEditing = viewModel.isEditing
+        let selectedIds = viewModel.selectedIds
+        if viewModel.fileFilter == .media {
             PhotosGridView(files: visible.media, masterKey: masterKey, onSelect: { file, index in
                 EmbraceManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                 selectedPhotoIndex = index
-            }, onDelete: isSharedVault ? nil : deleteFileById,
-               isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
+            }, onDelete: deleteHandler,
+               isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: { id in viewModel.toggleSelection(id) })
         } else {
             FilesGridView(files: visible.all, onSelect: { file in
                 EmbraceManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
                 selectedFile = file
-            }, onDelete: isSharedVault ? nil : deleteFileById,
+            }, onDelete: deleteHandler,
                masterKey: masterKey,
-               isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: toggleSelection)
+               isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: { id in viewModel.toggleSelection(id) })
         }
     }
 
@@ -96,11 +103,11 @@ extension VaultView {
 
     var emptyStateContent: some View {
         VStack(spacing: 20) {
-            if case .importing = transferManager.status {
+            if case .importing = viewModel.transferManager.status {
                 Spacer()
                 importingProgressContent
                 Spacer()
-            } else if isSharedVault {
+            } else if viewModel.isSharedVault {
                 Image(systemName: "person.2.fill")
                     .font(.system(size: 48))
                     .foregroundStyle(.vaultSecondaryText)
@@ -139,7 +146,7 @@ extension VaultView {
                 Spacer()
 
                 Button(action: {
-                    if subscriptionManager.canAddFile(currentFileCount: files.count) {
+                    if subscriptionManager.canAddFile(currentFileCount: viewModel.files.count) {
                         showingImportOptions = true
                     } else {
                         showingPaywall = true
@@ -188,7 +195,7 @@ extension VaultView {
     // MARK: - Import Progress
 
     var importingProgressContent: some View {
-        let progress = max(0, min(transferManager.displayProgress, 100))
+        let progress = max(0, min(viewModel.transferManager.displayProgress, 100))
         return VStack(spacing: 20) {
             VaultSyncIndicator(style: .loading, message: "Downloading shared vault...")
 
@@ -201,7 +208,7 @@ extension VaultView {
                     .foregroundStyle(.vaultSecondaryText)
             }
 
-            Text(transferManager.currentMessage)
+            Text(viewModel.transferManager.currentMessage)
                 .font(.subheadline)
                 .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
@@ -219,7 +226,7 @@ extension VaultView {
         return VStack(spacing: 24) {
             PixelAnimation.loading(size: 60)
 
-            Text(isDeleteInProgress ? "Deleting \(completed) of \(total)..." : "Importing \(completed) of \(total)...")
+            Text(viewModel.isDeleteInProgress ? "Deleting \(completed) of \(total)..." : "Importing \(completed) of \(total)...")
                 .font(.title3)
                 .fontWeight(.medium)
 

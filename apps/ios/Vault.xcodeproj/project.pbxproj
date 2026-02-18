@@ -146,6 +146,7 @@
 		VV0000005 /* VaultView+FanMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000004 /* VaultView+FanMenu.swift */; };
 		VV0000007 /* VaultView+SharedVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000006 /* VaultView+SharedVault.swift */; };
 		VV0000009 /* VaultView+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000008 /* VaultView+Actions.swift */; };
+		VVM000001 /* VaultViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = VVM000000 /* VaultViewModel.swift */; };
 		UI0000001 /* BaseUITest.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000000 /* BaseUITest.swift */; };
 		UI0000003 /* XCUIElement+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000002 /* XCUIElement+Helpers.swift */; };
 		UI0000005 /* AccessibilityIDs.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000004 /* AccessibilityIDs.swift */; };
@@ -339,6 +340,7 @@
 		VV0000004 /* VaultView+FanMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+FanMenu.swift"; sourceTree = "<group>"; };
 		VV0000006 /* VaultView+SharedVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+SharedVault.swift"; sourceTree = "<group>"; };
 		VV0000008 /* VaultView+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Actions.swift"; sourceTree = "<group>"; };
+		VVM000000 /* VaultViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultViewModel.swift; sourceTree = "<group>"; };
 		UI0000020 /* VaultUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VaultUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		UI0000000 /* BaseUITest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaseUITest.swift; sourceTree = "<group>"; };
 		UI0000002 /* XCUIElement+Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCUIElement+Helpers.swift"; sourceTree = "<group>"; };
@@ -574,6 +576,7 @@
 				VV0000004 /* VaultView+FanMenu.swift */,
 				VV0000006 /* VaultView+SharedVault.swift */,
 				VV0000008 /* VaultView+Actions.swift */,
+				VVM000000 /* VaultViewModel.swift */,
 				021000004 /* PhotosGridView.swift */,
 				021000006 /* FilesGridView.swift */,
 				021000008 /* FullScreenPhotoViewer.swift */,
@@ -1033,6 +1036,7 @@
 				VV0000005 /* VaultView+FanMenu.swift in Sources */,
 				VV0000007 /* VaultView+SharedVault.swift in Sources */,
 				VV0000009 /* VaultView+Actions.swift in Sources */,
+				VVM000001 /* VaultViewModel.swift in Sources */,
 				021000001 /* ThumbnailCache.swift in Sources */,
 				021000003 /* AsyncThumbnailView.swift in Sources */,
 				022000001 /* PixelAnimation.swift in Sources */,
