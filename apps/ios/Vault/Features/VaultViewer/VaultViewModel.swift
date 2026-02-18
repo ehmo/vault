@@ -349,6 +349,12 @@ final class VaultViewModel {
                 if let encThumb {
                     await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
                 }
+
+                EmbraceManager.shared.trackFeatureUsage("camera_capture", context: [
+                    "optimized": String(wasOptimized),
+                    "mime_type": mimeType
+                ])
+
                 await MainActor.run {
                     if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: self.files.count + 1) {
                         self.toastMessage = .milestone(milestone)
@@ -371,11 +377,19 @@ final class VaultViewModel {
 
     /// Returns limit info (remaining, selected) if the user hit the free plan cap, nil if import proceeds normally.
     func handleSelectedPhotos(_ results: [PHPickerResult]) -> (remaining: Int, selected: Int)? {
-        guard !isSharedVault, appState?.currentVaultKey != nil else { return nil }
-        guard let subscriptionManager else { return nil }
+        vmLogger.info("📸 handleSelectedPhotos called with \(results.count) results")
+        guard !isSharedVault, appState?.currentVaultKey != nil else {
+            vmLogger.warning("❌ handleSelectedPhotos: guard failed - isSharedVault=\(self.isSharedVault), hasKey=\(self.appState?.currentVaultKey != nil)")
+            return nil
+        }
+        guard let subscriptionManager else {
+            vmLogger.warning("❌ handleSelectedPhotos: no subscriptionManager")
+            return nil
+        }
 
         if !subscriptionManager.isPremium {
-            let remaining = max(0, SubscriptionManager.maxFreeFilesPerVault - files.count)
+            let remaining = max(0, SubscriptionManager.maxFreeFilesPerVault - self.files.count)
+            vmLogger.info("💰 Free tier check: remaining=\(remaining), files.count=\(self.files.count)")
             if remaining == 0 {
                 return (0, results.count)
             }
@@ -385,29 +399,41 @@ final class VaultViewModel {
             }
         }
 
+        vmLogger.info("✅ Proceeding with photo import of \(results.count) photos")
         performPhotoImport(results)
         return nil
     }
 
     func performPhotoImport(_ results: [PHPickerResult]) {
-        guard let key = appState?.currentVaultKey else { return }
+        vmLogger.info("🚀 performPhotoImport START with \(results.count) photos")
+        guard let key = appState?.currentVaultKey else {
+            vmLogger.error("❌ performPhotoImport: no vault key")
+            return
+        }
         let encryptionKey = self.masterKey?.rawBytes ?? key.rawBytes
+        vmLogger.info("🔑 Using masterKey: \(self.masterKey != nil), encryptionKey length: \(encryptionKey.count)")
         let count = results.count
         let optimizationMode = MediaOptimizer.Mode(rawValue: fileOptimization) ?? .optimized
+        vmLogger.info("⚙️ Optimization mode: \(optimizationMode.rawValue)")
 
         activeImportTask?.cancel()
         importProgress = (0, count)
         IdleTimerManager.shared.disable()
+        vmLogger.info("🔄 Starting import task with \(count) items")
 
         activeImportTask = Task.detached(priority: .userInitiated) {
             var successCount = 0
             var failedCount = 0
             var lastErrorReason: String?
             for (index, result) in results.enumerated() {
-                guard !Task.isCancelled else { break }
+                guard !Task.isCancelled else {
+                    vmLogger.info("⏹️ Import cancelled at index \(index)")
+                    break
+                }
 
                 let provider = result.itemProvider
                 let isVideo = provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier)
+                vmLogger.info("📦 Processing item \(index + 1)/\(count) - isVideo: \(isVideo)")
 
                 do {
                     if isVideo {
@@ -438,22 +464,27 @@ final class VaultViewModel {
                         let metadata = await VaultView.generateVideoMetadata(from: optimizedURL)
                         let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
 
+                        vmLogger.info("💾 Storing video to disk: \(filename)")
                         let fileId = try VaultStorage.shared.storeFileFromURL(
                             optimizedURL, filename: filename, mimeType: mimeType,
                             with: key, thumbnailData: metadata.thumbnail, duration: metadata.duration
                         )
+                        vmLogger.info("✅ Video stored successfully, fileId: \(fileId)")
 
                         let encThumb = metadata.thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
                         if let encThumb {
                             await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
+                            vmLogger.info("🖼️ Thumbnail cached")
                         }
                         await MainActor.run {
                             guard !Task.isCancelled else { return }
+                            vmLogger.info("➕ Adding video to UI, files.count was: \(self.files.count)")
                             self.files.append(VaultFileItem(
                                 id: fileId, size: fileSize,
                                 hasThumbnail: encThumb != nil, mimeType: mimeType,
                                 filename: filename, createdAt: Date(), duration: metadata.duration
                             ))
+                            vmLogger.info("✅ Video added to UI, files.count now: \(self.files.count)")
                             self.importProgress = (index + 1, count)
                         }
                         successCount += 1
@@ -501,34 +532,44 @@ final class VaultViewModel {
                         let ext = mimeType == "image/heic" ? "heic" : "jpg"
                         let filename = "IMG_\(Date().timeIntervalSince1970)_\(index).\(ext)"
 
+                        vmLogger.info("🖼️ Generating thumbnail for image")
                         let thumbnail = FileUtilities.generateThumbnail(fromFileURL: optimizedURL)
                         let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
 
                         guard !Task.isCancelled else { break }
 
+                        vmLogger.info("💾 Storing image to disk: \(filename)")
                         let fileId = try VaultStorage.shared.storeFileFromURL(
                             optimizedURL, filename: filename, mimeType: mimeType,
                             with: key, thumbnailData: thumbnail
                         )
+                        vmLogger.info("✅ Image stored successfully, fileId: \(fileId)")
+
                         let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
                         if let encThumb {
                             await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
                         }
                         await MainActor.run {
                             guard !Task.isCancelled else { return }
+                            vmLogger.info("➕ Adding image to UI, files.count was: \(self.files.count)")
                             self.files.append(VaultFileItem(
                                 id: fileId, size: fileSize,
                                 hasThumbnail: encThumb != nil, mimeType: mimeType,
                                 filename: filename, createdAt: Date()
                             ))
+                            vmLogger.info("✅ Image added to UI, files.count now: \(self.files.count)")
                             self.importProgress = (index + 1, count)
                         }
                         successCount += 1
                     }
                 } catch {
-                    if Task.isCancelled { break }
+                    if Task.isCancelled { 
+                        vmLogger.info("⏹️ Import task cancelled at index \(index)")
+                        break 
+                    }
                     failedCount += 1
                     lastErrorReason = error.localizedDescription
+                    vmLogger.error("❌ Import error at index \(index): \(error.localizedDescription, privacy: .public)")
                     EmbraceManager.shared.addBreadcrumb(
                         category: "import.failed",
                         data: ["index": index, "isVideo": isVideo, "error": "\(error)"]
@@ -550,6 +591,7 @@ final class VaultViewModel {
                 }
                 self.importProgress = nil
                 IdleTimerManager.shared.enable()
+                vmLogger.info("🏁 Import complete - success: \(imported), failed: \(failed), files.count: \(self.files.count)")
                 if failed > 0 && imported == 0 {
                     self.toastMessage = .importFailed(failed, imported: 0, reason: errorReason)
                 } else if failed > 0 {
@@ -559,10 +601,10 @@ final class VaultViewModel {
                 } else {
                     self.toastMessage = .filesImported(imported)
                 }
-                vmLogger.info("Photo import complete: imported=\(imported), failed=\(failed), files.count=\(self.files.count)")
                 // Safety net: reload from disk to ensure in-memory state matches persisted state.
                 // Guards against edge cases where files were stored but in-memory array diverged.
                 if imported > 0 {
+                    vmLogger.info("🔄 Calling loadFiles() from import completion - files.count before: \(self.files.count)")
                     self.loadFiles()
                 }
             }
@@ -814,6 +856,12 @@ final class VaultViewModel {
                 }
 
                 guard shared else { return }
+
+                EmbraceManager.shared.trackFeatureUsage("shared_vault_opened", context: [
+                    "vault_id": sharedVaultId ?? "unknown",
+                    "has_expiration": String(index.sharePolicy?.expiresAt != nil),
+                    "has_max_opens": String(index.sharePolicy?.maxOpens != nil)
+                ])
 
                 if let expires = index.sharePolicy?.expiresAt, Date() > expires {
                     await MainActor.run {
