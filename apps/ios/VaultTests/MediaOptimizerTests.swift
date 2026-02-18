@@ -296,10 +296,42 @@ final class MediaOptimizerTests: XCTestCase {
         }
     }
 
+    func testPortraitVideoPreservesNaturalSize() async throws {
+        // Create a portrait video (1080x1920 natural with 90° rotation transform)
+        let videoURL = try await createMinimalVideo(width: 1920, height: 1080, rotated: true)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+            fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
+        )
+        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+
+        if wasOptimized {
+            XCTAssertEqual(mimeType, "video/mp4")
+
+            // Verify the output video track dimensions match naturalSize (not transformed)
+            let asset = AVURLAsset(url: outputURL)
+            guard let track = try? await asset.loadTracks(withMediaType: .video).first else {
+                XCTFail("No video track in output")
+                return
+            }
+            let outputSize = try await track.load(.naturalSize)
+            // Writer dimensions should be based on naturalSize (1920x1080),
+            // NOT the transformed size (1080x1920)
+            XCTAssertEqual(Int(outputSize.width), 1920)
+            XCTAssertEqual(Int(outputSize.height), 1080)
+        }
+        // If not optimized (e.g., bitrate already low), that's acceptable
+    }
+
     // MARK: - Video Helper
 
     /// Creates a minimal 1-second video file for testing.
-    private func createMinimalVideo() async throws -> URL {
+    /// - Parameters:
+    ///   - width: Pixel buffer width (default 320)
+    ///   - height: Pixel buffer height (default 240)
+    ///   - rotated: If true, applies a 90° clockwise rotation transform (simulates portrait recording)
+    private func createMinimalVideo(width: Int = 320, height: Int = 240, rotated: Bool = false) async throws -> URL {
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("mov")
@@ -309,17 +341,21 @@ final class MediaOptimizerTests: XCTestCase {
 
         let videoSettings: [String: Any] = [
             AVVideoCodecKey: AVVideoCodecType.h264,
-            AVVideoWidthKey: 320,
-            AVVideoHeightKey: 240
+            AVVideoWidthKey: width,
+            AVVideoHeightKey: height
         ]
 
         let writerInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
+        if rotated {
+            // 90° clockwise rotation (portrait video recorded in landscape sensor)
+            writerInput.transform = CGAffineTransform(rotationAngle: .pi / 2)
+        }
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(
             assetWriterInput: writerInput,
             sourcePixelBufferAttributes: [
                 kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB,
-                kCVPixelBufferWidthKey as String: 320,
-                kCVPixelBufferHeightKey as String: 240
+                kCVPixelBufferWidthKey as String: width,
+                kCVPixelBufferHeightKey as String: height
             ]
         )
         writerInput.expectsMediaDataInRealTime = false
@@ -335,7 +371,7 @@ final class MediaOptimizerTests: XCTestCase {
 
             var pixelBuffer: CVPixelBuffer?
             CVPixelBufferCreate(
-                kCFAllocatorDefault, 320, 240,
+                kCFAllocatorDefault, width, height,
                 kCVPixelFormatType_32ARGB, nil, &pixelBuffer
             )
             guard let buffer = pixelBuffer else { continue }
@@ -345,13 +381,13 @@ final class MediaOptimizerTests: XCTestCase {
                 // Fill with a color gradient per frame
                 let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
                 let ptr = baseAddress.assumingMemoryBound(to: UInt8.self)
-                for y in 0..<240 {
-                    for x in 0..<320 {
+                for y in 0..<height {
+                    for x in 0..<width {
                         let offset = y * bytesPerRow + x * 4
                         ptr[offset] = 255 // A
                         ptr[offset + 1] = UInt8(i * 8 % 256) // R
-                        ptr[offset + 2] = UInt8(x * 255 / 320) // G
-                        ptr[offset + 3] = UInt8(y * 255 / 240) // B
+                        ptr[offset + 2] = UInt8(x * 255 / width) // G
+                        ptr[offset + 3] = UInt8(y * 255 / height) // B
                     }
                 }
             }

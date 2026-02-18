@@ -70,6 +70,7 @@ struct FullScreenPhotoViewer: View {
                 .scrollTargetBehavior(.paging)
                 .scrollPosition(id: $pageScrollID)
                 .scrollDisabled(isZoomed)
+                .ignoresSafeArea()
                 .onAppear {
                     pageScrollID = currentIndex
                 }

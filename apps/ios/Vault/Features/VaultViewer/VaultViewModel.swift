@@ -100,8 +100,7 @@ final class VaultViewModel {
         }
         if !searchText.isEmpty {
             visible = visible.filter {
-                ($0.filename ?? "").localizedStandardContains(searchText) ||
-                ($0.mimeType ?? "").localizedStandardContains(searchText)
+                ($0.filename ?? "").localizedStandardContains(searchText)
             }
         }
         switch sortOrder {
@@ -183,10 +182,12 @@ final class VaultViewModel {
                     self.isLoading = false
 
                     // Auto-detect best filter based on vault contents
-                    if !items.isEmpty && self.fileFilter == .all {
+                    if !items.isEmpty {
                         let hasNonMedia = items.contains { !$0.isMedia }
-                        if !hasNonMedia {
+                        if !hasNonMedia && self.fileFilter == .all {
                             self.setFileFilter(.media)
+                        } else if hasNonMedia && self.fileFilter == .media {
+                            self.setFileFilter(.all)
                         }
                     }
 

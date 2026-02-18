@@ -23,17 +23,18 @@ final class ZoomableImageContainerTests: XCTestCase {
 
     func testCenterImageViewAtZoomScale() {
         let scrollView = UIScrollView(frame: CGRect(x: 0, y: 0, width: 400, height: 800))
-        let imageView = UIImageView(frame: CGRect(x: 0, y: 0, width: 200, height: 300))
+        // At 2x zoom, imageView.frame is already scaled by UIScrollView
+        let imageView = UIImageView(frame: CGRect(x: 0, y: 0, width: 400, height: 600))
         scrollView.addSubview(imageView)
-        scrollView.contentSize = CGSize(width: 200, height: 300)
+        scrollView.contentSize = CGSize(width: 400, height: 600)
         scrollView.zoomScale = 2.0
 
         ZoomableImageContainer.centerImageView(imageView, in: scrollView)
 
-        // At 2x zoom: content 400x600, fits in 400x800
-        // Horizontal: max(0, (400 - 200*2)/2) = 0, center.x = 200
+        // At 2x zoom: frame is 400x600, fits in 400x800
+        // Horizontal: max(0, (400 - 400)/2) = 0, center.x = 200
         XCTAssertEqual(imageView.center.x, 200, accuracy: 0.5)
-        // Vertical: max(0, (800 - 300*2)/2) = 100, center.y = 300 + 100 = 400
+        // Vertical: max(0, (800 - 600)/2) = 100, center.y = 300 + 100 = 400
         XCTAssertEqual(imageView.center.y, 400, accuracy: 0.5)
     }
 

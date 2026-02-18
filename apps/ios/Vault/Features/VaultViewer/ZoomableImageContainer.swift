@@ -99,14 +99,14 @@ struct ZoomableImageContainer: UIViewRepresentable {
 
     static func centerImageView(_ imageView: UIImageView, in scrollView: UIScrollView) {
         let boundsSize = scrollView.bounds.size
-        let contentSize = scrollView.contentSize
+        let frameSize = imageView.frame.size
 
-        let xOffset = max(0, (boundsSize.width - contentSize.width * scrollView.zoomScale) / 2)
-        let yOffset = max(0, (boundsSize.height - contentSize.height * scrollView.zoomScale) / 2)
+        let xOffset = max(0, (boundsSize.width - frameSize.width) / 2)
+        let yOffset = max(0, (boundsSize.height - frameSize.height) / 2)
 
         imageView.center = CGPoint(
-            x: contentSize.width * scrollView.zoomScale / 2 + xOffset,
-            y: contentSize.height * scrollView.zoomScale / 2 + yOffset
+            x: frameSize.width / 2 + xOffset,
+            y: frameSize.height / 2 + yOffset
         )
     }
 
