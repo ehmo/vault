@@ -21,6 +21,11 @@ enum FileUtilities {
     /// Uses ImageIO downsampling to avoid decoding full-size images into memory.
     static func generateThumbnail(fromFileURL fileURL: URL, maxPixelSize: CGFloat = 400) -> Data? {
         guard let source = CGImageSourceCreateWithURL(fileURL as CFURL, nil) else { return nil }
+        
+        // Read EXIF orientation from source to preserve it in thumbnail
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        let orientation = (properties?[kCGImagePropertyOrientation] as? UInt32).flatMap { UIImage.Orientation(rawValue: Int($0)) } ?? .up
+        
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
@@ -29,7 +34,7 @@ enum FileUtilities {
         guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
             return nil
         }
-        let image = UIImage(cgImage: cgImage)
+        let image = UIImage(cgImage: cgImage, scale: 1.0, orientation: orientation)
         return image.jpegData(compressionQuality: 0.7)
     }
 

@@ -82,7 +82,9 @@ struct ZoomableImageContainer: UIViewRepresentable {
         // Ensure final centering after Auto Layout has resolved scrollView bounds.
         // Without this pass, initial layout can run with stale/zero bounds and leave
         // portrait media visually pinned near the top.
-        DispatchQueue.main.async {
+        // Use a longer delay (0.1s) to ensure bounds are fully resolved, especially
+        // after transitions or when view first appears.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             guard let currentImageView = scrollView.viewWithTag(100) as? UIImageView else { return }
             Self.centerImageView(currentImageView, in: scrollView)
         }

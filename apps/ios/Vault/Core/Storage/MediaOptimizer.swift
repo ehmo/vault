@@ -103,6 +103,9 @@ actor MediaOptimizer {
         let maxDimension = max(width, height)
 
         // Get source image — downsample if > 4096px
+        // Read EXIF orientation to preserve it when writing output
+        let orientation = (properties?[kCGImagePropertyOrientation] as? UInt32).flatMap { CGImagePropertyOrientation(rawValue: $0) } ?? .up
+        
         let cgImage: CGImage
         if maxDimension > 4096 {
             let thumbOptions: [CFString: Any] = [
@@ -135,8 +138,10 @@ actor MediaOptimizer {
             return (fileURL, mimeType, false)
         }
 
+        // Preserve EXIF orientation metadata when writing the output image
         let options: [CFString: Any] = [
-            kCGImageDestinationLossyCompressionQuality: 0.6
+            kCGImageDestinationLossyCompressionQuality: 0.6,
+            kCGImagePropertyOrientation: orientation.rawValue
         ]
         CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
 
