@@ -3,7 +3,7 @@
   "checkpoint_id": "a57983059a9e",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 2,
+  "checkpoints_count": 1,
   "files_touched": [
     "apps/ios/rating-screen-prototype.html"
   ],
@@ -17,10 +17,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 14,
-    "cache_creation_tokens": 28747,
-    "cache_read_tokens": 468379,
-    "output_tokens": 69,
-    "api_call_count": 8
+    "input_tokens": 7,
+    "cache_creation_tokens": 12029,
+    "cache_read_tokens": 267955,
+    "output_tokens": 274,
+    "api_call_count": 5
   }
 }
