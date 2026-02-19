@@ -6,6 +6,7 @@ enum OnboardingStep: Int, CaseIterable {
     case analytics
     case paywall
     case thankYou
+    case rating
 
     var progressFraction: CGFloat {
         CGFloat(rawValue + 1) / CGFloat(Self.allCases.count)
@@ -101,7 +102,9 @@ struct OnboardingView: View {
                 case .paywall:
                     PaywallStepView(onContinue: { advance() })
                 case .thankYou:
-                    ThankYouView(onContinue: {
+                    ThankYouView(onContinue: { advance() })
+                case .rating:
+                    RatingView(onContinue: {
                         if let dismiss = onReplayDismiss {
                             dismiss()
                         } else {

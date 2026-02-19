@@ -86,8 +86,16 @@
     flex-shrink: 0;
   }
 
-  /* Spacer pushes card area down */
   .spacer { flex: 1; }
+
+  /* Stat section — vertically centered */
+  .stat-section {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 24px;
+  }
 
   /* Card area at bottom */
   .card-area {
@@ -130,7 +138,7 @@
     font-size: 14px;
     color: var(--secondary-text);
     text-align: center;
-    margin-bottom: 16px;
+    margin-bottom: 0;
   }
 
   /* Reviews container — surface-colored rounded rect like paywall cards */
@@ -304,73 +312,86 @@
 
   <div class="spacer"></div>
 
-  <div class="card-area">
+  <div class="stat-section">
     <div class="stat-number">1M+ vaults<br>created</div>
 
     <div class="avatars">
-      <img class="avatar" src="https://i.pravatar.cc/96?img=12" alt="">
+      <img class="avatar" src="https://i.pravatar.cc/96?img=32" alt="">
+      <img class="avatar" src="https://i.pravatar.cc/96?img=26" alt="">
+      <img class="avatar" src="https://i.pravatar.cc/96?img=23" alt="">
       <img class="avatar" src="https://i.pravatar.cc/96?img=33" alt="">
-      <img class="avatar" src="https://i.pravatar.cc/96?img=59" alt="">
+      <img class="avatar" src="https://i.pravatar.cc/96?img=12" alt="">
     </div>
 
     <p class="subtitle">by people like you</p>
+  </div>
 
+  <div class="spacer"></div>
+
+  <div class="card-area">
     <div class="reviews-container">
       <div class="reviews-scroll" id="reviewsScroll">
+
+        <!-- Jessica M., 26 -->
         <div class="review-card">
-          <p class="review-text">"Finally a vault app that doesn't just hide files behind a PIN. Real encryption, no accounts, no cloud snooping. This is what privacy should look like."</p>
+          <p class="review-text">"I have photos on my phone I'd literally die if anyone saw. Knowing they're behind real encryption and not just a hidden album with a passcode? I can finally breathe."</p>
           <div class="review-author">
-            <img class="author-avatar" src="https://i.pravatar.cc/72?img=12" alt="">
+            <img class="author-avatar" src="https://i.pravatar.cc/72?img=32" alt="">
             <div class="author-info">
-              <span class="author-name">PrivacyFirst_99</span>
+              <span class="author-name">jessicam_26</span>
               <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
             </div>
           </div>
         </div>
 
+        <!-- Brooke H., 31 -->
         <div class="review-card">
-          <p class="review-text">"The duress vault is genius. I can hand over my phone and nobody will ever know my real vault exists. Exactly what I needed for travel."</p>
+          <p class="review-text">"My husband and I keep our private photos in a shared vault. No cloud, no accounts, no one at some tech company reviewing our moments. As it should be."</p>
+          <div class="review-author">
+            <img class="author-avatar" src="https://i.pravatar.cc/72?img=26" alt="">
+            <div class="author-info">
+              <span class="author-name">brooke.h</span>
+              <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Michelle R., 44 -->
+        <div class="review-card">
+          <p class="review-text">"After my divorce I needed somewhere truly private. Not behind a paywall. Not on someone's cloud. Not accessible by lawyers or exes. Actually encrypted. This is it."</p>
+          <div class="review-author">
+            <img class="author-avatar" src="https://i.pravatar.cc/72?img=23" alt="">
+            <div class="author-info">
+              <span class="author-name">Michelle_R</span>
+              <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tyler K., 23 -->
+        <div class="review-card">
+          <p class="review-text">"Girls would lose it over photos in my Hidden Album. Vaultaire doesn't even show up as a vault on my phone. No more drama in that department."</p>
           <div class="review-author">
             <img class="author-avatar" src="https://i.pravatar.cc/72?img=33" alt="">
             <div class="author-info">
-              <span class="author-name">TravelSafe_Mike</span>
+              <span class="author-name">tk_dev</span>
               <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
             </div>
           </div>
         </div>
 
+        <!-- Marcus J., 34 -->
         <div class="review-card">
-          <p class="review-text">"Love that there's no account, no email, nothing. Just draw a pattern and your vault is encrypted. Simple and actually secure."</p>
+          <p class="review-text">"I travel through 15+ countries a year. Border agents have asked to see my phone twice. The duress vault saved me both times. Nothing else on the App Store has this."</p>
           <div class="review-author">
-            <img class="author-avatar" src="https://i.pravatar.cc/72?img=47" alt="">
+            <img class="author-avatar" src="https://i.pravatar.cc/72?img=12" alt="">
             <div class="author-info">
-              <span class="author-name">SecureByDefault</span>
+              <span class="author-name">marcusj_</span>
               <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
             </div>
           </div>
         </div>
 
-        <div class="review-card">
-          <p class="review-text">"Switched from Keepsafe after realizing they don't actually encrypt anything. Vaultaire uses AES-256 — the real deal. Never going back."</p>
-          <div class="review-author">
-            <img class="author-avatar" src="https://i.pravatar.cc/72?img=59" alt="">
-            <div class="author-info">
-              <span class="author-name">CryptoNerd_2025</span>
-              <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="review-card">
-          <p class="review-text">"Clean UI, no ads, no upsell spam. The free tier is generous and Pro is worth every penny. Best vault app on the App Store."</p>
-          <div class="review-author">
-            <img class="author-avatar" src="https://i.pravatar.cc/72?img=68" alt="">
-            <div class="author-info">
-              <span class="author-name">MinimalistApps</span>
-              <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
 
