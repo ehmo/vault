@@ -1,6 +1,7 @@
 import SwiftUI
 import AVFoundation
 import UserNotifications
+import Photos
 import os.log
 
 private let permissionsLogger = Logger(subsystem: "app.vaultaire.ios", category: "Permissions")
@@ -10,6 +11,7 @@ struct PermissionsView: View {
 
     @State private var notificationStatus: PermissionStatus = .notDetermined
     @State private var cameraStatus: PermissionStatus = .notDetermined
+    @State private var photoStatus: PermissionStatus = .notDetermined
 
     enum PermissionStatus {
         case notDetermined, granted, denied
@@ -48,6 +50,14 @@ struct PermissionsView: View {
                     description: "Capture photos directly into your vault",
                     status: cameraStatus,
                     action: requestCamera
+                )
+
+                permissionRow(
+                    icon: "photo.fill",
+                    title: "Photos",
+                    description: "Import existing photos and videos",
+                    status: photoStatus,
+                    action: requestPhotos
                 )
             }
             .padding(.horizontal, 24)
@@ -122,6 +132,7 @@ struct PermissionsView: View {
     private func checkCurrentStatuses() async {
         async let notifSettings = UNUserNotificationCenter.current().notificationSettings()
         let cameraAuth = AVCaptureDevice.authorizationStatus(for: .video)
+        let photoAuth = PHPhotoLibrary.authorizationStatus()
 
         let settings = await notifSettings
         await MainActor.run {
@@ -135,6 +146,12 @@ struct PermissionsView: View {
             case .authorized: cameraStatus = .granted
             case .denied, .restricted: cameraStatus = .denied
             default: cameraStatus = .notDetermined
+            }
+
+            switch photoAuth {
+            case .authorized, .limited: photoStatus = .granted
+            case .denied, .restricted: photoStatus = .denied
+            default: photoStatus = .notDetermined
             }
         }
     }
@@ -158,6 +175,35 @@ struct PermissionsView: View {
         permissionsLogger.info("Camera permission: \(granted)")
         await MainActor.run {
             cameraStatus = granted ? .granted : .denied
+        }
+    }
+
+    private func requestPhotos() async {
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        if status == .notDetermined {
+            PHPhotoLibrary.requestAuthorization(for: .readWrite) { newStatus in
+                DispatchQueue.main.async {
+                    switch newStatus {
+                    case .authorized, .limited:
+                        self.photoStatus = .granted
+                    case .denied, .restricted:
+                        self.photoStatus = .denied
+                    default:
+                        self.photoStatus = .notDetermined
+                    }
+                }
+            }
+        } else {
+            await MainActor.run {
+                switch status {
+                case .authorized, .limited:
+                    photoStatus = .granted
+                case .denied, .restricted:
+                    photoStatus = .denied
+                default:
+                    photoStatus = .notDetermined
+                }
+            }
         }
     }
 }

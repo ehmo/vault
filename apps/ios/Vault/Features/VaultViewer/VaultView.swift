@@ -101,6 +101,7 @@ struct VaultView: View {
     // UI-only presentation state
     @State var selectedFile: VaultFileItem?
     @State var selectedPhotoIndex: Int?
+    @State var selectedVideoFile: VaultFileItem?
     @State var showingImportOptions = false
     @State var showingCamera = false
     @State var showingPhotoPicker = false
@@ -284,6 +285,12 @@ struct VaultView: View {
                         selectedFile = nil
                     },
                     allowDownloads: viewModel.sharePolicy?.allowDownloads ?? true
+                )
+            }
+            .fullScreenCover(item: $selectedVideoFile) { file in
+                SecureVideoPlayer(
+                    file: file,
+                    vaultKey: appState.currentVaultKey
                 )
             }
             .fullScreenCover(isPresented: $showingSettings) {

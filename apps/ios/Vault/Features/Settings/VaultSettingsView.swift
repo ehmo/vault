@@ -75,14 +75,24 @@ struct VaultSettingsView: View {
                             .foregroundStyle(.vaultSecondaryText)
                     }
                 } else {
-                    Button("Share This Vault") {
-                        if subscriptionManager.canCreateSharedVault() {
+                    if subscriptionManager.canCreateSharedVault() {
+                        Button("Share This Vault") {
                             showingShareVault = true
-                        } else {
-                            showingPaywall = true
                         }
+                        .accessibilityIdentifier("settings_share_vault")
+                    } else {
+                        Button(action: { showingPaywall = true }) {
+                            HStack {
+                                Text("Share This Vault")
+                                Spacer()
+                                Image(systemName: "crown.fill")
+                                    .foregroundStyle(.vaultHighlight)
+                                    .font(.caption)
+                            }
+                        }
+                        .foregroundStyle(.primary)
+                        .accessibilityIdentifier("settings_share_vault")
                     }
-                    .accessibilityIdentifier("settings_share_vault")
                     if activeShareCount > 0 {
                         HStack {
                             Text("Shared with")
@@ -112,8 +122,14 @@ struct VaultSettingsView: View {
                     Text("Vaults with active sharing cannot be set as duress vaults")
                         .foregroundStyle(.vaultSecondaryText)
                 } else if !subscriptionManager.canCreateDuressVault() {
-                    Button("Use as duress vault") {
-                        showingPaywall = true
+                    Button(action: { showingPaywall = true }) {
+                        HStack {
+                            Text("Use as duress vault")
+                            Spacer()
+                            Image(systemName: "crown.fill")
+                                .foregroundStyle(.vaultHighlight)
+                                .font(.caption)
+                        }
                     }
                     .foregroundStyle(.primary)
                 } else {

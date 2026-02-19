@@ -33,14 +33,26 @@ extension VaultView {
                         if fileFilter == .media {
                             PhotosGridView(files: group.media, masterKey: masterKey, onSelect: { file, _ in
                                 EmbraceManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
-                                let globalIndex = visible.mediaIndexById[file.id] ?? 0
-                                selectedPhotoIndex = globalIndex
+                                if (file.mimeType ?? "").hasPrefix("video/") {
+                                    selectedVideoFile = file
+                                } else {
+                                    let globalIndex = visible.mediaIndexById[file.id] ?? 0
+                                    selectedPhotoIndex = globalIndex
+                                }
                             }, onDelete: deleteHandler,
                                isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: { id in viewModel.toggleSelection(id) })
                         } else {
                             FilesGridView(files: group.items, onSelect: { file in
                                 EmbraceManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
-                                selectedFile = file
+                                if (file.mimeType ?? "").hasPrefix("video/") {
+                                    selectedVideoFile = file
+                                } else if file.isMedia {
+                                    // Use photo viewer for images in All filter too
+                                    let globalIndex = visible.mediaIndexById[file.id] ?? 0
+                                    selectedPhotoIndex = globalIndex
+                                } else {
+                                    selectedFile = file
+                                }
                             }, onDelete: deleteHandler,
                                masterKey: masterKey,
                                isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: { id in viewModel.toggleSelection(id) })
@@ -70,13 +82,25 @@ extension VaultView {
         if viewModel.fileFilter == .media {
             PhotosGridView(files: visible.media, masterKey: masterKey, onSelect: { file, index in
                 EmbraceManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
-                selectedPhotoIndex = index
+                if (file.mimeType ?? "").hasPrefix("video/") {
+                    selectedVideoFile = file
+                } else {
+                    selectedPhotoIndex = index
+                }
             }, onDelete: deleteHandler,
                isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: { id in viewModel.toggleSelection(id) })
         } else {
             FilesGridView(files: visible.all, onSelect: { file in
                 EmbraceManager.shared.addBreadcrumb(category: "file.selected", data: ["mimeType": file.mimeType ?? "unknown"])
-                selectedFile = file
+                if (file.mimeType ?? "").hasPrefix("video/") {
+                    selectedVideoFile = file
+                } else if file.isMedia {
+                    // Use photo viewer for images in All filter too
+                    let globalIndex = visible.mediaIndexById[file.id] ?? 0
+                    selectedPhotoIndex = globalIndex
+                } else {
+                    selectedFile = file
+                }
             }, onDelete: deleteHandler,
                masterKey: masterKey,
                isEditing: isEditing, selectedIds: selectedIds, onToggleSelect: { id in viewModel.toggleSelection(id) })

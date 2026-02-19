@@ -142,6 +142,10 @@
 		SST00001 /* ShareSyncManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SST00000 /* ShareSyncManagerTests.swift */; };
 		SUT00001 /* ShareUploadManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SUT00000 /* ShareUploadManagerTests.swift */; };
 		SRT00001 /* ShareRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SRT00000 /* ShareRoundTripTests.swift */; };
+		VIM0000003 /* VaultIndexManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = VIM0000002 /* VaultIndexManagerTests.swift */; };
+		VVM000003 /* VaultViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = VVM000002 /* VaultViewModelTests.swift */; };
+		BT0000001 /* BackgroundTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BT0000000 /* BackgroundTaskTests.swift */; };
+		PV0000001 /* PatternValidationStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PV0000000 /* PatternValidationStateTests.swift */; };
 		019000009 /* PatternSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000008 /* PatternSetupCoordinator.swift */; };
 		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
 		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
@@ -343,6 +347,10 @@
 		SST00000 /* ShareSyncManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSyncManagerTests.swift; sourceTree = "<group>"; };
 		SUT00000 /* ShareUploadManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareUploadManagerTests.swift; sourceTree = "<group>"; };
 		SRT00000 /* ShareRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareRoundTripTests.swift; sourceTree = "<group>"; };
+		VIM0000002 /* VaultIndexManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultIndexManagerTests.swift; sourceTree = "<group>"; };
+		VVM000002 /* VaultViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultViewModelTests.swift; sourceTree = "<group>"; };
+		BT0000000 /* BackgroundTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTaskTests.swift; sourceTree = "<group>"; };
+		PV0000000 /* PatternValidationStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidationStateTests.swift; sourceTree = "<group>"; };
 		019000008 /* PatternSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinator.swift; sourceTree = "<group>"; };
 		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
@@ -766,6 +774,10 @@
 				SST00000 /* ShareSyncManagerTests.swift */,
 				SUT00000 /* ShareUploadManagerTests.swift */,
 				SRT00000 /* ShareRoundTripTests.swift */,
+				VIM0000002 /* VaultIndexManagerTests.swift */,
+				VVM000002 /* VaultViewModelTests.swift */,
+				BT0000000 /* BackgroundTaskTests.swift */,
+				PV0000000 /* PatternValidationStateTests.swift */,
 			);
 			path = VaultTests;
 			sourceTree = "<group>";
@@ -1179,6 +1191,10 @@
 				SST00001 /* ShareSyncManagerTests.swift in Sources */,
 				SUT00001 /* ShareUploadManagerTests.swift in Sources */,
 				SRT00001 /* ShareRoundTripTests.swift in Sources */,
+				VIM0000003 /* VaultIndexManagerTests.swift in Sources */,
+				VVM000003 /* VaultViewModelTests.swift in Sources */,
+				BT0000001 /* BackgroundTaskTests.swift in Sources */,
+				PV0000001 /* PatternValidationStateTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1353,7 +1369,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 106;
+				CURRENT_PROJECT_VERSION = 109;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = UFV835UGV6;
@@ -1395,7 +1411,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 106;
+				CURRENT_PROJECT_VERSION = 109;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = UFV835UGV6;
@@ -1434,7 +1450,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 106;
+				CURRENT_PROJECT_VERSION = 109;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
@@ -1466,7 +1482,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 106;
+				CURRENT_PROJECT_VERSION = 109;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
@@ -1498,7 +1514,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 106;
+				CURRENT_PROJECT_VERSION = 109;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1515,7 +1531,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 106;
+				CURRENT_PROJECT_VERSION = 109;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1531,7 +1547,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 106;
+				CURRENT_PROJECT_VERSION = 109;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1547,7 +1563,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 106;
+				CURRENT_PROJECT_VERSION = 109;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;

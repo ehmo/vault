@@ -105,109 +105,143 @@ enum ImportIngestor {
         totalImportable: Int,
         onProgress: (@Sendable (ImportProgress) async -> Void)?
     ) async -> (imported: Int, failed: Int, processed: Int, failureReason: String?) {
-        var imported = 0
-        var skipped = 0
-        var failed = 0
-        var failureReason: String?
-        var processed = 0
+        // Parallel processing with concurrency control
+        let maxConcurrentImports = min(4, ProcessInfo.processInfo.processorCount)
 
-        for file in batch.files {
-            // If the .enc file is missing, this file was already imported in a
-            // previous attempt (we delete .enc after each successful import).
-            // Count as skipped, not failed — batch cleanup should still proceed.
-            guard let encryptedFileURL = StagedImportManager.encryptedFileURL(
-                batchId: batch.batchId,
-                fileId: file.fileId
-            ) else {
-                skipped += 1
-                continue
-            }
+        actor BatchState {
+            var imported = 0
+            var skipped = 0
+            var failed = 0
+            var failureReason: String?
+            var processed = 0
 
-            // Wrap each file in autoreleasepool to release UIKit/Foundation
-            // temporaries (CGImage, UIImage, AVAsset) between files — prevents
-            // memory accumulation across large batches.
-            do {
-                // Decrypt directly to temp file — streaming format uses ~256KB peak,
-                // single-shot loads only small files (≤1MB) into memory
-                let tempURL = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("\(file.fileId.uuidString)_import")
-                    .appendingPathExtension(URL(string: file.filename)?.pathExtension ?? "dat")
-                try CryptoEngine.decryptStagedFileToURL(
-                    from: encryptedFileURL,
-                    to: tempURL,
-                    with: vaultKey.rawBytes
-                )
-
-                // Optimize media before storing (async — video export needs AVFoundation)
-                let optimizationModeStr = UserDefaults.standard.string(forKey: "fileOptimization") ?? "optimized"
-                let optimizationMode = MediaOptimizer.Mode(rawValue: optimizationModeStr) ?? .optimized
-
-                let (optimizedURL, optimizedMimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
-                    fileURL: tempURL, mimeType: file.mimeType, mode: optimizationMode
-                )
-
-                let storedFilename = wasOptimized
-                    ? MediaOptimizer.updatedFilename(file.filename, newMimeType: optimizedMimeType)
-                    : file.filename
-
-                // Wrap thumbnail + store in autoreleasepool to release UIKit/Foundation
-                // temporaries (CGImage, UIImage) between files
-                try autoreleasepool {
-                    // Decrypt thumbnail if share extension provided one (always small)
-                    var thumbnailData: Data?
-                    if file.hasThumbnail,
-                       let encThumb = StagedImportManager.readEncryptedThumbnail(
-                           batchId: batch.batchId, fileId: file.fileId
-                       ) {
-                        thumbnailData = try? CryptoEngine.decrypt(encThumb, with: vaultKey.rawBytes)
-                    }
-
-                    // Generate thumbnail from optimized file if share extension didn't provide one
-                    if thumbnailData == nil {
-                        thumbnailData = generateThumbnailSync(for: optimizedURL, mimeType: optimizedMimeType)
-                    }
-
-                    // Store via VaultStorage (streams to blob, ~256KB peak)
-                    _ = try VaultStorage.shared.storeFileFromURL(
-                        optimizedURL,
-                        filename: storedFilename,
-                        mimeType: optimizedMimeType,
-                        with: vaultKey,
-                        thumbnailData: thumbnailData
-                    )
-                }
-
-                if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
-                try? FileManager.default.removeItem(at: tempURL)
-
-                // Mark file as imported by deleting its .enc (and .thumb.enc).
-                // On crash + retry, this file will be skipped above.
-                StagedImportManager.deleteEncryptedFile(batchId: batch.batchId, fileId: file.fileId)
-
-                imported += 1
-                importIngestorLogger.info("Imported file \(imported)/\(batch.files.count): \(file.filename, privacy: .public)")
-            } catch {
+            func recordImported() { imported += 1 }
+            func recordSkipped() { skipped += 1 }
+            func recordFailed(reason: String?) {
                 failed += 1
-                failureReason = error.localizedDescription
-                importIngestorLogger.error("Failed to import \(file.fileId, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                if let reason { failureReason = reason }
+            }
+            func incrementProcessed() { processed += 1 }
+        }
+
+        let state = BatchState()
+        let progressInterval: TimeInterval = 0.5
+        var lastProgressUpdate = Date()
+
+        await withTaskGroup(of: Void.self) { group in
+            var inFlight = 0
+            var fileIndex = 0
+            let files = batch.files
+
+            func addTasksUpToLimit() {
+                while inFlight < maxConcurrentImports && fileIndex < files.count {
+                    let file = files[fileIndex]
+                    fileIndex += 1
+                    inFlight += 1
+
+                    group.addTask {
+                        // Check if file was already imported
+                        guard let encryptedFileURL = StagedImportManager.encryptedFileURL(
+                            batchId: batch.batchId,
+                            fileId: file.fileId
+                        ) else {
+                            await state.recordSkipped()
+                            await state.incrementProcessed()
+                            return
+                        }
+
+                        do {
+                            // Decrypt to temp file
+                            let tempURL = FileManager.default.temporaryDirectory
+                                .appendingPathComponent("\(file.fileId.uuidString)_import")
+                                .appendingPathExtension(URL(string: file.filename)?.pathExtension ?? "dat")
+                            try CryptoEngine.decryptStagedFileToURL(
+                                from: encryptedFileURL,
+                                to: tempURL,
+                                with: vaultKey.rawBytes
+                            )
+
+                            // Optimize media
+                            let optimizationModeStr = UserDefaults.standard.string(forKey: "fileOptimization") ?? "optimized"
+                            let optimizationMode = MediaOptimizer.Mode(rawValue: optimizationModeStr) ?? .optimized
+
+                            let (optimizedURL, optimizedMimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+                                fileURL: tempURL, mimeType: file.mimeType, mode: optimizationMode
+                            )
+
+                            let storedFilename = wasOptimized
+                                ? MediaOptimizer.updatedFilename(file.filename, newMimeType: optimizedMimeType)
+                                : file.filename
+
+                            // Process thumbnail and store
+                            try autoreleasepool {
+                                var thumbnailData: Data?
+                                if file.hasThumbnail,
+                                   let encThumb = StagedImportManager.readEncryptedThumbnail(
+                                       batchId: batch.batchId, fileId: file.fileId
+                                   ) {
+                                    thumbnailData = try? CryptoEngine.decrypt(encThumb, with: vaultKey.rawBytes)
+                                }
+
+                                if thumbnailData == nil {
+                                    thumbnailData = generateThumbnailSync(for: optimizedURL, mimeType: optimizedMimeType)
+                                }
+
+                                _ = try VaultStorage.shared.storeFileFromURL(
+                                    optimizedURL,
+                                    filename: storedFilename,
+                                    mimeType: optimizedMimeType,
+                                    with: vaultKey,
+                                    thumbnailData: thumbnailData
+                                )
+                            }
+
+                            if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
+                            try? FileManager.default.removeItem(at: tempURL)
+
+                            StagedImportManager.deleteEncryptedFile(batchId: batch.batchId, fileId: file.fileId)
+
+                            await state.recordImported()
+                            importIngestorLogger.info("Imported file: \(file.filename, privacy: .public)")
+                        } catch {
+                            await state.recordFailed(reason: error.localizedDescription)
+                            importIngestorLogger.error("Failed to import \(file.fileId, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                        }
+
+                        await state.incrementProcessed()
+                    }
+                }
             }
 
-            processed += 1
-            if totalImportable > 0, let onProgress {
-                await onProgress(
-                    ImportProgress(
-                        completed: min(completedOffset + processed, totalImportable),
-                        total: totalImportable
-                    )
-                )
+            addTasksUpToLimit()
+
+            for await _ in group {
+                inFlight -= 1
+                addTasksUpToLimit()
+
+                // Throttled progress updates
+                let now = Date()
+                let processed = await state.processed
+                if now.timeIntervalSince(lastProgressUpdate) >= progressInterval || processed == files.count {
+                    lastProgressUpdate = now
+                    if totalImportable > 0, let onProgress {
+                        await onProgress(
+                            ImportProgress(
+                                completed: min(completedOffset + processed, totalImportable),
+                                total: totalImportable
+                            )
+                        )
+                    }
+                }
             }
         }
 
+        let skipped = await state.skipped
         if skipped > 0 {
             importIngestorLogger.info("Batch \(batch.batchId, privacy: .public): skipped \(skipped) already-imported files")
         }
 
-        return (imported, failed, processed, failureReason)
+        return (await state.imported, await state.failed, await state.processed, await state.failureReason)
     }
 
     // MARK: - Thumbnail Generation

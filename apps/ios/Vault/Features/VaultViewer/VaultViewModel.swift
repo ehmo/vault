@@ -421,177 +421,141 @@ final class VaultViewModel {
         IdleTimerManager.shared.disable()
         vmLogger.info("🔄 Starting import task with \(count) items")
 
+        // Parallel import with concurrency control for better performance
+        let maxConcurrentImports = min(4, ProcessInfo.processInfo.processorCount)
+        vmLogger.info("🔄 Parallel import with max \(maxConcurrentImports) concurrent operations")
+
         activeImportTask = Task.detached(priority: .userInitiated) {
-            var successCount = 0
-            var failedCount = 0
-            var lastErrorReason: String?
-            for (index, result) in results.enumerated() {
-                guard !Task.isCancelled else {
-                    vmLogger.info("⏹️ Import cancelled at index \(index)")
-                    break
+            // Import result tracking
+            actor ImportState {
+                var successCount = 0
+                var failedCount = 0
+                var lastErrorReason: String?
+                var completedCount = 0
+                var importedFiles: [VaultFileItem] = []
+
+                func incrementCompleted() { completedCount += 1 }
+                func recordSuccess(_ file: VaultFileItem) {
+                    successCount += 1
+                    importedFiles.append(file)
                 }
-
-                let provider = result.itemProvider
-                let isVideo = provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier)
-                vmLogger.info("📦 Processing item \(index + 1)/\(count) - isVideo: \(isVideo)")
-
-                do {
-                    if isVideo {
-                        let tempVideoURL = try await VaultView.loadVideoURL(from: provider)
-                        guard !Task.isCancelled else {
-                            try? FileManager.default.removeItem(at: tempVideoURL)
-                            break
-                        }
-
-                        let ext = tempVideoURL.pathExtension.isEmpty ? "mov" : tempVideoURL.pathExtension
-                        let mime = FileUtilities.mimeType(forExtension: ext)
-                        let sourceMimeType = mime.hasPrefix("video/") ? mime : "video/quicktime"
-
-                        let (optimizedURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
-                            fileURL: tempVideoURL, mimeType: sourceMimeType, mode: optimizationMode
-                        )
-                        defer {
-                            if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
-                            try? FileManager.default.removeItem(at: tempVideoURL)
-                        }
-
-                        let baseFilename = provider.suggestedName.map { name -> String in
-                            if (name as NSString).pathExtension.isEmpty { return name + ".\(ext)" }
-                            return name
-                        } ?? "VID_\(Date().timeIntervalSince1970)_\(index).\(ext)"
-                        let filename = wasOptimized ? MediaOptimizer.updatedFilename(baseFilename, newMimeType: mimeType) : baseFilename
-
-                        let metadata = await VaultView.generateVideoMetadata(from: optimizedURL)
-                        let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
-
-                        vmLogger.info("💾 Storing video to disk: \(filename)")
-                        let fileId = try VaultStorage.shared.storeFileFromURL(
-                            optimizedURL, filename: filename, mimeType: mimeType,
-                            with: key, thumbnailData: metadata.thumbnail, duration: metadata.duration
-                        )
-                        vmLogger.info("✅ Video stored successfully, fileId: \(fileId)")
-
-                        let encThumb = metadata.thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
-                        if let encThumb {
-                            await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
-                            vmLogger.info("🖼️ Thumbnail cached")
-                        }
-                        await MainActor.run {
-                            guard !Task.isCancelled else { return }
-                            vmLogger.info("➕ Adding video to UI, files.count was: \(self.files.count)")
-                            self.files.append(VaultFileItem(
-                                id: fileId, size: fileSize,
-                                hasThumbnail: encThumb != nil, mimeType: mimeType,
-                                filename: filename, createdAt: Date(), duration: metadata.duration
-                            ))
-                            vmLogger.info("✅ Video added to UI, files.count now: \(self.files.count)")
-                            self.importProgress = (index + 1, count)
-                        }
-                        successCount += 1
-                    } else {
-                        guard provider.canLoadObject(ofClass: UIImage.self) else {
-                            failedCount += 1
-                            lastErrorReason = "Unsupported file format"
-                            await MainActor.run { self.importProgress = (index + 1, count) }
-                            continue
-                        }
-
-                        let image: UIImage? = await withCheckedContinuation { continuation in
-                            provider.loadObject(ofClass: UIImage.self) { object, _ in
-                                continuation.resume(returning: object as? UIImage)
-                            }
-                        }
-                        guard !Task.isCancelled else { break }
-
-                        guard let image else {
-                            failedCount += 1
-                            lastErrorReason = "Could not convert image"
-                            await MainActor.run { self.importProgress = (index + 1, count) }
-                            continue
-                        }
-
-                        let tempInputURL = FileManager.default.temporaryDirectory
-                            .appendingPathComponent(UUID().uuidString)
-                            .appendingPathExtension("jpg")
-                        guard let jpegData = image.jpegData(compressionQuality: 0.8) else {
-                            failedCount += 1
-                            lastErrorReason = "Could not convert image"
-                            await MainActor.run { self.importProgress = (index + 1, count) }
-                            continue
-                        }
-                        try jpegData.write(to: tempInputURL, options: [.atomic])
-
-                        let (optimizedURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
-                            fileURL: tempInputURL, mimeType: "image/jpeg", mode: optimizationMode
-                        )
-                        defer {
-                            if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
-                            try? FileManager.default.removeItem(at: tempInputURL)
-                        }
-
-                        let ext = mimeType == "image/heic" ? "heic" : "jpg"
-                        let filename = "IMG_\(Date().timeIntervalSince1970)_\(index).\(ext)"
-
-                        vmLogger.info("🖼️ Generating thumbnail for image")
-                        let thumbnail = FileUtilities.generateThumbnail(fromFileURL: optimizedURL)
-                        let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
-
-                        guard !Task.isCancelled else { break }
-
-                        vmLogger.info("💾 Storing image to disk: \(filename)")
-                        let fileId = try VaultStorage.shared.storeFileFromURL(
-                            optimizedURL, filename: filename, mimeType: mimeType,
-                            with: key, thumbnailData: thumbnail
-                        )
-                        vmLogger.info("✅ Image stored successfully, fileId: \(fileId)")
-
-                        let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
-                        if let encThumb {
-                            await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
-                        }
-                        await MainActor.run {
-                            guard !Task.isCancelled else { return }
-                            vmLogger.info("➕ Adding image to UI, files.count was: \(self.files.count)")
-                            self.files.append(VaultFileItem(
-                                id: fileId, size: fileSize,
-                                hasThumbnail: encThumb != nil, mimeType: mimeType,
-                                filename: filename, createdAt: Date()
-                            ))
-                            vmLogger.info("✅ Image added to UI, files.count now: \(self.files.count)")
-                            self.importProgress = (index + 1, count)
-                        }
-                        successCount += 1
-                    }
-                } catch {
-                    if Task.isCancelled { 
-                        vmLogger.info("⏹️ Import task cancelled at index \(index)")
-                        break 
-                    }
+                func recordFailure(reason: String?) {
                     failedCount += 1
-                    lastErrorReason = error.localizedDescription
-                    vmLogger.error("❌ Import error at index \(index): \(error.localizedDescription, privacy: .public)")
-                    EmbraceManager.shared.addBreadcrumb(
-                        category: "import.failed",
-                        data: ["index": index, "isVideo": isVideo, "error": "\(error)"]
-                    )
-                    await MainActor.run { self.importProgress = (index + 1, count) }
-                    #if DEBUG
-                    print("❌ [VaultViewModel] Failed to import item \(index): \(error)")
-                    #endif
+                    if let reason = lastErrorReason { lastErrorReason = reason }
                 }
             }
 
-            let imported = successCount
-            let failed = failedCount
-            let errorReason = lastErrorReason
+            let state = ImportState()
+            let batchUpdateInterval: TimeInterval = 0.5 // Update UI every 500ms
+            var lastUIUpdate = Date()
+
+            // Process imports with bounded parallelism using TaskGroup
+            await withTaskGroup(of: VaultFileItem?.self) { group in
+                var inFlight = 0
+                var index = 0
+
+                // Add tasks up to the concurrency limit
+                func addTasksUpToLimit() {
+                    while inFlight < maxConcurrentImports && index < results.count {
+                        let currentIndex = index
+                        let result = results[currentIndex]
+                        index += 1
+                        inFlight += 1
+
+                        group.addTask {
+                            // Check for cancellation before starting
+                            guard !Task.isCancelled else { return nil }
+
+                            let provider = result.itemProvider
+                            let isVideo = provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier)
+
+                            do {
+                                let fileItem: VaultFileItem?
+                                if isVideo {
+                                    fileItem = try await self.importVideoFromProvider(
+                                        provider: provider,
+                                        index: currentIndex,
+                                        key: key,
+                                        encryptionKey: encryptionKey,
+                                        optimizationMode: optimizationMode
+                                    )
+                                } else {
+                                    fileItem = try await self.importImageFromProvider(
+                                        provider: provider,
+                                        index: currentIndex,
+                                        key: key,
+                                        encryptionKey: encryptionKey,
+                                        optimizationMode: optimizationMode
+                                    )
+                                }
+
+                                await state.incrementCompleted()
+                                if let file = fileItem {
+                                    await state.recordSuccess(file)
+                                } else {
+                                    await state.recordFailure(reason: "Unknown error")
+                                }
+                                return fileItem
+                            } catch {
+                                await state.incrementCompleted()
+                                await state.recordFailure(reason: error.localizedDescription)
+                                if !Task.isCancelled {
+                                    EmbraceManager.shared.addBreadcrumb(
+                                        category: "import.failed",
+                                        data: ["index": currentIndex, "isVideo": isVideo, "error": "\(error)"]
+                                    )
+                                }
+                                return nil
+                            }
+                        }
+                    }
+                }
+
+                // Initial batch of tasks
+                addTasksUpToLimit()
+
+                // Process results and add new tasks as slots open up
+                for await _ in group {
+                    inFlight -= 1
+
+                    // Add more tasks if available
+                    addTasksUpToLimit()
+
+                    // Batch UI updates - only update every 500ms or when complete
+                    let now = Date()
+                    let completed = await state.completedCount
+                    if now.timeIntervalSince(lastUIUpdate) >= batchUpdateInterval || completed == count {
+                        lastUIUpdate = now
+                        await MainActor.run {
+                            guard !Task.isCancelled else { return }
+                            self.importProgress = (completed, count)
+                        }
+                    }
+                }
+            }
+
+            // Final UI update with all imported files
+            let imported = await state.successCount
+            let failed = await state.failedCount
+            let errorReason = await state.lastErrorReason
+            let newFiles = await state.importedFiles
+
             await MainActor.run {
                 guard !Task.isCancelled else {
                     vmLogger.warning("Photo import task cancelled before completion (imported=\(imported), failed=\(failed))")
                     return
                 }
+
+                // Batch append all files at once instead of one-by-one
+                if !newFiles.isEmpty {
+                    self.files.append(contentsOf: newFiles)
+                    vmLogger.info("➕ Batch added \(newFiles.count) files to UI, files.count now: \(self.files.count)")
+                }
+
                 self.importProgress = nil
                 IdleTimerManager.shared.enable()
                 vmLogger.info("🏁 Import complete - success: \(imported), failed: \(failed), files.count: \(self.files.count)")
+
                 if failed > 0 && imported == 0 {
                     self.toastMessage = .importFailed(failed, imported: 0, reason: errorReason)
                 } else if failed > 0 {
@@ -601,8 +565,8 @@ final class VaultViewModel {
                 } else {
                     self.toastMessage = .filesImported(imported)
                 }
-                // Safety net: reload from disk to ensure in-memory state matches persisted state.
-                // Guards against edge cases where files were stored but in-memory array diverged.
+
+                // Safety net: reload from disk to ensure in-memory state matches persisted state
                 if imported > 0 {
                     vmLogger.info("🔄 Calling loadFiles() from import completion - files.count before: \(self.files.count)")
                     self.loadFiles()
@@ -615,6 +579,130 @@ final class VaultViewModel {
                 }
             }
         }
+    }
+
+    // MARK: - Import Helpers
+
+    /// Imports a video from a PHPickerResult provider
+    private func importVideoFromProvider(
+        provider: NSItemProvider,
+        index: Int,
+        key: VaultKey,
+        encryptionKey: Data,
+        optimizationMode: MediaOptimizer.Mode
+    ) async throws -> VaultFileItem? {
+        guard !Task.isCancelled else { return nil }
+
+        let tempVideoURL = try await VaultView.loadVideoURL(from: provider)
+        defer { try? FileManager.default.removeItem(at: tempVideoURL) }
+
+        guard !Task.isCancelled else { return nil }
+
+        let ext = tempVideoURL.pathExtension.isEmpty ? "mov" : tempVideoURL.pathExtension
+        let mime = FileUtilities.mimeType(forExtension: ext)
+        let sourceMimeType = mime.hasPrefix("video/") ? mime : "video/quicktime"
+
+        let (optimizedURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+            fileURL: tempVideoURL, mimeType: sourceMimeType, mode: optimizationMode
+        )
+        defer {
+            if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
+        }
+
+        let baseFilename = provider.suggestedName.map { name -> String in
+            if (name as NSString).pathExtension.isEmpty { return name + ".\(ext)" }
+            return name
+        } ?? "VID_\(Date().timeIntervalSince1970)_\(index).\(ext)"
+        let filename = wasOptimized ? MediaOptimizer.updatedFilename(baseFilename, newMimeType: mimeType) : baseFilename
+
+        let metadata = await VaultView.generateVideoMetadata(from: optimizedURL)
+        let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
+
+        let fileId = try VaultStorage.shared.storeFileFromURL(
+            optimizedURL, filename: filename, mimeType: mimeType,
+            with: key, thumbnailData: metadata.thumbnail, duration: metadata.duration
+        )
+
+        let encThumb = metadata.thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
+        if let encThumb {
+            await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
+        }
+
+        return VaultFileItem(
+            id: fileId, size: fileSize,
+            hasThumbnail: encThumb != nil, mimeType: mimeType,
+            filename: filename, createdAt: Date(), duration: metadata.duration
+        )
+    }
+
+    /// Imports an image from a PHPickerResult provider
+    private func importImageFromProvider(
+        provider: NSItemProvider,
+        index: Int,
+        key: VaultKey,
+        encryptionKey: Data,
+        optimizationMode: MediaOptimizer.Mode
+    ) async throws -> VaultFileItem? {
+        guard !Task.isCancelled else { return nil }
+
+        guard provider.canLoadObject(ofClass: UIImage.self) else {
+            throw ImportError.unsupportedFormat
+        }
+
+        let image: UIImage? = await withCheckedContinuation { continuation in
+            provider.loadObject(ofClass: UIImage.self) { object, _ in
+                continuation.resume(returning: object as? UIImage)
+            }
+        }
+
+        guard !Task.isCancelled else { return nil }
+        guard let image else {
+            throw ImportError.conversionFailed
+        }
+
+        let tempInputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("jpg")
+
+        guard let jpegData = image.jpegData(compressionQuality: 0.8) else {
+            throw ImportError.conversionFailed
+        }
+        try jpegData.write(to: tempInputURL, options: [.atomic])
+        defer { try? FileManager.default.removeItem(at: tempInputURL) }
+
+        let (optimizedURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+            fileURL: tempInputURL, mimeType: "image/jpeg", mode: optimizationMode
+        )
+        defer {
+            if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
+        }
+
+        let ext = mimeType == "image/heic" ? "heic" : "jpg"
+        let filename = "IMG_\(Date().timeIntervalSince1970)_\(index).\(ext)"
+
+        let thumbnail = FileUtilities.generateThumbnail(fromFileURL: optimizedURL)
+        let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
+
+        let fileId = try VaultStorage.shared.storeFileFromURL(
+            optimizedURL, filename: filename, mimeType: mimeType,
+            with: key, thumbnailData: thumbnail
+        )
+
+        let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
+        if let encThumb {
+            await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
+        }
+
+        return VaultFileItem(
+            id: fileId, size: fileSize,
+            hasThumbnail: encThumb != nil, mimeType: mimeType,
+            filename: filename, createdAt: Date()
+        )
+    }
+
+    enum ImportError: Error {
+        case unsupportedFormat
+        case conversionFailed
     }
 
     // MARK: - Import: File Importer
@@ -653,99 +741,119 @@ final class VaultViewModel {
         }
         IdleTimerManager.shared.disable()
 
+        // Parallel import with concurrency control
+        let maxConcurrentImports = min(4, ProcessInfo.processInfo.processorCount)
+        vmLogger.info("🔄 File import with max \(maxConcurrentImports) concurrent operations")
+
         activeImportTask = Task.detached(priority: .userInitiated) {
-            var successCount = 0
-            var failedCount = 0
-            var lastErrorReason: String?
-            for (index, url) in urls.enumerated() {
-                guard !Task.isCancelled else { break }
-                guard url.startAccessingSecurityScopedResource() else {
-                    failedCount += 1
-                    continue
-                }
-                defer { url.stopAccessingSecurityScopedResource() }
+            // Import state tracking
+            actor ImportState {
+                var successCount = 0
+                var failedCount = 0
+                var lastErrorReason: String?
+                var completedCount = 0
+                var importedFiles: [VaultFileItem] = []
 
-                let originalFilename = url.lastPathComponent
-                let sourceMimeType = FileUtilities.mimeType(forExtension: url.pathExtension)
-
-                do {
-                    let (optimizedURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
-                        fileURL: url, mimeType: sourceMimeType, mode: optimizationMode
-                    )
-                    defer {
-                        if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
-                    }
-
-                    let filename = wasOptimized
-                        ? MediaOptimizer.updatedFilename(originalFilename, newMimeType: mimeType)
-                        : originalFilename
-
-                    if mimeType.hasPrefix("video/") {
-                        let metadata = await VaultView.generateVideoMetadata(from: optimizedURL)
-                        let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
-
-                        let fileId = try VaultStorage.shared.storeFileFromURL(
-                            optimizedURL, filename: filename, mimeType: mimeType,
-                            with: key, thumbnailData: metadata.thumbnail, duration: metadata.duration
-                        )
-                        let encThumb = metadata.thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
-                        if let encThumb {
-                            await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
-                        }
-                        await MainActor.run {
-                            guard !Task.isCancelled else { return }
-                            self.files.append(VaultFileItem(
-                                id: fileId, size: fileSize,
-                                hasThumbnail: encThumb != nil, mimeType: mimeType,
-                                filename: filename, createdAt: Date(), duration: metadata.duration
-                            ))
-                            if showProgress { self.importProgress = (index + 1, count) }
-                        }
-                    } else {
-                        let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
-                        let thumbnail = mimeType.hasPrefix("image/")
-                            ? FileUtilities.generateThumbnail(fromFileURL: optimizedURL)
-                            : nil
-
-                        let fileId = try VaultStorage.shared.storeFileFromURL(
-                            optimizedURL, filename: filename, mimeType: mimeType,
-                            with: key, thumbnailData: thumbnail
-                        )
-                        let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
-                        if let encThumb {
-                            await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
-                        }
-                        await MainActor.run {
-                            guard !Task.isCancelled else { return }
-                            self.files.append(VaultFileItem(
-                                id: fileId, size: fileSize,
-                                hasThumbnail: encThumb != nil, mimeType: mimeType,
-                                filename: filename, createdAt: Date()
-                            ))
-                            if showProgress { self.importProgress = (index + 1, count) }
-                        }
-                    }
+                func incrementCompleted() { completedCount += 1 }
+                func recordSuccess(_ file: VaultFileItem) {
                     successCount += 1
-                } catch {
-                    if Task.isCancelled { break }
+                    importedFiles.append(file)
+                }
+                func recordFailure(reason: String?) {
                     failedCount += 1
-                    lastErrorReason = error.localizedDescription
-                    if showProgress {
-                        await MainActor.run { self.importProgress = (index + 1, count) }
+                    if let reason = lastErrorReason { lastErrorReason = reason }
+                }
+            }
+
+            let state = ImportState()
+            let batchUpdateInterval: TimeInterval = 0.5
+            var lastUIUpdate = Date()
+
+            // Process imports with bounded parallelism
+            await withTaskGroup(of: VaultFileItem?.self) { group in
+                var inFlight = 0
+                var index = 0
+
+                func addTasksUpToLimit() {
+                    while inFlight < maxConcurrentImports && index < urls.count {
+                        let currentIndex = index
+                        let url = urls[currentIndex]
+                        index += 1
+                        inFlight += 1
+
+                        group.addTask {
+                            guard !Task.isCancelled else { return nil }
+
+                            guard url.startAccessingSecurityScopedResource() else {
+                                await state.incrementCompleted()
+                                await state.recordFailure(reason: "Cannot access file")
+                                return nil
+                            }
+                            defer { url.stopAccessingSecurityScopedResource() }
+
+                            do {
+                                let fileItem = try await self.importFileFromURL(
+                                    url: url,
+                                    key: key,
+                                    encryptionKey: encryptionKey,
+                                    optimizationMode: optimizationMode
+                                )
+
+                                await state.incrementCompleted()
+                                if let file = fileItem {
+                                    await state.recordSuccess(file)
+                                } else {
+                                    await state.recordFailure(reason: "Unknown error")
+                                }
+                                return fileItem
+                            } catch {
+                                await state.incrementCompleted()
+                                await state.recordFailure(reason: error.localizedDescription)
+                                return nil
+                            }
+                        }
+                    }
+                }
+
+                addTasksUpToLimit()
+
+                for await _ in group {
+                    inFlight -= 1
+                    addTasksUpToLimit()
+
+                    let now = Date()
+                    let completed = await state.completedCount
+                    if now.timeIntervalSince(lastUIUpdate) >= batchUpdateInterval || completed == count {
+                        lastUIUpdate = now
+                        if showProgress {
+                            await MainActor.run {
+                                guard !Task.isCancelled else { return }
+                                self.importProgress = (completed, count)
+                            }
+                        }
                     }
                 }
             }
 
-            let imported = successCount
-            let failed = failedCount
-            let errorReason = lastErrorReason
+            let imported = await state.successCount
+            let failed = await state.failedCount
+            let errorReason = await state.lastErrorReason
+            let newFiles = await state.importedFiles
+
             await MainActor.run {
                 guard !Task.isCancelled else {
                     vmLogger.warning("File import task cancelled before completion (imported=\(imported), failed=\(failed))")
                     return
                 }
+
+                if !newFiles.isEmpty {
+                    self.files.append(contentsOf: newFiles)
+                    vmLogger.info("➕ Batch added \(newFiles.count) files to UI, files.count now: \(self.files.count)")
+                }
+
                 self.importProgress = nil
                 IdleTimerManager.shared.enable()
+
                 if failed > 0 && imported == 0 {
                     self.toastMessage = .importFailed(failed, imported: 0, reason: errorReason)
                 } else if failed > 0 {
@@ -753,6 +861,7 @@ final class VaultViewModel {
                 } else {
                     self.toastMessage = .filesImported(imported)
                 }
+
                 vmLogger.info("File import complete: imported=\(imported), failed=\(failed), files.count=\(self.files.count)")
                 if imported > 0 {
                     self.loadFiles()
@@ -764,6 +873,72 @@ final class VaultViewModel {
                     ShareSyncManager.shared.scheduleSync(vaultKey: key)
                 }
             }
+        }
+    }
+
+    /// Imports a file from a URL (document picker)
+    private func importFileFromURL(
+        url: URL,
+        key: VaultKey,
+        encryptionKey: Data,
+        optimizationMode: MediaOptimizer.Mode
+    ) async throws -> VaultFileItem? {
+        guard !Task.isCancelled else { return nil }
+
+        let originalFilename = url.lastPathComponent
+        let sourceMimeType = FileUtilities.mimeType(forExtension: url.pathExtension)
+
+        let (optimizedURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+            fileURL: url, mimeType: sourceMimeType, mode: optimizationMode
+        )
+        defer {
+            if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
+        }
+
+        let filename = wasOptimized
+            ? MediaOptimizer.updatedFilename(originalFilename, newMimeType: mimeType)
+            : originalFilename
+
+        if mimeType.hasPrefix("video/") {
+            let metadata = await VaultView.generateVideoMetadata(from: optimizedURL)
+            let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
+
+            let fileId = try VaultStorage.shared.storeFileFromURL(
+                optimizedURL, filename: filename, mimeType: mimeType,
+                with: key, thumbnailData: metadata.thumbnail, duration: metadata.duration
+            )
+
+            let encThumb = metadata.thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
+            if let encThumb {
+                await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
+            }
+
+            return VaultFileItem(
+                id: fileId, size: fileSize,
+                hasThumbnail: encThumb != nil, mimeType: mimeType,
+                filename: filename, createdAt: Date(), duration: metadata.duration
+            )
+        } else {
+            let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
+            let thumbnail = mimeType.hasPrefix("image/")
+                ? FileUtilities.generateThumbnail(fromFileURL: optimizedURL)
+                : nil
+
+            let fileId = try VaultStorage.shared.storeFileFromURL(
+                optimizedURL, filename: filename, mimeType: mimeType,
+                with: key, thumbnailData: thumbnail
+            )
+
+            let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
+            if let encThumb {
+                await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
+            }
+
+            return VaultFileItem(
+                id: fileId, size: fileSize,
+                hasThumbnail: encThumb != nil, mimeType: mimeType,
+                filename: filename, createdAt: Date()
+            )
         }
     }
 

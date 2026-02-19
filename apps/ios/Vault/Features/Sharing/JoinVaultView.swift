@@ -267,8 +267,20 @@ struct JoinVaultView: View {
     // MARK: - Actions
 
     private func joinVault() {
-        // Go straight to pattern setup; download happens after pattern is confirmed
-        mode = .patternSetup
+        Task {
+            let trimmed = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return }
+
+            // Check phrase availability before proceeding to pattern setup
+            let result = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: trimmed)
+            if case .failure(let error) = result {
+                mode = .error(error.localizedDescription)
+                return
+            }
+
+            // Phrase is valid, proceed to pattern setup
+            mode = .patternSetup
+        }
     }
 
     private func handlePatternComplete(_ pattern: [Int]) {
