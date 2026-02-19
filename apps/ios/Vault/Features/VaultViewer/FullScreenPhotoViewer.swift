@@ -330,10 +330,9 @@ struct FullScreenPhotoViewer: View {
         guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, downsampleOptions as CFDictionary) else {
             return UIImage(data: data)
         }
-        
-        // Preserve EXIF orientation when creating UIImage from CGImage
-        let orientation = (properties?[kCGImagePropertyOrientation] as? UInt32).flatMap { UIImage.Orientation(rawValue: Int($0)) } ?? .up
-        return UIImage(cgImage: cgImage, scale: 1.0, orientation: orientation)
+        // kCGImageSourceCreateThumbnailWithTransform already rotates pixels to correct
+        // orientation, so use .up to avoid applying the EXIF rotation a second time.
+        return UIImage(cgImage: cgImage, scale: 1.0, orientation: .up)
     }
 
     // MARK: - Actions

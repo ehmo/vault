@@ -104,8 +104,7 @@ actor MediaOptimizer {
 
         // Get source image — downsample if > 4096px
         // Read EXIF orientation to preserve it when writing output
-        let orientation = (properties?[kCGImagePropertyOrientation] as? UInt32).flatMap { CGImagePropertyOrientation(rawValue: $0) } ?? .up
-        
+        let orientation: CGImagePropertyOrientation
         let cgImage: CGImage
         if maxDimension > 4096 {
             let thumbOptions: [CFString: Any] = [
@@ -117,11 +116,16 @@ actor MediaOptimizer {
                 return (fileURL, mimeType, false)
             }
             cgImage = thumb
+            // kCGImageSourceCreateThumbnailWithTransform already rotated the pixels,
+            // so mark as .up to avoid double-rotation in the output HEIC.
+            orientation = .up
         } else {
             guard let full = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
                 return (fileURL, mimeType, false)
             }
             cgImage = full
+            // Full-size path: pixels are unrotated, so preserve original EXIF orientation.
+            orientation = (properties?[kCGImagePropertyOrientation] as? UInt32).flatMap { CGImagePropertyOrientation(rawValue: $0) } ?? .up
         }
 
         // Write HEIC to temp file

@@ -471,10 +471,6 @@ private enum ShareAttachmentProcessor {
         let maxDimension: CGFloat = 200
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
 
-        // Read EXIF orientation from source to preserve it in thumbnail
-        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
-        let orientation = (properties?[kCGImagePropertyOrientation] as? UInt32).flatMap { UIImage.Orientation(rawValue: Int($0)) } ?? .up
-
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
@@ -485,14 +481,9 @@ private enum ShareAttachmentProcessor {
             return nil
         }
 
-        let image = UIImage(cgImage: cgImage, scale: 1.0, orientation: orientation)
-        
-        // Draw the image to apply orientation transform
-        let renderer = UIGraphicsImageRenderer(size: image.size)
-        let orientedImage = renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: image.size))
-        }
-        
-        return orientedImage.jpegData(compressionQuality: 0.6)
+        // kCGImageSourceCreateThumbnailWithTransform already rotates pixels to correct
+        // orientation, so use .up to avoid applying the EXIF rotation a second time.
+        let image = UIImage(cgImage: cgImage, scale: 1.0, orientation: .up)
+        return image.jpegData(compressionQuality: 0.6)
     }
 }

@@ -23,11 +23,7 @@ enum FileUtilities {
     /// Uses ImageIO downsampling to avoid decoding full-size images into memory.
     static func generateThumbnail(fromFileURL fileURL: URL, maxPixelSize: CGFloat = 400) -> Data? {
         guard let source = CGImageSourceCreateWithURL(fileURL as CFURL, nil) else { return nil }
-        
-        // Read EXIF orientation from source to preserve it in thumbnail
-        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
-        let orientation = (properties?[kCGImagePropertyOrientation] as? UInt32).flatMap { UIImage.Orientation(rawValue: Int($0)) } ?? .up
-        
+
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
@@ -36,15 +32,10 @@ enum FileUtilities {
         guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
             return nil
         }
-        let image = UIImage(cgImage: cgImage, scale: 1.0, orientation: orientation)
-        
-        // Draw the image to apply orientation transform
-        let renderer = UIGraphicsImageRenderer(size: image.size)
-        let orientedImage = renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: image.size))
-        }
-        
-        return orientedImage.jpegData(compressionQuality: 0.7)
+        // kCGImageSourceCreateThumbnailWithTransform already rotates pixels to correct
+        // orientation, so use .up to avoid applying the EXIF rotation a second time.
+        let image = UIImage(cgImage: cgImage, scale: 1.0, orientation: .up)
+        return image.jpegData(compressionQuality: 0.7)
     }
 
     static func mimeType(forExtension ext: String) -> String {
