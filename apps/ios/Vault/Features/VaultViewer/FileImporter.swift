@@ -98,7 +98,7 @@ final class FileImporter {
         // Only generate thumbnails for images
         guard mimeType.hasPrefix("image/") else { return nil }
         
-        // Use UIImage(data:) to preserve EXIF orientation metadata
+        // Use UIImage(data:) which reads EXIF orientation
         guard let image = UIImage(data: data) else { return nil }
         
         // Calculate thumbnail size (max 200x200, maintaining aspect ratio)
@@ -107,14 +107,14 @@ final class FileImporter {
         let scale = min(maxSize / size.width, maxSize / size.height)
         let newSize = CGSize(width: size.width * scale, height: size.height * scale)
         
-        // Generate thumbnail - draw with correct orientation already applied by UIImage
+        // Generate thumbnail with proper orientation handling
         let renderer = UIGraphicsImageRenderer(size: newSize)
         let thumbnail = renderer.image { context in
-            // Use the CGImage with the image's orientation transform applied
+            // Apply orientation transform before drawing
+            Self.applyOrientationTransform(for: image, in: newSize, context: context.cgContext)
+            // Draw the CGImage (raw pixels)
             if let cgImage = image.cgImage {
-                let rect = CGRect(origin: .zero, size: newSize)
-                // Apply the orientation transform when drawing
-                drawImageWithOrientation(image, in: rect, context: context.cgContext)
+                context.cgContext.draw(cgImage, in: CGRect(origin: .zero, size: newSize))
             }
         }
         
@@ -122,46 +122,38 @@ final class FileImporter {
         return thumbnail.jpegData(compressionQuality: 0.7)
     }
     
-    /// Draws a UIImage with its orientation transform applied
-    private func drawImageWithOrientation(_ image: UIImage, in rect: CGRect, context: CGContext) {
-        // Apply the transform based on the image's orientation
-        context.saveGState()
-        
-        // Translate and scale based on orientation
+    /// Applies the necessary transform to the CGContext based on UIImage's orientation
+    private static func applyOrientationTransform(for image: UIImage, in size: CGSize, context: CGContext) {
+        // Apply transform without save/restore since we need it active for drawing
         switch image.imageOrientation {
-        case .down, .downMirrored:
-            context.translateBy(x: rect.width, y: rect.height)
-            context.scaleBy(x: -1, y: -1)
-        case .left, .leftMirrored:
-            context.translateBy(x: rect.width, y: 0)
-            context.rotate(by: .pi / 2)
-        case .right, .rightMirrored:
-            context.translateBy(x: 0, y: rect.height)
-            context.rotate(by: -.pi / 2)
-        case .up, .upMirrored:
+        case .up:
             break
+        case .down:
+            context.translateBy(x: size.width, y: size.height)
+            context.rotate(by: .pi)
+        case .left:
+            context.translateBy(x: 0, y: size.height)
+            context.rotate(by: -.pi / 2)
+        case .right:
+            context.translateBy(x: size.width, y: 0)
+            context.rotate(by: .pi / 2)
+        case .upMirrored:
+            context.translateBy(x: size.width, y: 0)
+            context.scaleBy(x: -1, y: 1)
+        case .downMirrored:
+            context.translateBy(x: size.width, y: size.height)
+            context.scaleBy(x: -1, y: -1)
+        case .leftMirrored:
+            context.translateBy(x: 0, y: size.height)
+            context.rotate(by: -.pi / 2)
+            context.scaleBy(x: 1, y: -1)
+        case .rightMirrored:
+            context.translateBy(x: size.width, y: size.height)
+            context.rotate(by: .pi / 2)
+            context.scaleBy(x: -1, y: 1)
         @unknown default:
             break
         }
-        
-        // Handle mirrored orientations
-        switch image.imageOrientation {
-        case .upMirrored, .downMirrored:
-            context.translateBy(x: rect.width, y: 0)
-            context.scaleBy(x: -1, y: 1)
-        case .leftMirrored, .rightMirrored:
-            context.translateBy(x: rect.height, y: 0)
-            context.scaleBy(x: -1, y: 1)
-        default:
-            break
-        }
-        
-        // Draw the image
-        if let cgImage = image.cgImage {
-            context.draw(cgImage, in: CGRect(origin: .zero, size: rect.size))
-        }
-        
-        context.restoreGState()
     }
 
     // MARK: - Error Types
