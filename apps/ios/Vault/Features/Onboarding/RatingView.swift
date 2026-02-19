@@ -26,13 +26,7 @@ struct RatingView: View {
                 // Overlapping avatars
                 HStack(spacing: -10) {
                     ForEach(ReviewData.allReviews.indices, id: \.self) { index in
-                        Circle()
-                            .fill(Color.vaultSurface)
-                            .frame(width: 44, height: 44)
-                            .overlay(
-                                Text(ReviewData.allReviews[index].avatarEmoji)
-                                    .font(.title2)
-                            )
+                        ReviewAvatar(url: ReviewData.allReviews[index].avatarURL, size: 44)
                             .overlay(
                                 Circle()
                                     .stroke(Color.vaultBackground, lineWidth: 2.5)
@@ -73,13 +67,36 @@ struct RatingView: View {
     }
 }
 
+// MARK: - Review Avatar
+
+private struct ReviewAvatar: View {
+    let url: URL?
+    let size: CGFloat
+
+    var body: some View {
+        AsyncImage(url: url) { phase in
+            switch phase {
+            case .success(let image):
+                image
+                    .resizable()
+                    .scaledToFill()
+            default:
+                Circle()
+                    .fill(Color.vaultSurface)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+    }
+}
+
 // MARK: - Review Data
 
 private struct ReviewItem: Identifiable {
     let id = UUID()
     let text: String
     let authorName: String
-    let avatarEmoji: String
+    let avatarURL: URL?
 }
 
 private enum ReviewData {
@@ -87,27 +104,27 @@ private enum ReviewData {
         ReviewItem(
             text: "I have photos on my phone I'd literally die if anyone saw. Knowing they're behind real encryption and not just a hidden album with a passcode? I can finally breathe.",
             authorName: "jessicam_26",
-            avatarEmoji: "\u{1F469}\u{200D}\u{1F9B1}"
+            avatarURL: URL(string: "https://i.pravatar.cc/96?img=32")
         ),
         ReviewItem(
             text: "My husband and I keep our private photos in a shared vault. No cloud, no accounts, no one at some tech company reviewing our moments. As it should be.",
             authorName: "brooke.h",
-            avatarEmoji: "\u{1F469}"
+            avatarURL: URL(string: "https://i.pravatar.cc/96?img=26")
         ),
         ReviewItem(
             text: "After my divorce I needed somewhere truly private. Not behind a paywall. Not on someone's cloud. Not accessible by lawyers or exes. Actually encrypted. This is it.",
             authorName: "Michelle_R",
-            avatarEmoji: "\u{1F469}\u{200D}\u{1F3A4}"
+            avatarURL: URL(string: "https://i.pravatar.cc/96?img=23")
         ),
         ReviewItem(
             text: "Girls would lose it over photos in my Hidden Album. Vaultaire doesn't even show up as a vault on my phone. No more drama in that department.",
             authorName: "tk_dev",
-            avatarEmoji: "\u{1F468}\u{200D}\u{1F4BB}"
+            avatarURL: URL(string: "https://i.pravatar.cc/96?img=33")
         ),
         ReviewItem(
             text: "I travel through 15+ countries a year. Border agents have asked to see my phone twice. The duress vault saved me both times. Nothing else on the App Store has this.",
             authorName: "marcusj_",
-            avatarEmoji: "\u{1F468}\u{200D}\u{2708}\u{FE0F}"
+            avatarURL: URL(string: "https://i.pravatar.cc/96?img=12")
         ),
     ]
 }
@@ -159,11 +176,7 @@ private struct ReviewCard: View {
             Spacer(minLength: 16)
 
             HStack(spacing: 10) {
-                Text(review.avatarEmoji)
-                    .font(.title2)
-                    .frame(width: 36, height: 36)
-                    .background(Color.vaultBackground.opacity(0.5))
-                    .clipShape(Circle())
+                ReviewAvatar(url: review.avatarURL, size: 36)
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(review.authorName)
