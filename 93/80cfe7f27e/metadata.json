@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "9380cfe7f27e",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Core/Storage/MediaOptimizer.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift",
+    "apps/ios/VaultTests/ShareSyncManagerTests.swift",
+    "apps/ios/VaultTests/ShareUploadManagerTests.swift",
+    "apps/ios/VaultTests/ZoomableImageContainerTests.swift",
+    "apps/ios/rating-reviews-showcase.html",
+    "apps/ios/rating-screen-prototype.html",
+    "web/compare/index.html",
+    "web/compare/styles.css",
+    "web/index.html",
+    "web/manifesto/index.html",
+    "web/privacy/index.html",
+    "web/s/index.html",
+    "web/terms/index.html"
+  ],
+  "sessions": [
+    {
+      "metadata": "/93/80cfe7f27e/0/metadata.json",
+      "transcript": "/93/80cfe7f27e/0/full.jsonl",
+      "context": "/93/80cfe7f27e/0/context.md",
+      "content_hash": "/93/80cfe7f27e/0/content_hash.txt",
+      "prompt": "/93/80cfe7f27e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 7,
+    "cache_creation_tokens": 77234,
+    "cache_read_tokens": 132048,
+    "output_tokens": 11,
+    "api_call_count": 3
+  }
+}
