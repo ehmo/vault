@@ -1315,3 +1315,161 @@ The build number must be higher than any previously uploaded build. Increment `C
 - Always clean before archive for release builds
 - Use `xcodebuild -showBuildSettings` to verify configuration
 - For submission issues (encryption, content rights), see `asc-submission-health` skill
+
+---
+
+# ASO Pre-Launch Command
+
+Create a detailed pre-launch checklist and week-by-week timeline to ensure successful app store submission.
+
+## Usage
+
+```bash
+/aso-prelaunch [app-name] [launch-date]
+```
+
+**Examples:**
+```bash
+/aso-prelaunch TaskFlow 2025-12-15
+/aso-prelaunch FitFlow TBD
+```
+
+## What This Command Does
+
+Invokes **aso-strategist** directly to generate:
+
+- Pre-launch checklist (47 validation items)
+- Week-by-week timeline with specific calendar dates
+- Submission guides for both platforms
+- Review response templates
+- Ongoing optimization schedule
+
+## Output
+
+Creates `outputs/[app-name]/04-launch/` and `outputs/[app-name]/05-optimization/` with:
+- `prelaunch-checklist.md` - Complete validation before submission
+- `timeline.md` - Specific dates from today to launch
+- `submission-guide.md` - Step-by-step submission instructions
+- `review-responses.md` - Pre-written response templates
+- `ongoing-tasks.md` - Daily/weekly/monthly optimization tasks
+
+## When to Use
+
+- **4-6 weeks before launch:** Plan your launch timeline
+- **First-time launch:** Need comprehensive checklist
+- **Multi-platform launch:** Coordinating Apple + Google
+- **Soft launch planning:** Phased rollout strategy
+
+## Time
+
+8-10 minutes
+
+## Required Information
+
+- App name
+- Launch date (or "TBD" for estimate)
+- Platforms (Apple, Google, or both)
+- App maturity (pre-launch, soft launch, or already live)
+
+## Example
+
+```
+You: /aso-prelaunch TaskFlow 2025-12-15
+
+aso-strategist: Creating launch plan for TaskFlow (launch: Dec 15, 2025)
+
+Today: November 7, 2025
+Time to launch: 38 days (5.4 weeks)
+
+Generating:
+- Pre-launch checklist (47 items across 7 phases)
+- Timeline (Nov 7 → Dec 15 with specific dates)
+- Submission guides
+- Review response templates
+
+✓ Complete!
+
+Your launch timeline: outputs/TaskFlow/04-launch/timeline.md
+
+Key Milestones:
+- Nov 13: Metadata finalized
+- Nov 28: Soft launch (New Zealand)
+- Dec 15: GLOBAL LAUNCH 🚀
+
+Next: Review prelaunch-checklist.md and start Phase 1
+```
+
+---
+
+<task-notification>
+<task-id>adee9b9</task-id>
+<status>completed</status>
+<summary>Agent "ASO pre-launch planning" completed</summary>
+<result>All 7 files have been created. Here is a summary of what was generated.
+
+---
+
+## Strategy Complete
+
+**Launch Timeline:** February 19 to March 19, 2026 (28 days / 4 weeks)
+
+**Key Milestones:**
+
+| Date | Milestone |
+|------|-----------|
+| Feb 25 | Metadata and screenshots uploaded to App Store Connect |
+| Mar 4 | Final release build uploaded |
+| Mar 10 | Submitted to App Review |
+| Mar 12 | Expected approval |
+| **Mar 19** | **GLOBAL LAUNCH** |
+| Apr 9 | First monthly ASO health check |
+
+---
+
+## Files Created
+
+### Launch Phase (`/Users/nan/Work/ai/vault/outputs/vaultaire/04-launch/`)
+
+| File | Contents |
+|------|----------|
+| `prelaunch-checklist.md` | 52-item checklist across 7 phases (metadata, visuals, technical, compliance, pricing, marketing, ASO). 8 items already complete based on project analysis. |
+| `timeline.md` | Day-by-day schedule from Feb 19 through post-launch April 15. All real calendar dates, buffer built in for Apple Review. |
+| `submission-guide.md` | Step-by-step App Store Connect walkthrough -- every field, every value, including suggested App Store description, keywords, and detailed App Review notes explaining the duress vault. |
+| `action-launch.md` | Quick-reference action items and risk summary. |
+
+### Optimization Phase (`/Users/nan/Work/ai/vault/outputs/vaultaire/05-optimization/`)
+
+| File | Contents |
+|------|----------|
+| `review-responses.md` | 14 response templates covering: positive reviews (4 variants), negative reviews (5 variants including locked-out users and data loss), neutral reviews (2 variants), and special scenarios (misuse accusations, rating complaints, data loss emergencies). Includes escalation protocol. |
+| `ongoing-tasks.md` | Complete post-launch schedule: daily (15 min), weekly (1 hr), bi-weekly (1 hr), monthly (2-3 hrs), quarterly (4-6 hrs), annual tasks. Includes keyword tracking template, monthly metrics report template, and ASO health scoring rubric. |
+| `action-optimization.md` | Quick-reference for post-launch priorities and 90-day success targets. |
+
+---
+
+## What I Found Already Done
+
+Based on analyzing the project, these items are already in place:
+
+- App icon exists in `Assets.xcassets/AppIcon.appiconset/`
+- Privacy policy live at `vaultaire.app/privacy/`
+- Terms of service live at `vaultaire.app/terms/`
+- Website with competitor comparison pages at `vaultaire.app/compare/`
+- TestFlight active at build 108, version 1.0.2
+- TelemetryDeck and Sentry integrated
+- StoreKit products configured (monthly $1.99, annual $9.99 with 7-day trial, lifetime $29.99)
+
+## Highest-Risk Item
+
+The **duress vault** feature is the most likely point of scrutiny during Apple Review. The submission guide includes detailed review notes that frame it as a personal safety feature for travelers, journalists, and domestic violence survivors -- not a concealment tool. Estimated 70% chance of first-try approval with these notes.
+
+## Immediate Next Steps
+
+1. Review and finalize the App Store description and keywords in `submission-guide.md` (suggested copy is included)
+2. Create screenshots -- this is the single highest-impact task for conversion rate
+3. Upload everything to App Store Connect as a draft by February 25</result>
+<usage>total_tokens: 43804
+tool_uses: 26
+duration_ms: 403633</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-nan-Work-ai-vault/tasks/adee9b9.output

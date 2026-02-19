@@ -3,9 +3,29 @@
   "checkpoint_id": "1fee5a11e0c0",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 0,
   "files_touched": [
-    "apps/ios/Vault.xcodeproj/project.pbxproj"
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Core/Storage/FileUtilities.swift",
+    "apps/ios/Vault/Core/Storage/MediaOptimizer.swift",
+    "apps/ios/Vault/Extensions/ShareExtension/ShareViewController.swift",
+    "apps/ios/Vault/Features/Onboarding/OnboardingView.swift",
+    "apps/ios/Vault/Features/Onboarding/RatingView.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift",
+    "apps/ios/VaultTests/ShareSyncManagerTests.swift",
+    "apps/ios/VaultTests/ShareUploadManagerTests.swift",
+    "apps/ios/VaultTests/ZoomableImageContainerTests.swift",
+    "apps/ios/rating-reviews-showcase.html",
+    "apps/ios/rating-screen-prototype.html",
+    "web/compare/index.html",
+    "web/compare/styles.css",
+    "web/index.html",
+    "web/manifesto/index.html",
+    "web/privacy/index.html",
+    "web/s/index.html",
+    "web/terms/index.html"
   ],
   "sessions": [
     {
@@ -17,10 +37,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 13,
-    "cache_creation_tokens": 4841,
-    "cache_read_tokens": 1492725,
-    "output_tokens": 308,
-    "api_call_count": 10
+    "input_tokens": 6,
+    "cache_creation_tokens": 158534,
+    "cache_read_tokens": 313502,
+    "output_tokens": 29,
+    "api_call_count": 3
   }
 }

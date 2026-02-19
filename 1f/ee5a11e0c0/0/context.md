@@ -351,3 +351,51 @@ xcodebuild clean archive \
   -configuration Release \
   -archiveP...
 
+### Prompt 44
+
+# ASO Pre-Launch Command
+
+Create a detailed pre-launch checklist and week-by-week timeline to ensure successful app store submission.
+
+## Usage
+
+```bash
+/aso-prelaunch [app-name] [launch-date]
+```
+
+**Examples:**
+```bash
+/aso-prelaunch TaskFlow 2025-12-15
+/aso-prelaunch FitFlow TBD
+```
+
+## What This Command Does
+
+Invokes **aso-strategist** directly to generate:
+
+- Pre-launch checklist (47 validation items)
+- Week-by-week timeline with specific calendar dates
+- Submission guides for both platforms...
+
+### Prompt 45
+
+<task-notification>
+<task-id>adee9b9</task-id>
+<status>completed</status>
+<summary>Agent "ASO pre-launch planning" completed</summary>
+<result>All 7 files have been created. Here is a summary of what was generated.
+
+---
+
+## Strategy Complete
+
+**Launch Timeline:** February 19 to March 19, 2026 (28 days / 4 weeks)
+
+**Key Milestones:**
+
+| Date | Milestone |
+|------|-----------|
+| Feb 25 | Metadata and screenshots uploaded to App Store Connect |
+| Mar 4 | Final release build uploaded |
+| Mar 10 | Su...
+
