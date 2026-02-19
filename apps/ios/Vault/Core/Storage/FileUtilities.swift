@@ -37,7 +37,14 @@ enum FileUtilities {
             return nil
         }
         let image = UIImage(cgImage: cgImage, scale: 1.0, orientation: orientation)
-        return image.jpegData(compressionQuality: 0.7)
+        
+        // Draw the image to apply orientation transform
+        let renderer = UIGraphicsImageRenderer(size: image.size)
+        let orientedImage = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+        }
+        
+        return orientedImage.jpegData(compressionQuality: 0.7)
     }
 
     static func mimeType(forExtension ext: String) -> String {
