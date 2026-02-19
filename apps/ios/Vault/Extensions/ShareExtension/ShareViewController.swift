@@ -471,6 +471,10 @@ private enum ShareAttachmentProcessor {
         let maxDimension: CGFloat = 200
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
 
+        // Read EXIF orientation from source to preserve it in thumbnail
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        let orientation = (properties?[kCGImagePropertyOrientation] as? UInt32).flatMap { UIImage.Orientation(rawValue: Int($0)) } ?? .up
+
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
@@ -481,6 +485,7 @@ private enum ShareAttachmentProcessor {
             return nil
         }
 
-        return UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.6)
+        let image = UIImage(cgImage: cgImage, scale: 1.0, orientation: orientation)
+        return image.jpegData(compressionQuality: 0.6)
     }
 }
