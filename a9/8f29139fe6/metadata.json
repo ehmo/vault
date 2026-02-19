@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "a98f29139fe6",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Features/Onboarding/RatingView.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a9/8f29139fe6/0/metadata.json",
+      "transcript": "/a9/8f29139fe6/0/full.jsonl",
+      "context": "/a9/8f29139fe6/0/context.md",
+      "content_hash": "/a9/8f29139fe6/0/content_hash.txt",
+      "prompt": "/a9/8f29139fe6/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 15,
+    "cache_creation_tokens": 8335,
+    "cache_read_tokens": 1363595,
+    "output_tokens": 548,
+    "api_call_count": 11
+  }
+}
