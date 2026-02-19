@@ -122,7 +122,8 @@ final class VaultViewModel {
         let media = visible.filter { $0.isMedia }
         let documents = visible.filter { !$0.isMedia }
         let mediaIndexById = Dictionary(
-            uniqueKeysWithValues: media.enumerated().map { ($1.id, $0) }
+            media.enumerated().map { ($1.id, $0) },
+            uniquingKeysWith: { first, _ in first }
         )
         return VaultView.VisibleFiles(
             all: visible,
