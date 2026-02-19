@@ -107,53 +107,14 @@ final class FileImporter {
         let scale = min(maxSize / size.width, maxSize / size.height)
         let newSize = CGSize(width: size.width * scale, height: size.height * scale)
         
-        // Generate thumbnail with proper orientation handling
+        // Generate thumbnail - UIImage.draw() automatically handles orientation
         let renderer = UIGraphicsImageRenderer(size: newSize)
-        let thumbnail = renderer.image { context in
-            // Apply orientation transform before drawing
-            Self.applyOrientationTransform(for: image, in: newSize, context: context.cgContext)
-            // Draw the CGImage (raw pixels)
-            if let cgImage = image.cgImage {
-                context.cgContext.draw(cgImage, in: CGRect(origin: .zero, size: newSize))
-            }
+        let thumbnail = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
         }
         
         // Convert to JPEG with moderate compression
         return thumbnail.jpegData(compressionQuality: 0.7)
-    }
-    
-    /// Applies the necessary transform to the CGContext based on UIImage's orientation
-    private static func applyOrientationTransform(for image: UIImage, in size: CGSize, context: CGContext) {
-        // Apply transform without save/restore since we need it active for drawing
-        switch image.imageOrientation {
-        case .up:
-            break
-        case .down:
-            context.translateBy(x: size.width, y: size.height)
-            context.rotate(by: .pi)
-        case .left:
-            context.translateBy(x: 0, y: size.height)
-            context.rotate(by: -.pi / 2)
-        case .right:
-            context.translateBy(x: size.width, y: 0)
-            context.rotate(by: .pi / 2)
-        case .upMirrored:
-            context.translateBy(x: size.width, y: 0)
-            context.scaleBy(x: -1, y: 1)
-        case .downMirrored:
-            context.translateBy(x: size.width, y: size.height)
-            context.scaleBy(x: -1, y: -1)
-        case .leftMirrored:
-            context.translateBy(x: 0, y: size.height)
-            context.rotate(by: -.pi / 2)
-            context.scaleBy(x: 1, y: -1)
-        case .rightMirrored:
-            context.translateBy(x: size.width, y: size.height)
-            context.rotate(by: .pi / 2)
-            context.scaleBy(x: -1, y: 1)
-        @unknown default:
-            break
-        }
     }
 
     // MARK: - Error Types
