@@ -1,5 +1,8 @@
 import UIKit
 import ImageIO
+import os.log
+
+private let thumbnailLogger = Logger(subsystem: "app.vaultaire.ios", category: "ThumbnailOrientation")
 
 enum FileUtilities {
     static func generateThumbnail(from data: Data, maxSize: CGFloat = 200) -> Data? {
@@ -8,6 +11,8 @@ enum FileUtilities {
         let size = image.size
         let scale = min(maxSize / size.width, maxSize / size.height)
         let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+
+        thumbnailLogger.debug("Thumbnail generation - imageOrientation: \(String(describing: image.imageOrientation.rawValue)), size: \(size.width)x\(size.height)")
 
         let renderer = UIGraphicsImageRenderer(size: newSize)
         let thumbnail = renderer.image { context in
@@ -24,6 +29,7 @@ enum FileUtilities {
     
     /// Applies the necessary transform to the CGContext based on UIImage's orientation
     private static func applyOrientationTransform(for image: UIImage, in size: CGSize, context: CGContext) {
+        thumbnailLogger.debug("Applying orientation transform: \(String(describing: image.imageOrientation.rawValue))")
         // Apply transform without save/restore since we need it active for drawing
         switch image.imageOrientation {
         case .up:
