@@ -169,8 +169,9 @@ extension VaultView {
             .accessibilityIdentifier("vault_filter_menu")
             .accessibilityLabel("Filter and sort")
 
-            // Select button (hidden for shared vaults)
-            if !viewModel.isSharedVault {
+            // Select button (shown for regular vaults and shared vaults that allow downloads)
+            let canSelect = !viewModel.isSharedVault || (viewModel.sharePolicy?.allowDownloads ?? true)
+            if canSelect {
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         viewModel.isEditing = true
@@ -191,18 +192,22 @@ extension VaultView {
 
     var bottomEditBar: some View {
         HStack(spacing: 12) {
-            Button(role: .destructive) {
-                viewModel.showingBatchDeleteConfirmation = true
-            } label: {
-                Label("Delete", systemImage: "trash")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+            // Delete button only for regular vaults (not shared vaults)
+            if !viewModel.isSharedVault {
+                Button(role: .destructive) {
+                    viewModel.showingBatchDeleteConfirmation = true
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+                .accessibilityIdentifier("vault_edit_delete")
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.red)
-            .accessibilityIdentifier("vault_edit_delete")
 
+            // Export button (shown for all vaults, but especially important for shared vaults with allowDownloads)
             Button {
                 viewModel.batchExport()
             } label: {
