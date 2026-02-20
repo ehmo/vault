@@ -81,6 +81,9 @@ final class ShareUploadManager {
         var uploadFinished: Bool
         var lastProgress: Int
         var lastMessage: String
+        /// The human-readable share phrase needed by the recipient. Stored so the
+        /// owner can copy/share it while the upload runs, even after app restart.
+        let phrase: String?
 
         enum CodingKeys: String, CodingKey {
             case jobId
@@ -96,6 +99,7 @@ final class ShareUploadManager {
             case uploadFinished
             case lastProgress
             case lastMessage
+            case phrase
         }
 
         init(
@@ -111,7 +115,8 @@ final class ShareUploadManager {
             createdAt: Date,
             uploadFinished: Bool,
             lastProgress: Int,
-            lastMessage: String
+            lastMessage: String,
+            phrase: String?
         ) {
             self.jobId = jobId
             self.shareVaultId = shareVaultId
@@ -126,6 +131,7 @@ final class ShareUploadManager {
             self.uploadFinished = uploadFinished
             self.lastProgress = lastProgress
             self.lastMessage = lastMessage
+            self.phrase = phrase
         }
 
         /// Backward compatibility with legacy single-pending schema that had no
@@ -145,6 +151,7 @@ final class ShareUploadManager {
             uploadFinished = try c.decodeIfPresent(Bool.self, forKey: .uploadFinished) ?? false
             lastProgress = try c.decodeIfPresent(Int.self, forKey: .lastProgress) ?? 0
             lastMessage = try c.decodeIfPresent(String.self, forKey: .lastMessage) ?? "Waiting to resume..."
+            phrase = try c.decodeIfPresent(String.self, forKey: .phrase)
         }
     }
 
@@ -366,7 +373,7 @@ final class ShareUploadManager {
                     ownerFingerprint: state.ownerFingerprint,
                     createdAt: state.createdAt,
                     shareVaultId: state.shareVaultId,
-                    phrase: nil,
+                    phrase: state.phrase,
                     status: .paused,
                     progress: state.lastProgress,
                     total: 100,
@@ -374,6 +381,13 @@ final class ShareUploadManager {
                     errorMessage: nil
                 )
                 upsertJob(restoredJob)
+            } else {
+                // Job exists in memory — restore phrase in case it was lost (e.g. after suspend)
+                updateJob(jobId: state.jobId) { job in
+                    if job.phrase == nil, let phrase = state.phrase {
+                        job.phrase = phrase
+                    }
+                }
             }
 
             pendingStateByJobId[state.jobId] = state
@@ -508,7 +522,8 @@ final class ShareUploadManager {
                 createdAt: Date(),
                 uploadFinished: false,
                 lastProgress: 5,
-                lastMessage: "Uploading vault..."
+                lastMessage: "Uploading vault...",
+                phrase: phrase
             )
             savePendingState(pendingState)
 
@@ -1198,7 +1213,8 @@ final class ShareUploadManager {
             createdAt: legacy.createdAt,
             uploadFinished: false,
             lastProgress: 0,
-            lastMessage: "Waiting to resume..."
+            lastMessage: "Waiting to resume...",
+            phrase: nil
         )
 
         do {
