@@ -354,6 +354,11 @@ struct VaultView: View {
             viewModel.loadVault()
             ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "vault_view_task")
         }
+        .onAppear {
+            // Check shared vault status immediately when view appears
+            // This ensures revoked shares are detected right away
+            viewModel.checkSharedVaultStatus()
+        }
         .onChange(of: appState.currentVaultKey) { oldKey, newKey in
             viewModel.handleVaultKeyChange(oldKey: oldKey, newKey: newKey)
         }
