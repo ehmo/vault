@@ -1,0 +1,63 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "7932f0bc1350",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/.asc/shots.settings.json",
+    "apps/ios/AGENTS.md",
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Core/Sharing/BackgroundShareTransferManager.swift",
+    "apps/ios/Vault/Core/Sharing/ShareUploadManager.swift",
+    "apps/ios/Vault/Core/Storage/FileUtilities.swift",
+    "apps/ios/Vault/Core/Storage/MediaOptimizer.swift",
+    "apps/ios/Vault/Extensions/ShareExtension/ShareViewController.swift",
+    "apps/ios/Vault/Features/Onboarding/OnboardingView.swift",
+    "apps/ios/Vault/Features/Onboarding/RatingView.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/Vault/Features/VaultViewer/FullScreenPhotoViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Grid.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift",
+    "apps/ios/VaultTests/ShareSyncManagerTests.swift",
+    "apps/ios/VaultTests/ShareUploadManagerTests.swift",
+    "apps/ios/VaultTests/ZoomableImageContainerTests.swift",
+    "apps/ios/maestro/flows/screenshots/01_empty_vault.yaml",
+    "apps/ios/maestro/flows/screenshots/01_onboarding_welcome.yaml",
+    "apps/ios/maestro/flows/screenshots/02_protected_by_design.yaml",
+    "apps/ios/maestro/flows/screenshots/02_vault_with_files.yaml",
+    "apps/ios/maestro/flows/screenshots/03_rating_screen.yaml",
+    "apps/ios/maestro/flows/screenshots/04_pattern_lock.yaml",
+    "apps/ios/maestro/flows/screenshots/05_vault_empty_state.yaml",
+    "apps/ios/maestro/flows/screenshots/test_screenshot.yaml",
+    "apps/ios/rating-reviews-showcase.html",
+    "apps/ios/rating-screen-prototype.html",
+    "apps/web/demos/expanding-nav/index.html",
+    "apps/web/index.html",
+    "apps/web/scripts/mobile-nav.js",
+    "apps/web/styles/site-shared.css",
+    "web/compare/index.html",
+    "web/compare/styles.css",
+    "web/index.html",
+    "web/manifesto/index.html",
+    "web/privacy/index.html",
+    "web/s/index.html",
+    "web/terms/index.html"
+  ],
+  "sessions": [
+    {
+      "metadata": "/79/32f0bc1350/0/metadata.json",
+      "transcript": "/79/32f0bc1350/0/full.jsonl",
+      "context": "/79/32f0bc1350/0/context.md",
+      "content_hash": "/79/32f0bc1350/0/content_hash.txt",
+      "prompt": "/79/32f0bc1350/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 55,
+    "cache_creation_tokens": 53104,
+    "cache_read_tokens": 6864574,
+    "output_tokens": 3481,
+    "api_call_count": 51
+  }
+}
