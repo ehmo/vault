@@ -242,9 +242,9 @@ struct JoinVaultView: View {
                 .foregroundStyle(.vaultSecondaryText).multilineTextAlignment(.center)
 
             HStack(spacing: 16) {
-                Button("Try Again") { mode = .input }
+                Button("Close") { dismiss() }
                     .buttonStyle(.bordered)
-                Button("Edit Phrase") { mode = .input }
+                Button("Try Again") { mode = .input }
                     .vaultProminentButtonStyle()
             }
             .padding(.top)

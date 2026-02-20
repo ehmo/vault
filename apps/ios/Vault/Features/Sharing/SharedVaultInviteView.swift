@@ -218,9 +218,12 @@ struct SharedVaultInviteView: View {
             Text(message)
                 .foregroundStyle(.vaultSecondaryText).multilineTextAlignment(.center)
 
-            Button("Try Again") { mode = .invite }
-                .vaultProminentButtonStyle()
-                .padding(.top)
+            Button("Close") {
+                deepLinkHandler.clearPending()
+                dismiss()
+            }
+            .vaultProminentButtonStyle()
+            .padding(.top)
         }
         .padding(.top, 60)
     }
