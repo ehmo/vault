@@ -481,7 +481,7 @@ struct ShareVaultView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Share #\(share.id.prefix(8))")
                         .font(.headline)
-                    Text("Created \(share.createdAt, style: .date)")
+                    Text("Created \(relativeTimeString(from: share.createdAt))")
                         .font(.caption).foregroundStyle(.vaultSecondaryText)
                 }
                 Spacer()
@@ -674,8 +674,42 @@ struct ShareVaultView: View {
             activeShares = []
             return
         }
-        activeShares = shares
+        // Sort by creation date, newest first
+        activeShares = shares.sorted { $0.createdAt > $1.createdAt }
         updateModeForCurrentData()
+    }
+    
+    /// Formats a date as relative time (e.g., "5 minutes ago", "1 day ago")
+    private func relativeTimeString(from date: Date) -> String {
+        let now = Date()
+        let diff = now.timeIntervalSince(date)
+        
+        // Less than a minute
+        if diff < 60 {
+            return "just now"
+        }
+        // Less than an hour - show minutes
+        else if diff < 3600 {
+            let minutes = Int(diff / 60)
+            return minutes == 1 ? "1 minute ago" : "\(minutes) minutes ago"
+        }
+        // Less than a day - show hours
+        else if diff < 86400 {
+            let hours = Int(diff / 3600)
+            return hours == 1 ? "1 hour ago" : "\(hours) hours ago"
+        }
+        // Less than 30 days - show days
+        else if diff < 2592000 {
+            let days = Int(diff / 86400)
+            return days == 1 ? "1 day ago" : "\(days) days ago"
+        }
+        // More than 30 days - show the date
+        else {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .none
+            return formatter.string(from: date)
+        }
     }
 
     private func revokeShare(_ share: VaultStorage.ShareRecord) async {
@@ -818,7 +852,9 @@ struct ShareVaultView: View {
     private static func loadActiveShares(vaultKey: VaultKey) async throws -> [VaultStorage.ShareRecord] {
         try await Task.detached(priority: .utility) {
             let index = try VaultStorage.shared.loadIndex(with: vaultKey)
-            return index.activeShares ?? []
+            let shares = index.activeShares ?? []
+            // Sort by creation date, newest first
+            return shares.sorted { $0.createdAt > $1.createdAt }
         }.value
     }
 
