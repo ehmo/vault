@@ -59,7 +59,7 @@ struct RatingView: View {
                             .frame(maxWidth: .infinity)
                             .padding()
                     }
-                    .vaultSecondaryButtonStyle()
+                    .vaultProminentButtonStyle()
                     .accessibilityIdentifier("rating_rate_app")
 
                     Button(action: {
