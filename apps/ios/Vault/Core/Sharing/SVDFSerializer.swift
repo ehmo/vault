@@ -65,6 +65,7 @@ enum SVDFSerializer {
         let createdAt: Date
         let encryptedThumbnail: Data?
         let plaintextContentURL: URL
+        let duration: TimeInterval?  // Video duration in seconds (nil for non-videos)
     }
 
     // MARK: - Build Full
@@ -552,9 +553,10 @@ enum SVDFSerializer {
     /// Binary layout per file entry:
     /// ```
     /// entrySize(4) + fileId(16 bytes UUID) + filenameLen(2) + filename
-    /// + mimeTypeLen(1) + mimeType + originalSize(4) + createdAt(8)
+    /// + mimeTypeLen(1) + mimeType + originalSize(4) + createdAt(8) + duration(8)
     /// + thumbSize(4) + thumbData + contentSize(4) + contentData
     /// ```
+    /// Note: duration is 8 bytes (Double/TimeInterval), -1.0 indicates nil (non-video)
     private static func encodeFileEntry(_ file: SharedVaultData.SharedFile) throws -> Data {
         var entry = Data()
 
@@ -581,6 +583,10 @@ enum SVDFSerializer {
 
         // Created at (Unix timestamp as Double)
         entry.appendFloat64(file.createdAt.timeIntervalSince1970)
+
+        // Duration (8 bytes, -1.0 for nil/non-videos)
+        let durationValue = file.duration ?? -1.0
+        entry.appendFloat64(durationValue)
 
         // Thumbnail
         let thumb = file.encryptedThumbnail ?? Data()
@@ -614,10 +620,11 @@ enum SVDFSerializer {
         let originalSize = try checkedUInt32(file.size, field: "fileOriginalSize")
         let thumbnailSize = try checkedUInt32(thumb.count, field: "thumbnailSize")
         let encryptedContentSize = try checkedUInt32(file.encryptedContent.count, field: "encryptedContentSize")
+        let durationValue = file.duration ?? -1.0
 
-        // Calculate total entry size upfront
+        // Calculate total entry size upfront (including 8 bytes for duration)
         let headerFieldsSize = 4 + 16 + 2 + filenameData.count + 1 + mimeData.count
-            + 4 + 8 + 4 + thumb.count + 4
+            + 4 + 8 + 8 + 4 + thumb.count + 4  // +8 for duration
         let totalSize = try checkedUInt32(headerFieldsSize + file.encryptedContent.count, field: "entrySize")
 
         var header = Data()
@@ -636,6 +643,7 @@ enum SVDFSerializer {
 
         header.appendUInt32(originalSize)
         header.appendFloat64(file.createdAt.timeIntervalSince1970)
+        header.appendFloat64(durationValue)  // Duration: -1.0 for nil
 
         header.appendUInt32(thumbnailSize)
         header.append(thumb)
@@ -661,6 +669,7 @@ enum SVDFSerializer {
         let filenameLength = try checkedUInt16(filenameData.count, field: "filenameLength")
         let originalSize = try checkedUInt32(file.originalSize, field: "fileOriginalSize")
         let thumbnailSize = try checkedUInt32(thumb.count, field: "thumbnailSize")
+        let durationValue = file.duration ?? -1.0
 
         // Compute encrypted payload length before writing the header.
         let encryptedContentCount = CryptoEngine.encryptedContentSize(forFileOfSize: file.originalSize)
@@ -669,8 +678,9 @@ enum SVDFSerializer {
             field: "encryptedContentSize"
         )
 
+        // +8 for duration field
         let headerFieldsSize = 4 + 16 + 2 + filenameData.count + 1 + mimeData.count
-            + 4 + 8 + 4 + thumb.count + 4
+            + 4 + 8 + 8 + 4 + thumb.count + 4
         let totalSize = try checkedUInt32(
             headerFieldsSize + encryptedContentCount,
             field: "entrySize"
@@ -692,6 +702,7 @@ enum SVDFSerializer {
 
         header.appendUInt32(originalSize)
         header.appendFloat64(file.createdAt.timeIntervalSince1970)
+        header.appendFloat64(durationValue)  // Duration: -1.0 for nil
 
         header.appendUInt32(thumbnailSize)
         header.append(thumb)
@@ -753,6 +764,19 @@ enum SVDFSerializer {
         let timestamp = data.readFloat64(at: cursor); cursor += 8
         let createdAt = Date(timeIntervalSince1970: timestamp)
 
+        // Duration (8 bytes, backward compatible: check if enough bytes remain)
+        // Duration comes before thumbnail, so check if we have at least 8+4=12 more bytes
+        // (duration + thumbSize header)
+        var duration: TimeInterval? = nil
+        if cursor + 8 <= data.count {
+            let durationValue = data.readFloat64(at: cursor)
+            cursor += 8
+            // -1.0 indicates nil/non-video
+            if durationValue >= 0 {
+                duration = durationValue
+            }
+        }
+
         // Thumbnail
         guard cursor + 4 <= data.count else { throw SVDFError.invalidEntry }
         let thumbSize = Int(data.readUInt32(at: cursor)); cursor += 4
@@ -773,7 +797,8 @@ enum SVDFSerializer {
             size: originalSize,
             encryptedContent: content,
             createdAt: createdAt,
-            encryptedThumbnail: thumb
+            encryptedThumbnail: thumb,
+            duration: duration
         )
     }
 

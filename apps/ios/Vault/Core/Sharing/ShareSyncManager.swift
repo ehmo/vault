@@ -433,7 +433,8 @@ final class ShareSyncManager {
             size: Int(header.originalSize),
             encryptedContent: reencrypted,
             createdAt: header.createdAt,
-            encryptedThumbnail: encryptedThumb
+            encryptedThumbnail: encryptedThumb,
+            duration: entry.duration
         )
     }
     

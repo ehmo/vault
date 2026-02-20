@@ -1174,7 +1174,8 @@ final class ShareUploadManager {
                         originalSize: Int(header.originalSize),
                         createdAt: header.createdAt,
                         encryptedThumbnail: encryptedThumb,
-                        plaintextContentURL: plaintextURL
+                        plaintextContentURL: plaintextURL,
+                        duration: entry.duration
                     )
                 }
             },

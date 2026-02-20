@@ -579,7 +579,8 @@ final class BackgroundShareTransferManager {
                                 originalSize: plainSize,
                                 createdAt: header.createdAt,
                                 encryptedThumbnail: encryptedThumb,
-                                plaintextContentURL: plaintextURL
+                                plaintextContentURL: plaintextURL,
+                                duration: entry.duration
                             )
                         }
                     },
@@ -1018,7 +1019,8 @@ final class BackgroundShareTransferManager {
                             filename: file.filename,
                             mimeType: file.mimeType,
                             with: capturedPatternKey,
-                            thumbnailData: thumbnailData
+                            thumbnailData: thumbnailData,
+                            duration: file.duration
                         )
                         
                         // Track successful import

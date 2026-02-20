@@ -1058,8 +1058,9 @@ struct SharedVaultData: Codable, Sendable {
         let encryptedContent: Data
         let createdAt: Date
         let encryptedThumbnail: Data?
+        let duration: TimeInterval?  // Video duration in seconds (nil for non-videos)
 
-        init(id: UUID, filename: String, mimeType: String, size: Int, encryptedContent: Data, createdAt: Date, encryptedThumbnail: Data? = nil) {
+        init(id: UUID, filename: String, mimeType: String, size: Int, encryptedContent: Data, createdAt: Date, encryptedThumbnail: Data? = nil, duration: TimeInterval? = nil) {
             self.id = id
             self.filename = filename
             self.mimeType = mimeType
@@ -1067,6 +1068,7 @@ struct SharedVaultData: Codable, Sendable {
             self.encryptedContent = encryptedContent
             self.createdAt = createdAt
             self.encryptedThumbnail = encryptedThumbnail
+            self.duration = duration
         }
     }
 
