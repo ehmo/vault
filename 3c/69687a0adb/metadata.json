@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "3c69687a0adb",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/web/_headers",
+    "apps/web/scripts/mobile-nav.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3c/69687a0adb/0/metadata.json",
+      "transcript": "/3c/69687a0adb/0/full.jsonl",
+      "context": "/3c/69687a0adb/0/context.md",
+      "content_hash": "/3c/69687a0adb/0/content_hash.txt",
+      "prompt": "/3c/69687a0adb/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 39,
+    "cache_creation_tokens": 76577,
+    "cache_read_tokens": 3645761,
+    "output_tokens": 535,
+    "api_call_count": 35
+  }
+}
