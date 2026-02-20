@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "09347bc573f7",
+  "session_id": "090242c9-96a0-4717-a29c-7a0a18d4828e",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-20T20:42:50.05725Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Core/Sharing/ShareUploadManager.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "6f2ed78a-df77-4a01-ba7e-2e66495853fa",
+  "checkpoint_transcript_start": 5557,
+  "transcript_lines_at_start": 5557,
+  "token_usage": {
+    "input_tokens": 33,
+    "cache_creation_tokens": 19326,
+    "cache_read_tokens": 3917877,
+    "output_tokens": 2192,
+    "api_call_count": 31
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-20T20:42:49.041658Z",
+    "agent_lines": 0,
+    "human_added": 2880,
+    "human_modified": 4,
+    "human_removed": 0,
+    "total_committed": 2880,
+    "agent_percentage": 0
+  }
+}
