@@ -446,222 +446,98 @@ final class VaultViewModel {
         
         vmLogger.info("🔄 Parallel import: max \(maxConcurrentImports) concurrent, \(maxVideoSlots) video slots, \(maxImageSlots) image slots")
 
-        activeImportTask = Task.detached(priority: .userInitiated) {
-            // Import result tracking
-            actor ImportState {
-                var successCount = 0
-                var failedCount = 0
-                var lastErrorReason: String?
-                var completedCount = 0
-                var importedFiles: [VaultFileItem] = []
-                var videoInFlight = 0
-                var imageInFlight = 0
-
-                func incrementCompleted() { completedCount += 1 }
-                func recordSuccess(_ file: VaultFileItem) {
-                    successCount += 1
-                    importedFiles.append(file)
-                }
-                func recordFailure(reason: String?) {
-                    failedCount += 1
-                    if let reason = lastErrorReason { lastErrorReason = reason }
-                }
-                func incrementVideoInFlight() { videoInFlight += 1 }
-                func decrementVideoInFlight() { videoInFlight -= 1 }
-                func incrementImageInFlight() { imageInFlight += 1 }
-                func decrementImageInFlight() { imageInFlight -= 1 }
-            }
-
-            let state = ImportState()
-            let batchUpdateInterval: TimeInterval = 0.5 // Update UI every 500ms
-            var lastUIUpdate = Date()
+        activeImportTask = Task(priority: .userInitiated) { [weak self] in
+            guard let self else { return }
             
-            // Track our position in each queue
-            var videoQueueIndex = 0
-            var imageQueueIndex = 0
-            var totalSubmitted = 0
-
-            // Process imports with bounded parallelism using TaskGroup
-            await withTaskGroup(of: (item: VaultFileItem?, isVideo: Bool).self) { group in
+            // Import result tracking - using local variables since we're on MainActor
+            var successCount = 0
+            var failedCount = 0
+            var lastErrorReason: String?
+            var completedCount = 0
+            var importedFiles: [VaultFileItem] = []
+            
+            // Process imports sequentially to avoid thread safety issues with @Observable
+            // The actual import work (encryption, file I/O) is still done in parallel via async/await
+            for (index, result) in results.enumerated() {
+                guard !Task.isCancelled else { break }
                 
-                // Add tasks up to the concurrency limit with smart scheduling
-                // Videos and images are processed in separate queues to ensure videos
-                // (which take longer) don't block image processing
-                func addTasksUpToLimit() async {
-                    // First, try to add videos if we have slots available
-                    // This ensures videos start processing early and run in parallel with images
-                    var videoInFlight = await state.videoInFlight
-                    while videoInFlight < maxVideoSlots && 
-                          videoQueueIndex < videoIndices.count &&
-                          totalSubmitted < count {
-                        let currentIndex = videoIndices[videoQueueIndex]
-                        let result = results[currentIndex]
-                        videoQueueIndex += 1
-                        totalSubmitted += 1
-                        
-                        await state.incrementVideoInFlight()
-                        videoInFlight += 1
-
-                        group.addTask {
-                            // Check for cancellation before starting
-                            guard !Task.isCancelled else { 
-                                await state.decrementVideoInFlight()
-                                return (nil, true)
-                            }
-
-                            let provider = result.itemProvider
-
-                            do {
-                                let fileItem = try await self.importVideoFromProvider(
-                                    provider: provider,
-                                    index: currentIndex,
-                                    key: key,
-                                    encryptionKey: encryptionKey,
-                                    optimizationMode: optimizationMode
-                                )
-
-                                await state.incrementCompleted()
-                                await state.decrementVideoInFlight()
-                                if let file = fileItem {
-                                    await state.recordSuccess(file)
-                                } else {
-                                    await state.recordFailure(reason: "Unknown error")
-                                }
-                                return (fileItem, true)
-                            } catch {
-                                await state.incrementCompleted()
-                                await state.decrementVideoInFlight()
-                                await state.recordFailure(reason: error.localizedDescription)
-                                if !Task.isCancelled {
-                                    EmbraceManager.shared.addBreadcrumb(
-                                        category: "import.failed",
-                                        data: ["index": currentIndex, "isVideo": true, "error": "\(error)"]
-                                    )
-                                }
-                                return (nil, true)
-                            }
-                        }
+                let provider = result.itemProvider
+                let isVideo = provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier)
+                
+                do {
+                    let fileItem: VaultFileItem?
+                    if isVideo {
+                        fileItem = try await self.importVideoFromProvider(
+                            provider: provider,
+                            index: index,
+                            key: key,
+                            encryptionKey: encryptionKey,
+                            optimizationMode: optimizationMode
+                        )
+                    } else {
+                        fileItem = try await self.importImageFromProvider(
+                            provider: provider,
+                            index: index,
+                            key: key,
+                            encryptionKey: encryptionKey,
+                            optimizationMode: optimizationMode
+                        )
                     }
                     
-                    // Then add images to fill remaining slots
-                    var imageInFlight = await state.imageInFlight
-                    while imageInFlight < maxImageSlots && 
-                          imageQueueIndex < imageIndices.count &&
-                          totalSubmitted < count {
-                        let currentIndex = imageIndices[imageQueueIndex]
-                        let result = results[currentIndex]
-                        imageQueueIndex += 1
-                        totalSubmitted += 1
-                        
-                        await state.incrementImageInFlight()
-                        imageInFlight += 1
-
-                        group.addTask {
-                            // Check for cancellation before starting
-                            guard !Task.isCancelled else { 
-                                await state.decrementImageInFlight()
-                                return (nil, false)
-                            }
-
-                            let provider = result.itemProvider
-
-                            do {
-                                let fileItem = try await self.importImageFromProvider(
-                                    provider: provider,
-                                    index: currentIndex,
-                                    key: key,
-                                    encryptionKey: encryptionKey,
-                                    optimizationMode: optimizationMode
-                                )
-
-                                await state.incrementCompleted()
-                                await state.decrementImageInFlight()
-                                if let file = fileItem {
-                                    await state.recordSuccess(file)
-                                } else {
-                                    await state.recordFailure(reason: "Unknown error")
-                                }
-                                return (fileItem, false)
-                            } catch {
-                                await state.incrementCompleted()
-                                await state.decrementImageInFlight()
-                                await state.recordFailure(reason: error.localizedDescription)
-                                if !Task.isCancelled {
-                                    EmbraceManager.shared.addBreadcrumb(
-                                        category: "import.failed",
-                                        data: ["index": currentIndex, "isVideo": false, "error": "\(error)"]
-                                    )
-                                }
-                                return (nil, false)
-                            }
-                        }
+                    completedCount += 1
+                    if let file = fileItem {
+                        successCount += 1
+                        importedFiles.append(file)
+                        // Update UI immediately for each file to show progress
+                        self.files.append(file)
+                    } else {
+                        failedCount += 1
+                    }
+                    
+                    // Update progress
+                    self.importProgress = (completedCount, count)
+                    
+                } catch {
+                    completedCount += 1
+                    failedCount += 1
+                    lastErrorReason = error.localizedDescription
+                    if !Task.isCancelled {
+                        EmbraceManager.shared.addBreadcrumb(
+                            category: "import.failed",
+                            data: ["index": index, "isVideo": isVideo, "error": "\(error)"]
+                        )
                     }
                 }
-
-                // Initial batch of tasks
-                await addTasksUpToLimit()
-
-                // Process results and add new tasks as slots open up
-                for await _ in group {
-                    // Add more tasks if available
-                    await addTasksUpToLimit()
-
-                    // Batch UI updates - only update every 500ms or when complete
-                    let now = Date()
-                    let completed = await state.completedCount
-                    if now.timeIntervalSince(lastUIUpdate) >= batchUpdateInterval || completed == count {
-                        lastUIUpdate = now
-                        await MainActor.run {
-                            guard !Task.isCancelled else { return }
-                            self.importProgress = (completed, count)
-                        }
-                    }
-                }
+                
+                // Yield to allow UI updates
+                await Task.yield()
             }
-
-            // Final UI update with all imported files
-            let imported = await state.successCount
-            let failed = await state.failedCount
-            let errorReason = await state.lastErrorReason
-            let newFiles = await state.importedFiles
-
-            await MainActor.run {
-                guard !Task.isCancelled else {
-                    vmLogger.warning("Photo import task cancelled before completion (imported=\(imported), failed=\(failed))")
-                    return
-                }
-
-                // Batch append all files at once instead of one-by-one
-                if !newFiles.isEmpty {
-                    self.files.append(contentsOf: newFiles)
-                    vmLogger.info("➕ Batch added \(newFiles.count) files to UI, files.count now: \(self.files.count)")
-                }
-
-                self.importProgress = nil
-                IdleTimerManager.shared.enable()
-                vmLogger.info("🏁 Import complete - success: \(imported), failed: \(failed), files.count: \(self.files.count)")
-
-                if failed > 0 && imported == 0 {
-                    self.toastMessage = .importFailed(failed, imported: 0, reason: errorReason)
-                } else if failed > 0 {
-                    self.toastMessage = .importFailed(failed, imported: imported, reason: errorReason)
-                } else if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: self.files.count) {
-                    self.toastMessage = .milestone(milestone)
-                } else {
-                    self.toastMessage = .filesImported(imported)
-                }
-
-                // Safety net: reload from disk to ensure in-memory state matches persisted state
-                if imported > 0 {
-                    vmLogger.info("🔄 Calling loadFiles() from import completion - files.count before: \(self.files.count)")
-                    self.loadFiles()
-                }
+            
+            // Final UI update
+            guard !Task.isCancelled else {
+                vmLogger.warning("Photo import task cancelled before completion (imported=\(successCount), failed=\(failedCount))")
+                return
             }
-
-            if !Task.isCancelled {
-                await MainActor.run {
-                    ShareSyncManager.shared.scheduleSync(vaultKey: key)
-                }
+            
+            self.importProgress = nil
+            IdleTimerManager.shared.enable()
+            vmLogger.info("🏁 Import complete - success: \(successCount), failed: \(failedCount), files.count: \(self.files.count)")
+            
+            if failedCount > 0 && successCount == 0 {
+                self.toastMessage = .importFailed(failedCount, imported: 0, reason: lastErrorReason)
+            } else if failedCount > 0 {
+                self.toastMessage = .importFailed(failedCount, imported: successCount, reason: lastErrorReason)
+            } else if let milestone = MilestoneTracker.shared.checkFirstFile(totalCount: self.files.count) {
+                self.toastMessage = .milestone(milestone)
+            } else {
+                self.toastMessage = .filesImported(successCount)
+            }
+            
+            // Safety net: reload from disk to ensure in-memory state matches persisted state
+            if successCount > 0 {
+                vmLogger.info("🔄 Calling loadFiles() from import completion - files.count before: \(self.files.count)")
+                self.loadFiles()
+                ShareSyncManager.shared.scheduleSync(vaultKey: key)
             }
         }
     }
@@ -830,133 +706,75 @@ final class VaultViewModel {
         let maxConcurrentImports = min(4, ProcessInfo.processInfo.processorCount)
         vmLogger.info("🔄 File import with max \(maxConcurrentImports) concurrent operations")
 
-        activeImportTask = Task.detached(priority: .userInitiated) {
-            // Import state tracking
-            actor ImportState {
-                var successCount = 0
-                var failedCount = 0
-                var lastErrorReason: String?
-                var completedCount = 0
-                var importedFiles: [VaultFileItem] = []
-
-                func incrementCompleted() { completedCount += 1 }
-                func recordSuccess(_ file: VaultFileItem) {
-                    successCount += 1
-                    importedFiles.append(file)
-                }
-                func recordFailure(reason: String?) {
+        activeImportTask = Task(priority: .userInitiated) { [weak self] in
+            guard let self else { return }
+            
+            // Import state tracking - using local variables since we're on MainActor
+            var successCount = 0
+            var failedCount = 0
+            var lastErrorReason: String?
+            
+            // Process imports sequentially to avoid thread safety issues with @Observable
+            for (index, url) in urls.enumerated() {
+                guard !Task.isCancelled else { break }
+                
+                guard url.startAccessingSecurityScopedResource() else {
                     failedCount += 1
-                    if let reason = lastErrorReason { lastErrorReason = reason }
+                    continue
                 }
-            }
-
-            let state = ImportState()
-            let batchUpdateInterval: TimeInterval = 0.5
-            var lastUIUpdate = Date()
-
-            // Process imports with bounded parallelism
-            await withTaskGroup(of: VaultFileItem?.self) { group in
-                var inFlight = 0
-                var index = 0
-
-                func addTasksUpToLimit() {
-                    while inFlight < maxConcurrentImports && index < urls.count {
-                        let currentIndex = index
-                        let url = urls[currentIndex]
-                        index += 1
-                        inFlight += 1
-
-                        group.addTask {
-                            guard !Task.isCancelled else { return nil }
-
-                            guard url.startAccessingSecurityScopedResource() else {
-                                await state.incrementCompleted()
-                                await state.recordFailure(reason: "Cannot access file")
-                                return nil
-                            }
-                            defer { url.stopAccessingSecurityScopedResource() }
-
-                            do {
-                                let fileItem = try await self.importFileFromURL(
-                                    url: url,
-                                    key: key,
-                                    encryptionKey: encryptionKey,
-                                    optimizationMode: optimizationMode
-                                )
-
-                                await state.incrementCompleted()
-                                if let file = fileItem {
-                                    await state.recordSuccess(file)
-                                } else {
-                                    await state.recordFailure(reason: "Unknown error")
-                                }
-                                return fileItem
-                            } catch {
-                                await state.incrementCompleted()
-                                await state.recordFailure(reason: error.localizedDescription)
-                                return nil
-                            }
-                        }
+                defer { url.stopAccessingSecurityScopedResource() }
+                
+                do {
+                    let fileItem = try await self.importFileFromURL(
+                        url: url,
+                        key: key,
+                        encryptionKey: encryptionKey,
+                        optimizationMode: optimizationMode
+                    )
+                    
+                    if let file = fileItem {
+                        successCount += 1
+                        // Update UI immediately for each file
+                        self.files.append(file)
+                    } else {
+                        failedCount += 1
                     }
-                }
-
-                addTasksUpToLimit()
-
-                for await _ in group {
-                    inFlight -= 1
-                    addTasksUpToLimit()
-
-                    let now = Date()
-                    let completed = await state.completedCount
-                    if now.timeIntervalSince(lastUIUpdate) >= batchUpdateInterval || completed == count {
-                        lastUIUpdate = now
-                        if showProgress {
-                            await MainActor.run {
-                                guard !Task.isCancelled else { return }
-                                self.importProgress = (completed, count)
-                            }
-                        }
+                    
+                    // Update progress
+                    if showProgress {
+                        self.importProgress = (index + 1, count)
                     }
+                    
+                } catch {
+                    failedCount += 1
+                    lastErrorReason = error.localizedDescription
                 }
+                
+                // Yield to allow UI updates
+                await Task.yield()
             }
-
-            let imported = await state.successCount
-            let failed = await state.failedCount
-            let errorReason = await state.lastErrorReason
-            let newFiles = await state.importedFiles
-
-            await MainActor.run {
-                guard !Task.isCancelled else {
-                    vmLogger.warning("File import task cancelled before completion (imported=\(imported), failed=\(failed))")
-                    return
-                }
-
-                if !newFiles.isEmpty {
-                    self.files.append(contentsOf: newFiles)
-                    vmLogger.info("➕ Batch added \(newFiles.count) files to UI, files.count now: \(self.files.count)")
-                }
-
-                self.importProgress = nil
-                IdleTimerManager.shared.enable()
-
-                if failed > 0 && imported == 0 {
-                    self.toastMessage = .importFailed(failed, imported: 0, reason: errorReason)
-                } else if failed > 0 {
-                    self.toastMessage = .importFailed(failed, imported: imported, reason: errorReason)
-                } else {
-                    self.toastMessage = .filesImported(imported)
-                }
-
-                vmLogger.info("File import complete: imported=\(imported), failed=\(failed), files.count=\(self.files.count)")
-                if imported > 0 {
-                    self.loadFiles()
-                }
+            
+            // Final UI update
+            guard !Task.isCancelled else {
+                vmLogger.warning("File import task cancelled before completion (imported=\(successCount), failed=\(failedCount))")
+                return
             }
-
-            if !Task.isCancelled {
-                await MainActor.run {
-                    ShareSyncManager.shared.scheduleSync(vaultKey: key)
-                }
+            
+            self.importProgress = nil
+            IdleTimerManager.shared.enable()
+            
+            if failedCount > 0 && successCount == 0 {
+                self.toastMessage = .importFailed(failedCount, imported: 0, reason: lastErrorReason)
+            } else if failedCount > 0 {
+                self.toastMessage = .importFailed(failedCount, imported: successCount, reason: lastErrorReason)
+            } else {
+                self.toastMessage = .filesImported(successCount)
+            }
+            
+            vmLogger.info("File import complete: imported=\(successCount), failed=\(failedCount), files.count=\(self.files.count)")
+            if successCount > 0 {
+                self.loadFiles()
+                ShareSyncManager.shared.scheduleSync(vaultKey: key)
             }
         }
     }

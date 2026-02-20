@@ -7,7 +7,7 @@ struct SharedVaultInviteView: View {
     @Environment(SubscriptionManager.self) private var subscriptionManager
     @Environment(\.dismiss) private var dismiss
 
-    @State private var mode: ViewMode = .invite
+    @State private var mode: ViewMode = .loading
     @State private var showingPaywall = false
     @State private var iCloudStatus: CKAccountStatus?
 
@@ -27,6 +27,7 @@ struct SharedVaultInviteView: View {
     }
 
     enum ViewMode {
+        case loading
         case invite
         case patternSetup
         case error(String)
@@ -61,6 +62,8 @@ struct SharedVaultInviteView: View {
                         iCloudUnavailableView(status)
                     } else {
                         switch mode {
+                        case .loading:
+                            loadingView
                         case .invite:
                             inviteView
                         case .patternSetup:
@@ -80,9 +83,18 @@ struct SharedVaultInviteView: View {
 
             // Early check: is the phrase still available?
             let trimmed = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { return }
+            guard !trimmed.isEmpty else {
+                mode = .error("Invalid invitation link")
+                return
+            }
+            
             let result = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: trimmed)
-            if case .failure(let error) = result {
+            switch result {
+            case .success:
+                // Phrase is valid, show the invite screen
+                mode = .invite
+            case .failure(let error):
+                // Phrase is not available (claimed, revoked, or doesn't exist)
                 mode = .error(error.localizedDescription)
             }
         }
@@ -208,6 +220,16 @@ struct SharedVaultInviteView: View {
         }
     }
 
+
+    private var loadingView: some View {
+        VStack(spacing: 20) {
+            PixelAnimation.syncing(size: 48)
+            Text("Checking invitation...")
+                .font(.headline)
+                .foregroundStyle(.vaultSecondaryText)
+        }
+        .padding(.top, 100)
+    }
 
     private func errorView(_ message: String) -> some View {
         VStack(spacing: 16) {

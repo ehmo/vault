@@ -683,9 +683,24 @@ struct ShareVaultView: View {
 
         // Update local state first for instant UI response
         activeShares.removeAll { $0.id == share.id }
-        if activeShares.isEmpty && uploadJobs.isEmpty {
+        
+        // Check if this was the last share - if so, terminate any ongoing sync
+        let remainingShares = activeShares
+        let remainingJobs = uploadJobs.filter { $0.shareVaultId != share.id }
+        
+        if remainingShares.isEmpty && remainingJobs.isEmpty {
+            // No more users - terminate any ongoing uploads for this specific share
+            for job in uploadJobs where job.shareVaultId == share.id && job.canTerminate {
+                ShareUploadManager.shared.terminateUpload(
+                    jobId: job.id,
+                    vaultKey: key,
+                    cleanupRemote: true
+                )
+            }
+            uploadJobs.removeAll { $0.shareVaultId == share.id }
             mode = .newShare
         }
+        // If there are remaining shares, sync will continue for those users
 
         do {
             // Persist to index
