@@ -21,6 +21,7 @@ struct SharedVaultInviteView: View {
     @State private var pendingOverwriteKey: VaultKey?
     @State private var existingVaultNameForOverwrite = "Vault"
     @State private var existingFileCountForOverwrite = 0
+    @State private var isSettingUpVault = false
 
     private var phrase: String {
         deepLinkHandler.pendingSharePhrase ?? ""
@@ -288,6 +289,8 @@ struct SharedVaultInviteView: View {
 
         case .confirm:
             if pattern == newPattern {
+                guard !isSettingUpVault else { return }
+                isSettingUpVault = true
                 patternState.reset()
                 Task { await setupSharedVault() }
             } else {
