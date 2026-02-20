@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Expanding Navigation — Page Push Effect</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap');
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #050505;
+    --surface: #111;
+    --text: #fff;
+    --text-dim: #888;
+    --border: #1a1a1a;
+    --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --nav-duration: 520ms;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #000;
+    color: var(--text);
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* ── Phone frame ── */
+  .phone {
+    width: 390px;
+    height: 844px;
+    background: var(--bg);
+    border-radius: 52px;
+    border: 6px solid #1a1a1a;
+    overflow: hidden;
+    position: relative;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.04),
+      0 40px 80px rgba(0,0,0,0.6);
+  }
+
+  .phone-screen {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  .phone-screen::-webkit-scrollbar { display: none; }
+
+  /* Dynamic island */
+  .phone::before {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 126px;
+    height: 36px;
+    background: #000;
+    border-radius: 20px;
+    z-index: 100;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 58px 24px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--bg);
+  }
+
+  .logo {
+    width: 28px;
+    height: 28px;
+    position: relative;
+  }
+
+  .logo svg {
+    width: 100%;
+    height: 100%;
+    fill: var(--text);
+  }
+
+  /* ── Hamburger ── */
+  .hamburger {
+    width: 24px;
+    height: 20px;
+    cursor: pointer;
+    position: relative;
+    background: none;
+    border: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .hamburger span {
+    display: block;
+    width: 100%;
+    height: 1.5px;
+    background: var(--text);
+    border-radius: 2px;
+    transition: all 380ms var(--ease-out);
+    transform-origin: center;
+  }
+
+  .hamburger.open span:first-child {
+    transform: translateY(3.75px) rotate(45deg);
+  }
+
+  .hamburger.open span:last-child {
+    transform: translateY(-3.75px) rotate(-45deg);
+  }
+
+  /* ── Expanding navigation ── */
+  .nav-expand {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height var(--nav-duration) var(--ease-out);
+    background: var(--bg);
+    position: relative;
+    z-index: 40;
+  }
+
+  .nav-expand.open {
+    max-height: 500px;
+  }
+
+  .nav-items {
+    padding: 12px 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 4px;
+    cursor: pointer;
+    border-radius: 12px;
+    transition: background 200ms ease;
+    opacity: 0;
+    transform: translateY(12px);
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .nav-item:hover {
+    background: rgba(255,255,255,0.04);
+  }
+
+  .nav-item:active {
+    background: rgba(255,255,255,0.07);
+  }
+
+  .nav-expand.open .nav-item {
+    opacity: 1;
+    transform: translateY(0);
+    transition:
+      opacity 400ms var(--ease-out),
+      transform 500ms var(--spring),
+      background 200ms ease;
+  }
+
+  .nav-expand.open .nav-item:nth-child(1) { transition-delay: 60ms, 60ms, 0ms; }
+  .nav-expand.open .nav-item:nth-child(2) { transition-delay: 120ms, 120ms, 0ms; }
+  .nav-expand.open .nav-item:nth-child(3) { transition-delay: 180ms, 180ms, 0ms; }
+  .nav-expand.open .nav-item:nth-child(4) { transition-delay: 240ms, 240ms, 0ms; }
+  .nav-expand.open .nav-item:nth-child(5) { transition-delay: 300ms, 300ms, 0ms; }
+
+  /* Reset stagger on close */
+  .nav-expand:not(.open) .nav-item {
+    transition:
+      opacity 250ms ease,
+      transform 250ms ease,
+      background 200ms ease;
+    transition-delay: 0ms;
+  }
+
+  .nav-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.05);
+  }
+
+  .nav-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .nav-label {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .nav-label-title {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .nav-label-desc {
+    font-size: 12.5px;
+    color: var(--text-dim);
+  }
+
+  .nav-separator {
+    height: 1px;
+    background: var(--border);
+    margin: 8px 0;
+  }
+
+  /* ── Page content wrapper ── */
+  .page-content {
+    transition: opacity 350ms ease, transform 350ms var(--ease-out);
+    transform-origin: top center;
+    will-change: opacity, transform;
+  }
+
+  .page-content.transitioning-out {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+    pointer-events: none;
+  }
+
+  .page-content.transitioning-in {
+    animation: pageIn 450ms var(--ease-out) forwards;
+  }
+
+  @keyframes pageIn {
+    0% {
+      opacity: 0;
+      transform: scale(0.97) translateY(16px);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  /* ── Hero section ── */
+  .hero {
+    padding: 40px 24px 32px;
+    text-align: center;
+  }
+
+  .hero h1 {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 52px;
+    font-weight: 400;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    margin-bottom: 16px;
+  }
+
+  .hero h1 em {
+    font-style: italic;
+  }
+
+  .hero p {
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--text-dim);
+    max-width: 280px;
+    margin: 0 auto 28px;
+  }
+
+  .cta-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 100px;
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 200ms ease;
+    text-decoration: none;
+    border: none;
+    font-family: inherit;
+  }
+
+  .btn-primary {
+    background: #3b82f6;
+    color: #fff;
+  }
+
+  .btn-primary:hover { background: #2563eb; }
+
+  .btn-secondary {
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .btn-secondary:hover { background: rgba(255,255,255,0.12); }
+
+  .btn svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+
+  /* ── Gallery grid ── */
+  .gallery {
+    padding: 8px 16px 40px;
+  }
+
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .gallery-card {
+    aspect-ratio: 1;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .gallery-card-inner {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: rgba(0,0,0,0.7);
+  }
+
+  /* ── Subpage layouts ── */
+  .subpage {
+    padding: 40px 24px 60px;
+  }
+
+  .subpage h1 {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 40px;
+    font-weight: 400;
+    letter-spacing: -0.03em;
+    margin-bottom: 12px;
+  }
+
+  .subpage .lead {
+    font-size: 15px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    margin-bottom: 32px;
+  }
+
+  .feature-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 12px;
+  }
+
+  .feature-card h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .feature-card p {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .price-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+
+  .price-card .price {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 42px;
+    margin: 8px 0;
+  }
+
+  .price-card .plan-name {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+  }
+
+  .price-card .plan-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+
+  .blog-item {
+    padding: 18px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .blog-item:last-child { border-bottom: none; }
+
+  .blog-item .date {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+
+  .blog-item h3 {
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  /* ── Home button (back arrow on subpages) ── */
+  .back-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 4px 0;
+    margin-bottom: 24px;
+    transition: color 200ms;
+    background: none;
+    border: none;
+    font-family: inherit;
+  }
+
+  .back-hint:hover { color: var(--text); }
+
+  .back-hint svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* ── Gallery colors ── */
+  .gc-1 { background: linear-gradient(135deg, #f472b6, #ec4899); }
+  .gc-2 { background: linear-gradient(135deg, #a78bfa, #7c3aed); }
+  .gc-3 { background: linear-gradient(135deg, #34d399, #059669); }
+  .gc-4 { background: linear-gradient(135deg, #fbbf24, #d97706); }
+  .gc-5 { background: linear-gradient(135deg, #60a5fa, #2563eb); }
+  .gc-6 { background: linear-gradient(135deg, #fb923c, #ea580c); }
+  .gc-7 { background: linear-gradient(135deg, #f87171, #dc2626); }
+  .gc-8 { background: linear-gradient(135deg, #818cf8, #4f46e5); }
+  .gc-9 { background: linear-gradient(135deg, #2dd4bf, #0d9488); }
+
+  /* ── Active nav indicator ── */
+  .nav-item.active .nav-label-title {
+    color: #3b82f6;
+  }
+
+  /* ── Responsive: no phone frame on small screens ── */
+  @media (max-width: 420px) {
+    body {
+      align-items: stretch;
+      justify-content: stretch;
+    }
+    .phone {
+      width: 100%;
+      height: 100dvh;
+      border-radius: 0;
+      border: none;
+      box-shadow: none;
+    }
+    .phone::before { display: none; }
+    .topbar { padding-top: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="phone-screen">
+
+    <!-- ── Top bar ── -->
+    <div class="topbar">
+      <div class="logo">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <button class="hamburger" id="menuBtn" aria-label="Menu">
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+
+    <!-- ── Expanding navigation ── -->
+    <div class="nav-expand" id="navExpand">
+      <nav class="nav-items" id="navItems">
+        <a class="nav-item" data-page="features" href="#">
+          <div class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          </div>
+          <div class="nav-label">
+            <div class="nav-label-title">Features</div>
+            <div class="nav-label-desc">Design, publish.</div>
+          </div>
+        </a>
+        <a class="nav-item" data-page="gallery" href="#">
+          <div class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#f472b6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1a5.5 5.5 0 00-7.8 7.8l1 1L12 21.2l7.8-7.8 1-1a5.5 5.5 0 000-7.8z"/></svg>
+          </div>
+          <div class="nav-label">
+            <div class="nav-label-title">Gallery</div>
+            <div class="nav-label-desc">Made in Framer.</div>
+          </div>
+        </a>
+        <a class="nav-item" data-page="blog" href="#">
+          <div class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+          </div>
+          <div class="nav-label">
+            <div class="nav-label-title">Blog</div>
+            <div class="nav-label-desc">News and updates.</div>
+          </div>
+        </a>
+        <a class="nav-item" data-page="pricing" href="#">
+          <div class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 100 4h4a2 2 0 010 4H8"/><path d="M12 6v2m0 8v2"/></svg>
+          </div>
+          <div class="nav-label">
+            <div class="nav-label-title">Pricing</div>
+            <div class="nav-label-desc">See our plans.</div>
+          </div>
+        </a>
+        <a class="nav-item" data-page="support" href="#">
+          <div class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3"/><circle cx="12" cy="17" r="0.5"/></svg>
+          </div>
+          <div class="nav-label">
+            <div class="nav-label-title">Support</div>
+            <div class="nav-label-desc">Help and guides.</div>
+          </div>
+        </a>
+      </nav>
+    </div>
+
+    <!-- ── Page content (pushed by nav) ── -->
+    <div class="page-content" id="pageContent">
+
+      <!-- HOME PAGE -->
+      <div id="page-home">
+        <section class="hero">
+          <h1>Ship <em>&</em> dip.</h1>
+          <p>Turn your ideas into sites that impress. Super fast, crazy fun. Only in Framer.</p>
+          <div class="cta-row">
+            <button class="btn btn-primary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+              Try for free
+            </button>
+            <button class="btn btn-secondary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+              Watch Video
+            </button>
+          </div>
+        </section>
+        <section class="gallery">
+          <div class="gallery-grid">
+            <div class="gallery-card gc-5"><div class="gallery-card-inner">Folio</div></div>
+            <div class="gallery-card gc-4"><div class="gallery-card-inner">Habit</div></div>
+            <div class="gallery-card gc-1"><div class="gallery-card-inner">Bloom</div></div>
+            <div class="gallery-card gc-3"><div class="gallery-card-inner">Velve</div></div>
+            <div class="gallery-card gc-8"><div class="gallery-card-inner">Candel</div></div>
+            <div class="gallery-card gc-6"><div class="gallery-card-inner">Muse</div></div>
+            <div class="gallery-card gc-9"><div class="gallery-card-inner">Noir</div></div>
+            <div class="gallery-card gc-2"><div class="gallery-card-inner">Scope</div></div>
+            <div class="gallery-card gc-7"><div class="gallery-card-inner">Drift</div></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- FEATURES PAGE -->
+      <div id="page-features" style="display:none">
+        <div class="subpage">
+          <button class="back-hint" data-page="home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            Home
+          </button>
+          <h1>Features</h1>
+          <p class="lead">Everything you need to design and publish stunning sites, all in one place.</p>
+          <div class="feature-card">
+            <h3>Visual Canvas</h3>
+            <p>Design directly on a responsive canvas with real components and real data.</p>
+          </div>
+          <div class="feature-card">
+            <h3>Interactions</h3>
+            <p>Create scroll-based animations, hover effects, and page transitions — no code.</p>
+          </div>
+          <div class="feature-card">
+            <h3>CMS</h3>
+            <p>Built-in content management. Dynamic pages, collections, and filters.</p>
+          </div>
+          <div class="feature-card">
+            <h3>One-Click Publish</h3>
+            <p>Ship to a custom domain with global CDN, SSL, and instant cache invalidation.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- GALLERY PAGE -->
+      <div id="page-gallery" style="display:none">
+        <div class="subpage">
+          <button class="back-hint" data-page="home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            Home
+          </button>
+          <h1>Gallery</h1>
+          <p class="lead">Beautiful sites made in Framer by designers and teams around the world.</p>
+          <section class="gallery" style="padding:0">
+            <div class="gallery-grid">
+              <div class="gallery-card gc-2"><div class="gallery-card-inner">Lucid</div></div>
+              <div class="gallery-card gc-9"><div class="gallery-card-inner">Wave</div></div>
+              <div class="gallery-card gc-1"><div class="gallery-card-inner">Aura</div></div>
+              <div class="gallery-card gc-6"><div class="gallery-card-inner">Torch</div></div>
+              <div class="gallery-card gc-3"><div class="gallery-card-inner">Ivy</div></div>
+              <div class="gallery-card gc-8"><div class="gallery-card-inner">Prism</div></div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- BLOG PAGE -->
+      <div id="page-blog" style="display:none">
+        <div class="subpage">
+          <button class="back-hint" data-page="home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            Home
+          </button>
+          <h1>Blog</h1>
+          <p class="lead">News, tutorials, and updates from the Framer team.</p>
+          <div class="blog-item"><div class="date">Feb 20, 2026</div><h3>Expanding Animations Are Here</h3></div>
+          <div class="blog-item"><div class="date">Feb 12, 2026</div><h3>Introducing Page-Level Transitions</h3></div>
+          <div class="blog-item"><div class="date">Jan 30, 2026</div><h3>New CMS Features & API Access</h3></div>
+          <div class="blog-item"><div class="date">Jan 15, 2026</div><h3>Performance Improvements Across the Board</h3></div>
+          <div class="blog-item"><div class="date">Dec 28, 2025</div><h3>Year in Review: What We Shipped</h3></div>
+        </div>
+      </div>
+
+      <!-- PRICING PAGE -->
+      <div id="page-pricing" style="display:none">
+        <div class="subpage">
+          <button class="back-hint" data-page="home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            Home
+          </button>
+          <h1>Pricing</h1>
+          <p class="lead">Start free. Scale when you're ready.</p>
+          <div class="price-card">
+            <div class="plan-name">Free</div>
+            <div class="price">$0</div>
+            <div class="plan-desc">Unlimited viewers. 2 editors. 1 published site.</div>
+          </div>
+          <div class="price-card" style="border-color:#3b82f6">
+            <div class="plan-name" style="color:#3b82f6">Pro</div>
+            <div class="price">$20</div>
+            <div class="plan-desc">Custom domains, forms, CMS, password protection.</div>
+          </div>
+          <div class="price-card">
+            <div class="plan-name">Business</div>
+            <div class="price">$45</div>
+            <div class="plan-desc">Advanced analytics, staging, roles, priority support.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUPPORT PAGE -->
+      <div id="page-support" style="display:none">
+        <div class="subpage">
+          <button class="back-hint" data-page="home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            Home
+          </button>
+          <h1>Support</h1>
+          <p class="lead">We're here to help you build something great.</p>
+          <div class="feature-card">
+            <h3>Documentation</h3>
+            <p>Comprehensive guides covering every feature, from basics to advanced.</p>
+          </div>
+          <div class="feature-card">
+            <h3>Community</h3>
+            <p>Join thousands of designers sharing tips, templates, and inspiration.</p>
+          </div>
+          <div class="feature-card">
+            <h3>Contact Us</h3>
+            <p>Reach our team directly for technical issues or account questions.</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /page-content -->
+
+  </div><!-- /phone-screen -->
+</div>
+
+<script>
+  const menuBtn = document.getElementById('menuBtn');
+  const navExpand = document.getElementById('navExpand');
+  const navItems = document.querySelectorAll('.nav-item[data-page]');
+  const pageContent = document.getElementById('pageContent');
+  const phoneScreen = document.querySelector('.phone-screen');
+  const backBtns = document.querySelectorAll('.back-hint[data-page]');
+
+  let menuOpen = false;
+  let currentPage = 'home';
+  let transitioning = false;
+
+  // ── Toggle menu ──
+  function toggleMenu(forceClose) {
+    menuOpen = forceClose === true ? false : !menuOpen;
+    menuBtn.classList.toggle('open', menuOpen);
+    navExpand.classList.toggle('open', menuOpen);
+
+    // Update active state
+    navItems.forEach(item => {
+      item.classList.toggle('active', item.dataset.page === currentPage);
+    });
+  }
+
+  menuBtn.addEventListener('click', () => toggleMenu());
+
+  // ── Navigate to page ──
+  function navigateTo(page) {
+    if (page === currentPage || transitioning) return;
+    transitioning = true;
+
+    // Close menu first
+    toggleMenu(true);
+
+    // Transition out
+    pageContent.classList.add('transitioning-out');
+
+    setTimeout(() => {
+      // Hide current, show new
+      document.getElementById(`page-${currentPage}`).style.display = 'none';
+      document.getElementById(`page-${page}`).style.display = 'block';
+      currentPage = page;
+
+      // Scroll to top
+      phoneScreen.scrollTop = 0;
+
+      // Transition in
+      pageContent.classList.remove('transitioning-out');
+      pageContent.classList.add('transitioning-in');
+
+      // Update nav active states
+      navItems.forEach(item => {
+        item.classList.toggle('active', item.dataset.page === currentPage);
+      });
+
+      setTimeout(() => {
+        pageContent.classList.remove('transitioning-in');
+        transitioning = false;
+      }, 450);
+    }, 320);
+  }
+
+  // ── Nav item clicks ──
+  navItems.forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateTo(item.dataset.page);
+    });
+  });
+
+  // ── Back buttons ──
+  backBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      navigateTo(btn.dataset.page);
+    });
+  });
+</script>
+
+</body>
+</html>

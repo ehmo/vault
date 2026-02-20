@@ -535,7 +535,8 @@ final class BackgroundShareTransferManager {
                 // Stream SVDF construction to disk. Each file is decrypted to a
                 // temp file and re-encrypted directly into the SVDF writer, which
                 // avoids full-file decrypted+encrypted Data buffers in memory.
-                let syncCache = ShareSyncCache(shareVaultId: shareVaultId)
+                let keyFingerprint = capturedVaultKey.rawBytes.hashValue
+                let syncCache = ShareSyncCache(shareVaultId: shareVaultId, vaultKeyFingerprint: String(keyFingerprint))
                 var pendingTempURLForCleanup: URL?
                 defer {
                     if let pendingTempURLForCleanup {
@@ -831,8 +832,9 @@ final class BackgroundShareTransferManager {
                 guard !Task.isCancelled else { return }
                 await self?.setTargetProgress(95, message: "Finalizing...")
 
-                // Initialize sync cache
-                let syncCache = ShareSyncCache(shareVaultId: capturedPending.shareVaultId)
+                // Initialize sync cache with vault key fingerprint for isolation
+                let keyFingerprint = capturedVaultKey.rawBytes.hashValue
+                let syncCache = ShareSyncCache(shareVaultId: capturedPending.shareVaultId, vaultKeyFingerprint: String(keyFingerprint))
                 try syncCache.saveSVDF(from: capturedSVDFFileURL)
                 let chunkHashes = try ShareSyncCache.computeChunkHashes(from: capturedSVDFFileURL)
                 let svdfFileSize = (try FileManager.default.attributesOfItem(atPath: capturedSVDFFileURL.path)[.size] as? NSNumber)?.intValue ?? 0

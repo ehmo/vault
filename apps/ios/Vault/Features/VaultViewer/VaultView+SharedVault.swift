@@ -115,21 +115,42 @@ extension VaultView {
 
     /// SVDF v4/v5 delta import: parse manifest, diff file IDs vs local, import only new files.
     func importSVDFDelta(data: Data, shareKey: Data, vaultKey: VaultKey, index: VaultStorage.VaultIndex) async throws {
+        let vaultKeyFingerprint = vaultKey.rawBytes.hashValue
         let header = try SVDFSerializer.parseHeader(from: data)
         let manifest = try SVDFSerializer.parseManifest(from: data, shareKey: shareKey)
         let remoteFileIds = Set(manifest.filter { !$0.deleted }.map { $0.id })
         let localFileIds = Set(index.files.filter { !$0.isDeleted }.map { $0.fileId.uuidString })
+        
+        #if DEBUG
+        print("🔐 [importSVDFDelta] Vault key hash: \(vaultKeyFingerprint), Local files: \(localFileIds.count), Remote files: \(remoteFileIds.count)")
+        #endif
 
         // Delete files that were removed remotely
         let removedIds = localFileIds.subtracting(remoteFileIds)
-        for removedId in removedIds {
-            if let uuid = UUID(uuidString: removedId) {
-                try? VaultStorage.shared.deleteFile(id: uuid, with: vaultKey)
+        if !removedIds.isEmpty {
+            // Safety check: don't delete if it would remove ALL local files
+            // This indicates a problem with the remote manifest
+            if removedIds.count == localFileIds.count && !remoteFileIds.isEmpty {
+                #if DEBUG
+                print("⚠️ [importSVDFDelta] SAFETY: Skipping deletion of all files - manifest mismatch detected")
+                #endif
+            } else {
+                #if DEBUG
+                print("🗑️ [importSVDFDelta] Deleting \(removedIds.count) files: \(removedIds)")
+                #endif
+                for removedId in removedIds {
+                    if let uuid = UUID(uuidString: removedId) {
+                        try? VaultStorage.shared.deleteFile(id: uuid, with: vaultKey)
+                    }
+                }
             }
         }
 
         // Import only new files
         let newIds = remoteFileIds.subtracting(localFileIds)
+        #if DEBUG
+        print("📥 [importSVDFDelta] Importing \(newIds.count) new files")
+        #endif
         for entry in manifest where newIds.contains(entry.id) && !entry.deleted {
             let file = try SVDFSerializer.extractFileEntry(from: data, at: entry.offset, size: entry.size, version: header.version)
             let decrypted = try CryptoEngine.decrypt(file.encryptedContent, with: shareKey)

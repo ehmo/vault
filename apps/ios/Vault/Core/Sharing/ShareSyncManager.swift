@@ -118,6 +118,10 @@ final class ShareSyncManager {
     private func performSync(vaultKey: VaultKey) async {
         beginBackgroundExecution()
         defer { endBackgroundExecution() }
+        
+        // Capture vault key fingerprint for consistency verification
+        let vaultKeyFingerprint = vaultKey.rawBytes.hashValue
+        shareSyncLogger.info("Starting sync for vault with key hash: \(vaultKeyFingerprint, privacy: .private)")
 
         let transaction = EmbraceManager.shared.startTransaction(name: "share.sync", operation: "share.sync")
 
@@ -206,7 +210,8 @@ final class ShareSyncManager {
                 )
 
                 // Save updated cache (copies file, doesn't load into memory)
-                let cache = ShareSyncCache(shareVaultId: share.id)
+                let keyFingerprint = vaultKey.rawBytes.hashValue
+                let cache = ShareSyncCache(shareVaultId: share.id, vaultKeyFingerprint: String(keyFingerprint))
                 try cache.saveSVDF(from: buildResult.svdfFileURL)
 
                 // Get file size for sync state
@@ -232,9 +237,11 @@ final class ShareSyncManager {
         if !consumedShareIds.isEmpty {
             do {
                 var updatedIndex = try storage.loadIndex(with: vaultKey)
+                let fileCountBefore = updatedIndex.files.filter { !$0.isDeleted }.count
                 updatedIndex.activeShares?.removeAll { consumedShareIds.contains($0.id) }
                 try storage.saveIndex(updatedIndex, with: vaultKey)
-                shareSyncLogger.info("Removed \(consumedShareIds.count) consumed shares from index")
+                let fileCountAfter = updatedIndex.files.filter { !$0.isDeleted }.count
+                shareSyncLogger.info("Removed \(consumedShareIds.count) consumed shares from index. Files: \(fileCountBefore) -> \(fileCountAfter)")
             } catch {
                 shareSyncLogger.warning("Failed to remove consumed shares: \(error.localizedDescription, privacy: .public)")
             }
@@ -244,6 +251,7 @@ final class ShareSyncManager {
         if !shareUpdates.isEmpty {
             do {
                 var updatedIndex = try storage.loadIndex(with: vaultKey)
+                let fileCountBefore = updatedIndex.files.filter { !$0.isDeleted }.count
                 for update in shareUpdates {
                     if let idx = updatedIndex.activeShares?.firstIndex(where: { $0.id == update.id }) {
                         updatedIndex.activeShares?[idx].lastSyncedAt = Date()
@@ -251,6 +259,8 @@ final class ShareSyncManager {
                     }
                 }
                 try storage.saveIndex(updatedIndex, with: vaultKey)
+                let fileCountAfter = updatedIndex.files.filter { !$0.isDeleted }.count
+                shareSyncLogger.info("Updated \(shareUpdates.count) share records. Files: \(fileCountBefore) -> \(fileCountAfter)")
             } catch {
                 shareSyncLogger.warning("Failed to update share records: \(error.localizedDescription, privacy: .public)")
             }
@@ -291,7 +301,8 @@ final class ShareSyncManager {
         }
         let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey.rawBytes)
 
-        let cache = ShareSyncCache(shareVaultId: shareVaultId)
+        let keyFingerprint = vaultKey.rawBytes.hashValue
+        let cache = ShareSyncCache(shareVaultId: shareVaultId, vaultKeyFingerprint: String(keyFingerprint))
         let priorState = cache.loadSyncState()
 
         // Current vault file IDs

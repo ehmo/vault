@@ -318,12 +318,11 @@ struct RecoveryPhraseInputView: View {
                 
                 patternLockLogger.info("Vault recovered successfully")
                 
-                // Use the recovered pattern key to unlock the vault
+                // Use unlockWithKey to show the same loading ceremony as pattern unlock
+                await appState.unlockWithKey(patternKey, isRecovery: true)
+                
                 await MainActor.run {
-                    appState.currentVaultKey = VaultKey(patternKey)
-                    appState.isUnlocked = true
                     dismiss()
-                    
                     patternLockLogger.debug("Vault unlocked with recovery phrase")
                 }
             } catch RecoveryError.invalidPhrase {

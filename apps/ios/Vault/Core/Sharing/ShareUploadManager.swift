@@ -445,13 +445,14 @@ final class ShareUploadManager {
 
         teardownBackgroundExecutionIfIdle()
 
-        guard let shareVaultId else { return }
+        guard let shareVaultId, let vaultKey else { return }
         let capturedCloudKit = cloudKit
+        let keyFingerprint = vaultKey.rawBytes.hashValue
         Task.detached(priority: .utility) {
             if cleanupRemote {
                 try? await capturedCloudKit.deleteSharedVault(shareVaultId: shareVaultId)
             }
-            try? ShareSyncCache(shareVaultId: shareVaultId).purge()
+            try? ShareSyncCache(shareVaultId: shareVaultId, vaultKeyFingerprint: String(keyFingerprint)).purge()
         }
     }
 
@@ -571,8 +572,9 @@ final class ShareUploadManager {
             }
             updatePendingProgress(jobId: jobId, progress: 95, message: "Finalizing...")
 
+            let keyFingerprint = vaultKey.rawBytes.hashValue
             try await Task.detached(priority: .utility) {
-                let syncCache = ShareSyncCache(shareVaultId: shareVaultId)
+                let syncCache = ShareSyncCache(shareVaultId: shareVaultId, vaultKeyFingerprint: String(keyFingerprint))
                 try syncCache.saveSVDF(from: svdfURL)
                 let chunkHashes = try ShareSyncCache.computeChunkHashes(from: svdfURL)
                 let syncState = ShareSyncCache.SyncState(
@@ -766,8 +768,9 @@ final class ShareUploadManager {
             }
             updatePendingProgress(jobId: state.jobId, progress: 95, message: "Finalizing...")
 
+            let keyFingerprint = vaultKey?.rawBytes.hashValue ?? 0
             try await Task.detached(priority: .utility) {
-                let syncCache = ShareSyncCache(shareVaultId: state.shareVaultId)
+                let syncCache = ShareSyncCache(shareVaultId: state.shareVaultId, vaultKeyFingerprint: String(keyFingerprint))
                 try syncCache.saveSVDF(from: svdfURL)
                 let chunkHashes = try ShareSyncCache.computeChunkHashes(from: svdfURL)
                 let fileSize = Self.fileSize(of: svdfURL)

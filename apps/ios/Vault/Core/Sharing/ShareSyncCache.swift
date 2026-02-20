@@ -47,10 +47,17 @@ final class ShareSyncCache: Sendable {
 
     // MARK: - Init
 
-    init(shareVaultId: String) {
+    /// Cache identifier - combination of shareVaultId and local vault key fingerprint
+    let cacheId: String
+
+    /// Initialize cache with shareVaultId and optional vaultKeyFingerprint.
+    /// The vaultKeyFingerprint ensures separate cache directories when multiple users
+    /// on the same device share the same vault (e.g., testing scenarios).
+    init(shareVaultId: String, vaultKeyFingerprint: String? = nil) {
         self.shareVaultId = shareVaultId
+        self.cacheId = vaultKeyFingerprint.map { "\(shareVaultId)_\($0)" } ?? shareVaultId
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        self.cacheDir = docs.appendingPathComponent("share_cache/\(shareVaultId)", isDirectory: true)
+        self.cacheDir = docs.appendingPathComponent("share_cache/\(cacheId)", isDirectory: true)
         self.filesDir = cacheDir.appendingPathComponent("encrypted_files", isDirectory: true)
         self.thumbsDir = cacheDir.appendingPathComponent("encrypted_thumbs", isDirectory: true)
         self.syncStateURL = cacheDir.appendingPathComponent("sync_state.json")
