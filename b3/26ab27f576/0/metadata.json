@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "b326ab27f576",
+  "session_id": "090242c9-96a0-4717-a29c-7a0a18d4828e",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-20T22:02:44.409162Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/web/demos/expanding-nav/index.html"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "178c0bb7-b6b5-4c44-9378-d86d73ae9644",
+  "checkpoint_transcript_start": 6065,
+  "transcript_lines_at_start": 6065,
+  "token_usage": {
+    "input_tokens": 106,
+    "cache_creation_tokens": 258202,
+    "cache_read_tokens": 9351830,
+    "output_tokens": 10659,
+    "api_call_count": 95
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-20T22:02:43.149811Z",
+    "agent_lines": 0,
+    "human_added": 2037,
+    "human_modified": 814,
+    "human_removed": 0,
+    "total_committed": 2851,
+    "agent_percentage": 0
+  }
+}
