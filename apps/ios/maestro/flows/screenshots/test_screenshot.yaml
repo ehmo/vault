@@ -1,0 +1,28 @@
+appId: app.vaultaire.ios
+---
+# Quick test to verify Maestro screenshot capture works
+- launchApp:
+    clearState: true
+    arguments:
+      MAESTRO_TEST: "true"
+      MAESTRO_SEED_FILES: "true"
+
+- tapOn:
+    text: "Not Now"
+    optional: true
+- tapOn:
+    text: "Don.*Allow"
+    optional: true
+- tapOn:
+    text: "OK"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "vault_add_button"
+    timeout: 8000
+
+- waitForAnimationToEnd:
+    timeout: 1000
+
+- takeScreenshot: "test_capture"

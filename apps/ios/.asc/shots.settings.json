@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "app": {
+    "bundle_id": "app.vaultaire.ios",
+    "project": "Vault.xcodeproj",
+    "scheme": "Vault",
+    "simulator_udid": "E9031050-51BF-4E37-B96C-E72B1E048C37"
+  },
+  "paths": {
+    "plan": ".asc/screenshots.json",
+    "raw_dir": "./screenshots/raw",
+    "framed_dir": "./screenshots/framed"
+  },
+  "pipeline": {
+    "frame_enabled": true,
+    "upload_enabled": false
+  },
+  "upload": {
+    "version_localization_id": "f87e4727-d107-45e0-88b9-e6107159314c",
+    "device_type": "APP_IPHONE_69",
+    "source_dir": "./screenshots/framed"
+  }
+}

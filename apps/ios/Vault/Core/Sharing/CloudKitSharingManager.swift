@@ -177,6 +177,8 @@ final class CloudKitSharingManager {
         }
 
         let phraseVaultId = Self.vaultId(from: phrase)
+        Self.logger.info("[upload-telemetry] phraseVaultId: \(phraseVaultId, privacy: .public)")
+        Self.logger.info("[upload-telemetry] shareVaultId: \(shareVaultId, privacy: .public)")
 
         // v2: skip outer encryption — individual files are already encrypted with shareKey
         let uploadData = vaultData
@@ -201,6 +203,7 @@ final class CloudKitSharingManager {
         let manifestStart = CFAbsoluteTimeGetCurrent()
 
         do {
+            Self.logger.info("[upload-telemetry] Saving manifest with phraseVaultId: \(phraseVaultId, privacy: .public)")
             try await saveManifest(
                 shareVaultId: shareVaultId,
                 phraseVaultId: phraseVaultId,
@@ -209,6 +212,7 @@ final class CloudKitSharingManager {
                 ownerFingerprint: ownerFingerprint,
                 totalChunks: totalChunks
             )
+            Self.logger.info("[upload-telemetry] Manifest saved successfully")
         } catch {
             EmbraceManager.shared.captureError(error)
             transaction.finish(status: .internalError)
@@ -345,6 +349,8 @@ final class CloudKitSharingManager {
     ) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
         let transaction = EmbraceManager.shared.startTransaction(name: "share.download", operation: "share.download")
         let phraseVaultId = Self.vaultId(from: phrase)
+        Self.logger.info("[download-telemetry] Looking for manifest with phraseVaultId: \(phraseVaultId, privacy: .public)")
+        
         // Try v2 (per-phrase salt) key first, fall back to v1 (fixed salt) for existing shares
         let shareKeyV2 = ShareKey(try KeyDerivation.deriveShareKey(from: phrase))
         var shareKey = shareKeyV2
@@ -355,7 +361,9 @@ final class CloudKitSharingManager {
         let manifest: CKRecord
         do {
             manifest = try await publicDatabase.record(for: manifestRecordId)
+            Self.logger.info("[download-telemetry] Manifest found successfully")
         } catch let error as CKError where error.code == .unknownItem {
+            Self.logger.error("[download-telemetry] Manifest not found for phraseVaultId: \(phraseVaultId, privacy: .public)")
             transaction.finish(status: .notFound)
             throw CloudKitSharingError.vaultNotFound
         } catch {
