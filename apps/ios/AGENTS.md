@@ -2,7 +2,47 @@
 
 SwiftUI app with CloudKit sharing. Stack: iOS 17+, `@Observable`, CloudKit, CryptoKit.
 
-## Build & Test
+## Physical Device — iPhone 16 (primary test device)
+
+| Field | Value |
+|-------|-------|
+| Name | iPhone |
+| Model | iPhone 16 (iPhone17,3) |
+| Serial | GGp2CWCRF4 |
+| UDID | `00008140-001A00141163001C` |
+| OS | iOS 26.1 |
+| Connection | USB |
+
+**Pairing**: Device is paired. If re-pairing needed (e.g. after cable swap or Xcode reset):
+```bash
+xcrun devicectl manage pair --device 00008140-001A00141163001C
+# Accept "Trust This Computer?" on the phone, then re-run if it fails first time
+```
+
+### Build → Install → Launch (device)
+
+```bash
+# Build for device (Automatic signing — auto-registers device with team UFV835UGV6)
+xcodebuild \
+  -workspace apps/ios/Vault.xcodeproj/project.xcworkspace \
+  -scheme Vault \
+  -configuration Debug \
+  -destination "id=00008140-001A00141163001C" \
+  -derivedDataPath /tmp/VaultDevice \
+  build
+
+# Install
+xcrun devicectl device install app \
+  --device 00008140-001A00141163001C \
+  /tmp/VaultDevice/Build/Products/Debug-iphoneos/Vault.app
+
+# Launch
+xcrun devicectl device process launch \
+  --device 00008140-001A00141163001C \
+  app.vaultaire.ios
+```
+
+### Build & Test (simulator fallback)
 
 ```bash
 # Build
@@ -16,7 +56,7 @@ xcodebuild -project Vault.xcodeproj -scheme Vault \
   -configuration Debug test
 ```
 
-Get UUID: `xcrun simctl list devices available`
+Get simulator UUID: `xcrun simctl list devices available`
 
 ## Critical Learnings (Must Read)
 
@@ -54,10 +94,11 @@ Get UUID: `xcrun simctl list devices available`
 - Launch arg `MAESTRO_PREMIUM_OVERRIDE=true` for paywall bypass in DEBUG
 
 ### Build & Deploy
+- **Physical device**: Use `xcrun devicectl` commands above — no TestFlight needed for dev testing
 - TestFlight: Check `asc builds list` BEFORE uploading (avoid "Redundant Binary Upload")
 - Upload limit reached? Bump `MARKETING_VERSION` (e.g., 1.0.1 → 1.0.2)
 - ASC API key: `-authenticationKeyPath/-authenticationKeyID/-authenticationKeyIssuerID` flags
-- Build 92 = version 1.0.2 (current)
+- Signing: Debug uses Automatic (team UFV835UGV6); Release uses Manual + "Vault App Store" provisioning profile
 
 ## Pattern Consistency (MANDATORY)
 
