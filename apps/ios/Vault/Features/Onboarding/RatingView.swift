@@ -1,11 +1,11 @@
 import SwiftUI
 import StoreKit
-import UIKit
 
 struct RatingView: View {
     let onContinue: () -> Void
 
-    @State private var showingRateOnAppStore = false
+    @Environment(\.requestReview) private var requestReview
+    @State private var hasRequestedReview = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -50,9 +50,11 @@ struct RatingView: View {
 
                 VStack(spacing: 12) {
                     Button(action: {
-                        showingRateOnAppStore = true
+                        // Show native iOS rating dialog on this screen
+                        requestReview()
+                        hasRequestedReview = true
                     }) {
-                        Text("Rate on App Store")
+                        Text("Rate App")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -80,55 +82,6 @@ struct RatingView: View {
             .padding(.horizontal, 24)
         }
         .background(Color.vaultBackground.ignoresSafeArea())
-        .sheet(isPresented: $showingRateOnAppStore, onDismiss: {
-            // Continue to next screen when user closes the App Store sheet
-            onContinue()
-        }) {
-            RateOnAppStoreSheet()
-        }
-    }
-}
-
-// MARK: - App Store Review Sheet
-
-private struct RateOnAppStoreSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var isLoading = true
-    
-    // TODO: Replace with actual App Store ID once available
-    // You can find this in App Store Connect under App Information
-    private static let appStoreID = "6740653968" // Placeholder - update with real ID
-    
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.vaultBackground.ignoresSafeArea()
-                
-                if isLoading {
-                    ProgressView("Opening App Store...")
-                }
-            }
-            .navigationTitle("Rate Vaultaire")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-        .onAppear {
-            // Open the App Store review page
-            let urlString = "https://apps.apple.com/app/id\(Self.appStoreID)?action=write-review"
-            if let url = URL(string: urlString) {
-                UIApplication.shared.open(url) { _ in
-                    isLoading = false
-                }
-            } else {
-                isLoading = false
-            }
-        }
     }
 }
 
