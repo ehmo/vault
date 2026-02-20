@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 import CloudKit
 import os.log
+import BackgroundTasks
 
 /// Single source of truth for opening iCloud settings.
 /// Used by ShareVaultView and iCloudBackupSettingsView — keep in sync.
@@ -40,6 +41,7 @@ enum iCloudError: Error {
 ///     reducing backup size. Backward-compatible restore handles both formats.
 final class iCloudBackupManager: @unchecked Sendable {
     static let shared = iCloudBackupManager()
+    nonisolated static let backgroundBackupTaskIdentifier = "app.vaultaire.ios.backup.resume"
 
     private let container: CKContainer
     private let privateDatabase: CKDatabase
@@ -56,6 +58,11 @@ final class iCloudBackupManager: @unchecked Sendable {
     private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "iCloudBackup")
     @MainActor private var autoBackupTask: Task<Void, Never>?
     @MainActor private var currentAutoBackupBgTaskId: UIBackgroundTaskIdentifier = .invalid
+    
+    // MARK: - Background Task State
+    @MainActor private var currentBGProcessingTask: BGProcessingTask?
+    private nonisolated static let backupStateKey = "icloud.backup.pending"
+    private nonisolated static let backupProgressKey = "icloud.backup.progress"
 
     private init() {
         container = CKContainer(identifier: "iCloud.app.vaultaire.shared")
@@ -646,9 +653,12 @@ final class iCloudBackupManager: @unchecked Sendable {
                     UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastBackupTimestamp")
                 }
                 Self.logger.info("[auto-backup] Backup completed successfully")
+                await self.sendBackupCompleteNotification(success: true)
             } catch {
                 if Task.isCancelled {
                     Self.logger.warning("[auto-backup] Backup cancelled")
+                    // Schedule background task to retry
+                    await self.scheduleBackgroundResumeTask(earliestIn: 60)
                     return
                 }
                 EmbraceManager.shared.captureError(
@@ -656,6 +666,9 @@ final class iCloudBackupManager: @unchecked Sendable {
                     context: ["feature": "icloud_auto_backup"]
                 )
                 Self.logger.error("[auto-backup] Backup failed: \(error)")
+                await self.sendBackupCompleteNotification(success: false, errorMessage: error.localizedDescription)
+                // Schedule background task to retry
+                await self.scheduleBackgroundResumeTask(earliestIn: 300)
             }
         }
         autoBackupTask = detachedTask
@@ -877,6 +890,110 @@ final class iCloudBackupManager: @unchecked Sendable {
         var formattedSize: String {
             let mb = Double(size) / (1024 * 1024)
             return String(format: "%.1f MB", mb)
+        }
+    }
+    
+    // MARK: - Background Processing Task Support
+    
+    /// Registers the background processing task for iCloud backup resume
+    func registerBackgroundProcessingTask() {
+        let identifier = Self.backgroundBackupTaskIdentifier
+        let success = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: nil) { task in
+            guard let processingTask = task as? BGProcessingTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            Task { @MainActor in
+                Self.shared.handleBackgroundProcessingTask(processingTask)
+            }
+        }
+        
+        if success {
+            Self.logger.info("[bg-task] Registered \(identifier, privacy: .public)")
+        } else {
+            Self.logger.error("[bg-task] Failed to register \(identifier, privacy: .public)")
+        }
+    }
+    
+    /// Schedules a background task to resume interrupted backup
+    func scheduleBackgroundResumeTask(earliestIn seconds: TimeInterval = 15) {
+        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.backgroundBackupTaskIdentifier)
+        
+        let request = BGProcessingTaskRequest(identifier: Self.backgroundBackupTaskIdentifier)
+        request.requiresNetworkConnectivity = true
+        request.requiresExternalPower = false
+        request.earliestBeginDate = Date(timeIntervalSinceNow: seconds)
+        
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            Self.logger.info("[bg-task] Scheduled backup resume task in ~\(Int(seconds))s")
+        } catch {
+            Self.logger.error("[bg-task] Failed to schedule backup resume task: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+    
+    /// Handles the background processing task execution
+    @MainActor
+    private func handleBackgroundProcessingTask(_ task: BGProcessingTask) {
+        Self.logger.info("[bg-task] Backup processing task started")
+        currentBGProcessingTask = task
+        scheduleBackgroundResumeTask(earliestIn: 60)
+        
+        task.expirationHandler = { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                Self.logger.warning("[bg-task] Processing task expired")
+                self.autoBackupTask?.cancel()
+                self.completeBackgroundProcessingTask(success: false)
+            }
+        }
+        
+        // Check if backup is needed and perform it
+        guard UserDefaults.standard.bool(forKey: "iCloudBackupEnabled") else {
+            completeBackgroundProcessingTask(success: true)
+            return
+        }
+        
+        // Note: We need the vault key to perform backup, which requires user to unlock
+        // For now, we just complete the task - the auto-backup will run when app is foregrounded
+        Self.logger.info("[bg-task] Backup task requires vault to be unlocked - deferring")
+        completeBackgroundProcessingTask(success: false)
+    }
+    
+    @MainActor
+    private func completeBackgroundProcessingTask(success: Bool) {
+        currentBGProcessingTask?.setTaskCompleted(success: success)
+        currentBGProcessingTask = nil
+    }
+    
+    // MARK: - Backup Notifications
+    
+    /// Sends a local notification when backup completes
+    func sendBackupCompleteNotification(success: Bool, errorMessage: String? = nil) {
+        let content = UNMutableNotificationContent()
+        
+        if success {
+            content.title = "iCloud Backup Complete"
+            content.body = "Your vault has been backed up to iCloud."
+            content.sound = .default
+        } else {
+            content.title = "iCloud Backup Interrupted"
+            content.body = errorMessage ?? "The backup was interrupted. Open Vaultaire to resume."
+            content.sound = .default
+        }
+        
+        content.categoryIdentifier = "backup_complete"
+        
+        let request = UNNotificationRequest(
+            identifier: "icloud-backup-complete-\(Date().timeIntervalSince1970)",
+            content: content,
+            trigger: nil
+        )
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                Self.logger.error("[notification] Failed to schedule: \(error.localizedDescription)")
+            }
         }
     }
 }

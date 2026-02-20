@@ -146,6 +146,8 @@
 		VVM000003 /* VaultViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = VVM000002 /* VaultViewModelTests.swift */; };
 		BT0000001 /* BackgroundTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BT0000000 /* BackgroundTaskTests.swift */; };
 		PV0000001 /* PatternValidationStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PV0000000 /* PatternValidationStateTests.swift */; };
+		BST000001 /* BackgroundShareTransferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BST000000 /* BackgroundShareTransferTests.swift */; };
+		ICB000001 /* iCloudBackupBackgroundTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ICB000000 /* iCloudBackupBackgroundTests.swift */; };
 		019000009 /* PatternSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000008 /* PatternSetupCoordinator.swift */; };
 		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
 		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
@@ -351,6 +353,8 @@
 		VVM000002 /* VaultViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultViewModelTests.swift; sourceTree = "<group>"; };
 		BT0000000 /* BackgroundTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTaskTests.swift; sourceTree = "<group>"; };
 		PV0000000 /* PatternValidationStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidationStateTests.swift; sourceTree = "<group>"; };
+		BST000000 /* BackgroundShareTransferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundShareTransferTests.swift; sourceTree = "<group>"; };
+		ICB000000 /* iCloudBackupBackgroundTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iCloudBackupBackgroundTests.swift; sourceTree = "<group>"; };
 		019000008 /* PatternSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinator.swift; sourceTree = "<group>"; };
 		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
@@ -778,6 +782,8 @@
 				VVM000002 /* VaultViewModelTests.swift */,
 				BT0000000 /* BackgroundTaskTests.swift */,
 				PV0000000 /* PatternValidationStateTests.swift */,
+				BST000000 /* BackgroundShareTransferTests.swift */,
+				ICB000000 /* iCloudBackupBackgroundTests.swift */,
 			);
 			path = VaultTests;
 			sourceTree = "<group>";
@@ -1195,6 +1201,8 @@
 				VVM000003 /* VaultViewModelTests.swift in Sources */,
 				BT0000001 /* BackgroundTaskTests.swift in Sources */,
 				PV0000001 /* PatternValidationStateTests.swift in Sources */,
+				BST000001 /* BackgroundShareTransferTests.swift in Sources */,
+				ICB000001 /* iCloudBackupBackgroundTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1369,7 +1377,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 112;
+				CURRENT_PROJECT_VERSION = 113;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = UFV835UGV6;
@@ -1411,7 +1419,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 112;
+				CURRENT_PROJECT_VERSION = 113;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = UFV835UGV6;
@@ -1450,7 +1458,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 112;
+				CURRENT_PROJECT_VERSION = 113;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
@@ -1482,7 +1490,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 112;
+				CURRENT_PROJECT_VERSION = 113;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
@@ -1514,7 +1522,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 112;
+				CURRENT_PROJECT_VERSION = 113;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1531,7 +1539,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 112;
+				CURRENT_PROJECT_VERSION = 113;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1547,7 +1555,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 112;
+				CURRENT_PROJECT_VERSION = 113;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1563,7 +1571,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 112;
+				CURRENT_PROJECT_VERSION = 113;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
