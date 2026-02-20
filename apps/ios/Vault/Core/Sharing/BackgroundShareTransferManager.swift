@@ -961,7 +961,7 @@ final class BackgroundShareTransferManager {
                         onProgress: { current, total in
                             Task { @MainActor [weak self] in
                                 let pct = total > 0 ? downloadWeight * current / total : 0
-                                self?.setTargetProgress(pct, message: "Downloading vault...")
+                                self?.setTargetProgress(pct, message: "Downloading shared vault...")
                             }
                         }
                     )

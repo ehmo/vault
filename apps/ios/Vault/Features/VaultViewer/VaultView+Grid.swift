@@ -221,7 +221,7 @@ extension VaultView {
     var importingProgressContent: some View {
         let progress = max(0, min(viewModel.transferManager.displayProgress, 100))
         return VStack(spacing: 20) {
-            VaultSyncIndicator(style: .loading, message: "Downloading shared vault...")
+            PixelAnimation.loading(size: 80)
 
             VStack(spacing: 8) {
                 ProgressView(value: Double(progress), total: 100)
