@@ -398,12 +398,17 @@ final class ShareSyncManager {
 
         // Check cache for already-encrypted content
         let reencrypted: Data
+        let header: CryptoEngine.EncryptedFileHeader
         if let cached = cache.loadEncryptedFile(fileIdStr) {
             reencrypted = cached
+            // For cached files, we need to get the header to determine original size
+            // The header is stored in the entry's encryptedHeaderPreview
+            header = try retrieveHeaderFromEntry(entry, masterKey: masterKey)
         } else {
-            let (_, content) = try storage.retrieveFileContent(
+            let (fileHeader, content) = try storage.retrieveFileContent(
                 entry: entry, index: index, masterKey: masterKey
             )
+            header = fileHeader
             reencrypted = try CryptoEngine.encrypt(content, with: shareKey.rawBytes)
             try? cache.saveEncryptedFile(fileIdStr, data: reencrypted)
         }
@@ -423,12 +428,35 @@ final class ShareSyncManager {
 
         return SharedVaultData.SharedFile(
             id: entry.fileId,
-            filename: entry.filename ?? "unknown",
-            mimeType: entry.mimeType ?? "application/octet-stream",
-            size: entry.size,
+            filename: header.originalFilename,
+            mimeType: header.mimeType,
+            size: Int(header.originalSize),
             encryptedContent: reencrypted,
-            createdAt: entry.createdAt ?? Date(),
+            createdAt: header.createdAt,
             encryptedThumbnail: encryptedThumb
         )
+    }
+    
+    /// Retrieves just the header from a file entry (for cached files where we need header info).
+    nonisolated private static func retrieveHeaderFromEntry(
+        _ entry: VaultStorage.VaultIndex.VaultFileEntry,
+        masterKey: Data
+    ) throws -> CryptoEngine.EncryptedFileHeader {
+        // The entry stores the first 64 bytes of encrypted file data as encryptedHeaderPreview
+        // This contains the header size + encrypted header
+        guard entry.encryptedHeaderPreview.count >= 4 else {
+            throw VaultStorageError.corruptedData
+        }
+        
+        let headerSizeData = entry.encryptedHeaderPreview.prefix(4)
+        let headerSize = headerSizeData.withUnsafeBytes { $0.load(as: UInt32.self) }
+        
+        guard entry.encryptedHeaderPreview.count >= 4 + Int(headerSize) else {
+            throw VaultStorageError.corruptedData
+        }
+        
+        let encryptedHeader = entry.encryptedHeaderPreview.subdata(in: 4..<(4 + Int(headerSize)))
+        let decryptedHeaderData = try CryptoEngine.decrypt(encryptedHeader, with: masterKey)
+        return try CryptoEngine.EncryptedFileHeader.deserialize(from: decryptedHeaderData)
     }
 }

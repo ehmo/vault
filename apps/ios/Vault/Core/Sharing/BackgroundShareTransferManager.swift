@@ -1,3 +1,4 @@
+import AVFoundation
 import BackgroundTasks
 import Foundation
 import os.log
@@ -1070,16 +1071,20 @@ final class BackgroundShareTransferManager {
 
     // MARK: - Helpers
 
-    /// Decrypts an encrypted thumbnail with the share key, or generates one from image data.
+    /// Decrypts an encrypted thumbnail with the share key, or generates one from image/video data.
     nonisolated private static func resolveThumbnail(
         encryptedThumbnail: Data?,
         mimeType: String,
         decryptedData: Data,
         shareKey: Data
     ) -> Data? {
+        // First, try to decrypt the encrypted thumbnail from the share
         if let encThumb = encryptedThumbnail {
             return try? CryptoEngine.decrypt(encThumb, with: shareKey)
-        } else if mimeType.hasPrefix("image/"), let img = UIImage(data: decryptedData) {
+        }
+        
+        // For images, generate thumbnail from decrypted data
+        if mimeType.hasPrefix("image/"), let img = UIImage(data: decryptedData) {
             let maxSize: CGFloat = 200
             let scale = min(maxSize / img.size.width, maxSize / img.size.height)
             let newSize = CGSize(width: img.size.width * scale, height: img.size.height * scale)
@@ -1087,6 +1092,40 @@ final class BackgroundShareTransferManager {
             let thumb = renderer.image { _ in img.draw(in: CGRect(origin: .zero, size: newSize)) }
             return thumb.jpegData(compressionQuality: 0.7)
         }
+        
+        // For videos, generate thumbnail from the first frame
+        if mimeType.hasPrefix("video/") {
+            return generateVideoThumbnail(from: decryptedData)
+        }
+        
+        return nil
+    }
+    
+    /// Generates a thumbnail from video data by extracting a frame at 0.5 seconds.
+    nonisolated private static func generateVideoThumbnail(from data: Data) -> Data? {
+        // Write data to a temp file for AVAsset
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("mp4")
+        
+        do {
+            try data.write(to: tempURL, options: [.atomic])
+            defer { try? FileManager.default.removeItem(at: tempURL) }
+            
+            let asset = AVAsset(url: tempURL)
+            let generator = AVAssetImageGenerator(asset: asset)
+            generator.appliesPreferredTrackTransform = true
+            generator.maximumSize = CGSize(width: 400, height: 400)
+            
+            let time = CMTime(seconds: 0.5, preferredTimescale: 600)
+            if let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) {
+                let uiImage = UIImage(cgImage: cgImage)
+                return uiImage.jpegData(compressionQuality: 0.7)
+            }
+        } catch {
+            // Silently fail - thumbnail generation is best-effort
+        }
+        
         return nil
     }
 
