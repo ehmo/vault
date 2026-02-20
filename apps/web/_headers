@@ -6,6 +6,12 @@
   Content-Type: application/xml; charset=utf-8
   Cache-Control: public, max-age=3600
 
+/styles/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/scripts/*
+  Cache-Control: public, max-age=0, must-revalidate
+
 /*
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
