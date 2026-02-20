@@ -47,19 +47,31 @@ struct RatingView: View {
             VStack(spacing: 14) {
                 ReviewCarousel()
 
-                Button(action: {
-                    requestReview()
-                    onContinue()
-                }) {
-                    Text("Continue")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
+                VStack(spacing: 12) {
+                    Button(action: {
+                        requestReview()
+                        onContinue()
+                    }) {
+                        Text("Rate App")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                    }
+                    .vaultSecondaryButtonStyle()
+                    .accessibilityIdentifier("rating_rate_app")
+
+                    Button(action: {
+                        onContinue()
+                    }) {
+                        Text("Not Now")
+                            .font(.subheadline)
+                            .foregroundStyle(.vaultSecondaryText)
+                            .padding(.vertical, 8)
+                    }
+                    .accessibilityIdentifier("rating_not_now")
                 }
-                .vaultSecondaryButtonStyle()
                 .padding(.horizontal, 16)
                 .padding(.bottom, 40)
-                .accessibilityIdentifier("rating_continue")
             }
             .padding(.horizontal, 24)
         }
