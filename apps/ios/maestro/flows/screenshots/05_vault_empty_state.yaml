@@ -1,7 +1,7 @@
 appId: app.vaultaire.ios
 ---
-# Screenshot 1: Empty vault state
-# Shows the 3-step walkthrough cards — clean, story-telling screen
+# Screenshot 5: Empty vault state
+# Shows the 3 walkthrough cards: Add files, Encrypted instantly, Only you can access
 
 - launchApp:
     clearState: true
@@ -19,13 +19,13 @@ appId: app.vaultaire.ios
     text: "OK"
     optional: true
 
-# Wait for the empty vault state
+# Wait for empty vault state (NO seeded files)
 - extendedWaitUntil:
     visible:
       id: "vault_empty_state_container"
     timeout: 8000
 
 - waitForAnimationToEnd:
-    timeout: 1500
+    timeout: 1000
 
-- takeScreenshot: "01_empty_vault"
+- takeScreenshot: "apps/ios/screenshots/raw/05_empty_vault"

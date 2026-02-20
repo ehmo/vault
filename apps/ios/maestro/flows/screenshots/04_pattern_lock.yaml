@@ -1,0 +1,28 @@
+appId: app.vaultaire.ios
+---
+# Screenshot 4: Pattern Lock screen
+# Shows the vault's unique security entry: 5x5 dot grid, "Draw your pattern"
+# Relies on the test vault already existing from a previous MAESTRO_TEST run.
+# Run this AFTER 05_vault_with_files.yaml or ensure a test vault exists.
+
+- launchApp:
+    arguments: {}
+
+# Dismiss system alerts if any
+- tapOn:
+    text: "Not Now"
+    optional: true
+- tapOn:
+    text: "Don.*Allow"
+    optional: true
+
+# Wait for pattern lock grid (shown when vault exists but not unlocked)
+- extendedWaitUntil:
+    visible:
+      id: "unlock_pattern_grid"
+    timeout: 8000
+
+- waitForAnimationToEnd:
+    timeout: 1000
+
+- takeScreenshot: "apps/ios/screenshots/raw/04_pattern_lock"

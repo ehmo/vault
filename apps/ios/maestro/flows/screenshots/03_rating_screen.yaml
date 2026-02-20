@@ -1,0 +1,66 @@
+appId: app.vaultaire.ios
+---
+# Screenshot 3: Rating screen (social proof)
+# Shows: 1M+ vaults, real user reviews, continue button
+
+- launchApp:
+    clearState: true
+
+# Dismiss system alerts
+- tapOn:
+    text: "Not Now"
+    optional: true
+- tapOn:
+    text: "Don.*Allow"
+    optional: true
+
+# Welcome → advance
+- extendedWaitUntil:
+    visible:
+      id: "welcome_continue"
+    timeout: 8000
+- tapOn:
+    id: "welcome_continue"
+
+# Permissions → Continue
+- extendedWaitUntil:
+    visible:
+      id: "permissions_continue"
+    timeout: 8000
+- tapOn:
+    id: "permissions_continue"
+
+# Analytics → Decline
+- extendedWaitUntil:
+    visible:
+      id: "analytics_decline"
+    timeout: 8000
+- tapOn:
+    id: "analytics_decline"
+
+# Paywall → Skip
+- extendedWaitUntil:
+    visible:
+      id: "paywall_skip"
+    timeout: 8000
+- tapOn:
+    id: "paywall_skip"
+
+# Protected by Design → Continue
+- extendedWaitUntil:
+    visible:
+      id: "thankyou_continue"
+    timeout: 8000
+- tapOn:
+    id: "thankyou_continue"
+
+# Wait for Rating screen
+- extendedWaitUntil:
+    visible:
+      id: "rating_continue"
+    timeout: 8000
+
+- waitForAnimationToEnd:
+    timeout: 1500
+
+- takeScreenshot: "apps/ios/screenshots/raw/03_rating"

@@ -177,8 +177,13 @@ final class CloudKitSharingManager {
         }
 
         let phraseVaultId = Self.vaultId(from: phrase)
-        Self.logger.info("[upload-telemetry] phraseVaultId: \(phraseVaultId, privacy: .public)")
-        Self.logger.info("[upload-telemetry] shareVaultId: \(shareVaultId, privacy: .public)")
+        // Use ERROR level for critical debugging info
+        Self.logger.error("🔴 UPLOAD DEBUG phraseVaultId: \(phraseVaultId, privacy: .public)")
+        Self.logger.error("🔴 UPLOAD DEBUG shareVaultId: \(shareVaultId, privacy: .public)")
+        #if DEBUG
+        print("🔴 UPLOAD DEBUG phraseVaultId: \(phraseVaultId)")
+        print("🔴 UPLOAD DEBUG shareVaultId: \(shareVaultId)")
+        #endif
 
         // v2: skip outer encryption — individual files are already encrypted with shareKey
         let uploadData = vaultData
@@ -203,7 +208,10 @@ final class CloudKitSharingManager {
         let manifestStart = CFAbsoluteTimeGetCurrent()
 
         do {
-            Self.logger.info("[upload-telemetry] Saving manifest with phraseVaultId: \(phraseVaultId, privacy: .public)")
+            Self.logger.error("🔴 UPLOAD DEBUG Saving manifest with phraseVaultId: \(phraseVaultId, privacy: .public)")
+            #if DEBUG
+            print("🔴 UPLOAD DEBUG Saving manifest with phraseVaultId: \(phraseVaultId)")
+            #endif
             try await saveManifest(
                 shareVaultId: shareVaultId,
                 phraseVaultId: phraseVaultId,
@@ -212,8 +220,15 @@ final class CloudKitSharingManager {
                 ownerFingerprint: ownerFingerprint,
                 totalChunks: totalChunks
             )
-            Self.logger.info("[upload-telemetry] Manifest saved successfully")
+            Self.logger.error("🔴 UPLOAD DEBUG Manifest saved successfully")
+            #if DEBUG
+            print("🔴 UPLOAD DEBUG Manifest saved successfully")
+            #endif
         } catch {
+            Self.logger.error("🔴 UPLOAD DEBUG Manifest save FAILED: \(error.localizedDescription, privacy: .public)")
+            #if DEBUG
+            print("🔴 UPLOAD DEBUG Manifest save FAILED: \(error)")
+            #endif
             EmbraceManager.shared.captureError(error)
             transaction.finish(status: .internalError)
             throw error
@@ -349,7 +364,13 @@ final class CloudKitSharingManager {
     ) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
         let transaction = EmbraceManager.shared.startTransaction(name: "share.download", operation: "share.download")
         let phraseVaultId = Self.vaultId(from: phrase)
-        Self.logger.info("[download-telemetry] Looking for manifest with phraseVaultId: \(phraseVaultId, privacy: .public)")
+        // Use ERROR level for critical debugging info
+        Self.logger.error("🔴 DOWNLOAD DEBUG Looking for manifest with phraseVaultId: \(phraseVaultId, privacy: .public)")
+        Self.logger.error("🔴 DOWNLOAD DEBUG Phrase: \(phrase, privacy: .public)")
+        #if DEBUG
+        print("🔴 DOWNLOAD DEBUG Looking for manifest with phraseVaultId: \(phraseVaultId)")
+        print("🔴 DOWNLOAD DEBUG Phrase: \(phrase)")
+        #endif
         
         // Try v2 (per-phrase salt) key first, fall back to v1 (fixed salt) for existing shares
         let shareKeyV2 = ShareKey(try KeyDerivation.deriveShareKey(from: phrase))
@@ -361,9 +382,15 @@ final class CloudKitSharingManager {
         let manifest: CKRecord
         do {
             manifest = try await publicDatabase.record(for: manifestRecordId)
-            Self.logger.info("[download-telemetry] Manifest found successfully")
+            Self.logger.error("🔴 DOWNLOAD DEBUG Manifest found successfully")
+            #if DEBUG
+            print("🔴 DOWNLOAD DEBUG Manifest found successfully")
+            #endif
         } catch let error as CKError where error.code == .unknownItem {
-            Self.logger.error("[download-telemetry] Manifest not found for phraseVaultId: \(phraseVaultId, privacy: .public)")
+            Self.logger.error("🔴 DOWNLOAD DEBUG Manifest NOT FOUND for phraseVaultId: \(phraseVaultId, privacy: .public)")
+            #if DEBUG
+            print("🔴 DOWNLOAD DEBUG Manifest NOT FOUND for phraseVaultId: \(phraseVaultId)")
+            #endif
             transaction.finish(status: .notFound)
             throw CloudKitSharingError.vaultNotFound
         } catch {

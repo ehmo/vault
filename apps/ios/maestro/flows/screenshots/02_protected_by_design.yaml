@@ -1,0 +1,58 @@
+appId: app.vaultaire.ios
+---
+# Screenshot 2: "Protected by Design" screen (ThankYouView)
+# Shows: No accounts, No backdoors, No way to spy, Hidden from all
+
+- launchApp:
+    clearState: true
+
+# Dismiss system alerts
+- tapOn:
+    text: "Not Now"
+    optional: true
+- tapOn:
+    text: "Don.*Allow"
+    optional: true
+
+# Wait for Welcome, then advance
+- extendedWaitUntil:
+    visible:
+      id: "welcome_continue"
+    timeout: 8000
+- tapOn:
+    id: "welcome_continue"
+
+# Permissions screen → Continue
+- extendedWaitUntil:
+    visible:
+      id: "permissions_continue"
+    timeout: 8000
+- tapOn:
+    id: "permissions_continue"
+
+# Analytics screen → Decline
+- extendedWaitUntil:
+    visible:
+      id: "analytics_decline"
+    timeout: 8000
+- tapOn:
+    id: "analytics_decline"
+
+# Paywall screen → Skip
+- extendedWaitUntil:
+    visible:
+      id: "paywall_skip"
+    timeout: 8000
+- tapOn:
+    id: "paywall_skip"
+
+# Wait for Protected by Design / ThankYou screen
+- extendedWaitUntil:
+    visible:
+      id: "thankyou_seal_image"
+    timeout: 8000
+
+- waitForAnimationToEnd:
+    timeout: 1000
+
+- takeScreenshot: "apps/ios/screenshots/raw/02_protected_by_design"

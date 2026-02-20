@@ -1,12 +1,12 @@
 appId: app.vaultaire.ios
 ---
-# Quick test to verify Maestro screenshot capture works
+# Screenshot 1: Welcome/Onboarding screen
+# Shows app value props: pattern encryption, plausible deniability, hardware security, backup
+
 - launchApp:
     clearState: true
-    arguments:
-      MAESTRO_TEST: "true"
-      MAESTRO_SEED_FILES: "true"
 
+# Dismiss any system alerts
 - tapOn:
     text: "Not Now"
     optional: true
@@ -17,12 +17,13 @@ appId: app.vaultaire.ios
     text: "OK"
     optional: true
 
+# Wait for Welcome screen to appear
 - extendedWaitUntil:
     visible:
-      id: "vault_add_button"
+      id: "welcome_continue"
     timeout: 8000
 
 - waitForAnimationToEnd:
     timeout: 1000
 
-- takeScreenshot: "test_capture"
+- takeScreenshot: "apps/ios/screenshots/raw/01_welcome"
