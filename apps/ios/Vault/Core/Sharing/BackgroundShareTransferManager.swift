@@ -483,14 +483,12 @@ final class BackgroundShareTransferManager {
             logTag: "upload"
         )
 
-        activeTask = Task.detached(priority: .userInitiated) { [weak self] in
+        activeTask = Task(priority: .userInitiated) { [weak self] in
             defer {
-                Self.runMainSync {
-                    self?.finalizeDetachedTransferTask(
-                        bgTaskId: bgTaskId,
-                        clearUploadLifecycle: true
-                    )
-                }
+                self?.finalizeDetachedTransferTask(
+                    bgTaskId: bgTaskId,
+                    clearUploadLifecycle: true
+                )
             }
             do {
                 let uploadStart = CFAbsoluteTimeGetCurrent()
@@ -753,14 +751,12 @@ final class BackgroundShareTransferManager {
             logTag: "resume"
         )
 
-        activeTask = Task.detached(priority: .userInitiated) { [weak self] in
+        activeTask = Task(priority: .userInitiated) { [weak self] in
             defer {
-                Self.runMainSync {
-                    self?.finalizeDetachedTransferTask(
-                        bgTaskId: bgTaskId,
-                        clearUploadLifecycle: true
-                    )
-                }
+                self?.finalizeDetachedTransferTask(
+                    bgTaskId: bgTaskId,
+                    clearUploadLifecycle: true
+                )
             }
             do {
                 Self.setUploadLifecycleMarker(
@@ -919,15 +915,17 @@ final class BackgroundShareTransferManager {
             logTag: "import"
         )
 
-        activeTask = Task.detached(priority: .userInitiated) { [weak self] in
+        // Use Task (not Task.detached) to stay on MainActor and avoid @Observable race conditions
+        activeTask = Task(priority: .userInitiated) { [weak self] in
+            guard let self else { return }
+            
             defer {
-                Self.runMainSync {
-                    self?.finalizeDetachedTransferTask(
-                        bgTaskId: bgTaskId,
-                        clearUploadLifecycle: false
-                    )
-                }
+                self.finalizeDetachedTransferTask(
+                    bgTaskId: bgTaskId,
+                    clearUploadLifecycle: false
+                )
             }
+            
             do {
                 // Check if there's a pending import to resume
                 var pendingImport = Self.loadPendingImportState()
@@ -949,20 +947,16 @@ final class BackgroundShareTransferManager {
                     }
                     
                     result = (vaultData, pending.shareVaultId, pending.policy, pending.shareVaultVersion)
-                    
-                    await MainActor.run {
-                        self?.setTargetProgress(95, message: "Resuming import...")
-                    }
+                    self.setTargetProgress(95, message: "Resuming import...")
                 } else {
                     // Fresh download
                     result = try await CloudKitSharingManager.shared.downloadSharedVault(
                         phrase: capturedPhrase,
                         markClaimedOnDownload: false,
-                        onProgress: { current, total in
-                            Task { @MainActor [weak self] in
-                                let pct = total > 0 ? downloadWeight * current / total : 0
-                                self?.setTargetProgress(pct, message: "Downloading shared vault...")
-                            }
+                        onProgress: { [weak self] current, total in
+                            guard let self else { return }
+                            let pct = total > 0 ? downloadWeight * current / total : 0
+                            self.setTargetProgress(pct, message: "Downloading shared vault...")
                         }
                     )
 
@@ -1037,7 +1031,7 @@ final class BackgroundShareTransferManager {
 
                     let totalImported = pendingImportState.importedFileIds.count
                     let pct = downloadWeight + (fileCount > 0 ? importWeight * totalImported / fileCount : importWeight)
-                    await self?.setTargetProgress(pct, message: "Importing files... (\(totalImported)/\(fileCount))")
+                    self.setTargetProgress(pct, message: "Importing files... (\(totalImported)/\(fileCount))")
                     await Task.yield()
                 }
 
@@ -1063,13 +1057,13 @@ final class BackgroundShareTransferManager {
                     Self.logger.warning("Failed to mark share claimed after import: \(error.localizedDescription, privacy: .public)")
                 }
 
-                await self?.finishTransfer(.importComplete)
+                self.finishTransfer(.importComplete)
             } catch {
                 guard !Task.isCancelled else { return }
                 Self.logger.error("[import] IMPORT FAILED: \(error.localizedDescription, privacy: .public)")
                 Self.logger.error("[import] error type: \(String(describing: type(of: error)), privacy: .public)")
                 EmbraceManager.shared.captureError(error)
-                await self?.finishTransfer(.importFailed(error.localizedDescription))
+                self.finishTransfer(.importFailed(error.localizedDescription))
             }
         }
     }
