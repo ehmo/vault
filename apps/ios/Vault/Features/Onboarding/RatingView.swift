@@ -49,8 +49,13 @@ struct RatingView: View {
 
                 VStack(spacing: 12) {
                     Button(action: {
-                        requestReview()
+                        // Dismiss our view immediately, then show system rating dialog
+                        // This prevents the bug where system dialog's "Not Now" doesn't work
                         onContinue()
+                        // Small delay to let our view dismiss before system dialog appears
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            requestReview()
+                        }
                     }) {
                         Text("Rate App")
                             .font(.headline)
