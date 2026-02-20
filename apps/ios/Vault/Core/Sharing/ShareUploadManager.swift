@@ -518,6 +518,7 @@ final class ShareUploadManager {
                 job.status = .uploading
                 job.progress = 5
                 job.message = "Uploading vault..."
+                job.errorMessage = nil
             }
 
             try await cloudKit.uploadChunksFromFile(
@@ -532,6 +533,7 @@ final class ShareUploadManager {
                             job.status = .uploading
                             job.progress = max(job.progress, pct)
                             job.message = "Uploading vault..."
+                            job.errorMessage = nil
                         }
                         self.updatePendingProgress(jobId: jobId, progress: pct, message: "Uploading vault...")
                     }
@@ -688,6 +690,7 @@ final class ShareUploadManager {
                 job.status = .uploading
                 job.progress = max(job.progress, 2)
                 job.message = "Checking uploaded chunks..."
+                job.errorMessage = nil
             }
             updatePendingProgress(jobId: state.jobId, progress: 2, message: "Checking uploaded chunks...")
 
@@ -698,6 +701,7 @@ final class ShareUploadManager {
                 job.status = .uploading
                 job.progress = max(job.progress, 5)
                 job.message = "Uploading remaining chunks..."
+                job.errorMessage = nil
             }
             updatePendingProgress(jobId: state.jobId, progress: 5, message: "Uploading remaining chunks...")
 
@@ -713,6 +717,7 @@ final class ShareUploadManager {
                             job.status = .uploading
                             job.progress = max(job.progress, pct)
                             job.message = "Uploading remaining chunks..."
+                            job.errorMessage = nil
                         }
                         self.updatePendingProgress(jobId: state.jobId, progress: pct, message: "Uploading remaining chunks...")
                     }
