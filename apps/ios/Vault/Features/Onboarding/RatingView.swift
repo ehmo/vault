@@ -49,7 +49,12 @@ struct RatingView: View {
 
                 VStack(spacing: 12) {
                     Button(action: {
-                        requestReview()
+                        // Dismiss our view first, then show system rating dialog
+                        // This prevents the bug where system dialog's buttons don't work
+                        onContinue()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            requestReview()
+                        }
                     }) {
                         Text("Rate App")
                             .font(.headline)
