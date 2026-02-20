@@ -547,16 +547,19 @@ struct ShareVaultView: View {
                     .font(.caption).foregroundStyle(.vaultHighlight)
             }
 
-            Button {
-                guard let key = appState.currentVaultKey else { return }
-                ShareSyncManager.shared.syncNow(vaultKey: key)
-            } label: {
-                Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
-                    .font(.caption2)
+            // Only show Sync Now button when not synced and not currently syncing
+            if status != .upToDate && status != .syncing {
+                Button {
+                    guard let key = appState.currentVaultKey else { return }
+                    ShareSyncManager.shared.syncNow(vaultKey: key)
+                } label: {
+                    Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
+                        .font(.caption2)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.mini)
+                .disabled(isSyncing)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.mini)
-            .disabled(isSyncing)
         }
     }
 
