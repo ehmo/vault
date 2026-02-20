@@ -68,8 +68,11 @@ actor MediaOptimizer {
             throw OptimizationError.heicEncodingFailed
         }
 
+        // Check if image has alpha to optimize file size and memory
+        let hasAlpha = cgImage.alphaInfo != .none && cgImage.alphaInfo != .noneSkipFirst && cgImage.alphaInfo != .noneSkipLast
         let options: [CFString: Any] = [
-            kCGImageDestinationLossyCompressionQuality: 0.6
+            kCGImageDestinationLossyCompressionQuality: 0.6,
+            kCGImagePropertyHasAlpha: hasAlpha
         ]
         CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
 
@@ -143,9 +146,12 @@ actor MediaOptimizer {
         }
 
         // Preserve EXIF orientation metadata when writing the output image
+        // Check if image has alpha to optimize file size and memory
+        let hasAlpha = cgImage.alphaInfo != .none && cgImage.alphaInfo != .noneSkipFirst && cgImage.alphaInfo != .noneSkipLast
         let options: [CFString: Any] = [
             kCGImageDestinationLossyCompressionQuality: 0.6,
-            kCGImagePropertyOrientation: orientation.rawValue
+            kCGImagePropertyOrientation: orientation.rawValue,
+            kCGImagePropertyHasAlpha: hasAlpha
         ]
         CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
 
