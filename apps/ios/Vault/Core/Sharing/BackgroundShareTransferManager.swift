@@ -48,6 +48,19 @@ final class BackgroundShareTransferManager {
         let timestamp: Date
     }
 
+    // MARK: - Pending Import State (Resumable Imports)
+
+    struct PendingImportState: Codable {
+        let shareVaultId: String
+        let phrase: String
+        let shareKeyData: Data
+        let policy: VaultStorage.SharePolicy
+        let totalFiles: Int
+        var importedFileIds: [String]  // Track which files have been successfully imported
+        let shareVaultVersion: Int
+        let createdAt: Date
+    }
+
     private nonisolated static let pendingDir: URL = {
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("pending_upload", isDirectory: true)
@@ -57,10 +70,13 @@ final class BackgroundShareTransferManager {
 
     private nonisolated static let stateURL = pendingDir.appendingPathComponent("state.json")
     private nonisolated static let svdfURL = pendingDir.appendingPathComponent("svdf_data.bin")
+    private nonisolated static let importStateURL = pendingDir.appendingPathComponent("import_state.json")
+    private nonisolated static let importDataURL = pendingDir.appendingPathComponent("import_data.bin")
 
     /// 24-hour TTL for pending uploads
     private nonisolated static let pendingTTL: TimeInterval = 24 * 60 * 60
     private nonisolated static let uploadLifecycleKey = "share.upload.lifecycle.marker"
+    private nonisolated static let importLifecycleKey = "share.import.lifecycle.marker"
 
     nonisolated static func savePendingUpload(_ state: PendingUploadState, svdfData: Data) throws {
         try JSONEncoder().encode(state).write(to: stateURL)
@@ -88,6 +104,35 @@ final class BackgroundShareTransferManager {
     nonisolated static func clearPendingUpload() {
         try? FileManager.default.removeItem(at: stateURL)
         try? FileManager.default.removeItem(at: svdfURL)
+    }
+
+    // MARK: - Pending Import State Persistence
+
+    nonisolated static func savePendingImport(_ state: PendingImportState, vaultData: Data) throws {
+        try JSONEncoder().encode(state).write(to: importStateURL)
+        try vaultData.write(to: importDataURL)
+    }
+
+    nonisolated static func loadPendingImportState() -> PendingImportState? {
+        guard let stateData = try? Data(contentsOf: importStateURL),
+              let state = try? JSONDecoder().decode(PendingImportState.self, from: stateData) else {
+            return nil
+        }
+        // TTL check
+        guard Date().timeIntervalSince(state.createdAt) < pendingTTL else {
+            clearPendingImport()
+            return nil
+        }
+        guard FileManager.default.fileExists(atPath: importDataURL.path) else {
+            clearPendingImport()
+            return nil
+        }
+        return state
+    }
+
+    nonisolated static func clearPendingImport() {
+        try? FileManager.default.removeItem(at: importStateURL)
+        try? FileManager.default.removeItem(at: importDataURL)
     }
 
     nonisolated static func setUploadLifecycleMarker(phase: String, shareVaultId: String) {
@@ -125,6 +170,10 @@ final class BackgroundShareTransferManager {
 
     var hasPendingUpload: Bool {
         Self.loadPendingUploadState() != nil
+    }
+    
+    var hasPendingImport: Bool {
+        Self.loadPendingImportState() != nil
     }
 
     var status: TransferStatus = .idle
@@ -207,7 +256,7 @@ final class BackgroundShareTransferManager {
             request.earliestBeginDate = Date(timeIntervalSinceNow: TimeInterval(delay))
             
             // Use a unique identifier for each fallback by appending timestamp
-            let fallbackId = "\(Self.backgroundResumeTaskIdentifier).fallback.\(delay)"
+            _ = "\(Self.backgroundResumeTaskIdentifier).fallback.\(delay)"
             
             do {
                 // Note: BGTaskScheduler doesn't support multiple tasks with same identifier
@@ -305,23 +354,58 @@ final class BackgroundShareTransferManager {
             }
         }
 
-        guard hasPendingUpload else {
-            completeBackgroundProcessingTask(success: true)
+        // Check for pending uploads first
+        if hasPendingUpload {
+            if activeTask != nil {
+                Self.logger.info("[bg-task] Upload already active, waiting for completion")
+                return
+            }
+
+            guard let key = vaultKeyProvider?() else {
+                Self.logger.info("[bg-task] Pending upload exists but vault is locked; deferring")
+                completeBackgroundProcessingTask(success: false)
+                return
+            }
+
+            resumePendingUpload(vaultKey: key)
             return
         }
+        
+        // Check for pending imports
+        if hasPendingImport {
+            if activeTask != nil {
+                Self.logger.info("[bg-task] Import already active, waiting for completion")
+                return
+            }
 
-        if activeTask != nil {
-            Self.logger.info("[bg-task] Upload already active, waiting for completion")
+            guard let key = vaultKeyProvider?() else {
+                Self.logger.info("[bg-task] Pending import exists but vault is locked; deferring")
+                completeBackgroundProcessingTask(success: false)
+                return
+            }
+
+            resumePendingImport(vaultKey: key)
             return
         }
-
-        guard let key = vaultKeyProvider?() else {
-            Self.logger.info("[bg-task] Pending upload exists but vault is locked; deferring")
-            completeBackgroundProcessingTask(success: false)
+        
+        completeBackgroundProcessingTask(success: true)
+    }
+    
+    /// Resumes a pending import from where it left off
+    func resumePendingImport(vaultKey: VaultKey?) {
+        guard let pending = Self.loadPendingImportState() else {
+            Self.logger.warning("[import-resume] No pending import found")
             return
         }
-
-        resumePendingUpload(vaultKey: key)
+        guard let vaultKey else {
+            Self.logger.warning("[import-resume] No vault key available")
+            return
+        }
+        
+        Self.logger.info("[import-resume] Resuming import with \(pending.importedFileIds.count)/\(pending.totalFiles) files already imported")
+        
+        // Use the existing import method which will detect and resume the pending state
+        startBackgroundDownloadAndImport(phrase: pending.phrase, patternKey: vaultKey)
     }
 
     // MARK: - Background Task Management
@@ -813,6 +897,7 @@ final class BackgroundShareTransferManager {
     // MARK: - Background Download + Import
 
     /// Downloads and imports a shared vault entirely in the background.
+    /// Supports resumable imports - if interrupted, will resume from last imported file.
     func startBackgroundDownloadAndImport(
         phrase: String,
         patternKey: VaultKey
@@ -830,7 +915,7 @@ final class BackgroundShareTransferManager {
         let capturedPatternKey = patternKey
 
         let bgTaskId = beginProtectedTask(
-            failureStatus: .importFailed("Import interrupted — iOS suspended the app."),
+            failureStatus: .importFailed("Import interrupted — iOS suspended the app. Tap to resume."),
             logTag: "import"
         )
 
@@ -844,34 +929,87 @@ final class BackgroundShareTransferManager {
                 }
             }
             do {
-                let result = try await CloudKitSharingManager.shared.downloadSharedVault(
-                    phrase: capturedPhrase,
-                    markClaimedOnDownload: false,
-                    onProgress: { current, total in
-                        Task { @MainActor [weak self] in
-                            let pct = total > 0 ? downloadWeight * current / total : 0
-                            self?.setTargetProgress(pct, message: "Downloading vault...")
-                        }
-                    }
-                )
-
-                guard !Task.isCancelled else { return }
-
-                let shareKey = ShareKey(try KeyDerivation.deriveShareKey(from: capturedPhrase))
+                // Check if there's a pending import to resume
+                var pendingImport = Self.loadPendingImportState()
+                let shareKey: ShareKey
                 let sharedVault: SharedVaultData
-                if SVDFSerializer.isSVDF(result.data) {
-                    sharedVault = try SVDFSerializer.deserialize(from: result.data, shareKey: shareKey.rawBytes)
+                let result: (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int)
+                
+                if let pending = pendingImport {
+                    // Resume from pending import
+                    Self.logger.info("[import] Resuming interrupted import with \(pending.importedFileIds.count)/\(pending.totalFiles) files already imported")
+                    shareKey = ShareKey(pending.shareKeyData)
+                    
+                    // Load the vault data from disk
+                    let vaultData = try Data(contentsOf: Self.importDataURL)
+                    if SVDFSerializer.isSVDF(vaultData) {
+                        sharedVault = try SVDFSerializer.deserialize(from: vaultData, shareKey: shareKey.rawBytes)
+                    } else {
+                        sharedVault = try SharedVaultData.decode(from: vaultData)
+                    }
+                    
+                    result = (vaultData, pending.shareVaultId, pending.policy, pending.shareVaultVersion)
+                    
+                    await MainActor.run {
+                        self?.setTargetProgress(95, message: "Resuming import...")
+                    }
                 } else {
-                    sharedVault = try SharedVaultData.decode(from: result.data)
-                }
-                let fileCount = sharedVault.files.count
+                    // Fresh download
+                    result = try await CloudKitSharingManager.shared.downloadSharedVault(
+                        phrase: capturedPhrase,
+                        markClaimedOnDownload: false,
+                        onProgress: { current, total in
+                            Task { @MainActor [weak self] in
+                                let pct = total > 0 ? downloadWeight * current / total : 0
+                                self?.setTargetProgress(pct, message: "Downloading vault...")
+                            }
+                        }
+                    )
 
-                for (i, file) in sharedVault.files.enumerated() {
                     guard !Task.isCancelled else { return }
+
+                    shareKey = ShareKey(try KeyDerivation.deriveShareKey(from: capturedPhrase))
+                    if SVDFSerializer.isSVDF(result.data) {
+                        sharedVault = try SVDFSerializer.deserialize(from: result.data, shareKey: shareKey.rawBytes)
+                    } else {
+                        sharedVault = try SharedVaultData.decode(from: result.data)
+                    }
+                    
+                    // Save pending import state for resume capability
+                    pendingImport = PendingImportState(
+                        shareVaultId: result.shareVaultId,
+                        phrase: capturedPhrase,
+                        shareKeyData: shareKey.rawBytes,
+                        policy: result.policy,
+                        totalFiles: sharedVault.files.count,
+                        importedFileIds: [],
+                        shareVaultVersion: result.version,
+                        createdAt: Date()
+                    )
+                    try Self.savePendingImport(pendingImport!, vaultData: result.data)
+                }
+                
+                guard var pendingImportState = pendingImport else {
+                    throw CloudKitSharingError.invalidData
+                }
+                
+                let fileCount = sharedVault.files.count
+                let alreadyImportedIds = Set(pendingImportState.importedFileIds)
+                
+                // Filter out already imported files
+                let filesToImport = sharedVault.files.filter { !alreadyImportedIds.contains($0.id.uuidString) }
+                
+                Self.logger.info("[import] Importing \(filesToImport.count) remaining files (\(alreadyImportedIds.count) already done)")
+
+                for (i, file) in filesToImport.enumerated() {
+                    guard !Task.isCancelled else {
+                        // Save progress before returning so we can resume
+                        try Self.savePendingImport(pendingImportState, vaultData: result.data)
+                        Self.logger.info("[import] Import interrupted after \(pendingImportState.importedFileIds.count) files - saved state for resume")
+                        return
+                    }
+                    
                     try autoreleasepool {
-                        // Shared payloads may be single-shot AES-GCM or VCSE streaming
-                        // ciphertext depending on source file size. Use staged decrypt so
-                        // large-file shares don't fail with CryptoKitError auth errors.
                         let decrypted = try CryptoEngine.decryptStaged(file.encryptedContent, with: shareKey.rawBytes)
                         let thumbnailData = Self.resolveThumbnail(
                             encryptedThumbnail: file.encryptedThumbnail,
@@ -887,10 +1025,19 @@ final class BackgroundShareTransferManager {
                             with: capturedPatternKey,
                             thumbnailData: thumbnailData
                         )
+                        
+                        // Track successful import
+                        pendingImportState.importedFileIds.append(file.id.uuidString)
                     }
 
-                    let pct = downloadWeight + (fileCount > 0 ? importWeight * (i + 1) / fileCount : importWeight)
-                    await self?.setTargetProgress(pct, message: "Importing files...")
+                    // Save progress after each file
+                    if i % 5 == 0 || i == filesToImport.count - 1 {
+                        try Self.savePendingImport(pendingImportState, vaultData: result.data)
+                    }
+
+                    let totalImported = pendingImportState.importedFileIds.count
+                    let pct = downloadWeight + (fileCount > 0 ? importWeight * totalImported / fileCount : importWeight)
+                    await self?.setTargetProgress(pct, message: "Importing files... (\(totalImported)/\(fileCount))")
                     await Task.yield()
                 }
 
@@ -906,8 +1053,10 @@ final class BackgroundShareTransferManager {
                 index.sharedVaultVersion = result.version
                 try VaultStorage.shared.saveIndex(index, with: capturedPatternKey)
 
-                // Claim only after local import/setup succeeds. This prevents
-                // "already claimed" failures on retries after interruption.
+                // Clear pending import since we're done
+                Self.clearPendingImport()
+
+                // Claim only after local import/setup succeeds
                 do {
                     try await CloudKitSharingManager.shared.markShareClaimed(shareVaultId: result.shareVaultId)
                 } catch {
