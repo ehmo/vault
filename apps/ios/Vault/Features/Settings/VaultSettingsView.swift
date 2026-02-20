@@ -297,16 +297,31 @@ struct VaultSettingsView: View {
                 }
             }
 
-            // Remove any active CloudKit shares
+            // Revoke any active CloudKit shares to invalidate all recipient copies
             if let shares = index.activeShares {
                 for share in shares {
                     Task {
                         do {
-                            try await CloudKitSharingManager.shared.deleteSharedVault(shareVaultId: share.id)
+                            // Revoke the share so recipients can no longer access it
+                            try await CloudKitSharingManager.shared.revokeShare(shareVaultId: share.id)
+                            vaultSettingsLogger.info("Revoked shared vault \(share.id, privacy: .public)")
                         } catch {
-                            vaultSettingsLogger.error("Failed to delete shared vault \(share.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
-                            EmbraceManager.shared.captureError(error, context: ["action": "deleteSharedVault", "shareId": share.id])
+                            vaultSettingsLogger.error("Failed to revoke shared vault \(share.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                            EmbraceManager.shared.captureError(error, context: ["action": "revokeShare", "shareId": share.id])
                         }
+                    }
+                }
+            }
+
+            // If this is a shared vault we joined, mark it as consumed
+            if let isShared = index.isSharedVault, isShared, let vaultId = index.sharedVaultId {
+                Task {
+                    do {
+                        try await CloudKitSharingManager.shared.markShareConsumed(shareVaultId: vaultId)
+                        vaultSettingsLogger.info("Marked shared vault \(vaultId, privacy: .public) as consumed")
+                    } catch {
+                        vaultSettingsLogger.error("Failed to mark shared vault consumed \(vaultId, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                        EmbraceManager.shared.captureError(error, context: ["action": "markShareConsumed", "vaultId": vaultId])
                     }
                 }
             }
