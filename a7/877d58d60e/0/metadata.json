@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "a7877d58d60e",
+  "session_id": "090242c9-96a0-4717-a29c-7a0a18d4828e",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-20T22:58:36.601745Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Features/Onboarding/RatingView.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "37b5dbf9-4da7-4c91-9ba0-08fb9a2f320b",
+  "checkpoint_transcript_start": 7402,
+  "transcript_lines_at_start": 7402,
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 24883,
+    "cache_read_tokens": 2427316,
+    "output_tokens": 395,
+    "api_call_count": 22
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-20T22:58:35.168208Z",
+    "agent_lines": 0,
+    "human_added": 2851,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2851,
+    "agent_percentage": 0
+  }
+}
