@@ -23,6 +23,7 @@ struct JoinVaultView: View {
     @State private var pendingOverwriteKey: VaultKey?
     @State private var existingVaultNameForOverwrite = "Vault"
     @State private var existingFileCountForOverwrite = 0
+    @State private var isSettingUpVault = false
 
     enum ViewMode: Equatable {
         case input
@@ -301,6 +302,8 @@ struct JoinVaultView: View {
 
         case .confirm:
             if pattern == newPattern {
+                guard !isSettingUpVault else { return }
+                isSettingUpVault = true
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
                 errorMessage = nil
                 patternState.reset()
