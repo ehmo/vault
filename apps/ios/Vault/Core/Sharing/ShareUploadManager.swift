@@ -634,7 +634,14 @@ final class ShareUploadManager {
     }
 
     private func startResumeTask(state: PendingUploadState, vaultKey: VaultKey?) {
-        guard uploadTasks[state.jobId] == nil else { return }
+        if let existingTask = uploadTasks[state.jobId] {
+            // A live task is still running — don't start a second one.
+            // If the task is cancelled (e.g. by cancelAllRunningUploadsAsInterrupted) but
+            // its defer hasn't run yet, treat it as gone so vault_unlocked / other triggers
+            // can immediately start the resume instead of being silently skipped.
+            guard existingTask.isCancelled else { return }
+            uploadTasks.removeValue(forKey: state.jobId)
+        }
         terminatedJobIds.remove(state.jobId)
         ensureBackgroundExecution()
 
@@ -668,12 +675,15 @@ final class ShareUploadManager {
 
         do {
             if state.uploadFinished {
-                if let vaultKey {
+                // Prefer the captured key; fall back to the live provider in case the vault
+                // was unlocked after the task was created with a nil key.
+                let effectiveKey = vaultKey ?? vaultKeyProvider?()
+                if let effectiveKey {
                     appendShareRecord(
                         shareVaultId: state.shareVaultId,
                         policy: state.policy,
                         shareKeyData: state.shareKeyData,
-                        vaultKey: vaultKey
+                        vaultKey: effectiveKey
                     )
                     pendingStateByJobId.removeValue(forKey: state.jobId)
                     Self.clearPendingUpload(jobId: state.jobId)
@@ -774,12 +784,13 @@ final class ShareUploadManager {
                 try syncCache.saveSyncState(syncState)
             }.value
 
-            if let vaultKey {
+            let effectiveKey2 = vaultKey ?? vaultKeyProvider?()
+            if let effectiveKey2 {
                 appendShareRecord(
                     shareVaultId: state.shareVaultId,
                     policy: state.policy,
                     shareKeyData: state.shareKeyData,
-                    vaultKey: vaultKey
+                    vaultKey: effectiveKey2
                 )
             } else {
                 updateJob(jobId: state.jobId) { job in
