@@ -422,9 +422,29 @@ final class VaultViewModel {
         IdleTimerManager.shared.disable()
         vmLogger.info("🔄 Starting import task with \(count) items")
 
+        // Separate videos and images for prioritized parallel processing
+        // Videos take longer to process, so we interleave them with images
+        // to maximize throughput and prevent video processing from blocking everything
+        var videoIndices: [Int] = []
+        var imageIndices: [Int] = []
+        
+        for (index, result) in results.enumerated() {
+            if result.itemProvider.hasItemConformingToTypeIdentifier(UTType.movie.identifier) {
+                videoIndices.append(index)
+            } else {
+                imageIndices.append(index)
+            }
+        }
+        
+        vmLogger.info("📊 Import breakdown: \(videoIndices.count) videos, \(imageIndices.count) images")
+
         // Parallel import with concurrency control for better performance
+        // Reserve at least 1 slot for videos if we have any, rest for images
         let maxConcurrentImports = min(4, ProcessInfo.processInfo.processorCount)
-        vmLogger.info("🔄 Parallel import with max \(maxConcurrentImports) concurrent operations")
+        let maxVideoSlots = videoIndices.isEmpty ? 0 : min(2, maxConcurrentImports / 2 + 1)
+        let maxImageSlots = maxConcurrentImports - maxVideoSlots + (videoIndices.isEmpty ? maxVideoSlots : 0)
+        
+        vmLogger.info("🔄 Parallel import: max \(maxConcurrentImports) concurrent, \(maxVideoSlots) video slots, \(maxImageSlots) image slots")
 
         activeImportTask = Task.detached(priority: .userInitiated) {
             // Import result tracking
@@ -434,6 +454,8 @@ final class VaultViewModel {
                 var lastErrorReason: String?
                 var completedCount = 0
                 var importedFiles: [VaultFileItem] = []
+                var videoInFlight = 0
+                var imageInFlight = 0
 
                 func incrementCompleted() { completedCount += 1 }
                 func recordSuccess(_ file: VaultFileItem) {
@@ -444,83 +466,145 @@ final class VaultViewModel {
                     failedCount += 1
                     if let reason = lastErrorReason { lastErrorReason = reason }
                 }
+                func incrementVideoInFlight() { videoInFlight += 1 }
+                func decrementVideoInFlight() { videoInFlight -= 1 }
+                func incrementImageInFlight() { imageInFlight += 1 }
+                func decrementImageInFlight() { imageInFlight -= 1 }
             }
 
             let state = ImportState()
             let batchUpdateInterval: TimeInterval = 0.5 // Update UI every 500ms
             var lastUIUpdate = Date()
+            
+            // Track our position in each queue
+            var videoQueueIndex = 0
+            var imageQueueIndex = 0
+            var totalSubmitted = 0
 
             // Process imports with bounded parallelism using TaskGroup
-            await withTaskGroup(of: VaultFileItem?.self) { group in
-                var inFlight = 0
-                var index = 0
-
-                // Add tasks up to the concurrency limit
-                func addTasksUpToLimit() {
-                    while inFlight < maxConcurrentImports && index < results.count {
-                        let currentIndex = index
+            await withTaskGroup(of: (item: VaultFileItem?, isVideo: Bool).self) { group in
+                
+                // Add tasks up to the concurrency limit with smart scheduling
+                // Videos and images are processed in separate queues to ensure videos
+                // (which take longer) don't block image processing
+                func addTasksUpToLimit() async {
+                    // First, try to add videos if we have slots available
+                    // This ensures videos start processing early and run in parallel with images
+                    var videoInFlight = await state.videoInFlight
+                    while videoInFlight < maxVideoSlots && 
+                          videoQueueIndex < videoIndices.count &&
+                          totalSubmitted < count {
+                        let currentIndex = videoIndices[videoQueueIndex]
                         let result = results[currentIndex]
-                        index += 1
-                        inFlight += 1
+                        videoQueueIndex += 1
+                        totalSubmitted += 1
+                        
+                        await state.incrementVideoInFlight()
+                        videoInFlight += 1
 
                         group.addTask {
                             // Check for cancellation before starting
-                            guard !Task.isCancelled else { return nil }
+                            guard !Task.isCancelled else { 
+                                await state.decrementVideoInFlight()
+                                return (nil, true)
+                            }
 
                             let provider = result.itemProvider
-                            let isVideo = provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier)
 
                             do {
-                                let fileItem: VaultFileItem?
-                                if isVideo {
-                                    fileItem = try await self.importVideoFromProvider(
-                                        provider: provider,
-                                        index: currentIndex,
-                                        key: key,
-                                        encryptionKey: encryptionKey,
-                                        optimizationMode: optimizationMode
-                                    )
-                                } else {
-                                    fileItem = try await self.importImageFromProvider(
-                                        provider: provider,
-                                        index: currentIndex,
-                                        key: key,
-                                        encryptionKey: encryptionKey,
-                                        optimizationMode: optimizationMode
-                                    )
-                                }
+                                let fileItem = try await self.importVideoFromProvider(
+                                    provider: provider,
+                                    index: currentIndex,
+                                    key: key,
+                                    encryptionKey: encryptionKey,
+                                    optimizationMode: optimizationMode
+                                )
 
                                 await state.incrementCompleted()
+                                await state.decrementVideoInFlight()
                                 if let file = fileItem {
                                     await state.recordSuccess(file)
                                 } else {
                                     await state.recordFailure(reason: "Unknown error")
                                 }
-                                return fileItem
+                                return (fileItem, true)
                             } catch {
                                 await state.incrementCompleted()
+                                await state.decrementVideoInFlight()
                                 await state.recordFailure(reason: error.localizedDescription)
                                 if !Task.isCancelled {
                                     EmbraceManager.shared.addBreadcrumb(
                                         category: "import.failed",
-                                        data: ["index": currentIndex, "isVideo": isVideo, "error": "\(error)"]
+                                        data: ["index": currentIndex, "isVideo": true, "error": "\(error)"]
                                     )
                                 }
-                                return nil
+                                return (nil, true)
+                            }
+                        }
+                    }
+                    
+                    // Then add images to fill remaining slots
+                    var imageInFlight = await state.imageInFlight
+                    while imageInFlight < maxImageSlots && 
+                          imageQueueIndex < imageIndices.count &&
+                          totalSubmitted < count {
+                        let currentIndex = imageIndices[imageQueueIndex]
+                        let result = results[currentIndex]
+                        imageQueueIndex += 1
+                        totalSubmitted += 1
+                        
+                        await state.incrementImageInFlight()
+                        imageInFlight += 1
+
+                        group.addTask {
+                            // Check for cancellation before starting
+                            guard !Task.isCancelled else { 
+                                await state.decrementImageInFlight()
+                                return (nil, false)
+                            }
+
+                            let provider = result.itemProvider
+
+                            do {
+                                let fileItem = try await self.importImageFromProvider(
+                                    provider: provider,
+                                    index: currentIndex,
+                                    key: key,
+                                    encryptionKey: encryptionKey,
+                                    optimizationMode: optimizationMode
+                                )
+
+                                await state.incrementCompleted()
+                                await state.decrementImageInFlight()
+                                if let file = fileItem {
+                                    await state.recordSuccess(file)
+                                } else {
+                                    await state.recordFailure(reason: "Unknown error")
+                                }
+                                return (fileItem, false)
+                            } catch {
+                                await state.incrementCompleted()
+                                await state.decrementImageInFlight()
+                                await state.recordFailure(reason: error.localizedDescription)
+                                if !Task.isCancelled {
+                                    EmbraceManager.shared.addBreadcrumb(
+                                        category: "import.failed",
+                                        data: ["index": currentIndex, "isVideo": false, "error": "\(error)"]
+                                    )
+                                }
+                                return (nil, false)
                             }
                         }
                     }
                 }
 
                 // Initial batch of tasks
-                addTasksUpToLimit()
+                await addTasksUpToLimit()
 
                 // Process results and add new tasks as slots open up
                 for await _ in group {
-                    inFlight -= 1
-
                     // Add more tasks if available
-                    addTasksUpToLimit()
+                    await addTasksUpToLimit()
 
                     // Batch UI updates - only update every 500ms or when complete
                     let now = Date()
