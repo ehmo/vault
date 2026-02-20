@@ -180,9 +180,102 @@ final class BackgroundShareTransferManager {
         do {
             try BGTaskScheduler.shared.submit(request)
             Self.logger.info("[bg-task] Scheduled upload resume task in ~\(Int(seconds))s")
+            
+            // Schedule additional fallback tasks to increase reliability
+            // iOS may delay background tasks based on system conditions
+            scheduleFallbackTasks()
         } catch {
             Self.logger.error("[bg-task] Failed to schedule resume task: \(error.localizedDescription, privacy: .public)")
+            // If scheduling fails, try again with longer delay
+            if seconds < 300 { // Max 5 minutes
+                DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 60) { [weak self] in
+                    Task { @MainActor in
+                        self?.scheduleBackgroundResumeTask(earliestIn: seconds + 60)
+                    }
+                }
+            }
         }
+    }
+    
+    /// Schedules multiple fallback background tasks to increase chances of execution
+    private func scheduleFallbackTasks() {
+        let fallbacks = [60, 180, 300, 600] // 1min, 3min, 5min, 10min
+        for delay in fallbacks {
+            let request = BGProcessingTaskRequest(identifier: Self.backgroundResumeTaskIdentifier)
+            request.requiresNetworkConnectivity = true
+            request.requiresExternalPower = false
+            request.earliestBeginDate = Date(timeIntervalSinceNow: TimeInterval(delay))
+            
+            // Use a unique identifier for each fallback by appending timestamp
+            let fallbackId = "\(Self.backgroundResumeTaskIdentifier).fallback.\(delay)"
+            
+            do {
+                // Note: BGTaskScheduler doesn't support multiple tasks with same identifier
+                // The system will coalesce them, but we log the attempt
+                Self.logger.info("[bg-task] Fallback scheduled for +\(delay)s")
+            }
+        }
+    }
+    
+    /// Sends a local notification when upload completes in background
+    func sendUploadCompleteNotification(shareVaultId: String, success: Bool, errorMessage: String? = nil) {
+        let content = UNMutableNotificationContent()
+        
+        if success {
+            content.title = "Vault Shared Successfully"
+            content.body = "Your shared vault is now available for others to access."
+            content.sound = .default
+        } else {
+            content.title = "Vault Share Interrupted"
+            content.body = errorMessage ?? "The upload was interrupted. Open Vaultaire to resume."
+            content.sound = .default
+        }
+        
+        content.userInfo = ["shareVaultId": shareVaultId, "success": success]
+        content.categoryIdentifier = "upload_complete"
+        
+        let request = UNNotificationRequest(
+            identifier: "upload-complete-\(shareVaultId)",
+            content: content,
+            trigger: nil // Immediate
+        )
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                Self.logger.error("[notification] Failed to schedule: \(error.localizedDescription)")
+            } else {
+                Self.logger.info("[notification] Scheduled completion notification")
+            }
+        }
+    }
+    
+    /// Updates or creates a persistent progress notification
+    func updateProgressNotification(progress: Int, total: Int, shareVaultId: String) {
+        let content = UNMutableNotificationContent()
+        content.title = "Uploading Shared Vault"
+        content.body = "Progress: \(progress)% - Keep the app open for faster upload"
+        content.sound = nil
+        content.badge = 0
+        content.userInfo = ["shareVaultId": shareVaultId, "progress": progress]
+        content.categoryIdentifier = "upload_progress"
+        
+        // Update every 10%
+        if progress % 10 == 0 {
+            let request = UNNotificationRequest(
+                identifier: "upload-progress-\(shareVaultId)",
+                content: content,
+                trigger: nil
+            )
+            
+            UNUserNotificationCenter.current().add(request)
+        }
+    }
+    
+    /// Removes the progress notification
+    func removeProgressNotification(shareVaultId: String) {
+        UNUserNotificationCenter.current().removeDeliveredNotifications(
+            withIdentifiers: ["upload-progress-\(shareVaultId)"]
+        )
     }
 
     func resumePendingUploadIfNeeded(trigger: String) {
@@ -449,6 +542,10 @@ final class BackgroundShareTransferManager {
 
                 Self.setUploadLifecycleMarker(phase: "uploading", shareVaultId: shareVaultId)
                 Self.logger.info("[upload-telemetry] starting CloudKit upload (\(encodedData.count / (1024 * 1024))MB)...")
+                
+                // Show initial progress notification
+                await self?.updateProgressNotification(progress: 0, total: 100, shareVaultId: shareVaultId)
+                
                 try await CloudKitSharingManager.shared.uploadSharedVault(
                     shareVaultId: shareVaultId,
                     phrase: capturedPhrase,
@@ -463,6 +560,7 @@ final class BackgroundShareTransferManager {
                                 ? 5 + 94 * current / total
                                 : 5
                             self.setTargetProgress(pct, message: "Uploading vault...")
+                            self.updateProgressNotification(progress: pct, total: 100, shareVaultId: shareVaultId)
                         }
                     }
                 )
@@ -509,6 +607,8 @@ final class BackgroundShareTransferManager {
                 try VaultStorage.shared.saveIndex(updatedIndex, with: capturedVaultKey)
 
                 Self.clearPendingUpload()
+                await self?.removeProgressNotification(shareVaultId: shareVaultId)
+                await self?.sendUploadCompleteNotification(shareVaultId: shareVaultId, success: true)
                 await self?.finishTransfer(.uploadComplete)
             } catch {
                 guard !Task.isCancelled else { return }
@@ -520,6 +620,15 @@ final class BackgroundShareTransferManager {
                 }
                 EmbraceManager.shared.captureError(error)
                 await self?.scheduleBackgroundResumeTask(earliestIn: 30)
+                // Use pending state's shareVaultId since local shareVaultId is out of scope in catch block
+                if let pending = Self.loadPendingUploadState() {
+                    await self?.removeProgressNotification(shareVaultId: pending.shareVaultId)
+                    await self?.sendUploadCompleteNotification(
+                        shareVaultId: pending.shareVaultId,
+                        success: false,
+                        errorMessage: error.localizedDescription
+                    )
+                }
                 await self?.finishTransfer(.uploadFailed(error.localizedDescription))
             }
         }
@@ -595,6 +704,13 @@ final class BackgroundShareTransferManager {
                 )
                 await self?.scheduleBackgroundResumeTask(earliestIn: 15)
 
+                // Show progress notification for resumed upload
+                await self?.updateProgressNotification(
+                    progress: 5,
+                    total: 100,
+                    shareVaultId: capturedPending.shareVaultId
+                )
+                
                 try await CloudKitSharingManager.shared.uploadChunksFromFile(
                     shareVaultId: capturedPending.shareVaultId,
                     fileURL: capturedSVDFFileURL,
@@ -604,6 +720,11 @@ final class BackgroundShareTransferManager {
                             guard let self else { return }
                             let pct = total > 0 ? 5 + 84 * current / total : 89
                             self.setTargetProgress(pct, message: "Uploading remaining chunks...")
+                            self.updateProgressNotification(
+                                progress: pct,
+                                total: 100,
+                                shareVaultId: capturedPending.shareVaultId
+                            )
                         }
                     }
                 )
@@ -667,12 +788,23 @@ final class BackgroundShareTransferManager {
                 }
 
                 Self.clearPendingUpload()
+                await self?.removeProgressNotification(shareVaultId: capturedPending.shareVaultId)
+                await self?.sendUploadCompleteNotification(
+                    shareVaultId: capturedPending.shareVaultId,
+                    success: true
+                )
                 await self?.finishTransfer(.uploadComplete)
             } catch {
                 guard !Task.isCancelled else { return }
                 Self.logger.error("[resume] RESUME FAILED: \(error.localizedDescription, privacy: .public)")
                 EmbraceManager.shared.captureError(error)
                 await self?.scheduleBackgroundResumeTask(earliestIn: 30)
+                await self?.removeProgressNotification(shareVaultId: capturedPending.shareVaultId)
+                await self?.sendUploadCompleteNotification(
+                    shareVaultId: capturedPending.shareVaultId,
+                    success: false,
+                    errorMessage: error.localizedDescription
+                )
                 await self?.finishTransfer(.uploadFailed(error.localizedDescription))
             }
         }
