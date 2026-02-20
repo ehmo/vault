@@ -427,7 +427,7 @@ final class VaultStorage {
 
     // MARK: - File Operations
 
-    func storeFile(data: Data, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, duration: TimeInterval? = nil) throws -> UUID {
+    func storeFile(data: Data, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, duration: TimeInterval? = nil, fileId: UUID? = nil) throws -> UUID {
         let span = EmbraceManager.shared.startTransaction(name: "storage.store_file", operation: "storage.store_file")
         span.setTag(value: "\(data.count / 1024)", key: "fileSizeKB")
         span.setTag(value: mimeType, key: "mimeType")
@@ -440,6 +440,9 @@ final class VaultStorage {
         Self.logger.debug("mimeType: \(mimeType, privacy: .public)")
         Self.logger.debug("key hash: \(key.rawBytes.hashValue, privacy: .private)")
         Self.logger.debug("thumbnail provided: \(thumbnailData != nil, privacy: .public)")
+        if let providedId = fileId {
+            Self.logger.debug("Using provided fileId: \(providedId.uuidString, privacy: .public)")
+        }
 
         var index = try loadIndex(with: key)
 
@@ -453,7 +456,8 @@ final class VaultStorage {
             data: data,
             filename: filename,
             mimeType: mimeType,
-            with: masterKey  // <- Use master key here
+            with: masterKey,  // <- Use master key here
+            fileId: fileId   // <- Preserve original file ID if provided
         )
 
         let fileData = encryptedFile.encryptedContent
@@ -558,7 +562,7 @@ final class VaultStorage {
 
     /// Store a file from a URL without loading the entire raw content into memory.
     /// Uses streaming encryption for large files (VCSE for files > 1MB).
-    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, duration: TimeInterval? = nil) throws -> UUID {
+    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, duration: TimeInterval? = nil, fileId: UUID? = nil) throws -> UUID {
         ensureBlobReady()
         Self.logger.info("[DEBUG] storeFileFromURL START - filename: \(filename), key hash: \(key.rawBytes.hashValue)")
         indexManager.indexLock.lock()
@@ -573,10 +577,10 @@ final class VaultStorage {
         Self.logger.info("[DEBUG] Master key retrieved, length: \(masterKey.count)")
 
         // Build header (small — stays in memory)
-        let fileId = UUID()
+        let actualFileId = fileId ?? UUID()
         let originalFileSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int) ?? 0
         let header = CryptoEngine.EncryptedFileHeader(
-            fileId: fileId,
+            fileId: actualFileId,
             originalFilename: filename,
             mimeType: mimeType,
             originalSize: UInt64(originalFileSize),
@@ -613,7 +617,7 @@ final class VaultStorage {
         finalizeBlobWrite(size: totalSize, result: blobWrite, index: &index)
 
         let entry = VaultIndex.VaultFileEntry(
-            fileId: fileId,
+            fileId: actualFileId,
             offset: blobWrite.writeOffset,
             size: totalSize,
             encryptedHeaderPreview: headerPreview,
@@ -628,7 +632,7 @@ final class VaultStorage {
         index.files.append(entry)
 
         try saveIndex(index, with: key)
-        return fileId
+        return actualFileId
     }
 
     func retrieveFile(id: UUID, with key: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {

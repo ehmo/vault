@@ -175,7 +175,8 @@ extension VaultView {
                 mimeType: file.mimeType,
                 with: vaultKey,
                 thumbnailData: thumbnailData,
-                duration: file.duration
+                duration: file.duration,
+                fileId: file.id  // <- Preserve original file ID from shared vault
             )
         }
 
@@ -244,7 +245,8 @@ extension VaultView {
                 mimeType: file.mimeType,
                 with: vaultKey,
                 thumbnailData: thumbnailData,
-                duration: file.duration
+                duration: file.duration,
+                fileId: file.id  // <- Preserve original file ID from shared vault
             )
         }
     }

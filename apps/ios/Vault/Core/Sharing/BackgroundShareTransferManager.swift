@@ -1022,7 +1022,8 @@ final class BackgroundShareTransferManager {
                             mimeType: file.mimeType,
                             with: capturedPatternKey,
                             thumbnailData: thumbnailData,
-                            duration: file.duration
+                            duration: file.duration,
+                            fileId: file.id  // <- Preserve original file ID from shared vault
                         )
                         
                         // Track successful import

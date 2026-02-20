@@ -183,9 +183,9 @@ enum CryptoEngine {
 
     // MARK: - File Encryption
 
-    static func encryptFile(data: Data, filename: String, mimeType: String, with key: Data) throws -> EncryptedFile {
+    static func encryptFile(data: Data, filename: String, mimeType: String, with key: Data, fileId: UUID? = nil) throws -> EncryptedFile {
         let header = EncryptedFileHeader(
-            fileId: UUID(),
+            fileId: fileId ?? UUID(),
             originalFilename: filename,
             mimeType: mimeType,
             originalSize: UInt64(data.count),
@@ -213,11 +213,11 @@ enum CryptoEngine {
 
     /// Encrypts a file from a URL without loading the entire raw content into memory.
     /// Uses streaming encryption (VCSE) for files > 1MB.
-    static func encryptFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: Data) throws -> EncryptedFile {
+    static func encryptFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: Data, fileId: UUID? = nil) throws -> EncryptedFile {
         let fileSize = try FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int ?? 0
 
         let header = EncryptedFileHeader(
-            fileId: UUID(),
+            fileId: fileId ?? UUID(),
             originalFilename: filename,
             mimeType: mimeType,
             originalSize: UInt64(fileSize),
