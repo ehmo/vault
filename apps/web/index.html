@@ -1299,6 +1299,180 @@
             pointer-events: none;
         }
 
+        /* ── Mobile Expanding Navigation ── */
+
+        .mobile-menu-btn {
+            display: none;
+            width: 44px;
+            height: 44px;
+            background: var(--theme-button-bg);
+            border: 1px solid var(--header-border);
+            border-radius: 999px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            transition: background-color 180ms ease, border-color 180ms ease;
+            flex-shrink: 0;
+        }
+
+        .mobile-menu-btn:hover {
+            background: color-mix(in srgb, var(--accent-dark) 12%, transparent 88%);
+        }
+
+        .mobile-menu-btn svg {
+            width: 18px;
+            height: 18px;
+            stroke: var(--text-dark);
+            stroke-width: 1.8;
+            fill: none;
+            stroke-linecap: round;
+        }
+
+        .mobile-menu-btn .icon-close { display: none; }
+        .mobile-menu-btn.open .icon-menu { display: none; }
+        .mobile-menu-btn.open .icon-close { display: block; }
+
+        .mobile-nav-expand {
+            display: none;
+            overflow: hidden;
+            max-height: 0;
+            border-top: 1px solid transparent;
+            transition:
+                max-height 520ms cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 300ms ease;
+        }
+
+        .mobile-nav-expand.open {
+            max-height: 520px;
+            border-top-color: var(--header-border);
+        }
+
+        .mobile-nav-items {
+            padding: 8px 0 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        .mobile-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 13px 8px;
+            border-radius: 10px;
+            text-decoration: none;
+            color: var(--text-dark);
+            opacity: 0;
+            transform: translateY(10px);
+            transition: background-color 200ms ease;
+        }
+
+        .mobile-nav-item:hover,
+        .mobile-nav-item:active {
+            background: color-mix(in srgb, var(--accent-dark) 8%, transparent 92%);
+        }
+
+        .mobile-nav-expand.open .mobile-nav-item {
+            opacity: 1;
+            transform: translateY(0);
+            transition:
+                opacity 380ms cubic-bezier(0.16, 1, 0.3, 1),
+                transform 460ms cubic-bezier(0.34, 1.56, 0.64, 1),
+                background-color 200ms ease;
+        }
+
+        .mobile-nav-expand.open .mobile-nav-item:nth-child(1) { transition-delay: 50ms, 50ms, 0ms; }
+        .mobile-nav-expand.open .mobile-nav-item:nth-child(2) { transition-delay: 100ms, 100ms, 0ms; }
+        .mobile-nav-expand.open .mobile-nav-item:nth-child(3) { transition-delay: 150ms, 150ms, 0ms; }
+        .mobile-nav-expand.open .mobile-nav-item:nth-child(4) { transition-delay: 200ms, 200ms, 0ms; }
+        .mobile-nav-expand.open .mobile-nav-item:nth-child(5) { transition-delay: 250ms, 250ms, 0ms; }
+        .mobile-nav-expand.open .mobile-nav-item:nth-child(6) { transition-delay: 300ms, 300ms, 0ms; }
+        .mobile-nav-expand.open .mobile-nav-item:nth-child(7) { transition-delay: 350ms, 350ms, 0ms; }
+
+        .mobile-nav-expand:not(.open) .mobile-nav-item {
+            transition:
+                opacity 200ms ease,
+                transform 200ms ease,
+                background-color 200ms ease;
+            transition-delay: 0ms;
+        }
+
+        .mobile-nav-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            background: color-mix(in srgb, var(--accent-dark) 10%, transparent 90%);
+        }
+
+        .mobile-nav-icon svg {
+            width: 18px;
+            height: 18px;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+        }
+
+        .mobile-nav-label {
+            display: flex;
+            flex-direction: column;
+            gap: 0px;
+            min-width: 0;
+        }
+
+        .mobile-nav-label-title {
+            font-family: var(--font-display);
+            font-size: 0.92rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+
+        .mobile-nav-label-desc {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            line-height: 1.3;
+        }
+
+        .mobile-nav-separator {
+            height: 1px;
+            background: var(--header-border);
+            margin: 6px 8px;
+        }
+
+        .mobile-nav-cta {
+            padding: 4px 8px 0;
+        }
+
+        .mobile-nav-cta .btn {
+            width: 100%;
+            text-align: center;
+            justify-content: center;
+            padding: 14px 24px;
+            font-size: 0.9rem;
+        }
+
+        main {
+            transition: transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        body.mobile-nav-open main {
+            transform: translateY(var(--mobile-nav-h, 0px));
+        }
+
+        body.mobile-nav-open footer {
+            transform: translateY(var(--mobile-nav-h, 0px));
+        }
+
+        footer {
+            transition: transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
         /* ── Responsive ── */
         @media (max-width: 900px) {
             .hero-layout {
@@ -1348,6 +1522,9 @@
             .step-number { left: 60px !important; }
             .tech-specs { grid-template-columns: 1fr; }
             .nav-links { display: none; }
+            .mobile-menu-btn { display: flex; }
+            .mobile-nav-expand { display: block; }
+            .nav-cta .btn-nav { display: none; }
             .nav-cta {
                 gap: 10px;
             }
@@ -2108,5 +2285,7 @@
             })();
         })();
     </script>
+
+    <script src="scripts/mobile-nav.js"></script>
 
 </body></html>
