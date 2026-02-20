@@ -17,9 +17,9 @@ enum SVDFSerializer {
 
     // MARK: - Constants
 
-    static let magic: [UInt8] = [0x53, 0x56, 0x44, 0x34] // "SVD4"
+    static let magic: [UInt8] = [0x53, 0x56, 0x44, 0x35] // "SVD5"
     static let headerSize = 64
-    static let currentVersion: UInt16 = 4
+    static let currentVersion: UInt16 = 5
 
     /// Threshold for triggering a full rebuild: when deleted bytes exceed 30% of total.
     static let compactionThreshold: Double = 0.30
@@ -44,7 +44,7 @@ enum SVDFSerializer {
 
     /// 64-byte fixed header.
     struct Header {
-        var magic: (UInt8, UInt8, UInt8, UInt8) = (0x53, 0x56, 0x44, 0x34)
+        var magic: (UInt8, UInt8, UInt8, UInt8) = (0x53, 0x56, 0x44, 0x35)  // "SVD5"
         var version: UInt16 = SVDFSerializer.currentVersion
         var fileCount: UInt32 = 0
         var manifestOffset: UInt64 = 0
@@ -473,13 +473,15 @@ enum SVDFSerializer {
 
     // MARK: - Parse
 
-    /// Checks if data begins with SVDF v4 magic bytes.
+    /// Checks if data begins with SVDF v4 or v5 magic bytes.
     static func isSVDF(_ data: Data) -> Bool {
         guard data.count >= 4 else { return false }
-        return data[data.startIndex] == magic[0]
-            && data[data.startIndex + 1] == magic[1]
-            && data[data.startIndex + 2] == magic[2]
-            && data[data.startIndex + 3] == magic[3]
+        // Check for SVD4 (0x53, 0x56, 0x44, 0x34) or SVD5 (0x53, 0x56, 0x44, 0x35)
+        let isSVD4 = data[data.startIndex] == 0x53 && data[data.startIndex + 1] == 0x56
+            && data[data.startIndex + 2] == 0x44 && data[data.startIndex + 3] == 0x34
+        let isSVD5 = data[data.startIndex] == 0x53 && data[data.startIndex + 1] == 0x56
+            && data[data.startIndex + 2] == 0x44 && data[data.startIndex + 3] == 0x35
+        return isSVD4 || isSVD5
     }
 
     /// Parses the 64-byte header from SVDF data.
@@ -514,11 +516,12 @@ enum SVDFSerializer {
     }
 
     /// Extracts a single file entry from the SVDF blob at the given offset and size.
-    static func extractFileEntry(from data: Data, at offset: Int, size: Int) throws -> SharedVaultData.SharedFile {
+    /// Uses SVDF version to determine file entry format (v4 without duration, v5 with duration).
+    static func extractFileEntry(from data: Data, at offset: Int, size: Int, version: UInt16 = 5) throws -> SharedVaultData.SharedFile {
         let end = offset + size
         guard end <= data.count else { throw SVDFError.invalidEntry }
         let entryData = data[offset..<end]
-        return try decodeFileEntry(Data(entryData))
+        return try decodeFileEntry(Data(entryData), version: version)
     }
 
     /// Deserializes a complete SVDF blob into a SharedVaultData object.
@@ -528,7 +531,7 @@ enum SVDFSerializer {
 
         var files: [SharedVaultData.SharedFile] = []
         for entry in manifest where !entry.deleted {
-            let file = try extractFileEntry(from: data, at: entry.offset, size: entry.size)
+            let file = try extractFileEntry(from: data, at: entry.offset, size: entry.size, version: header.version)
             files.append(file)
         }
 
@@ -721,7 +724,11 @@ enum SVDFSerializer {
         return Int(totalSize)
     }
 
-    private static func decodeFileEntry(_ data: Data) throws -> SharedVaultData.SharedFile {
+    /// Decodes a file entry from SVDF data.
+    /// - Parameters:
+    ///   - data: The entry data slice
+    ///   - version: SVDF version (4 = no duration field, 5+ = with duration field)
+    private static func decodeFileEntry(_ data: Data, version: UInt16 = 5) throws -> SharedVaultData.SharedFile {
         guard data.count >= 4 else { throw SVDFError.invalidEntry }
         var cursor = 0
 
@@ -764,11 +771,10 @@ enum SVDFSerializer {
         let timestamp = data.readFloat64(at: cursor); cursor += 8
         let createdAt = Date(timeIntervalSince1970: timestamp)
 
-        // Duration (8 bytes, backward compatible: check if enough bytes remain)
-        // Duration comes before thumbnail, so check if we have at least 8+4=12 more bytes
-        // (duration + thumbSize header)
+        // Duration (v5+ only - 8 bytes, v4 doesn't have this field)
         var duration: TimeInterval? = nil
-        if cursor + 8 <= data.count {
+        if version >= 5 {
+            guard cursor + 8 <= data.count else { throw SVDFError.invalidEntry }
             let durationValue = data.readFloat64(at: cursor)
             cursor += 8
             // -1.0 indicates nil/non-video

@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 
 // MARK: - Shared Vault
@@ -112,8 +113,9 @@ extension VaultView {
         }
     }
 
-    /// SVDF v4 delta import: parse manifest, diff file IDs vs local, import only new files.
+    /// SVDF v4/v5 delta import: parse manifest, diff file IDs vs local, import only new files.
     func importSVDFDelta(data: Data, shareKey: Data, vaultKey: VaultKey, index: VaultStorage.VaultIndex) async throws {
+        let header = try SVDFSerializer.parseHeader(from: data)
         let manifest = try SVDFSerializer.parseManifest(from: data, shareKey: shareKey)
         let remoteFileIds = Set(manifest.filter { !$0.deleted }.map { $0.id })
         let localFileIds = Set(index.files.filter { !$0.isDeleted }.map { $0.fileId.uuidString })
@@ -129,12 +131,21 @@ extension VaultView {
         // Import only new files
         let newIds = remoteFileIds.subtracting(localFileIds)
         for entry in manifest where newIds.contains(entry.id) && !entry.deleted {
-            let file = try SVDFSerializer.extractFileEntry(from: data, at: entry.offset, size: entry.size)
+            let file = try SVDFSerializer.extractFileEntry(from: data, at: entry.offset, size: entry.size, version: header.version)
             let decrypted = try CryptoEngine.decrypt(file.encryptedContent, with: shareKey)
 
+            // Decrypt thumbnail from shared file if available
             var thumbnailData: Data? = nil
-            if file.mimeType.hasPrefix("image/") {
-                thumbnailData = FileUtilities.generateThumbnail(from: decrypted)
+            if let encryptedThumb = file.encryptedThumbnail {
+                thumbnailData = try? CryptoEngine.decrypt(encryptedThumb, with: shareKey)
+            }
+            // Generate thumbnail for images/videos if not provided
+            if thumbnailData == nil {
+                if file.mimeType.hasPrefix("image/") {
+                    thumbnailData = FileUtilities.generateThumbnail(from: decrypted)
+                } else if file.mimeType.hasPrefix("video/") {
+                    thumbnailData = await generateVideoThumbnail(from: decrypted)
+                }
             }
 
             _ = try VaultStorage.shared.storeFile(
@@ -142,13 +153,41 @@ extension VaultView {
                 filename: file.filename,
                 mimeType: file.mimeType,
                 with: vaultKey,
-                thumbnailData: thumbnailData
+                thumbnailData: thumbnailData,
+                duration: file.duration
             )
         }
 
         #if DEBUG
         print("📦 [VaultView] SVDF delta: \(newIds.count) new, \(removedIds.count) removed, \(localFileIds.intersection(remoteFileIds).count) unchanged")
         #endif
+    }
+    
+    /// Generates a thumbnail from video data.
+    private func generateVideoThumbnail(from data: Data) async -> Data? {
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("mp4")
+        
+        do {
+            try data.write(to: tempURL, options: [.atomic])
+            defer { try? FileManager.default.removeItem(at: tempURL) }
+            
+            let asset = AVAsset(url: tempURL)
+            let generator = AVAssetImageGenerator(asset: asset)
+            generator.appliesPreferredTrackTransform = true
+            generator.maximumSize = CGSize(width: 400, height: 400)
+            
+            let time = CMTime(seconds: 0.5, preferredTimescale: 600)
+            if let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) {
+                let uiImage = UIImage(cgImage: cgImage)
+                return uiImage.jpegData(compressionQuality: 0.7)
+            }
+        } catch {
+            // Silently fail - thumbnail generation is best-effort
+        }
+        
+        return nil
     }
 
     /// Legacy v1-v3 full wipe-and-replace import.
@@ -164,9 +203,18 @@ extension VaultView {
         for file in sharedVault.files {
             let decrypted = try CryptoEngine.decrypt(file.encryptedContent, with: shareKey)
 
+            // Decrypt thumbnail from shared file if available
             var thumbnailData: Data? = nil
-            if file.mimeType.hasPrefix("image/") {
-                thumbnailData = FileUtilities.generateThumbnail(from: decrypted)
+            if let encryptedThumb = file.encryptedThumbnail {
+                thumbnailData = try? CryptoEngine.decrypt(encryptedThumb, with: shareKey)
+            }
+            // Generate thumbnail for images/videos if not provided
+            if thumbnailData == nil {
+                if file.mimeType.hasPrefix("image/") {
+                    thumbnailData = FileUtilities.generateThumbnail(from: decrypted)
+                } else if file.mimeType.hasPrefix("video/") {
+                    thumbnailData = await generateVideoThumbnail(from: decrypted)
+                }
             }
 
             _ = try VaultStorage.shared.storeFile(
@@ -174,7 +222,8 @@ extension VaultView {
                 filename: file.filename,
                 mimeType: file.mimeType,
                 with: vaultKey,
-                thumbnailData: thumbnailData
+                thumbnailData: thumbnailData,
+                duration: file.duration
             )
         }
     }
