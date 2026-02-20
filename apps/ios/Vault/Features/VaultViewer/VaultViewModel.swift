@@ -308,6 +308,11 @@ final class VaultViewModel {
                     }
                     self.toastMessage = .filesDeleted(1)
                 }
+                
+                // Trigger sync for shared vaults after deletion
+                await MainActor.run {
+                    ShareSyncManager.shared.scheduleSync(vaultKey: key)
+                }
             } catch {
                 await MainActor.run {
                     self.toastMessage = .error("Failed to delete file: \(error.localizedDescription)")

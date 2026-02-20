@@ -267,6 +267,10 @@ struct VaultView: View {
                             if let idx = viewModel.files.firstIndex(where: { $0.id == deletedId }) {
                                 viewModel.files.remove(at: idx)
                             }
+                            // Trigger sync for shared vaults after deletion
+                            if let key = appState.currentVaultKey {
+                                ShareSyncManager.shared.scheduleSync(vaultKey: key)
+                            }
                         },
                         allowDownloads: viewModel.sharePolicy?.allowDownloads ?? true
                     )
@@ -283,6 +287,10 @@ struct VaultView: View {
                             viewModel.files.remove(at: idx)
                         }
                         selectedFile = nil
+                        // Trigger sync for shared vaults after deletion
+                        if let key = appState.currentVaultKey {
+                            ShareSyncManager.shared.scheduleSync(vaultKey: key)
+                        }
                     },
                     allowDownloads: viewModel.sharePolicy?.allowDownloads ?? true
                 )
