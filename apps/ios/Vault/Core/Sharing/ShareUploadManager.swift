@@ -384,6 +384,14 @@ final class ShareUploadManager {
     func resumeUpload(jobId: String, vaultKey: VaultKey?) {
         guard let vaultKey else { return }
         guard let state = Self.loadPendingUploadState(jobId: jobId) else { return }
+        
+        // Immediately update UI to show resuming state and clear error
+        updateJob(jobId: jobId) { job in
+            job.status = .preparing
+            job.message = "Resuming upload..."
+            job.errorMessage = nil
+        }
+        
         pendingStateByJobId[jobId] = state
         startResumeTask(state: state, vaultKey: vaultKey)
     }
