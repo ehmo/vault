@@ -533,9 +533,10 @@ final class VaultViewModel {
                 self.toastMessage = .filesImported(successCount)
             }
             
-            // Trigger sync for shared vaults (files already added to in-memory array during import)
+            // Update filter and trigger sync after import
             if successCount > 0 {
-                vmLogger.info("📤 Import complete: \(successCount) files added, triggering sync")
+                vmLogger.info("📤 Import complete: \(successCount) files added, updating filter and triggering sync")
+                self.updateFilterAfterImport()
                 ShareSyncManager.shared.scheduleSync(vaultKey: key)
             }
         }
@@ -771,8 +772,9 @@ final class VaultViewModel {
             }
             
             vmLogger.info("File import complete: imported=\(successCount), failed=\(failedCount), files.count=\(self.files.count)")
-            // Trigger sync for shared vaults (files already added to in-memory array during import)
+            // Update filter and trigger sync after import
             if successCount > 0 {
+                self.updateFilterAfterImport()
                 ShareSyncManager.shared.scheduleSync(vaultKey: key)
             }
         }
