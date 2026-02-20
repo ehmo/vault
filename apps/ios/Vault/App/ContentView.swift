@@ -33,6 +33,7 @@ struct ContentView: View {
                     LoadingView()
                 } else if appState.isUnlocked {
                     VaultView()
+                        .transition(.identity)
                 } else {
                     PatternLockView()
                 }

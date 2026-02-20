@@ -160,14 +160,7 @@ struct VaultView: View {
     private func navigationContent(visible: VisibleFiles) -> some View {
         mainContentView(visible: visible)
             .background(Color.vaultBackground.ignoresSafeArea())
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .navigationTitle(appState.vaultName)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                if !showingSettings {
-                    vaultToolbarContent
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .top, spacing: 0) {
                 topSafeAreaContent(visible: visible)
             }

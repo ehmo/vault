@@ -1,64 +1,91 @@
 import SwiftUI
 
-// MARK: - Toolbar & Safe Area Insets
+// MARK: - Toolbar Header & Safe Area Insets
 
 extension VaultView {
 
-    @ToolbarContentBuilder
-    var vaultToolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            Button(action: { showingSettings = true }) {
-                Image(systemName: "gear")
-            }
-            .accessibilityIdentifier("vault_settings_button")
-            .accessibilityLabel("Settings")
-        }
+    // MARK: - Custom Toolbar Header
 
-        ToolbarItem(placement: .topBarTrailing) {
-            HStack(spacing: 12) {
-                if !viewModel.files.isEmpty && !subscriptionManager.isPremium {
-                    StorageRingView(
-                        fileCount: viewModel.files.count,
-                        maxFiles: SubscriptionManager.maxFreeFilesPerVault,
-                        totalBytes: Int64(viewModel.files.reduce(0) { $0 + $1.size })
-                    )
-                }
+    /// Pure SwiftUI header that replaces NavigationStack toolbar items.
+    /// Avoids UIKit navigation bar insertion animation that causes toolbar
+    /// icons to jump positions on initial appearance.
+    var toolbarHeaderView: some View {
+        ZStack {
+            // Title centered on screen (independent of button widths)
+            Text(appState.vaultName)
+                .font(.headline)
 
-                Button(action: lockVault) {
-                    Image(systemName: "lock.fill")
+            // Buttons on the edges
+            HStack {
+                Button(action: { showingSettings = true }) {
+                    Image(systemName: "gear")
+                        .font(.system(size: 16, weight: .medium))
+                        .frame(width: 44, height: 44)
+                        .vaultGlassBackground(cornerRadius: 22)
                 }
-                .accessibilityIdentifier("vault_lock_button")
-                .accessibilityLabel("Lock vault")
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("vault_settings_button")
+                .accessibilityLabel("Settings")
+
+                Spacer()
+
+                HStack(spacing: 12) {
+                    if !viewModel.files.isEmpty && !subscriptionManager.isPremium {
+                        StorageRingView(
+                            fileCount: viewModel.files.count,
+                            maxFiles: SubscriptionManager.maxFreeFilesPerVault,
+                            totalBytes: Int64(viewModel.files.reduce(0) { $0 + $1.size })
+                        )
+                    }
+
+                    Button(action: lockVault) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 16, weight: .medium))
+                            .frame(width: 44, height: 44)
+                            .vaultGlassBackground(cornerRadius: 22)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("vault_lock_button")
+                    .accessibilityLabel("Lock vault")
+                }
             }
         }
+        .padding(.horizontal, 16)
+        .frame(height: 44)
     }
 
     // MARK: - Top Safe Area Inset
 
     func topSafeAreaContent(visible: VisibleFiles) -> some View {
         VStack(spacing: 8) {
-            if !viewModel.files.isEmpty && !showingSettings {
-                HStack(spacing: 8) {
-                    if viewModel.isEditing {
-                        editModeControls(visible: visible)
-                    } else {
-                        searchAndFilterControls
+            if !showingSettings {
+                toolbarHeaderView
+            }
+
+            VStack(spacing: 8) {
+                if !viewModel.files.isEmpty && !showingSettings {
+                    HStack(spacing: 8) {
+                        if viewModel.isEditing {
+                            editModeControls(visible: visible)
+                        } else {
+                            searchAndFilterControls
+                        }
                     }
+                    .padding(.horizontal)
                 }
-                .padding(.horizontal)
-            }
-            if viewModel.isSharedVault {
-                sharedVaultBannerView
-            }
-            if appState.hasPendingImports {
-                PendingImportBanner(
-                    fileCount: appState.pendingImportCount,
-                    onImport: { viewModel.importPendingFiles() },
-                    isImporting: Binding(
-                        get: { viewModel.isImportingPendingFiles },
-                        set: { viewModel.isImportingPendingFiles = $0 }
+                if viewModel.isSharedVault {
+                    sharedVaultBannerView
+                }
+                if appState.hasPendingImports {
+                    PendingImportBanner(
+                        fileCount: appState.pendingImportCount,
+                        onImport: { viewModel.importPendingFiles() },
+                        isImporting: Binding(
+                            get: { viewModel.isImportingPendingFiles },
+                            set: { viewModel.isImportingPendingFiles = $0 }
+                        )
                     )
-                )
+                }
             }
         }
         .padding(.bottom, (!viewModel.files.isEmpty && !showingSettings) ? 6 : 0)
