@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "c63ad7c6f083",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Toolbar.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/c6/3ad7c6f083/0/metadata.json",
+      "transcript": "/c6/3ad7c6f083/0/full.jsonl",
+      "context": "/c6/3ad7c6f083/0/context.md",
+      "content_hash": "/c6/3ad7c6f083/0/content_hash.txt",
+      "prompt": "/c6/3ad7c6f083/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 21644,
+    "cache_read_tokens": 1650143,
+    "output_tokens": 377,
+    "api_call_count": 18
+  }
+}
