@@ -65,9 +65,13 @@ struct RatingView: View {
                     }) {
                         Text("Not Now")
                             .font(.subheadline)
+                            .fontWeight(.medium)
                             .foregroundStyle(.vaultSecondaryText)
-                            .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                     .accessibilityIdentifier("rating_not_now")
                 }
                 .padding(.horizontal, 16)
