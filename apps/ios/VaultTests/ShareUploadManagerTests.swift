@@ -53,13 +53,13 @@ private final class MockUploadCloudKitSharing: CloudKitSharingClient {
         phraseAvailable ? .success(()) : .failure(.notAvailable)
     }
 
-    func consumedStatusByShareVaultIds(_ shareVaultIds: [String]) async -> [String: Bool] {
+    func consumedStatusByShareVaultIds(_ shareVaultIds: [String]) async throws -> [String: Bool] {
         Dictionary(uniqueKeysWithValues: shareVaultIds.map { ($0, false) })
     }
 
     func markShareClaimed(shareVaultId _: String) async throws { /* stub */ }
     func markShareConsumed(shareVaultId _: String) async throws { /* stub */ }
-    func isShareConsumed(shareVaultId _: String) async -> Bool { false }
+    func isShareConsumed(shareVaultId _: String) async throws -> Bool { false }
 
     func uploadSharedVault(shareVaultId: String, phrase _: String, vaultData _: Data, shareKey _: ShareKey, policy _: VaultStorage.SharePolicy, ownerFingerprint _: String, onProgress _: ((Int, Int) -> Void)?) async throws {
         uploadCalls.append(shareVaultId)

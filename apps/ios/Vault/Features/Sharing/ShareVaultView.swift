@@ -868,7 +868,13 @@ struct ShareVaultView: View {
     ) async {
         guard !initialShares.isEmpty else { return }
 
-        let consumedMap = await CloudKitSharingManager.shared.consumedStatusByShareVaultIds(initialShares.map(\.id))
+        let consumedMap: [String: Bool]
+        do {
+            consumedMap = try await CloudKitSharingManager.shared.consumedStatusByShareVaultIds(initialShares.map(\.id))
+        } catch {
+            shareVaultLogger.warning("Failed to check consumed status: \(error.localizedDescription, privacy: .private)")
+            return
+        }
         let consumedIds = Set(consumedMap.compactMap { $0.value ? $0.key : nil })
         guard !consumedIds.isEmpty else { return }
 

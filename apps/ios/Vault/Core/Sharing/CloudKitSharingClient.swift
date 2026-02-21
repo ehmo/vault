@@ -7,10 +7,10 @@ protocol CloudKitSharingClient {
     // MARK: - Phrase & Status
 
     func checkPhraseAvailability(phrase: String) async -> Result<Void, CloudKitSharingError>
-    func consumedStatusByShareVaultIds(_ shareVaultIds: [String]) async -> [String: Bool]
+    func consumedStatusByShareVaultIds(_ shareVaultIds: [String]) async throws -> [String: Bool]
     func markShareClaimed(shareVaultId: String) async throws
     func markShareConsumed(shareVaultId: String) async throws
-    func isShareConsumed(shareVaultId: String) async -> Bool
+    func isShareConsumed(shareVaultId: String) async throws -> Bool
 
     // MARK: - Upload
 

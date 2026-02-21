@@ -91,7 +91,7 @@ private final class MockSyncCloudKitSharing: CloudKitSharingClient {
     var syncFromFileCalls: [(shareVaultId: String, svdfFileURL: URL, newChunkHashes: [String], previousChunkHashes: [String])] = []
     var syncFromFileError: Error?
 
-    func consumedStatusByShareVaultIds(_ shareVaultIds: [String]) async -> [String: Bool] {
+    func consumedStatusByShareVaultIds(_ shareVaultIds: [String]) async throws -> [String: Bool] {
         var result: [String: Bool] = [:]
         for id in shareVaultIds {
             result[id] = consumedStatus[id] ?? false
@@ -124,7 +124,7 @@ private final class MockSyncCloudKitSharing: CloudKitSharingClient {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func isShareConsumed(shareVaultId _: String) async -> Bool {
+    func isShareConsumed(shareVaultId _: String) async throws -> Bool {
         fatalError("Not used in ShareSyncManager tests")
     }
 

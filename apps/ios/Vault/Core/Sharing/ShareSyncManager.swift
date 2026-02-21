@@ -375,9 +375,15 @@ final class ShareSyncManager {
 
         syncStatus = .syncing
 
-        let consumedByShareId = await cloudKit.consumedStatusByShareVaultIds(
-            activeShares.map(\.id)
-        )
+        let consumedByShareId: [String: Bool]
+        do {
+            consumedByShareId = try await cloudKit.consumedStatusByShareVaultIds(
+                activeShares.map(\.id)
+            )
+        } catch {
+            shareSyncLogger.warning("Failed to check consumed status, treating all as active: \(error.localizedDescription, privacy: .private)")
+            consumedByShareId = [:]
+        }
 
         // Upload to each active share
         let totalShares = activeShares.count

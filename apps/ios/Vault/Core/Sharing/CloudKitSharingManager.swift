@@ -880,26 +880,21 @@ final class CloudKitSharingManager {
     // MARK: - Consumed
 
     /// Batch-fetches consumed state for multiple share IDs in a single CloudKit query.
-    func consumedStatusByShareVaultIds(_ shareVaultIds: [String]) async -> [String: Bool] {
+    func consumedStatusByShareVaultIds(_ shareVaultIds: [String]) async throws -> [String: Bool] {
         guard !shareVaultIds.isEmpty else { return [:] }
         let predicate = NSPredicate(format: "shareVaultId IN %@", shareVaultIds)
         let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
 
-        do {
-            let results = try await publicDatabase.records(matching: query)
-            var statusById: [String: Bool] = [:]
-            statusById.reserveCapacity(shareVaultIds.count)
-            for (_, result) in results.matchResults {
-                if let record = try? result.get(),
-                   let shareVaultId = record["shareVaultId"] as? String {
-                    statusById[shareVaultId] = (record["consumed"] as? Bool) ?? false
-                }
+        let results = try await publicDatabase.records(matching: query)
+        var statusById: [String: Bool] = [:]
+        statusById.reserveCapacity(shareVaultIds.count)
+        for (_, result) in results.matchResults {
+            if let record = try? result.get(),
+               let shareVaultId = record["shareVaultId"] as? String {
+                statusById[shareVaultId] = (record["consumed"] as? Bool) ?? false
             }
-            return statusById
-        } catch {
-            Self.logger.warning("Failed to batch-check consumed status: \(error.localizedDescription, privacy: .private)")
-            return [:]
         }
+        return statusById
     }
 
     /// Marks a share as consumed by the recipient (e.g. after policy-triggered self-destruct).
@@ -918,8 +913,8 @@ final class CloudKitSharingManager {
     }
 
     /// Checks whether a share has been consumed by its recipient.
-    func isShareConsumed(shareVaultId: String) async -> Bool {
-        let consumedMap = await consumedStatusByShareVaultIds([shareVaultId])
+    func isShareConsumed(shareVaultId: String) async throws -> Bool {
+        let consumedMap = try await consumedStatusByShareVaultIds([shareVaultId])
         return consumedMap[shareVaultId] ?? false
     }
 
