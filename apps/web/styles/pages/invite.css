@@ -1,3 +1,9 @@
+/* The Smart App Banner in iOS Safari is ~74px tall (same as the fixed header),
+   leaving only the purple border-bottom peeking below the banner. Remove it. */
+.page-invite header {
+  border-bottom-color: transparent;
+}
+
 .page-invite main {
   flex: 1;
   display: grid;
