@@ -912,7 +912,7 @@ final class CloudKitSharingManager {
         for (_, result) in results.matchResults {
             if let record = try? result.get() {
                 record["consumed"] = true
-                try await publicDatabase.save(record)
+                try await saveWithRetry(record)
             }
         }
     }
