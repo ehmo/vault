@@ -1,6 +1,11 @@
 appId: app.vaultaire.ios
 ---
 # Open camera via empty state, take photo, save to vault
+#
+# SIMULATOR LIMITATION: Camera hardware is not available on iOS Simulator.
+# The capture button, photo preview, and "Save to Vault" actions are optional
+# because the camera can't produce an image without hardware. On a physical
+# device, tapping capture should show the photo preview with save/retake options.
 - runFlow: ../helpers/launch_test_mode.yaml
 
 # Open camera entry point from either non-empty or empty vault state
@@ -29,4 +34,9 @@ appId: app.vaultaire.ios
 # Cancel if capture failed (simulator has no real camera)
 - tapOn:
     id: "camera_cancel"
+    optional: true
+
+# Verify return to vault grid
+- assertVisible:
+    id: "vault_add_button"
     optional: true

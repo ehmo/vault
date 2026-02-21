@@ -1,6 +1,6 @@
 appId: app.vaultaire.ios
 ---
-# Test custom recovery phrase
+# Test custom recovery phrase: navigate, enter phrase, verify validation feedback
 - runFlow: ../helpers/launch_test_mode.yaml
 
 - tapOn:
@@ -13,4 +13,32 @@ appId: app.vaultaire.ios
     timeout: 5000
 
 - tapOn:
+    id: "settings_custom_phrase"
+
+# Verify custom phrase input screen appeared
+- assertVisible:
+    text: "Set Your Custom Phrase"
+
+- assertVisible:
+    text: "Cancel"
+
+# Verify guidelines section is present
+- assertVisible:
+    text: "Use at least 6-9 words"
+
+# Type a phrase that meets validation requirements
+- tapOn:
+    text: "Type a memorable phrase with 6-9 words..."
+- inputText: "the quick brown fox jumps over the lazy dog today"
+
+# Wait for validation to process
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Dismiss without saving (Cancel)
+- tapOn:
+    text: "Cancel"
+
+# Back in settings — verify we returned safely
+- assertVisible:
     id: "settings_custom_phrase"

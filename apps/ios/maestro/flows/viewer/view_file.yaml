@@ -1,9 +1,26 @@
 appId: app.vaultaire.ios
 ---
-# View a non-image file in the viewer
-- runFlow: ../helpers/launch_test_mode.yaml
+# View a file in the full-screen viewer, verify controls, then dismiss
+- runFlow: ../helpers/launch_with_files.yaml
 
-# Note: File viewing requires a file to be imported first
-# This flow tests the viewer controls once open
+# Tap first file in the grid to open the viewer
+- tapOn:
+    point: "20%, 34%"
+
+# Verify viewer opened — Done button must be visible
+- assertVisible:
+    id: "viewer_done"
+
+# Verify action menu button is present
+- assertVisible:
+    id: "viewer_actions"
+
+# Dismiss via Done button
+- tapOn:
+    id: "viewer_done"
+
+# Verify we're back in the gallery
 - assertVisible:
     id: "vault_add_button"
+- assertVisible:
+    id: "vault_search_field"

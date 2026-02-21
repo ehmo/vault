@@ -1,6 +1,11 @@
 appId: app.vaultaire.ios
 ---
 # Cycle flash modes: auto -> on -> off -> auto
+#
+# SIMULATOR LIMITATION: Camera hardware is not available on iOS Simulator.
+# Flash button and state changes are optional because the camera view
+# won't fully initialize without hardware. On a physical device, flash
+# mode should cycle through auto → on → off → auto with visible icon changes.
 - runFlow: ../helpers/launch_test_mode.yaml
 
 # Open camera entry point from either non-empty or empty vault state
@@ -33,6 +38,12 @@ appId: app.vaultaire.ios
     id: "camera_flash"
     optional: true
 
+# Dismiss camera
 - tapOn:
     id: "camera_cancel"
+    optional: true
+
+# Verify return to vault grid
+- assertVisible:
+    id: "vault_add_button"
     optional: true

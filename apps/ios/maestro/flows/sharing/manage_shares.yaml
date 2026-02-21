@@ -1,7 +1,6 @@
 appId: app.vaultaire.ios
 ---
-# Test manage shares UI (requires active share)
-# This flow verifies the share management screen opens
+# Test manage shares UI — navigate to share screen and verify elements
 - runFlow: ../helpers/launch_test_mode.yaml
 
 - tapOn:
@@ -16,6 +15,23 @@ appId: app.vaultaire.ios
 - tapOn:
     id: "settings_share_vault"
 
-# If shares exist, manage shares view is shown
-# If no shares, new share view is shown
-# Both are valid states for this test
+# Share screen should show either:
+# - New share creation (if no active shares) with "Generate Phrase" button
+# - Manage shares list (if shares exist) with upload rows
+# Both are valid states for this test. We verify the cancel button
+# is always present at the top level of the share flow.
+- assertVisible:
+    id: "share_cancel"
+
+# The "New Share" button should be visible in either state
+- assertVisible:
+    id: "share_new_share"
+    optional: true
+
+# Dismiss
+- tapOn:
+    id: "share_cancel"
+
+# Back in settings
+- assertVisible:
+    id: "settings_share_vault"
