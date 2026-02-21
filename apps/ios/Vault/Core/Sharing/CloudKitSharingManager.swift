@@ -288,10 +288,10 @@ final class CloudKitSharingManager {
 
         // Delete orphaned chunks if the blob shrank
         if totalChunks < previousChunkHashes.count {
-            for orphanIndex in totalChunks..<previousChunkHashes.count {
-                let orphanId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(orphanIndex)")
-                _ = try? await publicDatabase.deleteRecord(withID: orphanId)
-            }
+            await deleteOrphanChunks(
+                shareVaultId: shareVaultId,
+                orphanRange: totalChunks..<previousChunkHashes.count
+            )
         }
 
         Self.logger.info("[sync-incremental] \(uploadedCount)/\(totalChunks) chunks uploaded for \(shareVaultId, privacy: .private)")
@@ -327,10 +327,10 @@ final class CloudKitSharingManager {
 
         // Delete orphaned chunks if the blob shrank
         if totalChunks < previousChunkHashes.count {
-            for orphanIndex in totalChunks..<previousChunkHashes.count {
-                let orphanId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(orphanIndex)")
-                _ = try? await publicDatabase.deleteRecord(withID: orphanId)
-            }
+            await deleteOrphanChunks(
+                shareVaultId: shareVaultId,
+                orphanRange: totalChunks..<previousChunkHashes.count
+            )
         }
 
         Self.logger.info("[sync-incremental] \(changedIndices.count)/\(totalChunks) chunks uploaded for \(shareVaultId, privacy: .private)")
@@ -856,12 +856,81 @@ final class CloudKitSharingManager {
         do {
             let results = try await publicDatabase.records(matching: query)
             for (recordId, _) in results.matchResults {
-                _ = try? await publicDatabase.deleteRecord(withID: recordId)
+                do {
+                    try await publicDatabase.deleteWithRetry(recordId)
+                } catch {
+                    Self.logger.warning("[delete-chunks] Failed to delete \(recordId.recordName, privacy: .public): \(error.localizedDescription, privacy: .private)")
+                    Self.persistOrphanId(recordId.recordName)
+                }
             }
         } catch {
             // Non-fatal: chunks may not exist yet
-            Self.logger.warning("Failed to delete chunks: \(error.localizedDescription, privacy: .private)")
+            Self.logger.warning("Failed to query chunks for deletion: \(error.localizedDescription, privacy: .private)")
         }
+    }
+
+    /// Deletes orphaned chunks by index range, persisting failures for later cleanup.
+    private func deleteOrphanChunks(shareVaultId: String, orphanRange: Range<Int>) async {
+        for orphanIndex in orphanRange {
+            let orphanId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(orphanIndex)")
+            do {
+                try await publicDatabase.deleteWithRetry(orphanId)
+            } catch {
+                Self.logger.warning("[orphan-cleanup] Failed to delete orphan chunk \(orphanIndex): \(error.localizedDescription, privacy: .private)")
+                Self.persistOrphanId(orphanId.recordName)
+            }
+        }
+    }
+
+    // MARK: - Orphan Chunk Persistence
+
+    private static let orphanChunksURL: URL = {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return docs.appendingPathComponent("orphan_chunks.json")
+    }()
+
+    static func persistOrphanId(_ recordName: String) {
+        var ids = loadOrphanIds()
+        ids.insert(recordName)
+        saveOrphanIds(ids)
+    }
+
+    static func loadOrphanIds() -> Set<String> {
+        guard let data = try? Data(contentsOf: orphanChunksURL),
+              let array = try? JSONDecoder().decode([String].self, from: data) else {
+            return []
+        }
+        return Set(array)
+    }
+
+    private static func saveOrphanIds(_ ids: Set<String>) {
+        guard let data = try? JSONEncoder().encode(Array(ids)) else { return }
+        try? data.write(to: orphanChunksURL, options: .atomic)
+    }
+
+    /// Retries deletion of previously failed orphan chunks. Call on app launch.
+    func cleanupOrphanChunks() async {
+        let orphanIds = Self.loadOrphanIds()
+        guard !orphanIds.isEmpty else { return }
+
+        Self.logger.info("[orphan-cleanup] Retrying \(orphanIds.count) orphan chunks")
+        var remaining = orphanIds
+
+        for recordName in orphanIds {
+            let recordId = CKRecord.ID(recordName: recordName)
+            do {
+                try await publicDatabase.deleteWithRetry(recordId)
+                remaining.remove(recordName)
+            } catch let error as CKError where error.code == .unknownItem {
+                // Already deleted, remove from list
+                remaining.remove(recordName)
+            } catch {
+                Self.logger.warning("[orphan-cleanup] Still failed to delete \(recordName, privacy: .public): \(error.localizedDescription, privacy: .private)")
+            }
+        }
+
+        Self.saveOrphanIds(remaining)
+        Self.logger.info("[orphan-cleanup] Cleanup complete, \(remaining.count) still pending")
     }
 
     /// Queries CloudKit for chunk indices that already exist for a given share vault ID.

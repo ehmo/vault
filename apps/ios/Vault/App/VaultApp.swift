@@ -37,6 +37,7 @@ struct VaultApp: App {
                     ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "app_on_appear")
                     iCloudBackupManager.shared.resumeBackupUploadIfNeeded(trigger: "app_on_appear")
                     ShareSyncManager.shared.resumePendingSyncsIfNeeded(trigger: "app_on_appear")
+                    Task { await CloudKitSharingManager.shared.cleanupOrphanChunks() }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                     ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "did_become_active")
