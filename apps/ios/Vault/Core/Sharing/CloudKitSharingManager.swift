@@ -429,7 +429,7 @@ final class CloudKitSharingManager {
         // For compatibility, some callers still claim at download-time.
         if markClaimedOnDownload {
             manifest["claimed"] = true
-            try await publicDatabase.save(manifest)
+            try await publicDatabase.saveWithRetry(manifest)
         }
 
         transaction.finish(status: .ok)
@@ -446,7 +446,7 @@ final class CloudKitSharingManager {
         for (_, result) in results.matchResults {
             if let record = try? result.get() {
                 record["claimed"] = true
-                try await publicDatabase.save(record)
+                try await publicDatabase.saveWithRetry(record)
                 return
             }
         }
@@ -535,7 +535,7 @@ final class CloudKitSharingManager {
         for (_, result) in results.matchResults {
             if let record = try? result.get() {
                 record["revoked"] = true
-                try await publicDatabase.save(record)
+                try await publicDatabase.saveWithRetry(record)
             }
         }
     }
@@ -569,7 +569,7 @@ final class CloudKitSharingManager {
             if let shareVaultId = record["shareVaultId"] as? String {
                 try await deleteChunks(for: shareVaultId)
             }
-            try await publicDatabase.deleteRecord(withID: recordID)
+            try await publicDatabase.deleteWithRetry(recordID)
         } catch let error as CKError where error.code == .unknownItem {
             // Already deleted
         } catch {
@@ -893,7 +893,12 @@ final class CloudKitSharingManager {
         return docs.appendingPathComponent("orphan_chunks.json")
     }()
 
+    /// Serializes read-modify-write on orphan_chunks.json to prevent concurrent inserts from clobbering.
+    private static let orphanLock = NSLock()
+
     static func persistOrphanId(_ recordName: String) {
+        orphanLock.lock()
+        defer { orphanLock.unlock() }
         var ids = loadOrphanIds()
         ids.insert(recordName)
         saveOrphanIds(ids)
@@ -933,8 +938,13 @@ final class CloudKitSharingManager {
             }
         }
 
-        Self.saveOrphanIds(remaining)
-        Self.logger.info("[orphan-cleanup] Cleanup complete, \(remaining.count) still pending")
+        Self.orphanLock.lock()
+        // Merge any new orphans persisted during cleanup
+        let current = Self.loadOrphanIds()
+        let merged = current.subtracting(orphanIds).union(remaining)
+        Self.saveOrphanIds(merged)
+        Self.orphanLock.unlock()
+        Self.logger.info("[orphan-cleanup] Cleanup complete, \(merged.count) still pending")
     }
 
     /// Queries CloudKit for chunk indices that already exist for a given share vault ID.
