@@ -24,6 +24,11 @@ struct JoinVaultView: View {
     @State private var existingVaultNameForOverwrite = "Vault"
     @State private var existingFileCountForOverwrite = 0
     @State private var isSettingUpVault = false
+    
+    // Pending shared vault import state
+    @State private var pendingImportState: BackgroundShareTransferManager.PendingImportState?
+    @State private var isResumingImport = false
+    @State private var showDownloadWarning = false
 
     enum ViewMode: Equatable {
         case input
@@ -77,6 +82,14 @@ struct JoinVaultView: View {
             let status = await CloudKitSharingManager.shared.checkiCloudStatus()
             iCloudStatus = status
         }
+        .onAppear {
+            checkForPendingImport()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .sharedVaultDownloadStarted)) { notification in
+            if let message = notification.userInfo?["message"] as? String {
+                showDownloadWarning = true
+            }
+        }
         .task(id: mode) {
             #if DEBUG
             if mode == .patternSetup,
@@ -113,6 +126,41 @@ struct JoinVaultView: View {
 
     private var inputView: some View {
         VStack(spacing: 24) {
+            // Show pending import banner if there's an interrupted download
+            if let pending = pendingImportState {
+                PendingSharedVaultImportBanner(
+                    importedCount: pending.importedFileIds.count,
+                    totalCount: pending.totalFiles,
+                    onResume: resumePendingImport,
+                    isResuming: $isResumingImport
+                )
+            }
+            
+            // Show download warning toast
+            if showDownloadWarning {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.vaultHighlight)
+                    Text("Keep app open until download completes")
+                        .font(.caption)
+                        .foregroundStyle(.vaultSecondaryText)
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.vaultHighlight.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .padding(.horizontal)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .onAppear {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                        withAnimation {
+                            showDownloadWarning = false
+                        }
+                    }
+                }
+            }
+
             Image(systemName: "person.2.fill")
                 .font(.system(size: 48))
                 .foregroundStyle(.tint)
@@ -403,6 +451,36 @@ struct JoinVaultView: View {
         case .couldNotDetermine: return "Could not determine iCloud status"
         case .temporarilyUnavailable: return "iCloud is temporarily unavailable"
         @unknown default: return "iCloud is not available"
+        }
+    }
+    
+    // MARK: - Pending Import Handling
+    
+    private func checkForPendingImport() {
+        if let pending = BackgroundShareTransferManager.shared.getPendingImportState() {
+            pendingImportState = pending
+        }
+    }
+    
+    private func resumePendingImport() {
+        guard let pending = pendingImportState else { return }
+        
+        isResumingImport = true
+        
+        // Need the vault key to resume - use the current key if available
+        if let key = appState.currentVaultKey {
+            BackgroundShareTransferManager.shared.startBackgroundDownloadAndImport(
+                phrase: pending.phrase,
+                patternKey: key
+            )
+            // Dismiss after starting
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                dismiss()
+            }
+        } else {
+            // No key available, can't resume
+            isResumingImport = false
+            errorMessage = "Cannot resume download - vault is locked. Please unlock your vault first."
         }
     }
 }

@@ -4,6 +4,15 @@ import Foundation
 import os.log
 import UIKit
 
+// MARK: - Notifications
+
+extension Notification.Name {
+    /// Posted when a shared vault download starts to alert UI to show warning
+    static let sharedVaultDownloadStarted = Notification.Name("sharedVaultDownloadStarted")
+    /// Posted when there's a pending shared vault import that needs UI attention
+    static let pendingSharedVaultImportAvailable = Notification.Name("pendingSharedVaultImportAvailable")
+}
+
 /// Manages background upload/import of shared vaults so the UI is not blocked.
 /// Keys are captured by value in Task closures, so transfers survive lockVault().
 @MainActor
@@ -175,6 +184,11 @@ final class BackgroundShareTransferManager {
     
     var hasPendingImport: Bool {
         Self.loadPendingImportState() != nil
+    }
+    
+    /// Returns the pending import state if one exists
+    func getPendingImportState() -> PendingImportState? {
+        Self.loadPendingImportState()
     }
 
     var status: TransferStatus = .idle
@@ -930,6 +944,16 @@ final class BackgroundShareTransferManager {
         let capturedPhrase = phrase
         let capturedPatternKey = patternKey
 
+        // Prevent screen from sleeping during download/import
+        IdleTimerManager.shared.disable()
+        
+        // Post notification to show warning toast
+        NotificationCenter.default.post(
+            name: .sharedVaultDownloadStarted,
+            object: nil,
+            userInfo: ["message": "Keep app open until download completes"]
+        )
+
         let bgTaskId = beginProtectedTask(
             failureStatus: .importFailed("Import interrupted — iOS suspended the app. Tap to resume."),
             logTag: "import"
@@ -940,6 +964,8 @@ final class BackgroundShareTransferManager {
             guard let self else { return }
             
             defer {
+                // Re-enable idle timer when done
+                IdleTimerManager.shared.enable()
                 self.finalizeDetachedTransferTask(
                     bgTaskId: bgTaskId,
                     clearUploadLifecycle: false
