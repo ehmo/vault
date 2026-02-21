@@ -33,7 +33,8 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         totalChunks: Int = 3,
         createdAt: Date = Date(),
         uploadFinished: Bool = false,
-        manifestSaved: Bool = false
+        manifestSaved: Bool = false,
+        retryCount: Int = 0
     ) {
         let state = iCloudBackupManager.PendingBackupState(
             backupId: backupId,
@@ -42,7 +43,8 @@ final class iCloudBackupBackgroundTests: XCTestCase {
             encryptedSize: 1024 * totalChunks,
             createdAt: createdAt,
             uploadFinished: uploadFinished,
-            manifestSaved: manifestSaved
+            manifestSaved: manifestSaved,
+            retryCount: retryCount
         )
         try? fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
         let data = try! JSONEncoder().encode(state)
@@ -218,7 +220,8 @@ final class iCloudBackupBackgroundTests: XCTestCase {
             encryptedSize: 10_485_760,
             createdAt: Date(),
             uploadFinished: false,
-            manifestSaved: false
+            manifestSaved: false,
+            retryCount: 3
         )
 
         let data = try JSONEncoder().encode(state)
@@ -230,6 +233,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         XCTAssertEqual(decoded.encryptedSize, state.encryptedSize)
         XCTAssertEqual(decoded.uploadFinished, state.uploadFinished)
         XCTAssertEqual(decoded.manifestSaved, state.manifestSaved)
+        XCTAssertEqual(decoded.retryCount, state.retryCount)
     }
 
     func testPendingBackupState_CodableWithUploadFinished() throws {
@@ -240,7 +244,8 @@ final class iCloudBackupBackgroundTests: XCTestCase {
             encryptedSize: 25_165_824,
             createdAt: Date(),
             uploadFinished: true,
-            manifestSaved: true
+            manifestSaved: true,
+            retryCount: 0
         )
 
         let data = try JSONEncoder().encode(state)
@@ -248,6 +253,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
 
         XCTAssertTrue(decoded.uploadFinished)
         XCTAssertTrue(decoded.manifestSaved)
+        XCTAssertEqual(decoded.retryCount, 0)
     }
 
     func testPendingBackupState_CodablePreservesCreatedAt() throws {
@@ -259,7 +265,8 @@ final class iCloudBackupBackgroundTests: XCTestCase {
             encryptedSize: 100,
             createdAt: createdAt,
             uploadFinished: false,
-            manifestSaved: false
+            manifestSaved: false,
+            retryCount: 0
         )
 
         let data = try JSONEncoder().encode(state)
@@ -281,7 +288,8 @@ final class iCloudBackupBackgroundTests: XCTestCase {
             encryptedSize: 100,
             createdAt: Date(),
             uploadFinished: false,
-            manifestSaved: false
+            manifestSaved: false,
+            retryCount: 0
         )
 
         let data = try JSONEncoder().encode(state)
@@ -399,7 +407,8 @@ final class iCloudBackupBackgroundTests: XCTestCase {
             totalChunks: 10,
             createdAt: now,
             uploadFinished: true,
-            manifestSaved: true
+            manifestSaved: true,
+            retryCount: 5
         )
 
         let loaded = manager.loadPendingBackupState()
@@ -409,6 +418,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         XCTAssertEqual(loaded?.uploadFinished, true)
         XCTAssertEqual(loaded?.manifestSaved, true)
         XCTAssertEqual(loaded?.encryptedSize, 1024 * 10)
+        XCTAssertEqual(loaded?.retryCount, 5)
     }
 
     // MARK: - Vault Key Provider

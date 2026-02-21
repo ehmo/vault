@@ -1,3 +1,4 @@
+import BackgroundTasks
 import Foundation
 import os.log
 import UIKit
@@ -162,6 +163,121 @@ final class ShareSyncManager {
     }
     #endif
 
+    // MARK: - Vault Key Provider
+
+    private var vaultKeyProvider: (() -> VaultKey?)?
+
+    func setVaultKeyProvider(_ provider: @escaping () -> VaultKey?) {
+        vaultKeyProvider = provider
+    }
+
+    // MARK: - Background Task Registration
+
+    func registerBackgroundProcessingTask() {
+        let identifier = "app.vaultaire.ios.share-sync.resume"
+        let success = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: nil) { task in
+            guard let processingTask = task as? BGProcessingTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            Task { @MainActor in
+                ShareSyncManager.shared.handleBackgroundProcessingTask(processingTask)
+            }
+        }
+
+        if success {
+            shareSyncLogger.info("[bg-task] Registered \(identifier, privacy: .public)")
+        } else {
+            shareSyncLogger.error("[bg-task] Failed to register \(identifier, privacy: .public)")
+        }
+    }
+
+    func scheduleBackgroundResumeTask(earliestIn seconds: TimeInterval = 15) {
+        guard hasPendingSyncs else { return }
+
+        let identifier = "app.vaultaire.ios.share-sync.resume"
+        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier)
+
+        let request = BGProcessingTaskRequest(identifier: identifier)
+        request.requiresNetworkConnectivity = true
+        request.requiresExternalPower = false
+        request.earliestBeginDate = Date(timeIntervalSinceNow: seconds)
+
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            shareSyncLogger.info("[bg-task] Scheduled sync resume task in ~\(Int(seconds))s")
+        } catch {
+            shareSyncLogger.error("[bg-task] Failed to schedule sync resume task: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func handleBackgroundProcessingTask(_ task: BGProcessingTask) {
+        shareSyncLogger.info("[bg-task] Sync processing task started")
+        
+        task.expirationHandler = { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.syncTask?.cancel()
+            }
+        }
+
+        guard hasPendingSyncs else {
+            task.setTaskCompleted(success: true)
+            return
+        }
+
+        // Keep track of uploads started vs completed
+        let pendingIds = pendingSyncShareVaultIds()
+        guard !pendingIds.isEmpty else {
+            task.setTaskCompleted(success: true)
+            return
+        }
+        
+        shareSyncLogger.info("[bg-task] Starting uploads for \(pendingIds.count) pending syncs")
+        
+        // Capture CloudKit client before async work
+        let capturedCloudKit = cloudKit
+        
+        // Create a task group to wait for all uploads to complete
+        Task { [weak self] in
+            guard let self else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            
+            // Track which uploads we started
+            var startedUploads: [String: Task<Void, Never>] = [:]
+            
+            // Start all uploads from MainActor
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                for shareVaultId in pendingIds {
+                    guard self.resumeTasks[shareVaultId] == nil else { continue }
+                    
+                    let uploadTask = Task { [weak self] in
+                        defer {
+                            Task { @MainActor [weak self] in
+                                self?.resumeTasks.removeValue(forKey: shareVaultId)
+                            }
+                        }
+                        guard let self else { return }
+                        await self.uploadStagedSync(shareVaultId: shareVaultId, cloudKit: capturedCloudKit)
+                    }
+                    
+                    self.resumeTasks[shareVaultId] = uploadTask
+                    startedUploads[shareVaultId] = uploadTask
+                }
+            }
+            
+            // Wait for all started uploads to complete
+            for (_, uploadTask) in startedUploads {
+                _ = await uploadTask.result
+            }
+            
+            shareSyncLogger.info("[bg-task] All pending sync uploads completed")
+            task.setTaskCompleted(success: true)
+        }
+    }
+
     // MARK: - Trigger Sync
 
     /// Called when vault files change. Debounces briefly, then syncs to all share targets.
@@ -310,9 +426,14 @@ final class ShareSyncManager {
                 syncProgress = (i + 1, totalShares)
 
                 // Cancel any in-flight resume upload for this share to avoid
-                // reading stale SVDF data while we replace the staging directory
-                resumeTasks[share.id]?.cancel()
-                resumeTasks.removeValue(forKey: share.id)
+                // reading stale SVDF data while we replace the staging directory.
+                // Wait briefly for cancellation to complete to avoid race conditions.
+                if let existingTask = resumeTasks[share.id] {
+                    existingTask.cancel()
+                    resumeTasks.removeValue(forKey: share.id)
+                    // Small delay to allow the cancelled task to clean up
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+                }
 
                 // Stage SVDF to persistent dir (replaces any old staging for this share)
                 let stagingDir = Self.syncStagingDir(for: share.id)
@@ -626,13 +747,19 @@ final class ShareSyncManager {
         shareSyncLogger.info("[resume] Found \(pendingIds.count) pending sync(s), trigger=\(trigger, privacy: .public)")
 
         for shareVaultId in pendingIds {
+            // Use a lock to prevent race conditions when checking/creating tasks
             guard resumeTasks[shareVaultId] == nil else { continue }
 
             let capturedCloudKit = cloudKit
             let task = Task { [weak self] in
+                defer {
+                    // Always clean up, whether success, failure, or cancellation
+                    Task { @MainActor [weak self] in
+                        self?.resumeTasks.removeValue(forKey: shareVaultId)
+                    }
+                }
                 guard let self else { return }
                 await self.uploadStagedSync(shareVaultId: shareVaultId, cloudKit: capturedCloudKit)
-                self.resumeTasks.removeValue(forKey: shareVaultId)
             }
             resumeTasks[shareVaultId] = task
         }

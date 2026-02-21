@@ -135,10 +135,10 @@ final class AppState {
         }
 
         checkFirstLaunch()
-        BackgroundShareTransferManager.shared.setVaultKeyProvider { [weak self] in
+        ShareUploadManager.shared.setVaultKeyProvider { [weak self] in
             self?.currentVaultKey
         }
-        ShareUploadManager.shared.setVaultKeyProvider { [weak self] in
+        ShareSyncManager.shared.setVaultKeyProvider { [weak self] in
             self?.currentVaultKey
         }
         iCloudBackupManager.shared.setVaultKeyProvider { [weak self] in
@@ -584,11 +584,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
         // Register once at launch so iOS can wake the app to continue pending uploads/backups.
         ShareUploadManager.shared.registerBackgroundProcessingTask()
+        ShareSyncManager.shared.registerBackgroundProcessingTask()
         iCloudBackupManager.shared.registerBackgroundProcessingTask()
 
         // If iOS terminated the previous upload process (jetsam/watchdog),
         // emit a breadcrumb on next launch with the last known phase.
-        if let marker = BackgroundShareTransferManager.consumeStaleUploadLifecycleMarker() {
+        if let marker = ShareUploadManager.consumeStaleUploadLifecycleMarker() {
             let ageSeconds = Int(Date().timeIntervalSince(marker.timestamp))
             EmbraceManager.shared.addBreadcrumb(
                 category: "share.upload.previous_run_terminated",

@@ -167,6 +167,49 @@ final class ShareUploadManager {
         let createdAt: Date
     }
 
+    // MARK: - Upload Lifecycle Markers (for crash recovery diagnostics)
+
+    struct UploadLifecycleMarker: Codable {
+        let phase: String
+        let shareVaultId: String
+        let timestamp: Date
+    }
+
+    private nonisolated static let uploadLifecycleKey = "share.upload.lifecycle.marker"
+
+    nonisolated static func setUploadLifecycleMarker(phase: String, shareVaultId: String) {
+        let marker = UploadLifecycleMarker(
+            phase: phase,
+            shareVaultId: shareVaultId,
+            timestamp: Date()
+        )
+        if let data = try? JSONEncoder().encode(marker) {
+            UserDefaults.standard.set(data, forKey: uploadLifecycleKey)
+        }
+    }
+
+    nonisolated static func clearUploadLifecycleMarker() {
+        UserDefaults.standard.removeObject(forKey: uploadLifecycleKey)
+    }
+
+    /// Returns a prior unfinished upload marker and clears it.
+    /// If the marker is too old, it is discarded and nil is returned.
+    nonisolated static func consumeStaleUploadLifecycleMarker(
+        maxAge: TimeInterval = 24 * 60 * 60
+    ) -> UploadLifecycleMarker? {
+        defer { clearUploadLifecycleMarker() }
+        guard
+            let data = UserDefaults.standard.data(forKey: uploadLifecycleKey),
+            let marker = try? JSONDecoder().decode(UploadLifecycleMarker.self, from: data)
+        else {
+            return nil
+        }
+        guard Date().timeIntervalSince(marker.timestamp) <= maxAge else {
+            return nil
+        }
+        return marker
+    }
+
     var jobs: [UploadJob] = []
 
     var hasPendingUpload: Bool {
@@ -864,20 +907,65 @@ final class ShareUploadManager {
             }
         }
 
-        guard hasPendingUpload else {
-            // No pending uploads — check for pending syncs instead
-            if ShareSyncManager.shared.hasPendingSyncs {
-                ShareSyncManager.shared.resumePendingSyncsIfNeeded(trigger: "bg_task")
-            }
+        // Collect all work that needs to be done
+        let pendingUploadStates = Self.loadAllPendingUploadStates()
+        let hasSyncs = ShareSyncManager.shared.hasPendingSyncs
+        
+        guard !pendingUploadStates.isEmpty || hasSyncs else {
             completeBackgroundProcessingTask(success: true)
             return
         }
-
-        resumePendingUploads(vaultKey: vaultKeyProvider?(), trigger: "bg_task")
-
-        // Also resume pending syncs if any exist
-        if ShareSyncManager.shared.hasPendingSyncs {
+        
+        Self.logger.info("[bg-task] Starting work: \(pendingUploadStates.count) uploads, syncs: \(hasSyncs)")
+        
+        // Kick off uploads first
+        if !pendingUploadStates.isEmpty {
+            resumePendingUploads(vaultKey: vaultKeyProvider?(), trigger: "bg_task")
+        }
+        
+        // Kick off syncs
+        if hasSyncs {
             ShareSyncManager.shared.resumePendingSyncsIfNeeded(trigger: "bg_task")
+        }
+        
+        // Wait for all work to complete before marking task done
+        Task { [weak self] in
+            guard let self else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            
+            // Poll until all work is done (max 30 seconds of waiting after last activity)
+            var lastActivityTime = Date()
+            var consecutiveIdleChecks = 0
+            
+            while true {
+                try? await Task.sleep(nanoseconds: 500_000_000) // Check every 500ms
+                
+                let hasPendingUploads = !Self.loadAllPendingUploadStates().isEmpty
+                let hasPendingSyncs = ShareSyncManager.shared.hasPendingSyncs
+                let hasRunningUploadTasks = !self.uploadTasks.isEmpty
+                
+                if !hasPendingUploads && !hasPendingSyncs && !hasRunningUploadTasks {
+                    consecutiveIdleChecks += 1
+                    // Require 3 consecutive idle checks to ensure stability
+                    if consecutiveIdleChecks >= 3 {
+                        Self.logger.info("[bg-task] All work completed successfully")
+                        self.completeBackgroundProcessingTask(success: true)
+                        break
+                    }
+                } else {
+                    consecutiveIdleChecks = 0
+                    lastActivityTime = Date()
+                }
+                
+                // Safety timeout: if no activity for 30 seconds, complete anyway
+                if Date().timeIntervalSince(lastActivityTime) > 30 {
+                    Self.logger.warning("[bg-task] Timeout waiting for work to complete, finishing")
+                    self.completeBackgroundProcessingTask(success: !hasPendingUploads && !hasPendingSyncs)
+                    break
+                }
+            }
         }
     }
 

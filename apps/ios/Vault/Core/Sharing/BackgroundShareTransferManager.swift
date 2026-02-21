@@ -269,55 +269,71 @@ final class BackgroundShareTransferManager {
     
     /// Sends a local notification when upload completes in background
     func sendUploadCompleteNotification(shareVaultId: String, success: Bool, errorMessage: String? = nil) {
-        let content = UNMutableNotificationContent()
-        
-        if success {
-            content.title = "Vault Shared Successfully"
-            content.body = "Your shared vault is now available for others to access."
-            content.sound = .default
-        } else {
-            content.title = "Vault Share Interrupted"
-            content.body = errorMessage ?? "The upload was interrupted. Open Vaultaire to resume."
-            content.sound = .default
-        }
-        
-        content.userInfo = ["shareVaultId": shareVaultId, "success": success]
-        content.categoryIdentifier = "upload_complete"
-        
-        let request = UNNotificationRequest(
-            identifier: "upload-complete-\(shareVaultId)",
-            content: content,
-            trigger: nil // Immediate
-        )
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                Self.logger.error("[notification] Failed to schedule: \(error.localizedDescription)")
+        // Check notification authorization first
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            guard settings.authorizationStatus == .authorized else {
+                Self.logger.info("[notification] Cannot send notification - not authorized (status: \(settings.authorizationStatus.rawValue))")
+                return
+            }
+            
+            let content = UNMutableNotificationContent()
+            
+            if success {
+                content.title = "Vault Shared Successfully"
+                content.body = "Your shared vault is now available for others to access."
+                content.sound = .default
             } else {
-                Self.logger.info("[notification] Scheduled completion notification")
+                content.title = "Vault Share Interrupted"
+                content.body = errorMessage ?? "The upload was interrupted. Open Vaultaire to resume."
+                content.sound = .default
+            }
+            
+            content.userInfo = ["shareVaultId": shareVaultId, "success": success]
+            content.categoryIdentifier = "upload_complete"
+            
+            let request = UNNotificationRequest(
+                identifier: "upload-complete-\(shareVaultId)",
+                content: content,
+                trigger: nil // Immediate
+            )
+            
+            UNUserNotificationCenter.current().add(request) { error in
+                if let error = error {
+                    Self.logger.error("[notification] Failed to schedule: \(error.localizedDescription)")
+                } else {
+                    Self.logger.info("[notification] Scheduled completion notification")
+                }
             }
         }
     }
     
     /// Updates or creates a persistent progress notification
     func updateProgressNotification(progress: Int, total: Int, shareVaultId: String) {
-        let content = UNMutableNotificationContent()
-        content.title = "Uploading Shared Vault"
-        content.body = "Progress: \(progress)% - Keep the app open for faster upload"
-        content.sound = nil
-        content.badge = 0
-        content.userInfo = ["shareVaultId": shareVaultId, "progress": progress]
-        content.categoryIdentifier = "upload_progress"
+        // Only check/update every 10% to avoid excessive permission checks
+        guard progress % 10 == 0 else { return }
         
-        // Update every 10%
-        if progress % 10 == 0 {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            guard settings.authorizationStatus == .authorized else { return }
+            
+            let content = UNMutableNotificationContent()
+            content.title = "Uploading Shared Vault"
+            content.body = "Progress: \(progress)% - Keep the app open for faster upload"
+            content.sound = nil
+            content.badge = 0
+            content.userInfo = ["shareVaultId": shareVaultId, "progress": progress]
+            content.categoryIdentifier = "upload_progress"
+            
             let request = UNNotificationRequest(
                 identifier: "upload-progress-\(shareVaultId)",
                 content: content,
                 trigger: nil
             )
             
-            UNUserNotificationCenter.current().add(request)
+            UNUserNotificationCenter.current().add(request) { error in
+                if let error = error {
+                    Self.logger.error("[notification] Failed to schedule progress: \(error.localizedDescription)")
+                }
+            }
         }
     }
     
@@ -1030,10 +1046,9 @@ final class BackgroundShareTransferManager {
                         pendingImportState.importedFileIds.append(file.id.uuidString)
                     }
 
-                    // Save progress after each file
-                    if i % 5 == 0 || i == filesToImport.count - 1 {
-                        try Self.savePendingImport(pendingImportState, vaultData: result.data)
-                    }
+                    // Save progress after EVERY file for crash recovery
+                    // (Batching every 5 files was causing up to 4 files of lost progress on crash)
+                    try Self.savePendingImport(pendingImportState, vaultData: result.data)
 
                     let totalImported = pendingImportState.importedFileIds.count
                     let pct = downloadWeight + (fileCount > 0 ? importWeight * totalImported / fileCount : importWeight)
