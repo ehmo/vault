@@ -1,7 +1,12 @@
-/* The Smart App Banner in iOS Safari is ~74px tall (same as the fixed header),
-   leaving only the purple border-bottom peeking below the banner. Remove it. */
+/* On the invite page the Smart App Banner sits at the top. The header's
+   backdrop-filter blur creates a visible edge artifact right at the
+   banner/content boundary. Remove blur + border so the header is invisible
+   against the page background. */
 .page-invite header {
-  border-bottom-color: transparent;
+  background: var(--bg);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom: none;
 }
 
 .page-invite main {
