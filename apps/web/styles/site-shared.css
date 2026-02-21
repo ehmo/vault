@@ -433,10 +433,14 @@ footer {
   background: color-mix(in srgb, var(--accent) 10%, transparent 90%);
 }
 
+:root[data-theme='light'] .mobile-nav-icon {
+  background: color-mix(in srgb, var(--accent) 16%, transparent 84%);
+}
+
 .mobile-nav-icon svg {
   width: 18px;
   height: 18px;
-  stroke-width: 1.8;
+  stroke-width: 2.1;
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;
