@@ -1131,11 +1131,30 @@ final class BackgroundShareTransferManager {
                     } catch {
                         // Individual file import failed - log and continue with next file
                         // Don't let one corrupted file stop the entire import
-                        Self.logger.error("[import] Failed to import file \(file.id): \(error.localizedDescription)")
+                        let fileIdString = file.id.uuidString
+                        Self.logger.error("[import] Failed to import file \(fileIdString): \(error.localizedDescription)")
+                        
+                        // Validate file ID before appending
+                        guard !fileIdString.isEmpty else {
+                            Self.logger.error("[import] Skipping file with empty ID")
+                            continue
+                        }
+                        
+                        // Check if this is a critical error (out of disk space, etc)
+                        let nsError = error as NSError
+                        let isCriticalError = (nsError.domain == NSPOSIXErrorDomain && nsError.code == ENOSPC) ||
+                                            (nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileWriteOutOfSpaceError)
+                        
+                        if isCriticalError {
+                            Self.logger.error("[import] Critical error (disk full) - stopping import: \(error.localizedDescription)")
+                            // Save current progress before throwing
+                            try? Self.updatePendingImportState(pendingImportState)
+                            throw error // Re-throw critical errors
+                        }
                         
                         // Still mark this file as "imported" so we skip it on resume
                         // (otherwise we'd get stuck in an infinite retry loop)
-                        pendingImportState.importedFileIds.append(file.id.uuidString)
+                        pendingImportState.importedFileIds.append(fileIdString)
                         pendingImportState.downloadError = "Failed to import \(file.filename): \(error.localizedDescription)"
                         try? Self.updatePendingImportState(pendingImportState)
                         
@@ -1335,6 +1354,7 @@ final class BackgroundShareTransferManager {
             LocalNotificationManager.shared.sendUploadFailed()
         case .importComplete:
             success = true
+            cancelBackgroundResumeTaskRequest()
             LocalNotificationManager.shared.sendImportComplete()
         case .importFailed:
             success = false
