@@ -1,0 +1,513 @@
+Implement the following plan:
+
+# Plan: Reliable Resumable iCloud Backup + Share Sync
+
+## Context
+
+iCloud backup is broken (6 critical bugs — completely non-functional in background). Share sync is fragile (2/5 reliability — no persistence, no resume, temp files lost on crash). Both need the same fix: **stage encrypted data to disk while the vault is unlocked, then upload independently in background**.
+
+ShareUploadManager (initial share uploads) is already 4/5 — has disk staging, chunk-level resume, BGProcessingTask. No changes needed there.
+
+## Scope
+
+**Part A — iCloud Backup** (completely broken → working): Fix 6 bugs, add staging + resume
+**Part B — Share Sync** (fragile → resilient): Add staging + resume to ShareSyncManager
+
+Same architecture applied to both. Part A first, Part B second.
+
+## Architecture: "Prepare While Unlocked, Upload Independently"
+
+**Staging** (requires vault key, foreground): Pack + encrypt + chunk + write encrypted data to disk with `.completeUntilFirstUserAuthentication` protection.
+
+**Upload** (NO key needed, background-safe): Read pre-encrypted chunks from staging dir, query CloudKit for already-uploaded chunks, upload only missing ones, finalize.
+
+Staging files are already AES-256-GCM / share-key encrypted — downgrading file protection from `.complete` to `.completeUntilFirstUserAuthentication` is safe because an attacker still needs the encryption key.
+
+## Files to modify
+
+### Part A — iCloud Backup
+
+| File | Changes |
+|------|---------|
+| `apps/ios/Vault/Supporting/Info.plist` | Add `app.vaultaire.ios.backup.resume` to `BGTaskSchedulerPermittedIdentifiers` |
+| `apps/ios/Vault/Core/Storage/iCloudBackupManager.swift` | Add PendingBackupState, staging methods, resume logic, key provider, refactor handleBackgroundProcessingTask |
+| `apps/ios/Vault/App/VaultApp.swift` | Register BGProcessingTask in AppDelegate, set key provider in AppState.init, add resume triggers in VaultApp scene lifecycle |
+| `apps/ios/VaultTests/iCloudBackupBackgroundTests.swift` | Tests for staging persistence, TTL, resume |
+
+### Part B — Share Sync
+
+| File | Changes |
+|------|---------|
+| `apps/ios/Vault/Core/Sharing/ShareSyncManager.swift` | Add PendingSyncState, persist SVDF before upload, chunk-level resume, BGProcessingTask scheduling |
+| `apps/ios/Vault/Core/Sharing/CloudKitSharingManager.swift` | Already has `existingChunkIndices` — no changes needed |
+| `apps/ios/Vault/App/VaultApp.swift` | Add ShareSyncManager resume triggers alongside backup triggers |
+
+Reference impl: `apps/ios/Vault/Core/Sharing/ShareUploadManager.swift` (disk persistence, resume, BGProcessingTask patterns)
+
+## Step 1: Info.plist
+
+Add backup identifier to permitted identifiers array (line 63):
+
+```xml
+<string>app.vaultaire.ios.backup.resume</string>
+```
+
+## Step 2: iCloudBackupManager — New types
+
+### PendingBackupState (Codable)
+
+```swift
+struct PendingBackupState: Codable {
+    let backupId: String
+    let totalChunks: Int
+    let checksum: Data         // HMAC of encrypted payload
+    let encryptedSize: Int
+    let createdAt: Date
+    var uploadFinished: Bool
+    var manifestSaved: Bool
+}
+```
+
+### Staging directory helpers
+
+- `backupStagingDir` → `Documents/pending_backup/`
+- `chunkFileURL(index:)` → `Documents/pending_backup/chunk_{index}.bin`
+- `stateURL` → `Documents/pending_backup/state.json`
+- `loadPendingBackupState()` — loads + validates 48h TTL
+- `savePendingBackupState(_:)` — writes with `.completeUntilFirstUserAuthentication`
+- `clearStagingDirectory()` — removes all staging files
+- `hasPendingBackup: Bool` — checks for valid state on disk
+
+### Vault key provider
+
+```swift
+private var vaultKeyProvider: (() -> Data?)?
+func setVaultKeyProvider(_ provider: @escaping () -> Data?)
+```
+
+## Step 3: iCloudBackupManager — Phase 1 staging method
+
+### `stageBackupToDisk(with key:, onProgress:) async throws -> PendingBackupState`
+
+1. Load vault index + pack payload (existing `packBackupPayload`)
+2. Encrypt with AES-256-GCM + compute HMAC (existing logic)
+3. Generate `backupId = UUID().uuidString`
+4. Split into 2MB chunks
+5. Write each chunk to `chunk_{index}.bin` with `.completeUntilFirstUserAuthentication`
+6. Write `PendingBackupState` to `state.json`
+7. Return state
+
+## Step 4: iCloudBackupManager — Phase 2 upload method
+
+### `uploadStagedBackup(onUploadProgress:) async throws`
+
+1. Load `PendingBackupState` from disk
+2. `waitForAvailableAccount()`
+3. Query CloudKit for existing chunk indices via new `existingBackupChunkIndices(for:)` (same pattern as `CloudKitSharingManager.existingChunkIndices`)
+4. Compute missing = `(0..<totalChunks).filter { !existing.contains($0) }`
+5. Upload missing chunks from disk files (parallel, max 4 concurrent)
+   - Read chunk data from `chunkFileURL(index:)`
+   - Write to temp file with `.completeUntilFirstUserAuthentication` for CKAsset
+   - Use existing `saveWithRetry` for upload
+6. Save `VaultBackup` manifest CKRecord (existing logic)
+7. Delete old backup chunks (existing `deleteOldBackupChunks`)
+8. Update `lastBackupTimestamp` UserDefaults
+9. Clear staging directory
+10. Send success notification
+
+### `existingBackupChunkIndices(for backupId:) async throws -> Set<Int>`
+
+CKQuery on private database: `VaultBackupChunk` where `backupId == backupId`, collect `chunkIndex` values. Handle cursor pagination.
+
+## Step 5: Refactor performBackupIfNeeded and performBackup
+
+### `performBackupIfNeeded(with key:)` — auto-backup on unlock
+
+Change from running full backup inline to:
+1. Check for existing `PendingBackupState` on disk
+   - If found: skip to Phase 2 (`uploadStagedBackup`)
+   - If not found: check 24h interval, run Phase 1 then Phase 2
+2. On cancellation/expiration: schedule BGProcessingTask for resume
+
+### `performBackup(with key:, onProgress:, onUploadProgress:)` — manual from Settings
+
+Same two-phase approach: `stageBackupToDisk` → `uploadStagedBackup`. Progress callbacks still work.
+
+### `resumeBackupUploadIfNeeded(trigger:)` — new public method
+
+Checks for `PendingBackupState` on disk, starts upload task if found. Called from multiple resume triggers (app launch, didBecomeActive, scenePhase .active).
+
+## Step 6: Refactor handleBackgroundProcessingTask
+
+Replace the current no-op with:
+
+1. Re-schedule next task (chain scheduling)
+2. Set expiration handler
+3. If staged backup exists on disk → Phase 2 upload (no key needed)
+4. Else if backup overdue AND key available (vault unlocked) → full Phase 1+2
+5. Else if backup overdue AND no key → schedule retry in 15 min
+6. Else → complete success
+
+## Step 7: VaultApp.swift wiring
+
+### AppDelegate.didFinishLaunchingWithOptions (after line 571)
+
+```swift
+iCloudBackupManager.shared.registerBackgroundProcessingTask()
+```
+
+### AppState.init (after line 130)
+
+```swift
+iCloudBackupManager.shared.setVaultKeyProvider { [weak self] in
+    self?.currentVaultKey?.rawBytes
+}
+```
+
+### VaultApp scene lifecycle
+
+- `.onAppear`: add `iCloudBackupManager.shared.resumeBackupUploadIfNeeded(trigger: "app_on_appear")`
+- `didBecomeActiveNotification`: add `iCloudBackupManager.shared.resumeBackupUploadIfNeeded(trigger: "did_become_active")`
+- `scenePhase .background`: schedule BGProcessingTask if `hasPendingBackup`
+- `scenePhase .active`: `resumeBackupUploadIfNeeded(trigger: "scene_active")`
+
+## Step 8: Tests
+
+Add to `apps/ios/VaultTests/iCloudBackupBackgroundTests.swift`:
+- `PendingBackupState` Codable round-trip
+- `loadPendingBackupState` returns nil when empty / expired (48h TTL)
+- `clearStagingDirectory` removes all files
+- `hasPendingBackup` correctness
+
+## Verification (Part A)
+
+1. Build + deploy to device
+2. Enable iCloud backup in Settings, trigger manual backup — verify staging files appear in `Documents/pending_backup/`
+3. Kill app mid-upload, relaunch — verify it queries CloudKit for existing chunks and uploads only missing
+4. Xcode BGProcessingTask simulation: `e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"app.vaultaire.ios.backup.resume"]` — verify upload proceeds without vault key
+5. Run tests
+
+---
+
+# Part B — Share Sync Resilience
+
+## Current state (2/5 reliability)
+
+`ShareSyncManager` builds SVDF to a **temp file** that's cleaned up in `defer`. If the app is killed mid-upload, the SVDF is lost and all upload progress is gone. No BGProcessingTask scheduling for retry. Uses only `beginBackgroundTask` (~30s).
+
+## Step B1: PendingSyncState
+
+New Codable struct in `ShareSyncManager.swift`:
+
+```swift
+struct PendingSyncState: Codable {
+    let shareVaultId: String
+    let shareKeyData: Data
+    let totalChunks: Int
+    let newChunkHashes: [String]   // SHA-256 per chunk for incremental diff
+    let previousChunkHashes: [String]
+    let createdAt: Date
+    var uploadFinished: Bool
+}
+```
+
+Staging path: `Documents/pending_sync/{shareVaultId}/`
+- `svdf_data.bin` — the SVDF blob (already share-key-encrypted)
+- `state.json` — PendingSyncState
+
+Both written with `.completeUntilFirstUserAuthentication`.
+
+## Step B2: Stage SVDF before upload
+
+In `syncShare()`, after `buildIncrementalSharedVaultData()` produces the SVDF file:
+
+1. Move SVDF from temp dir → `Documents/pending_sync/{shareVaultId}/svdf_data.bin`
+2. Set file protection to `.completeUntilFirstUserAuthentication`
+3. Write `PendingSyncState` with chunk hashes
+4. **Then** start upload
+
+Currently the SVDF goes to temp dir and is cleaned up in `defer`. Change: write to staging dir, clean up only on success.
+
+## Step B3: Chunk-level resume for sync
+
+Replace the current `syncSharedVaultIncrementalFromFile()` call with:
+
+1. Load `PendingSyncState` from disk
+2. Call `cloudKit.existingChunkIndices(for: shareVaultId)` (already exists)
+3. Compute missing chunks by comparing expected indices vs existing
+4. Upload only missing chunks from the staged SVDF file
+5. On success: save manifest, update ShareSyncCache, clear staging dir
+
+This mirrors how `ShareUploadManager.runResumeUpload()` works.
+
+## Step B4: Resume triggers
+
+### `resumePendingSyncsIfNeeded(trigger:)` — new public method
+
+Scans `Documents/pending_sync/` for valid `PendingSyncState` files, starts upload for each. No vault key needed — SVDF is already share-key-encrypted.
+
+### Wiring in VaultApp.swift
+
+Add alongside the backup resume triggers:
+- `.onAppear`: `ShareSyncManager.shared.resumePendingSyncsIfNeeded(trigger: "app_on_appear")`
+- `didBecomeActiveNotification`: same
+- `scenePhase .active`: same
+- `scenePhase .background`: schedule BGProcessingTask if pending syncs exist
+
+### BGProcessingTask
+
+Reuse the existing `app.vaultaire.ios.share-upload.resume` identifier (already in Info.plist). In `ShareUploadManager.handleBackgroundProcessingTask`, add a check for pending syncs after handling pending uploads.
+
+## Step B5: Multi-share handling
+
+Since a vault can have multiple active shares, the staging dir is per-share: `pending_sync/{shareVaultId}/`. Each is independent. When a new sync is triggered for the same share while a previous staged upload is in-flight:
+
+1. Cancel the in-flight upload
+2. Clear the old staging dir for that share
+3. Stage the new SVDF (which reflects the latest vault state)
+4. Start new upload
+
+This avoids uploading stale data.
+
+## Verification (Part B)
+
+1. Share a vault, add files, verify sync stages SVDF to `Documents/pending_sync/{id}/`
+2. Kill app during sync upload, relaunch — verify it resumes from staged SVDF
+3. Add more files while a sync is staged but not uploaded — verify old staging is replaced
+4. Verify `ShareSyncCache` is updated correctly after resumed sync completes
+
+---
+
+# Implementation Order
+
+1. Part A Steps 1-8 (backup) — build + deploy + test
+2. Part B Steps B1-B5 (share sync) — build + deploy + test
+3. Final integration test: both backup and share sync resume correctly after app kill
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Push to the device then verify the code you just written for bugs. Make sure you fix any logical and programatic bugs. Write comprehensive test coverage for this functionality
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **First user message**: The user provided a detailed implementation plan for "Reliable Resumable iCloud Backup + Share Sync" with two parts (A and B). The plan included specific file changes, code snippets, architecture decisions, and implementation steps.
+
+2. **Assistant's implementation work**:
+   - Read all key files in parallel (Info.plist, iCloudBackupManager.swift, VaultApp.swift, ShareSyncManager.swift, ShareUploadManager.swift)
+   - Read additional files (test file, CloudKitSharingClient protocol, CloudKitSharingManager)
+   - Created task tracking items (#162-#168)
+   - Implemented Part A Step 1: Info.plist change
+   - Implemented Part A Steps 2-6: Major refactor of iCloudBackupManager.swift
+   - Implemented Part A Step 7: VaultApp.swift wiring
+   - Implemented Part A Step 8: Tests
+   - Implemented Part B Steps B1-B5: ShareSyncManager staging and resume
+   - Implemented Part B VaultApp wiring + ShareUploadManager BGTask handler
+   - Built successfully, ran tests (pre-existing test failures unrelated to changes)
+   - Committed and pushed
+
+3. **Second user message**: "Push to the device then verify the code you just written for bugs. Make sure you fix any logical and programatic bugs. Write comprehensive test coverage for this functionality"
+
+4. **Assistant's response to second message**:
+   - Started device build in background
+   - Launched a Plan agent to review iCloudBackupManager.swift for bugs
+   - The Plan agent returned a comprehensive list of 24 bugs (some retracted), with confirmed bugs including:
+     - Bug 19 (HIGH): `MainActor.assumeIsolated` in expiration handlers called from background queues
+     - Bug 12 (HIGH): `unpackBackupPayload` no bounds validation
+     - Bug 2 (HIGH): Staging directory not cleared before new staging
+     - Bug 7 (HIGH): `finishAutoBackupRun` can call `endBackgroundTask` twice
+     - Bug 8 (MEDIUM): `deleteOldBackupChunks` can exceed CloudKit batch limit
+     - Bug 18 (MEDIUM): Background processing task always reports success: true
+     - Bug 20 (MEDIUM): `DispatchQueue.main.sync` in `runMainSync` risks deadlock
+     - And more LOW severity bugs
+   
+   The conversation was interrupted/summarized at this point. The assistant had:
+   - The device build running in background (task ID: bdce292)
+   - The bug review completed by the Plan agent
+   - Had NOT yet started fixing any bugs
+   - Had NOT yet written comprehensive tests
+
+Let me now catalog all the specific code changes and files involved.
+
+**Files Modified:**
+1. `apps/ios/Vault/Supporting/Info.plist` - Added backup BGTask identifier
+2. `apps/ios/Vault/Core/Storage/iCloudBackupManager.swift` - Major refactor with staging + resume
+3. `apps/ios/Vault/App/VaultApp.swift` - Wiring for backup and sync resume triggers
+4. `apps/ios/Vault/Core/Sharing/ShareSyncManager.swift` - Added PendingSyncState, staging, resume
+5. `apps/ios/Vault/Core/Sharing/ShareUploadManager.swift` - BGTask handler checks pending syncs
+6. `apps/ios/VaultTests/iCloudBackupBackgroundTests.swift` - New staging tests
+
+**Files Read (reference only):**
+- `apps/ios/Vault/Core/Sharing/CloudKitSharingClient.swift`
+- `apps/ios/Vault/Core/Sharing/CloudKitSharingManager.swift` (grep only)
+- `apps/ios/VaultTests/ShareUploadManagerTests.swift` (grep only)
+- `apps/ios/VaultTests/ShareSyncManagerTests.swift` (grep only)
+
+The task list shows:
+- #162: Completed - Info.plist
+- #163: Completed - iCloudBackupManager staging + resume
+- #164: Completed - VaultApp wiring (backup)
+- #165: Completed - Backup tests
+- #166: Completed - ShareSyncManager staging + resume
+- #167: Completed - Share sync VaultApp wiring
+- #168: Completed - Build verification
+
+The commit was: `ddc2a67 feat(backup,sync): add disk staging + resumable uploads for iCloud backup and share sync`
+
+Summary:
+1. Primary Request and Intent:
+   The user provided a comprehensive implementation plan for "Reliable Resumable iCloud Backup + Share Sync" with two major parts:
+   - **Part A — iCloud Backup**: Fix 6 critical bugs making background backup completely non-functional. Add disk staging + resume architecture where encrypted data is staged to disk while vault is unlocked, then uploaded independently in background without needing the vault key.
+   - **Part B — Share Sync**: Make ShareSyncManager resilient (from 2/5 to reliable). Add disk staging + resume so SVDF files persist on disk instead of temp files that are lost on crash.
+   
+   The plan specified exact files to modify, data structures, method signatures, and wiring. Reference implementation was `ShareUploadManager.swift` (already 4/5 reliable with disk persistence).
+
+   After initial implementation was committed and pushed, the user then requested: **"Push to the device then verify the code you just written for bugs. Make sure you fix any logical and programatic bugs. Write comprehensive test coverage for this functionality"**
+
+2. Key Technical Concepts:
+   - **Two-phase backup architecture**: Stage (requires vault key, foreground) → Upload (no key needed, background-safe)
+   - **File protection levels**: `.completeUntilFirstUserAuthentication` for staged files (readable after first unlock; safe because data is already AES-256-GCM encrypted)
+   - **BGProcessingTask**: iOS background task scheduling for resuming interrupted uploads
+   - **CloudKit private database**: Chunked upload (2MB chunks, max 4 concurrent) with retry logic
+   - **PendingBackupState / PendingSyncState**: Codable structs persisted to disk for crash recovery
+   - **Chunk-level resume**: Query CloudKit for existing chunks via `existingBackupChunkIndices`, upload only missing ones
+   - **Per-share staging directories**: `Documents/pending_sync/{shareVaultId}/` for independent share sync persistence
+   - **Hash-based diff for sync**: `syncSharedVaultIncrementalFromFile` compares chunk hashes to upload only changed chunks
+   - **Vault key provider pattern**: Closure that returns vault key when available, used by background tasks
+
+3. Files and Code Sections:
+
+   - **`apps/ios/Vault/Supporting/Info.plist`**
+     - Added `app.vaultaire.ios.backup.resume` to BGTaskSchedulerPermittedIdentifiers array
+     - Required for iOS to allow the backup BGProcessingTask to be registered
+
+   - **`apps/ios/Vault/Core/Storage/iCloudBackupManager.swift`** (731 lines added/modified)
+     - The core file with all backup staging logic. Major additions:
+     - **New vault key provider**:
+       ```swift
+       private var vaultKeyProvider: (() -> Data?)?
+       func setVaultKeyProvider(_ provider: @escaping () -> Data?)
+       ```
+     - **PendingBackupState struct**:
+       ```swift
+       struct PendingBackupState: Codable {
+           let backupId: String
+           let totalChunks: Int
+           let checksum: Data
+           let encryptedSize: Int
+           let createdAt: Date
+           var uploadFinished: Bool
+           var manifestSaved: Bool
+       }
+       ```
+     - **Staging directory helpers**: `backupStagingDir` → `Documents/pending_backup/`, `chunkFileURL(index:)`, `stateURL`, `loadPendingBackupState()` (with 48h TTL), `savePendingBackupState(_:)`, `clearStagingDirectory()`, `hasPendingBackup`
+     - **Phase 1 - `stageBackupToDisk(with:onProgress:)`**: Loads vault index, packs payload, encrypts, chunks to 2MB, writes each chunk to disk with `.completeUntilFirstUserAuthentication`, saves PendingBackupState
+     - **Phase 2 - `uploadStagedBackup(onUploadProgress:)`**: Loads state from disk, waits for iCloud, queries existing chunks via `existingBackupChunkIndices`, uploads missing chunks in parallel (max 4 concurrent), saves manifest CKRecord, deletes old chunks, updates lastBackupTimestamp, clears staging
+     - **`existingBackupChunkIndices(for:)`**: CKQuery on private database for VaultBackupChunk records matching backupId, collects chunkIndex values with cursor pagination
+     - **`resumeBackupUploadIfNeeded(trigger:)`**: @MainActor, checks for pending state, starts upload in detached task with UIApplication background task
+     - **Refactored `performBackupIfNeeded(with:)`**: Checks for existing staged backup first (skips to Phase 2), otherwise checks 24h interval then runs full Phase 1+2
+     - **Refactored `performBackup(with:onProgress:onUploadProgress:)`**: Now calls `stageBackupToDisk` → `uploadStagedBackup`
+     - **Refactored `handleBackgroundProcessingTask(_:)`**: Case 1: staged backup exists → upload (no key). Case 2: overdue + key available → full backup. Case 3: overdue + no key → schedule retry in 15min
+
+   - **`apps/ios/Vault/App/VaultApp.swift`**
+     - Three wiring points added:
+     - **AppDelegate.didFinishLaunching**: `iCloudBackupManager.shared.registerBackgroundProcessingTask()`
+     - **AppState.init**: `iCloudBackupManager.shared.setVaultKeyProvider { [weak self] in self?.currentVaultKey?.rawBytes }`
+     - **VaultApp scene lifecycle**: Added `iCloudBackupManager.shared.resumeBackupUploadIfNeeded()` and `ShareSyncManager.shared.resumePendingSyncsIfNeeded()` to `.onAppear`, `didBecomeActiveNotification`, `scenePhase .active`, and `scenePhase .background` (schedule BGTasks)
+
+   - **`apps/ios/Vault/Core/Sharing/ShareSyncManager.swift`** (191 lines added)
+     - **PendingSyncState struct**:
+       ```swift
+       struct PendingSyncState: Codable {
+           let shareVaultId: String
+           let shareKeyData: Data
+           let totalChunks: Int
+           let newChunkHashes: [String]
+           let previousChunkHashes: [String]
+           let createdAt: Date
+           var uploadFinished: Bool
+       }
+       ```
+     - **Staging helpers**: Per-share dirs at `Documents/pending_sync/{shareVaultId}/` with `svdf_data.bin` and `state.json`. Functions: `syncStagingDir(for:)`, `syncSvdfURL(for:)`, `syncStateURL(for:)`, `loadPendingSyncState(for:)` (48h TTL + SVDF existence check), `savePendingSyncState(_:)`, `clearSyncStaging(for:)`, `pendingSyncShareVaultIds()`, `hasPendingSyncs`
+     - **Modified `performSync`**: After building SVDF, moves it from temp dir to staging dir, saves PendingSyncState, then uploads. Clears staging only on success.
+     - **`resumePendingSyncsIfNeeded(trigger:)`**: Scans staging dirs, starts upload for each pending share (no vault key needed)
+     - **`uploadStagedSync(shareVaultId:cloudKit:)`**: Loads staged state, calls `syncSharedVaultIncrementalFromFile` with staged SVDF
+     - Added `resumeTasks: [String: Task<Void, Never>]` to track active resume tasks per share
+
+   - **`apps/ios/Vault/Core/Sharing/ShareUploadManager.swift`** (9 lines added)
+     - `handleBackgroundProcessingTask`: Added checks for `ShareSyncManager.shared.hasPendingSyncs` — resumes pending syncs alongside pending uploads during BGProcessingTask execution
+
+   - **`apps/ios/VaultTests/iCloudBackupBackgroundTests.swift`** (101 lines added)
+     - `testPendingBackupState_CodableRoundTrip()` — encode/decode PendingBackupState
+     - `testPendingBackupState_CodableWithUploadFinished()` — with uploadFinished=true, manifestSaved=true
+     - `testLoadPendingBackupState_ReturnsNilWhenEmpty()` — no staging dir
+     - `testHasPendingBackup_FalseWhenEmpty()` — property check
+     - `testClearStagingDirectory_RemovesAllFiles()` — creates dummy files, verifies cleanup
+     - `testLoadPendingBackupState_ReturnsNilWhenExpired()` — writes 49h-old state, verifies TTL rejection and cleanup
+
+   - **`apps/ios/Vault/Core/Sharing/CloudKitSharingClient.swift`** (read only)
+     - Protocol defining `existingChunkIndices(for:)`, `uploadChunksFromFile(shareVaultId:fileURL:chunkIndices:onProgress:)`, `syncSharedVaultIncrementalFromFile(...)`, `saveManifest(...)` used by the new code
+
+4. Errors and Fixes:
+   - **Simulator name mismatch**: `iPhone 16 Pro` simulator not found. Fixed by using specific simulator UUID `57965726-931A-462A-A262-3A3DAFA7CDDF` (iPhone 17 Pro). Also had duplicate simulator name issue.
+   - **Pre-existing test compilation failures**: `BackgroundShareTransferTests.swift` has errors (instance member access on type, private access), `MockSyncVaultStorage`/`MockUploadVaultStorage` don't conform to `VaultStorageProtocol`. Confirmed pre-existing by stashing changes and running tests on clean main — same errors. These are NOT caused by the new code.
+   - **SourceKit diagnostics**: Various "Cannot find X in scope" errors reported by SourceKit during edits — these are IDE indexing issues only, not real compilation errors. The full `xcodebuild build` succeeds cleanly.
+   - **git pull --rebase with unstaged changes**: Had to `git stash && git pull --rebase && git stash pop && git push` because of unrelated dirty web files.
+
+   **Bugs found by Plan agent review (NOT YET FIXED)**:
+   - Bug 19 (HIGH): `MainActor.assumeIsolated` in BGProcessingTask expiration handler — called from background queue, will crash
+   - Bug 2 (HIGH): Staging directory not cleared before new staging in `stageBackupToDisk` — stale chunks persist
+   - Bug 7 (HIGH): `finishAutoBackupRun` can call `endBackgroundTask` twice
+   - Bug 18 (MEDIUM): Background processing task defer always reports `success: true` even on failure
+   - Bug 20 (MEDIUM): `DispatchQueue.main.sync` in `runMainSync` risks deadlock
+   - Bug 8 (MEDIUM): `deleteOldBackupChunks` can exceed CloudKit 400-record batch limit
+   - And several LOW severity issues
+
+5. Problem Solving:
+   - **Architecture decision for share sync resume**: Considered multiple approaches for chunk-level resume in sync (vs initial upload). The complication is that `existingChunkIndices` returns ALL chunks for a share, including old ones from previous successful syncs. Decided to use `syncSharedVaultIncrementalFromFile` (hash-based diff) for both first attempt and resume — simpler, correct, and the main benefit (staged SVDF survives crashes, no vault key needed for resume) is preserved. Re-uploading changed chunks on resume is acceptable cost.
+   - **Build verification**: Successfully built the app target. Test target has pre-existing compilation failures unrelated to changes.
+
+6. All User Messages:
+   - **Message 1**: "Implement the following plan: [Detailed plan for Reliable Resumable iCloud Backup + Share Sync with Part A (iCloud Backup) and Part B (Share Sync), including specific files, data structures, methods, and wiring instructions. Referenced transcript at /Users/nan/.REDACTED.jsonl]"
+   - **Message 2**: "Push to the device then verify the code you just written for bugs. Make sure you fix any logical and programatic bugs. Write comprehensive test coverage for this functionality"
+
+7. Pending Tasks:
+   - **Fix all bugs found by the code review** (Bug 19, 2, 7, 18, 20, 8, and others — see section 4 for full list)
+   - **Write comprehensive test coverage** for the new functionality (backup staging, upload, resume, share sync staging, resume)
+   - **Verify device build completed** (background task ID: bdce292 was running)
+   - **Device testing** after bug fixes
+
+8. Current Work:
+   The user requested: "Push to the device then verify the code you just written for bugs. Make sure you fix any logical and programatic bugs. Write comprehensive test coverage for this functionality"
+   
+   Work completed so far on this request:
+   - Started device build in background (task ID: bdce292)
+   - Launched a Plan agent to review `iCloudBackupManager.swift` for bugs
+   - The Plan agent returned a comprehensive bug report with ~14 confirmed bugs of varying severity
+   
+   Work NOT yet started:
+   - Actually fixing the bugs identified by the review
+   - Reviewing `ShareSyncManager.swift` for bugs (only iCloudBackupManager was reviewed)
+   - Writing comprehensive test coverage
+   - Checking the device build result
+
+9. Optional Next Step:
+   Fix the bugs identified by the code review, starting with HIGH severity ones:
+   1. Bug 19: Replace `MainActor.assumeIsolated` with `Task { @MainActor in }` in expiration handlers (lines ~1231-1238 and ~427-433 of iCloudBackupManager.swift)
+   2. Bug 2: Add `clearStagingDirectory()` at the start of `stageBackupToDisk` to remove stale chunks
+   3. Bug 7: Fix double `endBackgroundTask` call in `finishAutoBackupRun`
+   4. Bug 18: Track success/failure in BGProcessingTask defer blocks
+   5. Then review ShareSyncManager.swift for similar bugs
+   6. Then write comprehensive tests
+
+   Per user's request: "Make sure you fix any logical and programatic bugs. Write comprehensive test coverage for this functionality"
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.

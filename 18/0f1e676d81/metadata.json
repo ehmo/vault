@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "180f1e676d81",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Sharing/ShareSyncManager.swift",
+    "apps/ios/Vault/Core/Sharing/ShareUploadManager.swift",
+    "apps/ios/Vault/Core/Storage/iCloudBackupManager.swift",
+    "apps/ios/Vault/Supporting/Info.plist",
+    "apps/ios/VaultTests/BackgroundShareTransferTests.swift",
+    "apps/ios/VaultTests/SVDFSerializerTests.swift",
+    "apps/ios/VaultTests/ShareSyncManagerTests.swift",
+    "apps/ios/VaultTests/ShareUploadManagerTests.swift",
+    "apps/ios/VaultTests/iCloudBackupBackgroundTests.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/18/0f1e676d81/0/metadata.json",
+      "transcript": "/18/0f1e676d81/0/full.jsonl",
+      "context": "/18/0f1e676d81/0/context.md",
+      "content_hash": "/18/0f1e676d81/0/content_hash.txt",
+      "prompt": "/18/0f1e676d81/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 145,
+    "cache_creation_tokens": 278806,
+    "cache_read_tokens": 16948755,
+    "output_tokens": 10939,
+    "api_call_count": 139
+  }
+}
