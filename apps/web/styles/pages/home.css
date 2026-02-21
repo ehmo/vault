@@ -314,8 +314,19 @@
         }
 
         .theme-icon {
-            font-size: 1rem;
-            line-height: 1;
+            width: 16px;
+            height: 16px;
+            flex: 0 0 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 0;
+        }
+
+        .theme-icon svg {
+            width: 16px;
+            height: 16px;
+            display: block;
         }
 
         /* ── Hero ── */
@@ -438,9 +449,10 @@
         /* ── Phone Mockup ── */
         .mockup-container {
             position: relative;
-            width: min(336px, 100%);
+            --mockup-h: min(700px, calc(100vh - 190px));
+            width: min(336px, calc(var(--mockup-h) * 0.48), 100%);
             aspect-ratio: 336 / 700;
-            height: min(700px, calc(100vh - 190px));
+            height: var(--mockup-h);
             max-height: 700px;
             max-width: 100%;
             margin-left: auto;
@@ -858,17 +870,40 @@
             position: absolute;
             right: 10px;
             bottom: 12px;
-            width: 44px;
-            height: 44px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             border: none;
             background: color-mix(in srgb, var(--phone-dot-active) 84%, white 16%);
             color: color-mix(in srgb, var(--phone-screen-bg) 82%, black 18%);
-            font-size: 1.8rem;
-            line-height: 1;
+            padding: 0;
             display: grid;
             place-items: center;
             box-shadow: 0 6px 14px color-mix(in srgb, var(--phone-dot-active) 32%, transparent 68%);
+        }
+
+        .vault-fab-plus {
+            position: relative;
+            width: 16px;
+            height: 16px;
+            display: block;
+        }
+
+        .vault-fab-plus::before,
+        .vault-fab-plus::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 16px;
+            height: 3px;
+            border-radius: 3px;
+            background: currentColor;
+            transform: translate(-50%, -50%);
+        }
+
+        .vault-fab-plus::after {
+            transform: translate(-50%, -50%) rotate(90deg);
         }
 
         /* ── Trust Strip ── */
@@ -912,11 +947,12 @@
 
         /* ── Features ── */
         .features {
-            padding: 120px 0;
+            padding: 170px 0 120px;
             background: var(--bg-light);
             color: var(--text-light);
             position: relative;
-            clip-path: polygon(0 0, 100% 0, 100% calc(100% - 50px), 0 100%);
+            margin-top: -50px;
+            clip-path: polygon(0 50px, 100% 0, 100% calc(100% - 50px), 0 100%);
         }
 
         .section-header {
@@ -1463,9 +1499,11 @@
             .hero-sub { border-left: none; padding-left: 0; margin-inline: auto; }
             .hero-actions { justify-content: center; }
             .mockup-container {
-                margin: 40px auto;
-                width: min(100%, 336px);
-                height: auto;
+                --mockup-h: clamp(320px, calc(100vh - 260px), 700px);
+                margin: 24px auto 28px;
+                height: var(--mockup-h);
+                width: min(100%, calc(var(--mockup-h) * 0.48));
+                max-width: 336px;
             }
             .hero-title-stack { align-items: center; }
             .stack-1 { transform: translateX(0); }
@@ -1501,6 +1539,13 @@
             }
             .theme-toggle #theme-label {
                 display: none;
+            }
+            .theme-toggle {
+                width: 44px;
+                min-width: 44px;
+                padding: 0;
+                justify-content: center;
+                gap: 0;
             }
         }
 
@@ -1557,8 +1602,23 @@
                 border-radius: 7px;
             }
             .trust-content { flex-direction: column; }
+            .trust-strip {
+                margin-top: 0;
+            }
             .theme-toggle #theme-label {
                 display: none;
+            }
+            .theme-toggle {
+                width: 44px;
+                min-width: 44px;
+                padding: 0;
+                justify-content: center;
+                gap: 0;
+            }
+            .features {
+                margin-top: -36px;
+                padding-top: 136px;
+                clip-path: polygon(0 36px, 100% 0, 100% calc(100% - 40px), 0 100%);
             }
             .mockup-container {
                 width: min(100%, 340px);
@@ -1593,6 +1653,16 @@
 
             .trust-strip {
                 margin-top: -20px;
+            }
+        }
+
+        @media (max-height: 700px) and (max-width: 900px) {
+            .hero {
+                padding-bottom: 56px;
+            }
+
+            .trust-strip {
+                margin-top: 0;
             }
         }
 

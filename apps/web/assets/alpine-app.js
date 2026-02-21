@@ -23,6 +23,15 @@
     if (element) element.textContent = value;
   }
 
+  function setThemeIcon(element, iconName) {
+    if (!element) return;
+    if (iconName === "sun") {
+      element.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="12" y1="2.5" x2="12" y2="5.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="12" y1="18.8" x2="12" y2="21.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="2.5" y1="12" x2="5.2" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="18.8" y1="12" x2="21.5" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="5.3" y1="5.3" x2="7.2" y2="7.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="16.8" y1="16.8" x2="18.7" y2="18.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="16.8" y1="7.2" x2="18.7" y2="5.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="5.3" y1="18.7" x2="7.2" y2="16.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+      return;
+    }
+    element.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 14.8a8.9 8.9 0 1 1-9.6-11 7.2 7.2 0 0 0 9.6 11Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+
   function shouldHandleCompetitorImage(img) {
     return img instanceof HTMLImageElement
       && (img.hasAttribute("data-competitor-icon")
@@ -39,10 +48,6 @@
 
       get isDark() {
         return this.theme === "dark";
-      },
-
-      get themeIcon() {
-        return this.isDark ? "☀︎" : "☽";
       },
 
       get themeLabel() {
@@ -130,7 +135,7 @@
             toggle.setAttribute("aria-pressed", String(!isDark));
             toggle.setAttribute("aria-label", this.themeAriaLabel);
           }
-          setElementText(icon, this.themeIcon);
+          setThemeIcon(icon, isDark ? "sun" : "moon");
           setElementText(label, this.themeLabel);
 
           window.dispatchEvent(new CustomEvent("vaultaire-themechange", {

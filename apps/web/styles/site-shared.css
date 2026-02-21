@@ -250,8 +250,19 @@ header {
 }
 
 .theme-icon {
-  font-size: 1rem;
-  line-height: 1;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.theme-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 footer {
@@ -532,6 +543,14 @@ footer {
     display: none;
   }
 
+  .theme-toggle {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+  }
+
   .logo {
     font-size: 1.1rem;
   }
@@ -602,5 +621,13 @@ footer {
 
   .theme-toggle #theme-label {
     display: none;
+  }
+
+  .theme-toggle {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
   }
 }
