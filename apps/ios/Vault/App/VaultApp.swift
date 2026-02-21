@@ -53,7 +53,7 @@ struct VaultApp: App {
                             iCloudBackupManager.shared.scheduleBackgroundResumeTask(earliestIn: 15)
                         }
                         if ShareSyncManager.shared.hasPendingSyncs {
-                            ShareUploadManager.shared.scheduleBackgroundResumeTask(earliestIn: 15)
+                            ShareSyncManager.shared.scheduleBackgroundResumeTask(earliestIn: 15)
                         }
                     case .active:
                         ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "scene_active")
