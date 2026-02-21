@@ -856,7 +856,7 @@ final class ShareUploadManager {
         scheduleBackgroundResumeTask(earliestIn: 60)
 
         task.expirationHandler = { [weak self] in
-            MainActor.assumeIsolated {
+            Task { @MainActor [weak self] in
                 guard let self else { return }
                 Self.logger.warning("[bg-task] Processing task expired — cancelling uploads")
                 self.cancelAllRunningUploadsAsInterrupted()
@@ -898,7 +898,7 @@ final class ShareUploadManager {
     private func ensureBackgroundExecution() {
         guard currentBgTaskId == .invalid else { return }
         currentBgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
-            MainActor.assumeIsolated {
+            Task { @MainActor [weak self] in
                 guard let self else { return }
                 Self.logger.warning("[upload] Background time expiring — cancelling uploads")
                 self.cancelAllRunningUploadsAsInterrupted()

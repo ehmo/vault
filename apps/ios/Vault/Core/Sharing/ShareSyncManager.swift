@@ -53,6 +53,14 @@ final class ShareSyncManager {
         let previousChunkHashes: [String]
         let createdAt: Date
         var uploadFinished: Bool
+        /// Vault key fingerprint for ShareSyncCache lookup on resume
+        let vaultKeyFingerprint: String?
+        /// Manifest entries for updating cache on resume
+        let manifest: [SVDFSerializer.FileManifestEntry]?
+        /// File IDs synced in this batch for cache state
+        let syncedFileIds: Set<String>?
+        /// Current sync sequence for cache state
+        let syncSequence: Int?
     }
 
     /// 48-hour TTL for staged syncs
@@ -301,6 +309,11 @@ final class ShareSyncManager {
 
                 syncProgress = (i + 1, totalShares)
 
+                // Cancel any in-flight resume upload for this share to avoid
+                // reading stale SVDF data while we replace the staging directory
+                resumeTasks[share.id]?.cancel()
+                resumeTasks.removeValue(forKey: share.id)
+
                 // Stage SVDF to persistent dir (replaces any old staging for this share)
                 let stagingDir = Self.syncStagingDir(for: share.id)
                 let stagedSvdfURL = Self.syncSvdfURL(for: share.id)
@@ -312,6 +325,8 @@ final class ShareSyncManager {
                     ofItemAtPath: stagedSvdfURL.path
                 )
 
+                let keyFingerprint = vaultKey.rawBytes.hashValue
+                let currentSyncSeq = (buildResult.syncState.syncSequence) + 1
                 let pendingSyncState = PendingSyncState(
                     shareVaultId: share.id,
                     shareKeyData: shareKeyData,
@@ -319,7 +334,11 @@ final class ShareSyncManager {
                     newChunkHashes: buildResult.chunkHashes,
                     previousChunkHashes: buildResult.syncState.chunkHashes,
                     createdAt: Date(),
-                    uploadFinished: false
+                    uploadFinished: false,
+                    vaultKeyFingerprint: String(keyFingerprint),
+                    manifest: buildResult.syncState.manifest,
+                    syncedFileIds: buildResult.syncState.syncedFileIds,
+                    syncSequence: currentSyncSeq
                 )
                 savePendingSyncState(pendingSyncState)
 
@@ -332,7 +351,6 @@ final class ShareSyncManager {
                 )
 
                 // Save updated cache (copies file, doesn't load into memory)
-                let keyFingerprint = vaultKey.rawBytes.hashValue
                 let cache = ShareSyncCache(shareVaultId: share.id, vaultKeyFingerprint: String(keyFingerprint))
                 try cache.saveSVDF(from: stagedSvdfURL)
 
@@ -622,6 +640,7 @@ final class ShareSyncManager {
 
     /// Uploads a staged SVDF for a single share. No vault key needed.
     /// Uses its own background task ID to avoid conflicts with parallel resume uploads.
+    /// Updates ShareSyncCache on success so subsequent syncs can build incrementally.
     private func uploadStagedSync(shareVaultId: String, cloudKit: CloudKitSharingClient) async {
         guard let state = loadPendingSyncState(for: shareVaultId) else {
             shareSyncLogger.info("[resume] No valid pending sync for \(shareVaultId, privacy: .public)")
@@ -630,10 +649,14 @@ final class ShareSyncManager {
 
         let stagedSvdfURL = Self.syncSvdfURL(for: shareVaultId)
 
-        // Use a per-upload background task to avoid conflicts with parallel resumes
+        // Use a per-upload background task to avoid conflicts with parallel resumes.
+        // The expiration handler cancels the resume task so iOS doesn't kill us.
         var bgTaskId: UIBackgroundTaskIdentifier = .invalid
-        bgTaskId = UIApplication.shared.beginBackgroundTask {
+        bgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
             shareSyncLogger.warning("[resume] Background time expired for sync \(shareVaultId, privacy: .public)")
+            Task { @MainActor [weak self] in
+                self?.resumeTasks[shareVaultId]?.cancel()
+            }
         }
         defer {
             if bgTaskId != .invalid {
@@ -648,6 +671,35 @@ final class ShareSyncManager {
                 newChunkHashes: state.newChunkHashes,
                 previousChunkHashes: state.previousChunkHashes
             )
+
+            // Update ShareSyncCache so the next sync can build incrementally
+            // instead of doing a full rebuild
+            if let fingerprint = state.vaultKeyFingerprint,
+               let manifest = state.manifest,
+               let syncedIds = state.syncedFileIds,
+               let syncSeq = state.syncSequence {
+                do {
+                    let cache = ShareSyncCache(shareVaultId: shareVaultId, vaultKeyFingerprint: fingerprint)
+                    try cache.saveSVDF(from: stagedSvdfURL)
+                    let fileAttrs = try FileManager.default.attributesOfItem(atPath: stagedSvdfURL.path)
+                    let svdfSize = (fileAttrs[.size] as? Int) ?? 0
+                    let deletedBytes = manifest.filter { $0.deleted }.reduce(0) { $0 + $1.size }
+                    let syncState = ShareSyncCache.SyncState(
+                        syncedFileIds: syncedIds,
+                        chunkHashes: state.newChunkHashes,
+                        manifest: manifest,
+                        syncSequence: syncSeq,
+                        deletedFileIds: [],
+                        totalDeletedBytes: deletedBytes,
+                        totalBytes: svdfSize
+                    )
+                    try cache.saveSyncState(syncState)
+                    shareSyncLogger.info("[resume] Updated sync cache for \(shareVaultId, privacy: .public)")
+                } catch {
+                    shareSyncLogger.warning("[resume] Failed to update sync cache: \(error.localizedDescription, privacy: .public)")
+                    // Non-fatal: next sync will do a full rebuild
+                }
+            }
 
             clearSyncStaging(for: shareVaultId)
             shareSyncLogger.info("[resume] Sync upload completed for \(shareVaultId, privacy: .public)")

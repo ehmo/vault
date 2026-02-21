@@ -346,7 +346,7 @@ final class BackgroundShareTransferManager {
         scheduleBackgroundResumeTask(earliestIn: 60)
 
         task.expirationHandler = { [weak self] in
-            MainActor.assumeIsolated {
+            Task { @MainActor [weak self] in
                 guard let self else { return }
                 Self.logger.warning("[bg-task] Processing task expired — cancelling active upload")
                 self.activeTask?.cancel()
@@ -438,7 +438,7 @@ final class BackgroundShareTransferManager {
     ) -> UIBackgroundTaskIdentifier {
         endBackgroundExecution()
         let bgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
-            MainActor.assumeIsolated {
+            Task { @MainActor [weak self] in
                 Self.logger.warning("[\(logTag)] Background time expiring — cancelling")
                 self?.activeTask?.cancel()
                 self?.activeTask = nil
@@ -1192,20 +1192,6 @@ final class BackgroundShareTransferManager {
             endBackgroundExecution()
         } else if bgTaskId != .invalid {
             UIApplication.shared.endBackgroundTask(bgTaskId)
-        }
-    }
-
-    nonisolated private static func runMainSync(_ block: @escaping @MainActor () -> Void) {
-        if Thread.isMainThread {
-            MainActor.assumeIsolated {
-                block()
-            }
-        } else {
-            DispatchQueue.main.sync {
-                MainActor.assumeIsolated {
-                    block()
-                }
-            }
         }
     }
 

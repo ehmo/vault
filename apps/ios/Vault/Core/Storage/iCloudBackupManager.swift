@@ -217,7 +217,7 @@ final class iCloudBackupManager: @unchecked Sendable {
 
         onProgress?(.encrypting)
         try Task.checkCancellation()
-        let (encryptedPayload, checksum, chunks) = try await encryptAndPrepareChunksOffMain(payload, key: key)
+        let (checksum, encryptedSize, chunks) = try await encryptAndPrepareChunksOffMain(payload, key: key)
         let backupId = UUID().uuidString
 
         // Clear any stale staging data before writing new chunks
@@ -243,14 +243,14 @@ final class iCloudBackupManager: @unchecked Sendable {
             backupId: backupId,
             totalChunks: chunks.count,
             checksum: checksum,
-            encryptedSize: encryptedPayload.count,
+            encryptedSize: encryptedSize,
             createdAt: Date(),
             uploadFinished: false,
             manifestSaved: false
         )
         savePendingBackupState(state)
 
-        Self.logger.info("[staging] Staged \(chunks.count) chunks (\(encryptedPayload.count / 1024)KB) to disk")
+        Self.logger.info("[staging] Staged \(chunks.count) chunks (\(encryptedSize / 1024)KB) to disk")
         return state
     }
 
@@ -477,14 +477,16 @@ final class iCloudBackupManager: @unchecked Sendable {
     private func encryptAndPrepareChunksOffMain(
         _ payload: Data,
         key: Data
-    ) async throws -> (encryptedPayload: Data, checksum: Data, chunks: [(Int, Data)]) {
+    ) async throws -> (checksum: Data, encryptedSize: Int, chunks: [(Int, Data)]) {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
                     let encryptedPayload = try CryptoEngine.encrypt(payload, with: key)
                     let checksum = CryptoEngine.computeHMAC(for: encryptedPayload, with: key)
+                    let encryptedSize = encryptedPayload.count
                     let chunks = self.chunkData(encryptedPayload)
-                    continuation.resume(returning: (encryptedPayload, checksum, chunks))
+                    // Release encryptedPayload before returning — chunks already hold copies
+                    continuation.resume(returning: (checksum, encryptedSize, chunks))
                 } catch {
                     continuation.resume(throwing: error)
                 }
