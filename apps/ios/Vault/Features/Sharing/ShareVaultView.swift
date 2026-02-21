@@ -842,9 +842,12 @@ struct ShareVaultView: View {
         try await Task.detached(priority: .userInitiated) {
             let index = try VaultStorage.shared.loadIndex(with: vaultKey)
             let estimatedSize = index.files.filter { !$0.isDeleted }.reduce(0) { $0 + $1.size }
+            let shares = index.activeShares ?? []
+            // Sort by creation date, newest first (descending order)
+            let sortedShares = shares.sorted { $0.createdAt > $1.createdAt }
             return LocalSnapshot(
                 estimatedUploadSize: estimatedSize,
-                activeShares: index.activeShares ?? []
+                activeShares: sortedShares
             )
         }.value
     }
@@ -874,6 +877,8 @@ struct ShareVaultView: View {
                 var index = try VaultStorage.shared.loadIndex(with: vaultKey)
                 var shares = index.activeShares ?? []
                 shares.removeAll { consumedIds.contains($0.id) }
+                // Sort by creation date, newest first (descending order)
+                shares.sort { $0.createdAt > $1.createdAt }
                 index.activeShares = shares.isEmpty ? nil : shares
                 try VaultStorage.shared.saveIndex(index, with: vaultKey)
                 return shares
