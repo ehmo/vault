@@ -68,7 +68,7 @@ final class VaultViewModel {
 
     // MARK: - Transfer Manager
 
-    var transferManager = BackgroundShareTransferManager.shared
+    var transferManager = ShareImportManager.shared
 
     // MARK: - Visible Files (computed from observed properties)
 

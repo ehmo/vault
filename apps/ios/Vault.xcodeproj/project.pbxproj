@@ -60,7 +60,7 @@
 		015000001 /* ShareVaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 015000000 /* ShareVaultView.swift */; };
 		015000003 /* JoinVaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 015000002 /* JoinVaultView.swift */; };
 		016000001 /* LocalNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016000000 /* LocalNotificationManager.swift */; };
-		016000003 /* BackgroundShareTransferManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016000002 /* BackgroundShareTransferManager.swift */; };
+		SIM000001 /* ShareImportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = SIM000000 /* ShareImportManager.swift */; };
 		017000001 /* EmbraceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017000000 /* EmbraceManager.swift */; };
 		018000001 /* TelemetryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018000000 /* TelemetryManager.swift */; };
 		018000003 /* AnalyticsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018000002 /* AnalyticsManager.swift */; };
@@ -147,7 +147,6 @@
 		VVM000003 /* VaultViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = VVM000002 /* VaultViewModelTests.swift */; };
 		BT0000001 /* BackgroundTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BT0000000 /* BackgroundTaskTests.swift */; };
 		PV0000001 /* PatternValidationStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PV0000000 /* PatternValidationStateTests.swift */; };
-		BST000001 /* BackgroundShareTransferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BST000000 /* BackgroundShareTransferTests.swift */; };
 		ICB000001 /* iCloudBackupBackgroundTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ICB000000 /* iCloudBackupBackgroundTests.swift */; };
 		019000009 /* PatternSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000008 /* PatternSetupCoordinator.swift */; };
 		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
@@ -274,7 +273,7 @@
 		015000000 /* ShareVaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareVaultView.swift; sourceTree = "<group>"; };
 		015000002 /* JoinVaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinVaultView.swift; sourceTree = "<group>"; };
 		016000000 /* LocalNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNotificationManager.swift; sourceTree = "<group>"; };
-		016000002 /* BackgroundShareTransferManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundShareTransferManager.swift; sourceTree = "<group>"; };
+		SIM000000 /* ShareImportManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareImportManager.swift; sourceTree = "<group>"; };
 		017000000 /* EmbraceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbraceManager.swift; sourceTree = "<group>"; };
 		018000000 /* TelemetryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryManager.swift; sourceTree = "<group>"; };
 		018000002 /* AnalyticsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsManager.swift; sourceTree = "<group>"; };
@@ -355,7 +354,6 @@
 		VVM000002 /* VaultViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultViewModelTests.swift; sourceTree = "<group>"; };
 		BT0000000 /* BackgroundTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTaskTests.swift; sourceTree = "<group>"; };
 		PV0000000 /* PatternValidationStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidationStateTests.swift; sourceTree = "<group>"; };
-		BST000000 /* BackgroundShareTransferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundShareTransferTests.swift; sourceTree = "<group>"; };
 		ICB000000 /* iCloudBackupBackgroundTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iCloudBackupBackgroundTests.swift; sourceTree = "<group>"; };
 		019000008 /* PatternSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinator.swift; sourceTree = "<group>"; };
 		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
@@ -530,7 +528,7 @@
 				014000008 /* ShareUploadManager.swift */,
 				SL0000000 /* ShareLinkEncoder.swift */,
 				SL0000002 /* DeepLinkHandler.swift */,
-				016000002 /* BackgroundShareTransferManager.swift */,
+				SIM000000 /* ShareImportManager.swift */,
 			);
 			path = Sharing;
 			sourceTree = "<group>";
@@ -785,7 +783,6 @@
 				VVM000002 /* VaultViewModelTests.swift */,
 				BT0000000 /* BackgroundTaskTests.swift */,
 				PV0000000 /* PatternValidationStateTests.swift */,
-				BST000000 /* BackgroundShareTransferTests.swift */,
 				ICB000000 /* iCloudBackupBackgroundTests.swift */,
 			);
 			path = VaultTests;
@@ -1129,7 +1126,7 @@
 				015000003 /* JoinVaultView.swift in Sources */,
 				SL0000005 /* SharedVaultInviteView.swift in Sources */,
 				016000001 /* LocalNotificationManager.swift in Sources */,
-				016000003 /* BackgroundShareTransferManager.swift in Sources */,
+				SIM000001 /* ShareImportManager.swift in Sources */,
 				017000001 /* EmbraceManager.swift in Sources */,
 				018000001 /* TelemetryManager.swift in Sources */,
 				018000003 /* AnalyticsManager.swift in Sources */,
@@ -1205,7 +1202,6 @@
 				VVM000003 /* VaultViewModelTests.swift in Sources */,
 				BT0000001 /* BackgroundTaskTests.swift in Sources */,
 				PV0000001 /* PatternValidationStateTests.swift in Sources */,
-				BST000001 /* BackgroundShareTransferTests.swift in Sources */,
 				ICB000001 /* iCloudBackupBackgroundTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

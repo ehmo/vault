@@ -380,11 +380,6 @@ struct VaultView: View {
                     try? await Task.sleep(for: .seconds(2))
                     viewModel.transferManager.reset()
                 }
-            } else if case .uploadComplete = newStatus {
-                Task {
-                    try? await Task.sleep(for: .seconds(2))
-                    viewModel.transferManager.reset()
-                }
             }
         }
         .onChange(of: viewModel.exportURLs) { _, urls in

@@ -81,7 +81,7 @@ final class BackgroundTaskTests: XCTestCase {
         await fulfillment(of: [expectation], timeout: 5.0)
     }
 
-    /// Tests that BackgroundShareTransferManager requires await from Task.detached.
+    /// Tests that @MainActor singletons require await from Task.detached.
     /// Catches: @MainActor await omission in detached tasks
     func testBackgroundTransferManager_RequiresAwaitFromDetached() async {
         let expectation = XCTestExpectation(description: "Detached task completed")

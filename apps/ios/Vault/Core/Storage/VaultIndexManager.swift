@@ -11,7 +11,7 @@ final class VaultIndexManager {
     private let fileManager = FileManager.default
 
     /// Serializes all index read/write operations to prevent concurrent access races
-    /// between VaultView, ShareSyncManager, and BackgroundShareTransferManager.
+    /// between VaultView, ShareSyncManager, and ShareImportManager.
     /// Recursive lock allows compound operations (load+modify+save) to call loadIndex/saveIndex internally.
     let indexLock = NSRecursiveLock()
 

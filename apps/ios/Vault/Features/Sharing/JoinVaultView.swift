@@ -26,7 +26,7 @@ struct JoinVaultView: View {
     @State private var isSettingUpVault = false
     
     // Pending shared vault import state
-    @State private var pendingImportState: BackgroundShareTransferManager.PendingImportState?
+    @State private var pendingImportState: ShareImportManager.PendingImportState?
     @State private var isResumingImport = false
 
     enum ViewMode: Equatable {
@@ -369,7 +369,7 @@ struct JoinVaultView: View {
             dismiss()
 
             // Download and import in background
-            BackgroundShareTransferManager.shared.startBackgroundDownloadAndImport(
+            ShareImportManager.shared.startBackgroundDownloadAndImport(
                 phrase: trimmedPhrase,
                 patternKey: patternKey
             )
@@ -426,7 +426,7 @@ struct JoinVaultView: View {
     // MARK: - Pending Import Handling
     
     private func checkForPendingImport() {
-        if let pending = BackgroundShareTransferManager.shared.getPendingImportState() {
+        if let pending = ShareImportManager.shared.getPendingImportState() {
             pendingImportState = pending
         }
     }
@@ -438,7 +438,7 @@ struct JoinVaultView: View {
         
         // Need the vault key to resume - use the current key if available
         if let key = appState.currentVaultKey {
-            BackgroundShareTransferManager.shared.startBackgroundDownloadAndImport(
+            ShareImportManager.shared.startBackgroundDownloadAndImport(
                 phrase: pending.phrase,
                 patternKey: key
             )

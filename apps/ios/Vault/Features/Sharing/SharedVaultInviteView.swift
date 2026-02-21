@@ -338,7 +338,7 @@ struct SharedVaultInviteView: View {
             deepLinkHandler.clearPending()
             dismiss()
 
-            BackgroundShareTransferManager.shared.startBackgroundDownloadAndImport(
+            ShareImportManager.shared.startBackgroundDownloadAndImport(
                 phrase: trimmedPhrase,
                 patternKey: patternKey
             )
