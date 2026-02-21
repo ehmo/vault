@@ -209,12 +209,16 @@ final class VaultIndexManager {
 
     /// Invalidate cache unconditionally (used by destroyAllVaultData).
     func invalidateCache() {
+        indexLock.lock()
+        defer { indexLock.unlock() }
         cachedIndex = nil
         cachedIndexFingerprint = nil
     }
 
     /// Invalidate cache for a specific key fingerprint (used by deleteVaultIndex).
     func invalidateCache(for key: VaultKey) {
+        indexLock.lock()
+        defer { indexLock.unlock() }
         let fp = keyFingerprint(key)
         if cachedIndexFingerprint == fp {
             cachedIndex = nil

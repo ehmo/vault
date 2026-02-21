@@ -153,6 +153,7 @@
 		SEM00001 /* SecureEnclaveManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SEM00000 /* SecureEnclaveManagerTests.swift */; };
 		DLH00001 /* DeepLinkHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DLH00000 /* DeepLinkHandlerTests.swift */; };
 		PBT00001 /* PerformanceBenchmarkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PBT00000 /* PerformanceBenchmarkTests.swift */; };
+		CAT00001 /* ConcurrentAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAT00000 /* ConcurrentAccessTests.swift */; };
 		019000009 /* PatternSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000008 /* PatternSetupCoordinator.swift */; };
 		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
 		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
@@ -366,6 +367,7 @@
 		SEM00000 /* SecureEnclaveManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureEnclaveManagerTests.swift; sourceTree = "<group>"; };
 		DLH00000 /* DeepLinkHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkHandlerTests.swift; sourceTree = "<group>"; };
 		PBT00000 /* PerformanceBenchmarkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceBenchmarkTests.swift; sourceTree = "<group>"; };
+		CAT00000 /* ConcurrentAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConcurrentAccessTests.swift; sourceTree = "<group>"; };
 		019000008 /* PatternSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinator.swift; sourceTree = "<group>"; };
 		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
@@ -802,6 +804,7 @@
 				SEM00000 /* SecureEnclaveManagerTests.swift */,
 				DLH00000 /* DeepLinkHandlerTests.swift */,
 				PBT00000 /* PerformanceBenchmarkTests.swift */,
+				CAT00000 /* ConcurrentAccessTests.swift */,
 			);
 			path = VaultTests;
 			sourceTree = "<group>";
@@ -1227,6 +1230,7 @@
 				SEM00001 /* SecureEnclaveManagerTests.swift in Sources */,
 				DLH00001 /* DeepLinkHandlerTests.swift in Sources */,
 				PBT00001 /* PerformanceBenchmarkTests.swift in Sources */,
+				CAT00001 /* ConcurrentAccessTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
