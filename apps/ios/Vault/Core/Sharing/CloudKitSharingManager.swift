@@ -137,7 +137,7 @@ final class CloudKitSharingManager {
                 record["version"] = version + 1
                 record["updatedAt"] = Date()
                 record["chunkCount"] = chunkCount
-                try await saveWithRetry(record)
+                try await publicDatabase.saveWithRetry(record)
             }
         }
     }
@@ -600,7 +600,7 @@ final class CloudKitSharingManager {
         chunkRecord["vaultId"] = shareVaultId
 
         do {
-            try await saveWithRetry(chunkRecord)
+            try await publicDatabase.saveWithRetry(chunkRecord)
         } catch {
             throw CloudKitSharingError.uploadFailed(error)
         }
@@ -798,83 +798,12 @@ final class CloudKitSharingManager {
         manifest["policy"] = CKAsset(fileURL: policyURL)
 
         do {
-            try await saveWithRetry(manifest)
+            try await publicDatabase.saveWithRetry(manifest)
             try? FileManager.default.removeItem(at: policyURL)
         } catch {
             try? FileManager.default.removeItem(at: policyURL)
             throw CloudKitSharingError.uploadFailed(error)
         }
-    }
-
-    // MARK: - Retry Logic
-
-    /// Saves a CKRecord with automatic retry on transient CloudKit errors.
-    /// Handles serverRecordChanged (code 14) by fetching the server record and retrying.
-    private func saveWithRetry(_ record: CKRecord, maxRetries: Int = 3) async throws {
-        var currentRecord = record
-        var lastError: Error?
-        for attempt in 0...maxRetries {
-            do {
-                try await publicDatabase.save(currentRecord)
-                return
-            } catch let error as CKError {
-                Self.logger.error("[upload-telemetry] CKError code=\(error.code.rawValue) desc=\(error.localizedDescription, privacy: .private)")
-                if let underlying = error.userInfo[NSUnderlyingErrorKey] as? Error {
-                    Self.logger.error("[upload-telemetry] underlying: \(underlying.localizedDescription, privacy: .private)")
-                }
-
-                // Handle "record already exists" by fetching server version and updating it
-                if error.code == .serverRecordChanged, attempt < maxRetries {
-                    Self.logger.info("[upload-telemetry] record exists, fetching server version to update")
-                    if let serverRecord = try? await publicDatabase.record(for: currentRecord.recordID) {
-                        // Copy all fields from our record to the server record
-                        for key in currentRecord.allKeys() {
-                            serverRecord[key] = currentRecord[key]
-                        }
-                        currentRecord = serverRecord
-                        continue
-                    }
-                    // Fetch failed (transient network error) — retry with delay
-                    // so we get another chance to fetch the server record
-                    lastError = error
-                    let delay = Self.retryDelay(for: error, attempt: attempt)
-                    Self.logger.info("[upload-telemetry] server record fetch failed, retrying \(attempt + 1)/\(maxRetries) after \(String(format: "%.1f", delay))s")
-                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                    continue
-                }
-
-                if Self.isRetryable(error) && attempt < maxRetries {
-                    lastError = error
-                    let delay = Self.retryDelay(for: error, attempt: attempt)
-                    Self.logger.info("[upload-telemetry] retrying \(attempt + 1)/\(maxRetries) after \(String(format: "%.1f", delay))s")
-                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                } else {
-                    throw error
-                }
-            } catch {
-                Self.logger.error("[upload-telemetry] non-CK error: \(error.localizedDescription, privacy: .private)")
-                throw error
-            }
-        }
-        throw lastError!
-    }
-
-    private static func isRetryable(_ error: CKError) -> Bool {
-        switch error.code {
-        case .networkUnavailable, .networkFailure, .serviceUnavailable,
-             .zoneBusy, .requestRateLimited,
-             .notAuthenticated, .accountTemporarilyUnavailable:
-            return true
-        default:
-            return false
-        }
-    }
-
-    private static func retryDelay(for error: CKError, attempt: Int) -> TimeInterval {
-        if let retryAfter = error.retryAfterSeconds {
-            return retryAfter
-        }
-        return pow(2.0, Double(attempt)) // 1, 2, 4 seconds
     }
 
     // MARK: - Consumed
@@ -907,7 +836,7 @@ final class CloudKitSharingManager {
         for (_, result) in results.matchResults {
             if let record = try? result.get() {
                 record["consumed"] = true
-                try await saveWithRetry(record)
+                try await publicDatabase.saveWithRetry(record)
             }
         }
     }

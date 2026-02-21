@@ -181,6 +181,7 @@
 		VIM0000001 /* VaultIndexManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = VIM0000000 /* VaultIndexManager.swift */; };
 		VSP0000001 /* VaultStorageProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = VSP0000000 /* VaultStorageProtocol.swift */; };
 		CKC0000001 /* CloudKitSharingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = CKC0000000 /* CloudKitSharingClient.swift */; };
+		CKR0000001 /* CKDatabase+Retry.swift in Sources */ = {isa = PBXBuildFile; fileRef = CKR0000000 /* CKDatabase+Retry.swift */; };
 		SUB0000001 /* SubscriptionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = SUB0000000 /* SubscriptionClient.swift */; };
 /* End PBXBuildFile section */
 
@@ -393,6 +394,7 @@
 		VIM0000000 /* VaultIndexManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultIndexManager.swift; sourceTree = "<group>"; };
 		VSP0000000 /* VaultStorageProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultStorageProtocol.swift; sourceTree = "<group>"; };
 		CKC0000000 /* CloudKitSharingClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitSharingClient.swift; sourceTree = "<group>"; };
+		CKR0000000 /* CKDatabase+Retry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CKDatabase+Retry.swift"; sourceTree = "<group>"; };
 		SUB0000000 /* SubscriptionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionClient.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -530,6 +532,7 @@
 			children = (
 				014000000 /* CloudKitSharingManager.swift */,
 				CKC0000000 /* CloudKitSharingClient.swift */,
+				CKR0000000 /* CKDatabase+Retry.swift */,
 				014000002 /* ShareSyncManager.swift */,
 				014000004 /* SVDFSerializer.swift */,
 				014000006 /* ShareSyncCache.swift */,
@@ -1128,6 +1131,7 @@
 				013000001 /* iCloudBackupManager.swift in Sources */,
 				014000001 /* CloudKitSharingManager.swift in Sources */,
 				CKC0000001 /* CloudKitSharingClient.swift in Sources */,
+				CKR0000001 /* CKDatabase+Retry.swift in Sources */,
 				014000003 /* ShareSyncManager.swift in Sources */,
 				014000005 /* SVDFSerializer.swift in Sources */,
 				014000007 /* ShareSyncCache.swift in Sources */,

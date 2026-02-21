@@ -323,7 +323,7 @@ final class iCloudBackupManager: @unchecked Sendable {
                         record["chunkIndex"] = chunkIndex as CKRecordValue
                         record["backupId"] = state.backupId as CKRecordValue
 
-                        try await self.saveWithRetry(record)
+                        try await self.privateDatabase.saveWithRetry(record)
                     }
                     inFlight += 1
                 }
@@ -367,7 +367,7 @@ final class iCloudBackupManager: @unchecked Sendable {
         record["chunkCount"] = state.totalChunks as CKRecordValue
         record["backupId"] = state.backupId as CKRecordValue
 
-        try await saveWithRetry(record)
+        try await privateDatabase.saveWithRetry(record)
 
         state.manifestSaved = true
         savePendingBackupState(state)
@@ -754,7 +754,7 @@ final class iCloudBackupManager: @unchecked Sendable {
                     record["chunkIndex"] = index as CKRecordValue
                     record["backupId"] = backupId as CKRecordValue
 
-                    try await self.saveWithRetry(record)
+                    try await self.privateDatabase.saveWithRetry(record)
                 }
                 inFlight += 1
             }
@@ -873,47 +873,6 @@ final class iCloudBackupManager: @unchecked Sendable {
                     self.privateDatabase.add(operation)
                 }
             }
-        }
-    }
-
-    /// Saves a CKRecord with retry on transient CloudKit errors.
-    private func saveWithRetry(_ record: CKRecord, maxRetries: Int = 3) async throws {
-        var currentRecord = record
-        var lastError: Error?
-
-        for attempt in 0...maxRetries {
-            do {
-                try await privateDatabase.save(currentRecord)
-                return
-            } catch let error as CKError {
-                if error.code == .serverRecordChanged, attempt < maxRetries,
-                   let serverRecord = try? await privateDatabase.record(for: currentRecord.recordID) {
-                    for key in currentRecord.allKeys() {
-                        serverRecord[key] = currentRecord[key]
-                    }
-                    currentRecord = serverRecord
-                    continue
-                }
-
-                if Self.isRetryable(error) && attempt < maxRetries {
-                    lastError = error
-                    let delay = error.retryAfterSeconds ?? Double(attempt + 1) * 2
-                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                } else {
-                    throw error
-                }
-            }
-        }
-        throw lastError ?? iCloudError.uploadFailed
-    }
-
-    private static func isRetryable(_ error: CKError) -> Bool {
-        switch error.code {
-        case .networkUnavailable, .networkFailure, .serviceUnavailable,
-             .zoneBusy, .requestRateLimited, .accountTemporarilyUnavailable:
-            return true
-        default:
-            return false
         }
     }
 
