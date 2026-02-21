@@ -115,6 +115,11 @@ final class BackgroundShareTransferManager {
         try JSONEncoder().encode(state).write(to: importStateURL)
         try vaultData.write(to: importDataURL)
     }
+    
+    /// Updates just the state file without rewriting vault data (for progress updates)
+    nonisolated static func updatePendingImportState(_ state: PendingImportState) throws {
+        try JSONEncoder().encode(state).write(to: importStateURL)
+    }
 
     nonisolated static func loadPendingImportState() -> PendingImportState? {
         guard let stateData = try? Data(contentsOf: importStateURL),
@@ -958,14 +963,23 @@ final class BackgroundShareTransferManager {
                 )
             }
             
+            // Declare variables outside do block so they're accessible in catch
+            var pendingImport: PendingImportState? = Self.loadPendingImportState()
+            
             do {
-                // Check if there's a pending import to resume
-                var pendingImport = Self.loadPendingImportState()
                 let shareKey: ShareKey
                 let sharedVault: SharedVaultData
-                let result: (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int)
+                var result: (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int)!
+                var downloadSucceeded = false
                 
                 if let pending = pendingImport, pending.isDownloadComplete {
+                    // Validate that vault data file exists before attempting resume
+                    guard FileManager.default.fileExists(atPath: Self.importDataURL.path) else {
+                        Self.logger.error("[import] Vault data file missing for resume - clearing corrupted state")
+                        Self.clearPendingImport()
+                        throw CloudKitSharingError.invalidData
+                    }
+                    
                     // Resume from completed download - just need to finish import
                     Self.logger.info("[import] Resuming interrupted import with \(pending.importedFileIds.count)/\(pending.totalFiles) files already imported")
                     shareKey = ShareKey(pending.shareKeyData)
@@ -978,6 +992,11 @@ final class BackgroundShareTransferManager {
                         sharedVault = try SharedVaultData.decode(from: vaultData)
                     }
                     
+                    // Validate that file count matches expected
+                    if sharedVault.files.count != pending.totalFiles {
+                        Self.logger.warning("[import] File count mismatch: expected \(pending.totalFiles), got \(sharedVault.files.count). Proceeding with available files.")
+                    }
+                    
                     result = (vaultData, pending.shareVaultId, pending.policy, pending.shareVaultVersion)
                     self.setTargetProgress(95, message: "Resuming import...")
                 } else {
@@ -986,23 +1005,46 @@ final class BackgroundShareTransferManager {
                         Self.logger.info("[import] Resuming interrupted download for vault \(pending.shareVaultId)")
                     }
                     
-                    // Create pending state BEFORE download for resume capability
+                    // Derive share key for decrypting after download
                     shareKey = ShareKey(try KeyDerivation.deriveShareKey(from: capturedPhrase))
                     
-                    // We need to derive shareKey first to save it in pending state
-                    // But we don't know shareVaultId yet, so we'll create a placeholder
-                    // and update it after download
+                    // Attempt download with retry logic
+                    var downloadAttempts = 0
+                    let maxDownloadAttempts = 3
+                    var lastDownloadError: Error?
                     
-                    // Fresh download
-                    result = try await CloudKitSharingManager.shared.downloadSharedVault(
-                        phrase: capturedPhrase,
-                        markClaimedOnDownload: false,
-                        onProgress: { [weak self] current, total in
-                            guard let self else { return }
-                            let pct = total > 0 ? downloadWeight * current / total : 0
-                            self.setTargetProgress(pct, message: "Downloading shared vault...")
+                    while downloadAttempts < maxDownloadAttempts {
+                        do {
+                            result = try await CloudKitSharingManager.shared.downloadSharedVault(
+                                phrase: capturedPhrase,
+                                markClaimedOnDownload: false,
+                                onProgress: { [weak self] current, total in
+                                    guard let self else { return }
+                                    let pct = total > 0 ? downloadWeight * current / total : 0
+                                    self.setTargetProgress(pct, message: "Downloading shared vault...")
+                                }
+                            )
+                            lastDownloadError = nil
+                            downloadSucceeded = true
+                            break // Success!
+                        } catch {
+                            downloadAttempts += 1
+                            lastDownloadError = error
+                            Self.logger.warning("[import] Download attempt \(downloadAttempts)/\(maxDownloadAttempts) failed: \(error.localizedDescription)")
+                            
+                            if downloadAttempts < maxDownloadAttempts {
+                                // Wait before retry (exponential backoff)
+                                let delay = min(Double(downloadAttempts) * 2.0, 10.0)
+                                try? await Task.sleep(for: .seconds(delay))
+                            }
                         }
-                    )
+                    }
+                    
+                    // Check if download ultimately failed
+                    if let error = lastDownloadError {
+                        Self.logger.error("[import] Download failed after \(maxDownloadAttempts) attempts: \(error.localizedDescription)")
+                        throw error
+                    }
 
                     guard !Task.isCancelled else { 
                         Self.logger.info("[import] Download cancelled, will resume on next attempt")
@@ -1045,45 +1087,61 @@ final class BackgroundShareTransferManager {
                 
                 Self.logger.info("[import] Importing \(filesToImport.count) remaining files (\(alreadyImportedIds.count) already done)")
 
-                for (i, file) in filesToImport.enumerated() {
+                for (_, file) in filesToImport.enumerated() {
                     guard !Task.isCancelled else {
                         // Save progress before returning so we can resume
-                        try Self.savePendingImport(pendingImportState, vaultData: result.data)
+                        // Use updatePendingImportState to avoid rewriting vault data
+                        try Self.updatePendingImportState(pendingImportState)
                         Self.logger.info("[import] Import interrupted after \(pendingImportState.importedFileIds.count) files - saved state for resume")
                         return
                     }
                     
-                    try autoreleasepool {
-                        let decrypted = try CryptoEngine.decryptStaged(file.encryptedContent, with: shareKey.rawBytes)
-                        let thumbnailData = Self.resolveThumbnail(
-                            encryptedThumbnail: file.encryptedThumbnail,
-                            mimeType: file.mimeType,
-                            decryptedData: decrypted,
-                            shareKey: shareKey.rawBytes
-                        )
+                    do {
+                        try autoreleasepool {
+                            let decrypted = try CryptoEngine.decryptStaged(file.encryptedContent, with: shareKey.rawBytes)
+                            let thumbnailData = Self.resolveThumbnail(
+                                encryptedThumbnail: file.encryptedThumbnail,
+                                mimeType: file.mimeType,
+                                decryptedData: decrypted,
+                                shareKey: shareKey.rawBytes
+                            )
 
-                        _ = try VaultStorage.shared.storeFile(
-                            data: decrypted,
-                            filename: file.filename,
-                            mimeType: file.mimeType,
-                            with: capturedPatternKey,
-                            thumbnailData: thumbnailData,
-                            duration: file.duration,
-                            fileId: file.id  // <- Preserve original file ID from shared vault
-                        )
+                            _ = try VaultStorage.shared.storeFile(
+                                data: decrypted,
+                                filename: file.filename,
+                                mimeType: file.mimeType,
+                                with: capturedPatternKey,
+                                thumbnailData: thumbnailData,
+                                duration: file.duration,
+                                fileId: file.id  // <- Preserve original file ID from shared vault
+                            )
+                            
+                            // Track successful import
+                            pendingImportState.importedFileIds.append(file.id.uuidString)
+                        }
+
+                        // Save progress after EVERY file for crash recovery
+                        // Use updatePendingImportState to avoid rewriting vault data (already saved after download)
+                        try Self.updatePendingImportState(pendingImportState)
+
+                        let totalImported = pendingImportState.importedFileIds.count
+                        let pct = downloadWeight + (fileCount > 0 ? importWeight * totalImported / fileCount : importWeight)
+                        self.setTargetProgress(pct, message: "Importing files... (\(totalImported)/\(fileCount))")
+                        await Task.yield()
+                    } catch {
+                        // Individual file import failed - log and continue with next file
+                        // Don't let one corrupted file stop the entire import
+                        Self.logger.error("[import] Failed to import file \(file.id): \(error.localizedDescription)")
                         
-                        // Track successful import
+                        // Still mark this file as "imported" so we skip it on resume
+                        // (otherwise we'd get stuck in an infinite retry loop)
                         pendingImportState.importedFileIds.append(file.id.uuidString)
+                        pendingImportState.downloadError = "Failed to import \(file.filename): \(error.localizedDescription)"
+                        try? Self.updatePendingImportState(pendingImportState)
+                        
+                        // Continue with next file
+                        continue
                     }
-
-                    // Save progress after EVERY file for crash recovery
-                    // (Batching every 5 files was causing up to 4 files of lost progress on crash)
-                    try Self.savePendingImport(pendingImportState, vaultData: result.data)
-
-                    let totalImported = pendingImportState.importedFileIds.count
-                    let pct = downloadWeight + (fileCount > 0 ? importWeight * totalImported / fileCount : importWeight)
-                    self.setTargetProgress(pct, message: "Importing files... (\(totalImported)/\(fileCount))")
-                    await Task.yield()
                 }
 
                 guard !Task.isCancelled else { return }
@@ -1114,6 +1172,23 @@ final class BackgroundShareTransferManager {
                 Self.logger.error("[import] IMPORT FAILED: \(error.localizedDescription, privacy: .public)")
                 Self.logger.error("[import] error type: \(String(describing: type(of: error)), privacy: .public)")
                 EmbraceManager.shared.captureError(error)
+                
+                // CRITICAL: Save partial progress if we have any imported files
+                // This allows user to resume from where it failed
+                // Note: pendingImportState is declared inside do block, but we can access pendingImport
+                // which gets updated throughout the import process
+                if let pending = pendingImport, !pending.importedFileIds.isEmpty {
+                    var pendingWithError = pending
+                    pendingWithError.downloadError = error.localizedDescription
+                    Self.logger.info("[import] Saving partial progress with \(pendingWithError.importedFileIds.count) files imported before error")
+                    do {
+                        // Only update the state file, don't rewrite the vault data
+                        try Self.updatePendingImportState(pendingWithError)
+                    } catch {
+                        Self.logger.error("[import] Failed to save partial progress: \(error.localizedDescription)")
+                    }
+                }
+                
                 self.finishTransfer(.importFailed(error.localizedDescription))
             }
         }
