@@ -661,8 +661,14 @@ struct iCloudBackupSettingsView: View {
             if !available && isBackupEnabled {
                 isBackupEnabled = false
             }
+            
+            // Check for interrupted backup that needs to be resumed
+            if available && backupManager.hasPendingBackup {
+                errorMessage = "A previous backup was interrupted. Tap 'Backup Now' to resume and complete it."
+            }
+            
             // Auto-backup if enabled and overdue
-            if isBackupEnabled && available && isBackupOverdue {
+            if isBackupEnabled && available && isBackupOverdue && !backupManager.hasPendingBackup {
                 performBackup()
             }
         }
@@ -693,6 +699,13 @@ struct iCloudBackupSettingsView: View {
 
     private func performBackup() {
         guard !isBackingUp else { return }
+        
+        // Check if there's a pending backup to resume
+        if backupManager.hasPendingBackup {
+            resumePendingBackup()
+            return
+        }
+        
         guard let key = appState.currentVaultKey else {
             errorMessage = "No vault key available"
             return
@@ -746,6 +759,57 @@ struct iCloudBackupSettingsView: View {
                 EmbraceManager.shared.captureError(
                     error,
                     context: ["feature": "icloud_backup_settings"]
+                )
+                await MainActor.run {
+                    errorMessage = "\(error.localizedDescription)\n\nError type: \(type(of: error))\nDetails: \(error)"
+                    isBackingUp = false
+                    backupStage = nil
+                }
+            }
+        }
+    }
+    
+    /// Resumes an interrupted backup from staged data
+    private func resumePendingBackup() {
+        isBackingUp = true
+        backupStage = .uploading
+        uploadProgress = 0
+        errorMessage = nil
+        IdleTimerManager.shared.disable()
+
+        backupTask = Task {
+            defer {
+                Task { @MainActor in
+                    IdleTimerManager.shared.enable()
+                }
+            }
+            do {
+                // Resume upload from staged data (no vault key needed)
+                try await backupManager.uploadStagedBackup(onUploadProgress: { progress in
+                    Task { @MainActor in
+                        uploadProgress = progress
+                    }
+                })
+                await MainActor.run {
+                    lastBackupTimestamp = Date().timeIntervalSince1970
+                    isBackingUp = false
+                    backupStage = nil
+                }
+            } catch is CancellationError {
+                await MainActor.run {
+                    isBackingUp = false
+                    backupStage = nil
+                }
+            } catch iCloudError.notAvailable {
+                await MainActor.run {
+                    errorMessage = "iCloud is not available. Check that you're signed in to iCloud in Settings."
+                    isBackingUp = false
+                    backupStage = nil
+                }
+            } catch {
+                EmbraceManager.shared.captureError(
+                    error,
+                    context: ["feature": "icloud_backup_resume"]
                 )
                 await MainActor.run {
                     errorMessage = "\(error.localizedDescription)\n\nError type: \(type(of: error))\nDetails: \(error)"
@@ -944,12 +1008,16 @@ struct RestoreFromBackupView: View {
 
     private func checkForBackup() async {
         isCheckingBackup = true
-        let result = await backupManager.checkForBackup()
+        let result = await backupManager.checkForBackup(vaultKey: appState.currentVaultKey)
         await MainActor.run {
             switch result {
-            case .found(let info):
+            case .found(let info, let isStale):
                 backupInfo = info
                 noBackupFound = false
+                // If backup is stale or there was an interrupted backup, show warning
+                if isStale {
+                    errorMessage = "Backup is outdated. New files have been added since the last backup. Tap 'Backup Now' to update."
+                }
             case .notFound:
                 noBackupFound = true
             case .error(let message):

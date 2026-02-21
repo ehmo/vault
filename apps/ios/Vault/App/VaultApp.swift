@@ -3,6 +3,7 @@ import UserNotifications
 import CryptoKit
 import os.log
 import QuartzCore
+import AVFoundation
 
 enum AppAppearanceMode: String, CaseIterable {
     case system
@@ -561,6 +562,15 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+
+        // Configure audio session to allow video playback with sound
+        // This enables audio even when the device is in silent mode
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [])
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("Failed to configure audio session: \(error.localizedDescription)")
+        }
 
         #if DEBUG
         // Disable animations for faster XCUITest execution

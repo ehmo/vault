@@ -34,7 +34,9 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         createdAt: Date = Date(),
         uploadFinished: Bool = false,
         manifestSaved: Bool = false,
-        retryCount: Int = 0
+        retryCount: Int = 0,
+        fileCount: Int = 10,
+        vaultTotalSize: Int = 102400
     ) {
         let state = iCloudBackupManager.PendingBackupState(
             backupId: backupId,
@@ -44,7 +46,9 @@ final class iCloudBackupBackgroundTests: XCTestCase {
             createdAt: createdAt,
             uploadFinished: uploadFinished,
             manifestSaved: manifestSaved,
-            retryCount: retryCount
+            retryCount: retryCount,
+            fileCount: fileCount,
+            vaultTotalSize: vaultTotalSize
         )
         try? fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
         let data = try! JSONEncoder().encode(state)

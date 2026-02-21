@@ -84,6 +84,9 @@ final class iCloudBackupManager: @unchecked Sendable {
         var manifestSaved: Bool
         /// Number of upload retry attempts (for exponential backoff)
         var retryCount: Int
+        /// Vault state at backup time for staleness detection
+        let fileCount: Int
+        let vaultTotalSize: Int
     }
 
     /// 48-hour TTL for staged backups
@@ -250,7 +253,9 @@ final class iCloudBackupManager: @unchecked Sendable {
             createdAt: Date(),
             uploadFinished: false,
             manifestSaved: false,
-            retryCount: 0
+            retryCount: 0,
+            fileCount: index.files.count,
+            vaultTotalSize: index.totalSize
         )
         savePendingBackupState(state)
 
@@ -339,7 +344,9 @@ final class iCloudBackupManager: @unchecked Sendable {
             checksum: state.checksum,
             formatVersion: 2,
             chunkCount: state.totalChunks,
-            backupId: state.backupId
+            backupId: state.backupId,
+            fileCount: state.fileCount,
+            vaultTotalSize: state.vaultTotalSize
         )
         let metadataJson = try JSONEncoder().encode(metadata)
 
@@ -1058,17 +1065,35 @@ final class iCloudBackupManager: @unchecked Sendable {
     // MARK: - Restore
 
     enum BackupCheckResult {
-        case found(BackupMetadata)
+        case found(BackupMetadata, isStale: Bool)
         case notFound
         case error(String)
     }
 
-    func checkForBackup() async -> BackupCheckResult {
+    /// Checks if a backup exists and whether it's stale compared to current vault state
+    func checkForBackup(vaultKey: VaultKey? = nil) async -> BackupCheckResult {
         do {
             try await waitForAvailableAccount()
         } catch {
             Self.logger.error("[backup] iCloud not available for backup check: \(error)")
             return .error("iCloud is not available. Check that you're signed in to iCloud in Settings.")
+        }
+
+        // First check if there's a pending/staged backup that was interrupted
+        if let pendingState = loadPendingBackupState() {
+            Self.logger.info("[backup] Found pending backup state from interrupted backup")
+            // Return as found but stale since it needs to be completed
+            let metadata = BackupMetadata(
+                timestamp: pendingState.createdAt,
+                size: pendingState.encryptedSize,
+                checksum: pendingState.checksum,
+                formatVersion: 2,
+                chunkCount: pendingState.totalChunks,
+                backupId: pendingState.backupId,
+                fileCount: pendingState.fileCount,
+                vaultTotalSize: pendingState.vaultTotalSize
+            )
+            return .found(metadata, isStale: true)
         }
 
         let recordID = CKRecord.ID(recordName: backupRecordName)
@@ -1079,13 +1104,49 @@ final class iCloudBackupManager: @unchecked Sendable {
                 return .error("Backup record exists but metadata is missing.")
             }
             let metadata = try JSONDecoder().decode(BackupMetadata.self, from: metadataData)
-            return .found(metadata)
+            
+            // Check if backup is stale by comparing with current vault state
+            let isStale = await checkIfBackupIsStale(metadata: metadata, vaultKey: vaultKey)
+            
+            return .found(metadata, isStale: isStale)
         } catch let ckError as CKError where ckError.code == .unknownItem {
             Self.logger.info("[backup] No backup record exists in CloudKit")
             return .notFound
         } catch {
             Self.logger.error("[backup] checkForBackup failed: \(error)")
             return .error("Failed to check iCloud: \(error.localizedDescription)")
+        }
+    }
+    
+    /// Checks if the backup is stale by comparing vault state
+    private func checkIfBackupIsStale(metadata: BackupMetadata, vaultKey: VaultKey?) async -> Bool {
+        guard let key = vaultKey else {
+            // Can't check without vault key, assume not stale
+            return false
+        }
+        
+        do {
+            let index = try VaultStorage.shared.loadIndex(with: key)
+            let currentFileCount = index.files.count
+            let currentTotalSize = index.totalSize
+            
+            // Backup is stale if file count or total size differs
+            if let backupFileCount = metadata.fileCount,
+               let backupTotalSize = metadata.vaultTotalSize {
+                let stale = currentFileCount != backupFileCount || currentTotalSize != backupTotalSize
+                if stale {
+                    Self.logger.info("[backup] Backup is stale: files \(backupFileCount) -> \(currentFileCount), size \(backupTotalSize) -> \(currentTotalSize)")
+                }
+                return stale
+            }
+            
+            // For old backups without fileCount/vaultTotalSize, we can't determine staleness
+            // So we assume it might be stale if it's more than 24 hours old
+            let hoursSinceBackup = Date().timeIntervalSince(metadata.timestamp) / 3600
+            return hoursSinceBackup > 24
+        } catch {
+            Self.logger.error("[backup] Failed to check backup staleness: \(error)")
+            return false
         }
     }
 
@@ -1219,15 +1280,20 @@ final class iCloudBackupManager: @unchecked Sendable {
         let formatVersion: Int?   // nil=v1 single asset, 2=chunked
         let chunkCount: Int?
         let backupId: String?
+        let fileCount: Int?       // Number of files in vault at backup time
+        let vaultTotalSize: Int?  // Total vault size at backup time
 
         init(timestamp: Date, size: Int, checksum: Data,
-             formatVersion: Int? = nil, chunkCount: Int? = nil, backupId: String? = nil) {
+             formatVersion: Int? = nil, chunkCount: Int? = nil, backupId: String? = nil,
+             fileCount: Int? = nil, vaultTotalSize: Int? = nil) {
             self.timestamp = timestamp
             self.size = size
             self.checksum = checksum
             self.formatVersion = formatVersion
             self.chunkCount = chunkCount
             self.backupId = backupId
+            self.fileCount = fileCount
+            self.vaultTotalSize = vaultTotalSize
         }
 
         var formattedDate: String {
