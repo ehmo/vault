@@ -356,6 +356,7 @@
 
         const runtime = {
           disposed: false,
+          heroVisible: true,
           width: 0,
           height: 0,
           bgDots: [],
@@ -372,6 +373,8 @@
           timeoutIds: new Set(),
           sequences: [[0, 5, 6, 7, 12, 17, 16, 15, 20, 21, 22, 23, 24]]
         };
+
+        let resizeRafId = 0;
 
         const scheduleTimeout = (fn, ms) => {
           const id = window.setTimeout(() => {
@@ -423,8 +426,18 @@
           initDots();
         };
 
+        const scheduleResize = () => {
+          if (runtime.disposed || resizeRafId) return;
+          resizeRafId = window.requestAnimationFrame(() => {
+            resizeRafId = 0;
+            if (!runtime.disposed) {
+              resize();
+            }
+          });
+        };
+
         const drawRandomPattern = () => {
-          if (runtime.drawingPath || runtime.bgDots.length === 0 || runtime.disposed || document.hidden) return;
+          if (runtime.drawingPath || runtime.bgDots.length === 0 || runtime.disposed || document.hidden || !runtime.heroVisible) return;
           runtime.drawingPath = true;
 
           const startIndex = Math.floor(Math.random() * runtime.bgDots.length);
@@ -455,7 +468,7 @@
         };
 
         const draw = () => {
-          if (runtime.disposed || document.hidden) {
+          if (runtime.disposed || document.hidden || !runtime.heroVisible) {
             runtime.drawRafId = 0;
             return;
           }
@@ -473,7 +486,7 @@
         };
 
         const startDrawLoop = () => {
-          if (runtime.disposed || document.hidden || runtime.drawRafId) return;
+          if (runtime.disposed || document.hidden || !runtime.heroVisible || runtime.drawRafId) return;
           runtime.drawRafId = window.requestAnimationFrame(draw);
         };
 
@@ -491,7 +504,7 @@
         };
 
         const scheduleMinuteTick = () => {
-          if (runtime.disposed || document.hidden) return;
+          if (runtime.disposed || document.hidden || !runtime.heroVisible) return;
           updateMockupTime();
           const now = new Date();
           const msUntilNextMinute = ((60 - now.getSeconds()) * 1000) - now.getMilliseconds();
@@ -531,13 +544,13 @@
         };
 
         const sleep = (ms, ticket) => new Promise((resolve) => {
-          scheduleTimeout(() => resolve(!runtime.disposed && !document.hidden && ticket === runtime.patternLoopTicket), ms);
+          scheduleTimeout(() => resolve(!runtime.disposed && !document.hidden && runtime.heroVisible && ticket === runtime.patternLoopTicket), ms);
         });
 
         const animateSegment = (stablePoints, fromPoint, toPoint, durationMs, ticket) => new Promise((resolve) => {
           const startedAt = performance.now();
           const tick = (now) => {
-            if (runtime.disposed || document.hidden || ticket !== runtime.patternLoopTicket) {
+            if (runtime.disposed || document.hidden || !runtime.heroVisible || ticket !== runtime.patternLoopTicket) {
               resolve(false);
               return;
             }
@@ -593,7 +606,7 @@
 
         const animatePatternLoop = async (ticket) => {
           if (!(await sleep(700, ticket))) return;
-          while (!runtime.disposed && !document.hidden && ticket === runtime.patternLoopTicket) {
+          while (!runtime.disposed && !document.hidden && runtime.heroVisible && ticket === runtime.patternLoopTicket) {
             const sequence = runtime.sequences[runtime.sequenceIndex];
             const ok = await runSequence(sequence, ticket);
             if (!ok) break;
@@ -605,7 +618,7 @@
         };
 
         const startPatternLoop = () => {
-          if (runtime.disposed || document.hidden || runtime.patternLoopRunning) return;
+          if (runtime.disposed || document.hidden || !runtime.heroVisible || runtime.patternLoopRunning) return;
           runtime.patternLoopRunning = true;
           runtime.patternLoopTicket += 1;
           animatePatternLoop(runtime.patternLoopTicket).catch(() => {
@@ -633,7 +646,7 @@
         };
 
         const resume = () => {
-          if (runtime.disposed || document.hidden) return;
+          if (runtime.disposed || document.hidden || !runtime.heroVisible) return;
           resize();
           updateCanvasTheme();
           startDrawLoop();
@@ -649,7 +662,7 @@
         };
 
         const onVisibility = () => {
-          if (document.hidden) {
+          if (document.hidden || !runtime.heroVisible) {
             pause();
           } else {
             resume();
@@ -660,16 +673,42 @@
           updateCanvasTheme();
         };
 
+        const heroSection = document.querySelector(".hero");
+        let heroObserver = null;
+
+        if (heroSection && typeof IntersectionObserver !== "undefined") {
+          heroObserver = new IntersectionObserver((entries) => {
+            const entry = entries[0];
+            runtime.heroVisible = Boolean(entry && entry.isIntersecting);
+            if (runtime.heroVisible && !document.hidden) {
+              resume();
+            } else {
+              pause();
+            }
+          }, { threshold: 0.05 });
+          heroObserver.observe(heroSection);
+        } else {
+          runtime.heroVisible = true;
+        }
+
         document.addEventListener("visibilitychange", onVisibility);
         window.addEventListener("pageshow", resume);
         window.addEventListener("vaultaire-themechange", onThemeChange);
-        window.addEventListener("resize", resize);
+        window.addEventListener("resize", scheduleResize);
 
         this._pushCleanup(() => {
           document.removeEventListener("visibilitychange", onVisibility);
           window.removeEventListener("pageshow", resume);
           window.removeEventListener("vaultaire-themechange", onThemeChange);
-          window.removeEventListener("resize", resize);
+          window.removeEventListener("resize", scheduleResize);
+          if (resizeRafId) {
+            window.cancelAnimationFrame(resizeRafId);
+            resizeRafId = 0;
+          }
+          if (heroObserver) {
+            heroObserver.disconnect();
+            heroObserver = null;
+          }
           dispose();
         });
 

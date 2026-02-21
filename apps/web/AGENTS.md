@@ -92,3 +92,4 @@ The `apple-app-site-association` file MUST:
 - In Alpine pages, do not combine `x-init="init()"` with a component `init()` method; Alpine already auto-runs `init()` and double-wiring causes duplicated listeners (for example theme toggle double-flip).
 - Keep hero/mockup placeholder media local (`assets/mockup/*`) instead of third-party placeholder hosts to avoid extra DNS/network latency and flaky external dependencies.
 - Scope non-home page CSS under page-specific body classes (`.page-privacy`, `.page-terms`, `.page-manifesto`, `.page-invite`, `.page-compare`) so later imports do not leak `main/h1/section` rules back into home and break header/hero layout.
+- Home hero animation should pause when the hero is off-screen (IntersectionObserver), not only on tab-hide/pagehide, to reduce long-session CPU/memory churn from always-on RAF/timers while users read lower sections.
