@@ -177,13 +177,7 @@ final class CloudKitSharingManager {
         }
 
         let phraseVaultId = Self.vaultId(from: phrase)
-        // Use ERROR level for critical debugging info
-        Self.logger.error("🔴 UPLOAD DEBUG phraseVaultId: \(phraseVaultId, privacy: .public)")
-        Self.logger.error("🔴 UPLOAD DEBUG shareVaultId: \(shareVaultId, privacy: .public)")
-        #if DEBUG
-        print("🔴 UPLOAD DEBUG phraseVaultId: \(phraseVaultId)")
-        print("🔴 UPLOAD DEBUG shareVaultId: \(shareVaultId)")
-        #endif
+        Self.logger.debug("[upload] phraseVaultId: \(phraseVaultId, privacy: .private) shareVaultId: \(shareVaultId, privacy: .private)")
 
         // v2: skip outer encryption — individual files are already encrypted with shareKey
         let uploadData = vaultData
@@ -208,10 +202,7 @@ final class CloudKitSharingManager {
         let manifestStart = CFAbsoluteTimeGetCurrent()
 
         do {
-            Self.logger.error("🔴 UPLOAD DEBUG Saving manifest with phraseVaultId: \(phraseVaultId, privacy: .public)")
-            #if DEBUG
-            print("🔴 UPLOAD DEBUG Saving manifest with phraseVaultId: \(phraseVaultId)")
-            #endif
+            Self.logger.debug("[upload] saving manifest for phraseVaultId: \(phraseVaultId, privacy: .private)")
             try await saveManifest(
                 shareVaultId: shareVaultId,
                 phraseVaultId: phraseVaultId,
@@ -220,15 +211,9 @@ final class CloudKitSharingManager {
                 ownerFingerprint: ownerFingerprint,
                 totalChunks: totalChunks
             )
-            Self.logger.error("🔴 UPLOAD DEBUG Manifest saved successfully")
-            #if DEBUG
-            print("🔴 UPLOAD DEBUG Manifest saved successfully")
-            #endif
+            Self.logger.debug("[upload] manifest saved successfully")
         } catch {
-            Self.logger.error("🔴 UPLOAD DEBUG Manifest save FAILED: \(error.localizedDescription, privacy: .public)")
-            #if DEBUG
-            print("🔴 UPLOAD DEBUG Manifest save FAILED: \(error)")
-            #endif
+            Self.logger.error("[upload] manifest save failed: \(error.localizedDescription, privacy: .private)")
             EmbraceManager.shared.captureError(error)
             transaction.finish(status: .internalError)
             throw error
@@ -309,7 +294,7 @@ final class CloudKitSharingManager {
             }
         }
 
-        Self.logger.info("[sync-incremental] \(uploadedCount)/\(totalChunks) chunks uploaded for \(shareVaultId, privacy: .public)")
+        Self.logger.info("[sync-incremental] \(uploadedCount)/\(totalChunks) chunks uploaded for \(shareVaultId, privacy: .private)")
 
         try await updateManifestRecord(shareVaultId: shareVaultId, chunkCount: totalChunks)
     }
@@ -348,7 +333,7 @@ final class CloudKitSharingManager {
             }
         }
 
-        Self.logger.info("[sync-incremental] \(changedIndices.count)/\(totalChunks) chunks uploaded for \(shareVaultId, privacy: .public)")
+        Self.logger.info("[sync-incremental] \(changedIndices.count)/\(totalChunks) chunks uploaded for \(shareVaultId, privacy: .private)")
 
         try await updateManifestRecord(shareVaultId: shareVaultId, chunkCount: totalChunks)
     }
@@ -364,13 +349,7 @@ final class CloudKitSharingManager {
     ) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
         let transaction = EmbraceManager.shared.startTransaction(name: "share.download", operation: "share.download")
         let phraseVaultId = Self.vaultId(from: phrase)
-        // Use ERROR level for critical debugging info
-        Self.logger.error("🔴 DOWNLOAD DEBUG Looking for manifest with phraseVaultId: \(phraseVaultId, privacy: .public)")
-        Self.logger.error("🔴 DOWNLOAD DEBUG Phrase: \(phrase, privacy: .public)")
-        #if DEBUG
-        print("🔴 DOWNLOAD DEBUG Looking for manifest with phraseVaultId: \(phraseVaultId)")
-        print("🔴 DOWNLOAD DEBUG Phrase: \(phrase)")
-        #endif
+        Self.logger.debug("[download] looking for manifest with phraseVaultId: \(phraseVaultId, privacy: .private)")
         
         // Try v2 (per-phrase salt) key first, fall back to v1 (fixed salt) for existing shares
         let shareKeyV2 = ShareKey(try KeyDerivation.deriveShareKey(from: phrase))
@@ -382,15 +361,9 @@ final class CloudKitSharingManager {
         let manifest: CKRecord
         do {
             manifest = try await publicDatabase.record(for: manifestRecordId)
-            Self.logger.error("🔴 DOWNLOAD DEBUG Manifest found successfully")
-            #if DEBUG
-            print("🔴 DOWNLOAD DEBUG Manifest found successfully")
-            #endif
+            Self.logger.debug("[download] manifest found")
         } catch let error as CKError where error.code == .unknownItem {
-            Self.logger.error("🔴 DOWNLOAD DEBUG Manifest NOT FOUND for phraseVaultId: \(phraseVaultId, privacy: .public)")
-            #if DEBUG
-            print("🔴 DOWNLOAD DEBUG Manifest NOT FOUND for phraseVaultId: \(phraseVaultId)")
-            #endif
+            Self.logger.warning("[download] manifest not found for phraseVaultId: \(phraseVaultId, privacy: .private)")
             transaction.finish(status: .notFound)
             throw CloudKitSharingError.vaultNotFound
         } catch {
@@ -845,9 +818,9 @@ final class CloudKitSharingManager {
                 try await publicDatabase.save(currentRecord)
                 return
             } catch let error as CKError {
-                Self.logger.error("[upload-telemetry] CKError code=\(error.code.rawValue) desc=\(error.localizedDescription, privacy: .public)")
+                Self.logger.error("[upload-telemetry] CKError code=\(error.code.rawValue) desc=\(error.localizedDescription, privacy: .private)")
                 if let underlying = error.userInfo[NSUnderlyingErrorKey] as? Error {
-                    Self.logger.error("[upload-telemetry] underlying: \(underlying.localizedDescription, privacy: .public)")
+                    Self.logger.error("[upload-telemetry] underlying: \(underlying.localizedDescription, privacy: .private)")
                 }
 
                 // Handle "record already exists" by fetching server version and updating it
@@ -879,7 +852,7 @@ final class CloudKitSharingManager {
                     throw error
                 }
             } catch {
-                Self.logger.error("[upload-telemetry] non-CK error: \(error.localizedDescription, privacy: .public)")
+                Self.logger.error("[upload-telemetry] non-CK error: \(error.localizedDescription, privacy: .private)")
                 throw error
             }
         }
@@ -924,7 +897,7 @@ final class CloudKitSharingManager {
             }
             return statusById
         } catch {
-            Self.logger.warning("Failed to batch-check consumed status: \(error.localizedDescription, privacy: .public)")
+            Self.logger.warning("Failed to batch-check consumed status: \(error.localizedDescription, privacy: .private)")
             return [:]
         }
     }
@@ -963,7 +936,7 @@ final class CloudKitSharingManager {
             }
         } catch {
             // Non-fatal: chunks may not exist yet
-            Self.logger.warning("Failed to delete chunks: \(error.localizedDescription, privacy: .public)")
+            Self.logger.warning("Failed to delete chunks: \(error.localizedDescription, privacy: .private)")
         }
     }
 
@@ -1015,7 +988,7 @@ final class CloudKitSharingManager {
             Self.logger.info("[icloud-check] CKAccountStatus = \(status.rawValue) (\(Self.statusName(status), privacy: .public))")
             return status
         } catch {
-            Self.logger.error("[icloud-check] accountStatus() threw: \(error.localizedDescription, privacy: .public)")
+            Self.logger.error("[icloud-check] accountStatus() threw: \(error.localizedDescription, privacy: .private)")
             return .couldNotDetermine
         }
     }
