@@ -8,6 +8,14 @@ private let shareSyncLogger = Logger(subsystem: "app.vaultaire.ios", category: "
 
 /// Manages background sync of vault data to all active share recipients.
 /// Debounces file changes briefly and uploads to all active share vault IDs.
+///
+/// Sync is two-phase for resilience:
+/// 1. **Stage**: Build SVDF while vault is unlocked → write encrypted data to
+///    `Documents/pending_sync/{shareVaultId}/` with `.completeUntilFirstUserAuthentication`.
+/// 2. **Upload**: Read staged data from disk → upload to CloudKit. No vault key needed.
+///
+/// If the app is killed mid-upload, the staged SVDF survives on disk and upload
+/// resumes automatically on next app launch (no vault key required).
 @MainActor
 @Observable
 final class ShareSyncManager {
@@ -29,9 +37,105 @@ final class ShareSyncManager {
     private var deferredSyncVaultKey: VaultKey?
     private var currentBgTaskId: UIBackgroundTaskIdentifier = .invalid
     private let debounceInterval: TimeInterval = 5
+    /// Active resume tasks by shareVaultId, to avoid duplicate resume attempts
+    private var resumeTasks: [String: Task<Void, Never>] = [:]
 
     private let storage: VaultStorageProtocol
     private let cloudKit: CloudKitSharingClient
+
+    // MARK: - Pending Sync State (Staging)
+
+    struct PendingSyncState: Codable {
+        let shareVaultId: String
+        let shareKeyData: Data
+        let totalChunks: Int
+        let newChunkHashes: [String]
+        let previousChunkHashes: [String]
+        let createdAt: Date
+        var uploadFinished: Bool
+    }
+
+    /// 48-hour TTL for staged syncs
+    private nonisolated static let pendingSyncTTL: TimeInterval = 48 * 60 * 60
+
+    private nonisolated static var syncStagingRootDir: URL {
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("pending_sync", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    private nonisolated static func syncStagingDir(for shareVaultId: String) -> URL {
+        syncStagingRootDir.appendingPathComponent(shareVaultId, isDirectory: true)
+    }
+
+    private nonisolated static func syncSvdfURL(for shareVaultId: String) -> URL {
+        syncStagingDir(for: shareVaultId).appendingPathComponent("svdf_data.bin")
+    }
+
+    private nonisolated static func syncStateURL(for shareVaultId: String) -> URL {
+        syncStagingDir(for: shareVaultId).appendingPathComponent("state.json")
+    }
+
+    nonisolated func loadPendingSyncState(for shareVaultId: String) -> PendingSyncState? {
+        let stateURL = Self.syncStateURL(for: shareVaultId)
+        guard let data = try? Data(contentsOf: stateURL),
+              let state = try? JSONDecoder().decode(PendingSyncState.self, from: data) else {
+            return nil
+        }
+        guard Date().timeIntervalSince(state.createdAt) < Self.pendingSyncTTL else {
+            clearSyncStaging(for: shareVaultId)
+            return nil
+        }
+        // Verify SVDF file still exists
+        let svdfURL = Self.syncSvdfURL(for: shareVaultId)
+        guard FileManager.default.fileExists(atPath: svdfURL.path) else {
+            clearSyncStaging(for: shareVaultId)
+            return nil
+        }
+        return state
+    }
+
+    private nonisolated func savePendingSyncState(_ state: PendingSyncState) {
+        let dir = Self.syncStagingDir(for: state.shareVaultId)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        do {
+            let data = try JSONEncoder().encode(state)
+            let stateURL = Self.syncStateURL(for: state.shareVaultId)
+            try data.write(to: stateURL, options: .atomic)
+            try FileManager.default.setAttributes(
+                [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+                ofItemAtPath: stateURL.path
+            )
+        } catch {
+            shareSyncLogger.error("[staging] Failed to save pending sync state: \(error.localizedDescription)")
+        }
+    }
+
+    private nonisolated func clearSyncStaging(for shareVaultId: String) {
+        try? FileManager.default.removeItem(at: Self.syncStagingDir(for: shareVaultId))
+    }
+
+    /// Returns all shareVaultIds with valid pending sync state on disk.
+    nonisolated func pendingSyncShareVaultIds() -> [String] {
+        let rootDir = Self.syncStagingRootDir
+        guard let contents = try? FileManager.default.contentsOfDirectory(
+            at: rootDir,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ) else {
+            return []
+        }
+        return contents.compactMap { dir -> String? in
+            guard dir.hasDirectoryPath else { return nil }
+            let shareVaultId = dir.lastPathComponent
+            return loadPendingSyncState(for: shareVaultId) != nil ? shareVaultId : nil
+        }
+    }
+
+    var hasPendingSyncs: Bool {
+        !pendingSyncShareVaultIds().isEmpty
+    }
 
     private init(
         storage: VaultStorageProtocol = VaultStorage.shared,
@@ -196,15 +300,34 @@ final class ShareSyncManager {
                     continue
                 }
 
-                // Ensure temp file is always cleaned up
-                defer { try? FileManager.default.removeItem(at: buildResult.svdfFileURL) }
-
                 syncProgress = (i + 1, totalShares)
 
-                // Upload changed chunks from file (reads 2MB at a time)
+                // Stage SVDF to persistent dir (replaces any old staging for this share)
+                let stagingDir = Self.syncStagingDir(for: share.id)
+                let stagedSvdfURL = Self.syncSvdfURL(for: share.id)
+                clearSyncStaging(for: share.id)
+                try FileManager.default.createDirectory(at: stagingDir, withIntermediateDirectories: true)
+                try FileManager.default.moveItem(at: buildResult.svdfFileURL, to: stagedSvdfURL)
+                try FileManager.default.setAttributes(
+                    [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+                    ofItemAtPath: stagedSvdfURL.path
+                )
+
+                let pendingSyncState = PendingSyncState(
+                    shareVaultId: share.id,
+                    shareKeyData: shareKeyData,
+                    totalChunks: buildResult.chunkHashes.count,
+                    newChunkHashes: buildResult.chunkHashes,
+                    previousChunkHashes: buildResult.syncState.chunkHashes,
+                    createdAt: Date(),
+                    uploadFinished: false
+                )
+                savePendingSyncState(pendingSyncState)
+
+                // Upload changed chunks from staged file (reads 2MB at a time)
                 try await cloudKit.syncSharedVaultIncrementalFromFile(
                     shareVaultId: share.id,
-                    svdfFileURL: buildResult.svdfFileURL,
+                    svdfFileURL: stagedSvdfURL,
                     newChunkHashes: buildResult.chunkHashes,
                     previousChunkHashes: buildResult.syncState.chunkHashes
                 )
@@ -212,10 +335,10 @@ final class ShareSyncManager {
                 // Save updated cache (copies file, doesn't load into memory)
                 let keyFingerprint = vaultKey.rawBytes.hashValue
                 let cache = ShareSyncCache(shareVaultId: share.id, vaultKeyFingerprint: String(keyFingerprint))
-                try cache.saveSVDF(from: buildResult.svdfFileURL)
+                try cache.saveSVDF(from: stagedSvdfURL)
 
                 // Get file size for sync state
-                let fileAttrs = try FileManager.default.attributesOfItem(atPath: buildResult.svdfFileURL.path)
+                let fileAttrs = try FileManager.default.attributesOfItem(atPath: stagedSvdfURL.path)
                 let svdfSize = (fileAttrs[.size] as? Int) ?? 0
 
                 var updatedState = buildResult.syncState
@@ -223,6 +346,9 @@ final class ShareSyncManager {
                 updatedState.totalBytes = svdfSize
                 updatedState.syncSequence += 1
                 try cache.saveSyncState(updatedState)
+
+                // Upload succeeded — clear staging for this share
+                clearSyncStaging(for: share.id)
 
                 successCount += 1
                 shareUpdates.append((id: share.id, syncSequence: updatedState.syncSequence))
@@ -470,5 +596,56 @@ final class ShareSyncManager {
         let encryptedHeader = entry.encryptedHeaderPreview.subdata(in: 4..<(4 + Int(headerSize)))
         let decryptedHeaderData = try CryptoEngine.decrypt(encryptedHeader, with: masterKey)
         return try CryptoEngine.EncryptedFileHeader.deserialize(from: decryptedHeaderData)
+    }
+
+    // MARK: - Resume Pending Syncs
+
+    /// Scans staging directory for pending sync uploads and resumes them.
+    /// No vault key needed — SVDF files are already share-key encrypted.
+    func resumePendingSyncsIfNeeded(trigger: String) {
+        let pendingIds = pendingSyncShareVaultIds()
+        guard !pendingIds.isEmpty else { return }
+
+        shareSyncLogger.info("[resume] Found \(pendingIds.count) pending sync(s), trigger=\(trigger, privacy: .public)")
+
+        for shareVaultId in pendingIds {
+            guard resumeTasks[shareVaultId] == nil else { continue }
+
+            let capturedCloudKit = cloudKit
+            let task = Task { [weak self] in
+                guard let self else { return }
+                await self.uploadStagedSync(shareVaultId: shareVaultId, cloudKit: capturedCloudKit)
+                self.resumeTasks.removeValue(forKey: shareVaultId)
+            }
+            resumeTasks[shareVaultId] = task
+        }
+    }
+
+    /// Uploads a staged SVDF for a single share. No vault key needed.
+    private func uploadStagedSync(shareVaultId: String, cloudKit: CloudKitSharingClient) async {
+        guard let state = loadPendingSyncState(for: shareVaultId) else {
+            shareSyncLogger.info("[resume] No valid pending sync for \(shareVaultId, privacy: .public)")
+            return
+        }
+
+        let stagedSvdfURL = Self.syncSvdfURL(for: shareVaultId)
+
+        beginBackgroundExecution()
+        defer { endBackgroundExecution() }
+
+        do {
+            try await cloudKit.syncSharedVaultIncrementalFromFile(
+                shareVaultId: shareVaultId,
+                svdfFileURL: stagedSvdfURL,
+                newChunkHashes: state.newChunkHashes,
+                previousChunkHashes: state.previousChunkHashes
+            )
+
+            clearSyncStaging(for: shareVaultId)
+            shareSyncLogger.info("[resume] Sync upload completed for \(shareVaultId, privacy: .public)")
+        } catch {
+            shareSyncLogger.warning("[resume] Sync upload failed for \(shareVaultId, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            // Leave staging in place for next resume attempt
+        }
     }
 }

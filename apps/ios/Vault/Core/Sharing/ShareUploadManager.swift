@@ -865,11 +865,20 @@ final class ShareUploadManager {
         }
 
         guard hasPendingUpload else {
+            // No pending uploads — check for pending syncs instead
+            if ShareSyncManager.shared.hasPendingSyncs {
+                ShareSyncManager.shared.resumePendingSyncsIfNeeded(trigger: "bg_task")
+            }
             completeBackgroundProcessingTask(success: true)
             return
         }
 
         resumePendingUploads(vaultKey: vaultKeyProvider?(), trigger: "bg_task")
+
+        // Also resume pending syncs if any exist
+        if ShareSyncManager.shared.hasPendingSyncs {
+            ShareSyncManager.shared.resumePendingSyncsIfNeeded(trigger: "bg_task")
+        }
     }
 
     private func completeBackgroundProcessingTask(success: Bool) {

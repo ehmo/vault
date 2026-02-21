@@ -34,9 +34,13 @@ struct VaultApp: App {
                 .onAppear {
                     appState.applyAppearanceToAllWindows()
                     ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "app_on_appear")
+                    iCloudBackupManager.shared.resumeBackupUploadIfNeeded(trigger: "app_on_appear")
+                    ShareSyncManager.shared.resumePendingSyncsIfNeeded(trigger: "app_on_appear")
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                     ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "did_become_active")
+                    iCloudBackupManager.shared.resumeBackupUploadIfNeeded(trigger: "did_become_active")
+                    ShareSyncManager.shared.resumePendingSyncsIfNeeded(trigger: "did_become_active")
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     switch newPhase {
@@ -44,8 +48,16 @@ struct VaultApp: App {
                         if ShareUploadManager.shared.hasPendingUpload {
                             ShareUploadManager.shared.scheduleBackgroundResumeTask(earliestIn: 15)
                         }
+                        if iCloudBackupManager.shared.hasPendingBackup {
+                            iCloudBackupManager.shared.scheduleBackgroundResumeTask(earliestIn: 15)
+                        }
+                        if ShareSyncManager.shared.hasPendingSyncs {
+                            ShareUploadManager.shared.scheduleBackgroundResumeTask(earliestIn: 15)
+                        }
                     case .active:
                         ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "scene_active")
+                        iCloudBackupManager.shared.resumeBackupUploadIfNeeded(trigger: "scene_active")
+                        ShareSyncManager.shared.resumePendingSyncsIfNeeded(trigger: "scene_active")
                     default:
                         break
                     }
@@ -128,6 +140,9 @@ final class AppState {
         }
         ShareUploadManager.shared.setVaultKeyProvider { [weak self] in
             self?.currentVaultKey
+        }
+        iCloudBackupManager.shared.setVaultKeyProvider { [weak self] in
+            self?.currentVaultKey?.rawBytes
         }
     }
 
@@ -567,8 +582,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // Write notification icon to app group so the share extension can use it
         LocalNotificationManager.shared.warmNotificationIcon()
 
-        // Register once at launch so iOS can wake the app to continue pending uploads.
+        // Register once at launch so iOS can wake the app to continue pending uploads/backups.
         ShareUploadManager.shared.registerBackgroundProcessingTask()
+        iCloudBackupManager.shared.registerBackgroundProcessingTask()
 
         // If iOS terminated the previous upload process (jetsam/watchdog),
         // emit a breadcrumb on next launch with the last known phase.

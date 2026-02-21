@@ -62,6 +62,7 @@
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>app.vaultaire.ios.share-upload.resume</string>
+		<string>app.vaultaire.ios.backup.resume</string>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>
