@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "33468df4ad05",
+  "session_id": "ea426b69-04de-4d6b-92a2-ce450a856484",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-21T21:30:08.003353Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Core/Sharing/CloudKitSharingManager.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "e30d6d8b-0369-42e4-adf9-f045b76fd888",
+  "checkpoint_transcript_start": 5524,
+  "transcript_lines_at_start": 5524,
+  "token_usage": {
+    "input_tokens": 66,
+    "cache_creation_tokens": 52098,
+    "cache_read_tokens": 8277318,
+    "output_tokens": 946,
+    "api_call_count": 60
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-21T21:30:06.663448Z",
+    "agent_lines": 0,
+    "human_added": 2861,
+    "human_modified": 14,
+    "human_removed": 0,
+    "total_committed": 2861,
+    "agent_percentage": 0
+  }
+}
