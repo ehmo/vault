@@ -87,6 +87,8 @@ final class iCloudBackupManager: @unchecked Sendable {
         /// Vault state at backup time for staleness detection
         let fileCount: Int
         let vaultTotalSize: Int
+        /// True if iOS terminated the app during backup - triggers priority resume
+        var wasTerminated: Bool = false
     }
 
     /// 48-hour TTL for staged backups
@@ -427,25 +429,37 @@ final class iCloudBackupManager: @unchecked Sendable {
 
     /// Checks for staged backup on disk and starts upload if found.
     /// Can be called from multiple resume triggers (app launch, scene active, etc).
+    /// Prioritizes backups that were terminated by iOS.
     @MainActor
     func resumeBackupUploadIfNeeded(trigger: String) {
         guard UserDefaults.standard.bool(forKey: "iCloudBackupEnabled") else { return }
-        guard loadPendingBackupState() != nil else { return }
+        guard let state = loadPendingBackupState() else { return }
         guard autoBackupTask == nil else {
             Self.logger.info("[resume] Backup already running, skipping (trigger=\(trigger, privacy: .public))")
             return
         }
 
-        Self.logger.info("[resume] Found staged backup, starting upload (trigger=\(trigger, privacy: .public))")
+        // Prioritize backups that were terminated by iOS
+        if state.wasTerminated {
+            Self.logger.info("[resume] Found terminated backup, prioritizing resume (trigger=\(trigger, privacy: .public))")
+        }
+
+        Self.logger.info("[resume] Found staged backup, starting upload (trigger=\(trigger, privacy: .public), terminated=\(state.wasTerminated))")
 
         var detachedTask: Task<Void, Never>?
         var bgTaskId: UIBackgroundTaskIdentifier = .invalid
 
         bgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
-            Self.logger.warning("[resume] Background time expired")
+            Self.logger.warning("[resume] Background time expired - iOS terminated the app")
             detachedTask?.cancel()
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                // Mark backup as terminated so it gets priority resume
+                if var state = self.loadPendingBackupState() {
+                    state.wasTerminated = true
+                    self.savePendingBackupState(state)
+                    Self.logger.info("[resume] Marked backup as terminated for priority resume")
+                }
                 self.activeBgTaskIds.remove(bgTaskId)
                 self.finishAutoBackupRun(bgTaskId: bgTaskId)
             }
@@ -463,6 +477,11 @@ final class iCloudBackupManager: @unchecked Sendable {
                 }
             }
             do {
+                // Clear terminated flag when we start the upload attempt
+                if var state = self.loadPendingBackupState(), state.wasTerminated {
+                    state.wasTerminated = false
+                    self.savePendingBackupState(state)
+                }
                 try await self.uploadStagedBackup()
                 Self.logger.info("[resume] Staged backup upload completed successfully")
                 await self.sendBackupCompleteNotification(success: true)
@@ -1360,8 +1379,14 @@ final class iCloudBackupManager: @unchecked Sendable {
         scheduleBackgroundResumeTask(earliestIn: 60)
 
         task.expirationHandler = { [weak self] in
-            Self.logger.warning("[bg-task] Processing task expired")
+            Self.logger.warning("[bg-task] Processing task expired - iOS terminated the app")
             Task { @MainActor [weak self] in
+                // Mark backup as terminated so it gets priority resume
+                if var state = self?.loadPendingBackupState() {
+                    state.wasTerminated = true
+                    self?.savePendingBackupState(state)
+                    Self.logger.info("[bg-task] Marked backup as terminated for priority resume")
+                }
                 self?.autoBackupTask?.cancel()
                 self?.completeBackgroundProcessingTask(success: false)
             }
@@ -1392,6 +1417,11 @@ final class iCloudBackupManager: @unchecked Sendable {
                     }
                 }
                 do {
+                    // Clear terminated flag when we start the upload attempt
+                    if var state = self.loadPendingBackupState(), state.wasTerminated {
+                        state.wasTerminated = false
+                        self.savePendingBackupState(state)
+                    }
                     try await self.uploadStagedBackup()
                     succeeded = true
                     Self.logger.info("[bg-task] Staged backup upload completed")

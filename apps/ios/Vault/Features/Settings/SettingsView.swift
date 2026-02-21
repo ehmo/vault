@@ -664,11 +664,12 @@ struct iCloudBackupSettingsView: View {
             
             // Check for interrupted backup that needs to be resumed
             if available && backupManager.hasPendingBackup {
-                errorMessage = "A previous backup was interrupted. Tap 'Backup Now' to resume and complete it."
+                // Auto-resume pending backup immediately without requiring user action
+                resumePendingBackup()
             }
             
-            // Auto-backup if enabled and overdue
-            if isBackupEnabled && available && isBackupOverdue && !backupManager.hasPendingBackup {
+            // Auto-backup if enabled and overdue (only if no pending backup)
+            else if isBackupEnabled && available && isBackupOverdue {
                 performBackup()
             }
         }

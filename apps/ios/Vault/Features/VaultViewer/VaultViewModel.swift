@@ -30,6 +30,10 @@ final class VaultViewModel {
     var isImportingPendingFiles = false
     var pendingImport: PendingImport?
 
+    var isImporting: Bool {
+        importProgress != nil || isImportingPendingFiles
+    }
+
     // MARK: - Batch Edit State
 
     var isEditing = false

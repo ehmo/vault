@@ -547,8 +547,8 @@ struct ShareVaultView: View {
                     .font(.caption).foregroundStyle(.vaultHighlight)
             }
 
-            // Only show Sync Now button when not synced and not currently syncing
-            if status != .upToDate && status != .syncing {
+            // Only show Sync Now button when there are shares to sync and not currently syncing
+            if !activeShares.isEmpty && status != .upToDate && status != .syncing {
                 Button {
                     guard let key = appState.currentVaultKey else { return }
                     ShareSyncManager.shared.syncNow(vaultKey: key)

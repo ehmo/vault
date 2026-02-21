@@ -24,6 +24,7 @@ struct ToastMessage: Equatable {
     static func error(_ message: String) -> Self { .init(icon: "exclamationmark.triangle.fill", message: message) }
     static func exported() -> Self { .init(icon: "square.and.arrow.up", message: "Exported to Photos") }
     static func milestone(_ text: String) -> Self { .init(icon: "sparkles", message: text) }
+    static func importInProgress() -> Self { .init(icon: "arrow.down.circle", message: "Import in progress — please wait") }
 }
 
 // MARK: - Toast View

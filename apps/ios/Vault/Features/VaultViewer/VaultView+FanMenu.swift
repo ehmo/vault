@@ -71,6 +71,17 @@ extension VaultView {
 
     var mainPlusButtonView: some View {
         Button {
+            guard !viewModel.isImporting else {
+                // Close fan menu if open, show toast about import in progress
+                if showingFanMenu {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                        showingFanMenu = false
+                    }
+                }
+                viewModel.toastMessage = .importInProgress()
+                return
+            }
+
             if subscriptionManager.canAddFile(currentFileCount: viewModel.files.count) {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
                     showingFanMenu.toggle()
@@ -83,7 +94,7 @@ extension VaultView {
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(.white)
                 .frame(width: 52, height: 52)
-                .background(showingFanMenu ? Color(.systemGray) : Color.accentColor)
+                .background(showingFanMenu ? Color(.systemGray) : (viewModel.isImporting ? Color(.systemGray3) : Color.accentColor))
                 .clipShape(Circle())
                 .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
                 .rotationEffect(.degrees(showingFanMenu ? 45 : 0))
@@ -91,5 +102,12 @@ extension VaultView {
         .buttonStyle(.plain)
         .accessibilityIdentifier("vault_add_button")
         .accessibilityLabel(showingFanMenu ? "Close menu" : "Add files")
+        .onChange(of: viewModel.isImporting) { _, isImporting in
+            if isImporting && showingFanMenu {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                    showingFanMenu = false
+                }
+            }
+        }
     }
 }
