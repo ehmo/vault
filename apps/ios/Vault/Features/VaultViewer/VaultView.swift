@@ -396,6 +396,7 @@ struct VaultView: View {
             }
         }
         .ignoresSafeArea(.keyboard)
+        .preventScreenshots()
     }
 }
 
