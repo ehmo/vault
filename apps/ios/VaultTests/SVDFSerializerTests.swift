@@ -219,7 +219,8 @@ final class SVDFSerializerTests: XCTestCase {
             originalSize: sourceData.count,
             createdAt: createdAt,
             encryptedThumbnail: nil,
-            plaintextContentURL: plaintextURL
+            plaintextContentURL: plaintextURL,
+            duration: nil
         )
 
         let (_, fileIds) = try SVDFSerializer.buildFullStreamingFromPlaintext(
@@ -259,7 +260,8 @@ final class SVDFSerializerTests: XCTestCase {
             originalSize: sourceData.count,
             createdAt: createdAt,
             encryptedThumbnail: nil,
-            plaintextContentURL: plaintextURL
+            plaintextContentURL: plaintextURL,
+            duration: nil
         )
 
         _ = try SVDFSerializer.buildFullStreamingFromPlaintext(

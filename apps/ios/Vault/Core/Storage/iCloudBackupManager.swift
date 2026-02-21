@@ -220,6 +220,9 @@ final class iCloudBackupManager: @unchecked Sendable {
         let (encryptedPayload, checksum, chunks) = try await encryptAndPrepareChunksOffMain(payload, key: key)
         let backupId = UUID().uuidString
 
+        // Clear any stale staging data before writing new chunks
+        clearStagingDirectory()
+
         // Ensure staging dir exists
         try FileManager.default.createDirectory(
             at: Self.backupStagingDir,
@@ -427,7 +430,7 @@ final class iCloudBackupManager: @unchecked Sendable {
         bgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
             Self.logger.warning("[resume] Background time expired")
             detachedTask?.cancel()
-            MainActor.assumeIsolated {
+            Task { @MainActor [weak self] in
                 self?.finishAutoBackupRun(bgTaskId: bgTaskId)
             }
         }
@@ -436,8 +439,8 @@ final class iCloudBackupManager: @unchecked Sendable {
         detachedTask = Task.detached(priority: .utility) { [weak self] in
             guard let self else { return }
             defer {
-                Self.runMainSync {
-                    self.finishAutoBackupRun(bgTaskId: bgTaskId)
+                Task { @MainActor [weak self] in
+                    self?.finishAutoBackupRun(bgTaskId: bgTaskId)
                 }
             }
             do {
@@ -577,9 +580,14 @@ final class iCloudBackupManager: @unchecked Sendable {
     /// Unpacks a v2 backup payload into blob data + index files.
     private func unpackBackupPayload(_ payload: Data) throws -> (blobs: [(blobId: String, data: Data)], indexes: [(fileName: String, data: Data)]) {
         var offset = 0
+        let payloadCount = payload.count
+
+        func requireBytes(_ count: Int) throws {
+            guard offset + count <= payloadCount else { throw iCloudError.downloadFailed }
+        }
 
         // Header
-        guard payload.count >= 9 else { throw iCloudError.downloadFailed }
+        try requireBytes(9)
         let magic = payload.subdata(in: offset..<offset+4).withUnsafeBytes { $0.load(as: UInt32.self) }
         offset += 4
         guard magic == 0x56424B32 else { throw iCloudError.downloadFailed }
@@ -596,13 +604,17 @@ final class iCloudBackupManager: @unchecked Sendable {
         // Read blobs
         var blobs: [(blobId: String, data: Data)] = []
         for _ in 0..<blobCount {
+            try requireBytes(2)
             let idLen = payload.subdata(in: offset..<offset+2).withUnsafeBytes { $0.load(as: UInt16.self) }
             offset += 2
+            try requireBytes(Int(idLen))
             let blobId = String(data: payload.subdata(in: offset..<offset+Int(idLen)), encoding: .utf8) ?? "primary"
             offset += Int(idLen)
 
+            try requireBytes(8)
             let dataLen = payload.subdata(in: offset..<offset+8).withUnsafeBytes { $0.load(as: UInt64.self) }
             offset += 8
+            guard dataLen <= UInt64(payloadCount - offset) else { throw iCloudError.downloadFailed }
             let data = payload.subdata(in: offset..<offset+Int(dataLen))
             offset += Int(dataLen)
 
@@ -612,13 +624,17 @@ final class iCloudBackupManager: @unchecked Sendable {
         // Read indexes
         var indexes: [(fileName: String, data: Data)] = []
         for _ in 0..<indexCount {
+            try requireBytes(2)
             let nameLen = payload.subdata(in: offset..<offset+2).withUnsafeBytes { $0.load(as: UInt16.self) }
             offset += 2
+            try requireBytes(Int(nameLen))
             let fileName = String(data: payload.subdata(in: offset..<offset+Int(nameLen)), encoding: .utf8) ?? ""
             offset += Int(nameLen)
 
+            try requireBytes(4)
             let dataLen = payload.subdata(in: offset..<offset+4).withUnsafeBytes { $0.load(as: UInt32.self) }
             offset += 4
+            guard dataLen <= UInt32(payloadCount - offset) else { throw iCloudError.downloadFailed }
             let data = payload.subdata(in: offset..<offset+Int(dataLen))
             offset += Int(dataLen)
 
@@ -773,25 +789,30 @@ final class iCloudBackupManager: @unchecked Sendable {
             cursor = nextCursor
         }
 
-        // Delete in batches
+        // Delete in batches of 400 (CloudKit batch limit)
         if !recordIDs.isEmpty {
             Self.logger.info("[backup] Deleting \(recordIDs.count) old backup chunks")
-            let operation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDs)
-            operation.savePolicy = .changedKeys
-            operation.qualityOfService = .utility
+            let batchSize = 400
+            for batchStart in stride(from: 0, to: recordIDs.count, by: batchSize) {
+                let batchEnd = min(batchStart + batchSize, recordIDs.count)
+                let batch = Array(recordIDs[batchStart..<batchEnd])
+                let operation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: batch)
+                operation.savePolicy = .changedKeys
+                operation.qualityOfService = .utility
 
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                operation.modifyRecordsResultBlock = { result in
-                    switch result {
-                    case .success:
-                        continuation.resume()
-                    case .failure(let error):
-                        // Non-fatal — old chunks will be overwritten next time
-                        Self.logger.warning("[backup] Failed to delete old chunks: \(error)")
-                        continuation.resume()
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                    operation.modifyRecordsResultBlock = { result in
+                        switch result {
+                        case .success:
+                            continuation.resume()
+                        case .failure(let error):
+                            // Non-fatal — old chunks will be overwritten next time
+                            Self.logger.warning("[backup] Failed to delete old chunks batch: \(error)")
+                            continuation.resume()
+                        }
                     }
+                    self.privateDatabase.add(operation)
                 }
-                self.privateDatabase.add(operation)
             }
         }
     }
@@ -916,7 +937,7 @@ final class iCloudBackupManager: @unchecked Sendable {
         bgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
             Self.logger.warning("[auto-backup] Background time expired")
             detachedTask?.cancel()
-            MainActor.assumeIsolated {
+            Task { @MainActor [weak self] in
                 self?.finishAutoBackupRun(bgTaskId: bgTaskId)
             }
         }
@@ -925,8 +946,8 @@ final class iCloudBackupManager: @unchecked Sendable {
         detachedTask = Task.detached(priority: .utility) { [weak self] in
             guard let self else { return }
             defer {
-                Self.runMainSync {
-                    self.finishAutoBackupRun(bgTaskId: bgTaskId)
+                Task { @MainActor [weak self] in
+                    self?.finishAutoBackupRun(bgTaskId: bgTaskId)
                 }
             }
             do {
@@ -963,32 +984,14 @@ final class iCloudBackupManager: @unchecked Sendable {
     private func finishAutoBackupRun(bgTaskId: UIBackgroundTaskIdentifier) {
         autoBackupTask = nil
 
-        if currentAutoBackupBgTaskId == bgTaskId {
-            currentAutoBackupBgTaskId = .invalid
-            if bgTaskId != .invalid {
-                UIApplication.shared.endBackgroundTask(bgTaskId)
-            }
-            return
-        }
-
-        if bgTaskId != .invalid {
-            UIApplication.shared.endBackgroundTask(bgTaskId)
-        }
+        // Only end the background task if it's still the current one.
+        // This prevents double-end when both the expiration handler and
+        // the defer block call this method for the same bgTaskId.
+        guard bgTaskId != .invalid, currentAutoBackupBgTaskId == bgTaskId else { return }
+        currentAutoBackupBgTaskId = .invalid
+        UIApplication.shared.endBackgroundTask(bgTaskId)
     }
 
-    nonisolated private static func runMainSync(_ block: @escaping @MainActor () -> Void) {
-        if Thread.isMainThread {
-            MainActor.assumeIsolated {
-                block()
-            }
-        } else {
-            DispatchQueue.main.sync {
-                MainActor.assumeIsolated {
-                    block()
-                }
-            }
-        }
-    }
 
     // MARK: - Restore
 
@@ -1229,11 +1232,10 @@ final class iCloudBackupManager: @unchecked Sendable {
         scheduleBackgroundResumeTask(earliestIn: 60)
 
         task.expirationHandler = { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                Self.logger.warning("[bg-task] Processing task expired")
-                self.autoBackupTask?.cancel()
-                self.completeBackgroundProcessingTask(success: false)
+            Self.logger.warning("[bg-task] Processing task expired")
+            Task { @MainActor [weak self] in
+                self?.autoBackupTask?.cancel()
+                self?.completeBackgroundProcessingTask(success: false)
             }
         }
 
@@ -1253,14 +1255,17 @@ final class iCloudBackupManager: @unchecked Sendable {
 
             let bgTask = Task.detached(priority: .utility) { [weak self] in
                 guard let self else { return }
+                var succeeded = false
                 defer {
-                    Self.runMainSync {
-                        self.autoBackupTask = nil
-                        self.completeBackgroundProcessingTask(success: true)
+                    let taskSucceeded = succeeded
+                    Task { @MainActor [weak self] in
+                        self?.autoBackupTask = nil
+                        self?.completeBackgroundProcessingTask(success: taskSucceeded)
                     }
                 }
                 do {
                     try await self.uploadStagedBackup()
+                    succeeded = true
                     Self.logger.info("[bg-task] Staged backup upload completed")
                     await self.sendBackupCompleteNotification(success: true)
                 } catch {
@@ -1292,15 +1297,18 @@ final class iCloudBackupManager: @unchecked Sendable {
             let capturedKey = key
             let bgTask = Task.detached(priority: .utility) { [weak self] in
                 guard let self else { return }
+                var succeeded = false
                 defer {
-                    Self.runMainSync {
-                        self.autoBackupTask = nil
-                        self.completeBackgroundProcessingTask(success: true)
+                    let taskSucceeded = succeeded
+                    Task { @MainActor [weak self] in
+                        self?.autoBackupTask = nil
+                        self?.completeBackgroundProcessingTask(success: taskSucceeded)
                     }
                 }
                 do {
                     try await self.stageBackupToDisk(with: capturedKey)
                     try await self.uploadStagedBackup()
+                    succeeded = true
                     Self.logger.info("[bg-task] Full backup completed")
                     await self.sendBackupCompleteNotification(success: true)
                 } catch {

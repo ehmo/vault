@@ -30,11 +30,11 @@ private final class MockSyncVaultStorage: VaultStorageProtocol {
 
     // MARK: - Unused protocol methods (stubs)
 
-    func storeFile(data _: Data, filename _: String, mimeType _: String, with _: VaultKey, thumbnailData _: Data?, duration _: TimeInterval?) throws -> UUID {
+    func storeFile(data _: Data, filename _: String, mimeType _: String, with _: VaultKey, thumbnailData _: Data?, duration _: TimeInterval?, fileId _: UUID?) throws -> UUID {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func storeFileFromURL(_ _: URL, filename _: String, mimeType _: String, with _: VaultKey, thumbnailData _: Data?, duration _: TimeInterval?) throws -> UUID {
+    func storeFileFromURL(_ _: URL, filename _: String, mimeType _: String, with _: VaultKey, thumbnailData _: Data?, duration _: TimeInterval?, fileId _: UUID?) throws -> UUID {
         fatalError("Not used in ShareSyncManager tests")
     }
 
@@ -367,4 +367,294 @@ final class ShareSyncManagerTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(mockStorage.loadIndexCallCount, 1,
                                     "performSync should have loaded the index")
     }
+
+    // MARK: - PendingSyncState Codable
+
+    func testPendingSyncState_CodableRoundTrip() throws {
+        let state = ShareSyncManager.PendingSyncState(
+            shareVaultId: "share-vault-123",
+            shareKeyData: Data(repeating: 0xCC, count: 32),
+            totalChunks: 5,
+            newChunkHashes: ["hash1", "hash2", "hash3", "hash4", "hash5"],
+            previousChunkHashes: ["oldhash1", "oldhash2"],
+            createdAt: Date(),
+            uploadFinished: false
+        )
+
+        let data = try JSONEncoder().encode(state)
+        let decoded = try JSONDecoder().decode(ShareSyncManager.PendingSyncState.self, from: data)
+
+        XCTAssertEqual(decoded.shareVaultId, state.shareVaultId)
+        XCTAssertEqual(decoded.shareKeyData, state.shareKeyData)
+        XCTAssertEqual(decoded.totalChunks, state.totalChunks)
+        XCTAssertEqual(decoded.newChunkHashes, state.newChunkHashes)
+        XCTAssertEqual(decoded.previousChunkHashes, state.previousChunkHashes)
+        XCTAssertEqual(decoded.uploadFinished, false)
+    }
+
+    func testPendingSyncState_CodableWithUploadFinished() throws {
+        let state = ShareSyncManager.PendingSyncState(
+            shareVaultId: "share-vault-789",
+            shareKeyData: Data(repeating: 0xDD, count: 32),
+            totalChunks: 3,
+            newChunkHashes: ["a", "b", "c"],
+            previousChunkHashes: [],
+            createdAt: Date(),
+            uploadFinished: true
+        )
+
+        let data = try JSONEncoder().encode(state)
+        let decoded = try JSONDecoder().decode(ShareSyncManager.PendingSyncState.self, from: data)
+
+        XCTAssertTrue(decoded.uploadFinished)
+    }
+
+    func testPendingSyncState_EmptyHashes() throws {
+        let state = ShareSyncManager.PendingSyncState(
+            shareVaultId: "empty-hash-test",
+            shareKeyData: Data([0xAA]),
+            totalChunks: 0,
+            newChunkHashes: [],
+            previousChunkHashes: [],
+            createdAt: Date(),
+            uploadFinished: false
+        )
+
+        let data = try JSONEncoder().encode(state)
+        let decoded = try JSONDecoder().decode(ShareSyncManager.PendingSyncState.self, from: data)
+
+        XCTAssertEqual(decoded.newChunkHashes.count, 0)
+        XCTAssertEqual(decoded.previousChunkHashes.count, 0)
+    }
+
+    // MARK: - Sync Staging Directory
+
+    private var syncStagingRootDir: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("pending_sync", isDirectory: true)
+    }
+
+    private func writePendingSyncState(
+        shareVaultId: String,
+        createdAt: Date = Date(),
+        includeSvdf: Bool = true
+    ) {
+        let dir = syncStagingRootDir.appendingPathComponent(shareVaultId, isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
+        let state = ShareSyncManager.PendingSyncState(
+            shareVaultId: shareVaultId,
+            shareKeyData: Data(repeating: 0xCC, count: 32),
+            totalChunks: 3,
+            newChunkHashes: ["h1", "h2", "h3"],
+            previousChunkHashes: ["old1"],
+            createdAt: createdAt,
+            uploadFinished: false
+        )
+        let data = try! JSONEncoder().encode(state)
+        try! data.write(to: dir.appendingPathComponent("state.json"))
+
+        if includeSvdf {
+            try! Data(repeating: 0x00, count: 1024).write(
+                to: dir.appendingPathComponent("svdf_data.bin")
+            )
+        }
+    }
+
+    private func cleanupSyncStaging() {
+        try? FileManager.default.removeItem(at: syncStagingRootDir)
+    }
+
+    func testLoadPendingSyncState_ReturnsNilWhenEmpty() {
+        cleanupSyncStaging()
+        let state = sut.loadPendingSyncState(for: "nonexistent-share")
+        XCTAssertNil(state)
+    }
+
+    func testLoadPendingSyncState_ReturnsStateWhenValid() {
+        cleanupSyncStaging()
+        writePendingSyncState(shareVaultId: "valid-share")
+
+        let state = sut.loadPendingSyncState(for: "valid-share")
+        XCTAssertNotNil(state)
+        XCTAssertEqual(state?.shareVaultId, "valid-share")
+        XCTAssertEqual(state?.totalChunks, 3)
+        XCTAssertEqual(state?.newChunkHashes, ["h1", "h2", "h3"])
+
+        cleanupSyncStaging()
+    }
+
+    func testLoadPendingSyncState_ReturnsNilWhenExpired() {
+        cleanupSyncStaging()
+        writePendingSyncState(
+            shareVaultId: "expired-share",
+            createdAt: Date().addingTimeInterval(-49 * 60 * 60)
+        )
+
+        let state = sut.loadPendingSyncState(for: "expired-share")
+        XCTAssertNil(state, "Expired sync state should return nil")
+
+        // Verify cleanup
+        let dir = syncStagingRootDir.appendingPathComponent("expired-share")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path),
+                       "Expired staging dir should be removed")
+
+        cleanupSyncStaging()
+    }
+
+    func testLoadPendingSyncState_ReturnsNilWhenSvdfMissing() {
+        cleanupSyncStaging()
+        writePendingSyncState(shareVaultId: "no-svdf", includeSvdf: false)
+
+        let state = sut.loadPendingSyncState(for: "no-svdf")
+        XCTAssertNil(state, "State without SVDF file should return nil")
+
+        cleanupSyncStaging()
+    }
+
+    func testLoadPendingSyncState_JustBeforeTTL() {
+        cleanupSyncStaging()
+        writePendingSyncState(
+            shareVaultId: "almost-expired",
+            createdAt: Date().addingTimeInterval(-47 * 60 * 60)
+        )
+
+        let state = sut.loadPendingSyncState(for: "almost-expired")
+        XCTAssertNotNil(state, "State just before TTL should still be valid")
+
+        cleanupSyncStaging()
+    }
+
+    func testPendingSyncShareVaultIds_EmptyWhenNoStaging() {
+        cleanupSyncStaging()
+        let ids = sut.pendingSyncShareVaultIds()
+        XCTAssertTrue(ids.isEmpty)
+    }
+
+    func testPendingSyncShareVaultIds_ReturnsValidIds() {
+        cleanupSyncStaging()
+        writePendingSyncState(shareVaultId: "share-a")
+        writePendingSyncState(shareVaultId: "share-b")
+
+        let ids = sut.pendingSyncShareVaultIds()
+        XCTAssertEqual(Set(ids), Set(["share-a", "share-b"]))
+
+        cleanupSyncStaging()
+    }
+
+    func testPendingSyncShareVaultIds_ExcludesExpired() {
+        cleanupSyncStaging()
+        writePendingSyncState(shareVaultId: "valid-share")
+        writePendingSyncState(
+            shareVaultId: "expired-share",
+            createdAt: Date().addingTimeInterval(-49 * 60 * 60)
+        )
+
+        let ids = sut.pendingSyncShareVaultIds()
+        XCTAssertEqual(ids, ["valid-share"])
+
+        cleanupSyncStaging()
+    }
+
+    func testPendingSyncShareVaultIds_ExcludesMissingSvdf() {
+        cleanupSyncStaging()
+        writePendingSyncState(shareVaultId: "with-svdf")
+        writePendingSyncState(shareVaultId: "without-svdf", includeSvdf: false)
+
+        let ids = sut.pendingSyncShareVaultIds()
+        XCTAssertEqual(ids, ["with-svdf"])
+
+        cleanupSyncStaging()
+    }
+
+    func testHasPendingSyncs_FalseWhenEmpty() {
+        cleanupSyncStaging()
+        XCTAssertFalse(sut.hasPendingSyncs)
+    }
+
+    func testHasPendingSyncs_TrueWhenStateExists() {
+        cleanupSyncStaging()
+        writePendingSyncState(shareVaultId: "pending-share")
+
+        XCTAssertTrue(sut.hasPendingSyncs)
+
+        cleanupSyncStaging()
+    }
+
+    // MARK: - Resume Pending Syncs
+
+    func testResumePendingSyncsIfNeeded_NoOpWhenEmpty() {
+        cleanupSyncStaging()
+        // Should not crash
+        sut.resumePendingSyncsIfNeeded(trigger: "test")
+    }
+
+    func testResumePendingSyncsIfNeeded_StartsUploadForPendingSync() async {
+        cleanupSyncStaging()
+        writePendingSyncState(shareVaultId: "resume-test")
+
+        sut.resumePendingSyncsIfNeeded(trigger: "test")
+
+        // Wait briefly for async task to start
+        try? await Task.sleep(nanoseconds: 200_000_000)
+
+        // The upload should have been attempted via cloudKit
+        XCTAssertTrue(
+            mockCloudKit.syncFromFileCalls.contains(where: { $0.shareVaultId == "resume-test" }),
+            "Resume should have triggered sync upload"
+        )
+
+        cleanupSyncStaging()
+    }
+
+    func testResumePendingSyncsIfNeeded_ClearsOnSuccess() async {
+        cleanupSyncStaging()
+        writePendingSyncState(shareVaultId: "success-test")
+
+        sut.resumePendingSyncsIfNeeded(trigger: "test")
+
+        // Wait for upload to complete
+        try? await Task.sleep(nanoseconds: 300_000_000)
+
+        // Staging should be cleared on success
+        let state = sut.loadPendingSyncState(for: "success-test")
+        XCTAssertNil(state, "Staging should be cleared after successful upload")
+
+        cleanupSyncStaging()
+    }
+
+    func testResumePendingSyncsIfNeeded_PreservesStagingOnFailure() async {
+        cleanupSyncStaging()
+        writePendingSyncState(shareVaultId: "fail-test")
+        mockCloudKit.syncFromFileError = NSError(domain: "test", code: -1)
+
+        sut.resumePendingSyncsIfNeeded(trigger: "test")
+
+        // Wait for upload to complete
+        try? await Task.sleep(nanoseconds: 300_000_000)
+
+        // Staging should be preserved for retry
+        let state = sut.loadPendingSyncState(for: "fail-test")
+        XCTAssertNotNil(state, "Staging should be preserved after failed upload")
+
+        cleanupSyncStaging()
+    }
+
+    func testResumePendingSyncsIfNeeded_DoesNotDuplicateResumeTasks() async {
+        cleanupSyncStaging()
+        writePendingSyncState(shareVaultId: "dedup-test")
+
+        // Call resume twice rapidly
+        sut.resumePendingSyncsIfNeeded(trigger: "test1")
+        sut.resumePendingSyncsIfNeeded(trigger: "test2")
+
+        try? await Task.sleep(nanoseconds: 300_000_000)
+
+        // Should only have one sync call (not duplicated)
+        let callsForShare = mockCloudKit.syncFromFileCalls.filter { $0.shareVaultId == "dedup-test" }
+        XCTAssertEqual(callsForShare.count, 1, "Should not duplicate resume tasks for same share")
+
+        cleanupSyncStaging()
+    }
 }
+

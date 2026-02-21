@@ -202,11 +202,10 @@ final class ShareSyncManager {
     private func beginBackgroundExecution() {
         guard currentBgTaskId == .invalid else { return }
         currentBgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                shareSyncLogger.warning("Background sync time expired")
-                self.syncTask?.cancel()
-                self.endBackgroundExecution()
+            shareSyncLogger.warning("Background sync time expired")
+            Task { @MainActor [weak self] in
+                self?.syncTask?.cancel()
+                self?.endBackgroundExecution()
             }
         }
     }
@@ -622,6 +621,7 @@ final class ShareSyncManager {
     }
 
     /// Uploads a staged SVDF for a single share. No vault key needed.
+    /// Uses its own background task ID to avoid conflicts with parallel resume uploads.
     private func uploadStagedSync(shareVaultId: String, cloudKit: CloudKitSharingClient) async {
         guard let state = loadPendingSyncState(for: shareVaultId) else {
             shareSyncLogger.info("[resume] No valid pending sync for \(shareVaultId, privacy: .public)")
@@ -630,8 +630,16 @@ final class ShareSyncManager {
 
         let stagedSvdfURL = Self.syncSvdfURL(for: shareVaultId)
 
-        beginBackgroundExecution()
-        defer { endBackgroundExecution() }
+        // Use a per-upload background task to avoid conflicts with parallel resumes
+        var bgTaskId: UIBackgroundTaskIdentifier = .invalid
+        bgTaskId = UIApplication.shared.beginBackgroundTask {
+            shareSyncLogger.warning("[resume] Background time expired for sync \(shareVaultId, privacy: .public)")
+        }
+        defer {
+            if bgTaskId != .invalid {
+                UIApplication.shared.endBackgroundTask(bgTaskId)
+            }
+        }
 
         do {
             try await cloudKit.syncSharedVaultIncrementalFromFile(
