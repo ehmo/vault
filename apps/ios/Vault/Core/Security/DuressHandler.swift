@@ -91,11 +91,14 @@ actor DuressHandler {
         Self.logger.debug("All vault indexes destroyed except duress vault")
         
         // 5. Regenerate recovery phrase for duress vault only
+        // NOTE: pattern is empty so phrase-based recovery won't re-derive a key.
+        // This is acceptable — the duress vault is still accessible via its pattern,
+        // and the recovery entry exists for plausibility (attacker sees a phrase exists).
         let newPhrase = RecoveryPhraseGenerator.shared.generatePhrase()
         do {
             try await RecoveryPhraseManager.shared.saveRecoveryPhrase(
                 phrase: newPhrase,
-                pattern: [], // We don't know the pattern, but the phrase is what matters
+                pattern: [],
                 gridSize: 5,
                 patternKey: duressKey
             )

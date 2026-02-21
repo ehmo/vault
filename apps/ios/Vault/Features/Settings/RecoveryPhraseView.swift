@@ -110,7 +110,7 @@ struct RecoveryPhraseView: View {
 
                     try await RecoveryPhraseManager.shared.saveRecoveryPhrase(
                         phrase: newPhrase,
-                        pattern: [],
+                        pattern: appState.currentPattern ?? [],
                         gridSize: 5,
                         patternKey: currentKey.rawBytes
                     )

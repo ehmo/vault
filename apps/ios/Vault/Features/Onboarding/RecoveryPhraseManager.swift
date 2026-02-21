@@ -17,16 +17,17 @@ final class RecoveryPhraseManager {
 
     // MARK: - Data Structures
     
-    /// Contains all recovery data for all vaults in a single encrypted structure
+    /// Contains all recovery data for all vaults in a single encrypted structure.
+    /// NOTE: patternKey was removed in v2 — keys are re-derived from pattern+gridSize on recovery.
+    /// Old entries with patternKey in JSON are decoded safely (JSONDecoder ignores unknown keys).
     private struct RecoveryDatabase: Codable {
         var vaults: [VaultRecoveryInfo]
-        
+
         struct VaultRecoveryInfo: Codable {
             let vaultKeyHash: String // SHA256 hash of vault key for identification
             let phrase: String
             let pattern: [Int]
             let gridSize: Int
-            let patternKey: Data
             let createdAt: Date
         }
     }
@@ -58,13 +59,12 @@ final class RecoveryPhraseManager {
         // Remove existing entry if present (for regeneration)
         database.vaults.removeAll { $0.vaultKeyHash == keyHashString }
 
-        // Add new entry
+        // Add new entry (patternKey intentionally not stored — re-derived on recovery)
         let info = RecoveryDatabase.VaultRecoveryInfo(
             vaultKeyHash: keyHashString,
             phrase: phrase,
             pattern: pattern,
             gridSize: gridSize,
-            patternKey: patternKey,
             createdAt: Date()
         )
         database.vaults.append(info)
@@ -94,21 +94,26 @@ final class RecoveryPhraseManager {
     
     // MARK: - Recover Vault
     
-    /// Attempts to recover a vault using a recovery phrase
+    /// Attempts to recover a vault using a recovery phrase.
+    /// Re-derives the vault key from the stored pattern+gridSize via PBKDF2 (~0.5-1s).
     func recoverVault(using phrase: String) async throws -> Data {
         Self.logger.debug("Attempting vault recovery with phrase")
-        
+
         let database = try await loadDatabase()
-        
+
         // Find vault with matching phrase
         guard let info = database.vaults.first(where: { $0.phrase.lowercased() == phrase.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) }) else {
             Self.logger.info("No vault found with this phrase")
             throw RecoveryError.invalidPhrase
         }
-        
-        Self.logger.debug("Vault found, returning pattern key")
-        
-        return info.patternKey
+
+        guard !info.pattern.isEmpty else {
+            Self.logger.error("Recovery entry has empty pattern, cannot re-derive key")
+            throw RecoveryError.patternMissing
+        }
+
+        Self.logger.debug("Vault found, re-deriving key from stored pattern")
+        return try await KeyDerivation.deriveKey(from: info.pattern, gridSize: info.gridSize)
     }
     
     // MARK: - Regenerate Recovery Phrase
@@ -146,14 +151,13 @@ final class RecoveryPhraseManager {
             newPhrase = RecoveryPhraseGenerator.shared.generatePhrase()
         }
         
-        // Update with new phrase
+        // Update with new phrase (no raw key stored)
         database.vaults[index] = RecoveryDatabase.VaultRecoveryInfo(
             vaultKeyHash: oldInfo.vaultKeyHash,
             phrase: newPhrase,
             pattern: oldInfo.pattern,
             gridSize: oldInfo.gridSize,
-            patternKey: oldInfo.patternKey,
-            createdAt: Date() // Update creation date
+            createdAt: Date()
         )
         
         try await saveDatabase(database)
@@ -344,18 +348,21 @@ final class RecoveryPhraseManager {
 enum RecoveryError: LocalizedError {
     case invalidPhrase
     case vaultNotFound
+    case patternMissing
     case weakPhrase(message: String)
     case duplicatePhrase
     case encryptionFailed
     case keychainError(status: OSStatus)
     case keyGenerationFailed
-    
+
     var errorDescription: String? {
         switch self {
         case .invalidPhrase:
             return "The recovery phrase you entered is incorrect or doesn't match any vault."
         case .vaultNotFound:
             return "No recovery data found for this vault."
+        case .patternMissing:
+            return "Recovery data is incomplete. The vault pattern was not stored with this recovery entry."
         case .weakPhrase(let message):
             return message
         case .duplicatePhrase:
