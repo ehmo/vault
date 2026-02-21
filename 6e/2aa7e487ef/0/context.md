@@ -81,3 +81,14 @@ Let me carefully analyze the conversation chronologically:
 **Prior Sessions (from summary at start):**
 1. Session 1: Implemented a comprehensive plan for "Reliable Resumable iCloud Backup + Share Sync" - two-phase architecture (stage encrypted data to disk while vault unlocked, upload independently in background). Committed as `ddc2a6...
 
+### Prompt 9
+
+I want to really dig deep into the backup to icloud feature. Currently if the process terminates by ios in the backround, when I reopen the app it starts from the beginning. This is a core feature and needs to work well.
+
+Here is the desired outcome:
+1) files are AWLAYS backed up, regardless if the app is opened or not
+2) they are backed up every 24 hours
+3) user can ALWAYS count on the backup
+
+I want you to extensively research how best accomplish this, especially in background but also how to ...
+

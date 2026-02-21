@@ -1396,3 +1396,14 @@ Summary:
 
 If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
 Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+I want to really dig deep into the backup to icloud feature. Currently if the process terminates by ios in the backround, when I reopen the app it starts from the beginning. This is a core feature and needs to work well.
+
+Here is the desired outcome:
+1) files are AWLAYS backed up, regardless if the app is opened or not
+2) they are backed up every 24 hours
+3) user can ALWAYS count on the backup
+
+I want you to extensively research how best accomplish this, especially in background but also how to not start from scratch if the process is killed and the app is reopned later.
