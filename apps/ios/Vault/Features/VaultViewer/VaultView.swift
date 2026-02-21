@@ -351,6 +351,12 @@ struct VaultView: View {
             // Check shared vault status immediately when view appears
             // This ensures revoked shares are detected right away
             viewModel.checkSharedVaultStatus()
+            // Report activity to inactivity lock manager
+            InactivityLockManager.shared.userDidInteract()
+        }
+        .onTapGesture {
+            // Report any tap as user activity
+            InactivityLockManager.shared.userDidInteract()
         }
         .onChange(of: appState.currentVaultKey) { oldKey, newKey in
             viewModel.handleVaultKeyChange(oldKey: oldKey, newKey: newKey)

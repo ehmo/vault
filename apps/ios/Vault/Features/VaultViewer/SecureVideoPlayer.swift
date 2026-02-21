@@ -10,6 +10,8 @@ struct SecureVideoPlayer: View {
     @State private var tempFileURL: URL?
     @State private var isLoading = true
     @State private var error: String?
+    @State private var isPlaying = false
+    @State private var timeObserver: Any?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -41,6 +43,13 @@ struct SecureVideoPlayer: View {
         }
         .task { loadVideo() }
         .onDisappear(perform: cleanup)
+        .onChange(of: isPlaying) { _, playing in
+            if playing {
+                InactivityLockManager.shared.videoPlaybackStarted()
+            } else {
+                InactivityLockManager.shared.videoPlaybackStopped()
+            }
+        }
     }
 
     // MARK: - Error View
@@ -76,8 +85,21 @@ struct SecureVideoPlayer: View {
 
                 await MainActor.run {
                     self.tempFileURL = tempURL
-                    self.player = AVPlayer(url: tempURL)
-                    self.player?.play()
+                    let newPlayer = AVPlayer(url: tempURL)
+                    self.player = newPlayer
+                    
+                    // Observe playback state for inactivity lock manager
+                    self.timeObserver = newPlayer.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: .main) { _ in
+                        // Note: Can't use weak self in struct, but the observer is cleaned up in cleanup()
+                        let wasPlaying = self.isPlaying
+                        let nowPlaying = newPlayer.timeControlStatus == .playing
+                        if wasPlaying != nowPlaying {
+                            self.isPlaying = nowPlaying
+                        }
+                    }
+                    
+                    newPlayer.play()
+                    self.isPlaying = true
                     self.isLoading = false
                 }
             } catch {
@@ -90,6 +112,15 @@ struct SecureVideoPlayer: View {
     }
 
     private func cleanup() {
+        // Report playback stopped
+        InactivityLockManager.shared.videoPlaybackStopped()
+        
+        // Remove time observer
+        if let observer = timeObserver, let player = player {
+            player.removeTimeObserver(observer)
+            timeObserver = nil
+        }
+        
         // Stop playback
         player?.pause()
         player = nil

@@ -81,7 +81,16 @@ struct ContentView: View {
                 // Safety: ensure unlock overlay is dismissed when vault locks,
                 // even if the fade-out animation was interrupted.
                 showUnlockTransition = false
+                // Stop inactivity monitoring when vault locks
+                InactivityLockManager.shared.stopMonitoring()
                 return
+            }
+
+            // Start inactivity monitoring when vault unlocks
+            InactivityLockManager.shared.startMonitoring {
+                logger.info("Inactivity timeout reached, locking vault")
+                EmbraceManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "inactivity_timeout"])
+                appState.lockVault()
             }
 
             // Trigger silent background backup if enabled and overdue
