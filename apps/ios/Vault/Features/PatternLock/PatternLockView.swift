@@ -17,7 +17,24 @@ struct PatternLockView: View {
     @State private var errorMessage: String?
     @State private var showError = false
     @State private var showingPaywall = false
+    @State private var lockoutRemaining: TimeInterval = 0
+    @State private var lockoutTimerTask: Task<Void, Never>?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private static let lockoutEndTimeKey = "patternLockout.endTime"
+
+    private var isLockedOut: Bool { lockoutRemaining > 0 }
+
+    /// Progressive delay schedule for failed pattern attempts.
+    static func bruteForceDelay(forAttempts count: Int) -> TimeInterval {
+        switch count {
+        case 0...3: return 0
+        case 4...5: return 5
+        case 6...8: return 30
+        case 9...10: return 300   // 5 minutes
+        default:     return 900   // 15 minutes
+        }
+    }
 
     private var isVoiceOverActive: Bool {
         UIAccessibility.isVoiceOverRunning
@@ -79,15 +96,29 @@ struct PatternLockView: View {
                 onPatternComplete: handlePatternComplete
             )
             .frame(width: 280, height: 280)
-            .disabled(isProcessing)
-            .opacity(patternGridOpacity)
+            .disabled(isProcessing || isLockedOut)
+            .opacity(isLockedOut ? 0.3 : patternGridOpacity)
             .accessibilityIdentifier("unlock_pattern_grid")
 
-            // Error message — overlay so it never shifts the grid
+            // Error / lockout message — overlay so it never shifts the grid
             Color.clear
                 .frame(height: 0)
                 .overlay(alignment: .top) {
-                    if showError, let message = errorMessage {
+                    if isLockedOut {
+                        VStack(spacing: 4) {
+                            Text("Too many attempts")
+                                .font(.subheadline.weight(.medium))
+                            Text(formatCountdown(lockoutRemaining))
+                                .font(.title2.monospacedDigit().weight(.semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(Color.vaultHighlight.opacity(0.9))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .transition(.scale.combined(with: .opacity))
+                        .accessibilityIdentifier("unlock_lockout_countdown")
+                    } else if showError, let message = errorMessage {
                         HStack(spacing: 8) {
                             Image(systemName: "exclamationmark.circle.fill")
                             Text(message)
@@ -141,7 +172,10 @@ struct PatternLockView: View {
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.vaultBackground.ignoresSafeArea())
+        .onAppear { checkLockout() }
+        .onDisappear { lockoutTimerTask?.cancel() }
         .animation(reduceMotion ? nil : .spring(response: 0.3), value: showError)
+        .animation(reduceMotion ? nil : .spring(response: 0.3), value: isLockedOut)
         .fullScreenCover(isPresented: $showRecoveryOption) {
             RecoveryPhraseInputView()
                 .interactiveDismissDisabled()
@@ -155,42 +189,40 @@ struct PatternLockView: View {
 
     private func handlePatternComplete(_ pattern: [Int]) {
         patternLockLogger.debug("Pattern completed, count=\(pattern.count)")
-        
+
         guard !isProcessing else {
             patternLockLogger.debug("Already processing, ignoring pattern")
             return
         }
-        
+
+        guard !isLockedOut else {
+            patternLockLogger.debug("Locked out, ignoring pattern")
+            patternState.reset()
+            return
+        }
+
         // Require minimum pattern length to prevent accidental taps
         guard pattern.count >= 6 else {
             patternLockLogger.debug("Pattern too short: \(pattern.count) nodes, minimum 6 required")
-            
-            // Show error message to user
+
             errorMessage = "Pattern must connect at least 6 dots"
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
-            withAnimation {
-                showError = true
-            }
-            
-            // Hide error after 2 seconds and reset pattern
+            withAnimation { showError = true }
+
             Task {
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
-                await MainActor.run {
-                    withAnimation {
-                        showError = false
-                    }
-                }
+                await MainActor.run { withAnimation { showError = false } }
             }
-            
+
             patternState.reset()
             return
         }
 
         // Clear any previous error
         showError = false
-        
+
         patternLockLogger.debug("Pattern accepted, processing unlock")
-        
+
         isProcessing = true
 
         Task {
@@ -208,9 +240,18 @@ struct PatternLockView: View {
                 let vaultCount = VaultStorage.shared.existingVaultCount()
                 if !subscriptionManager.canCreateVault(currentCount: vaultCount) {
                     await MainActor.run {
+                        // Vault limit hit — likely brute-force attempt
+                        SecureEnclaveManager.shared.incrementWipeCounter()
+                        let count = SecureEnclaveManager.shared.getWipeCounter()
+                        let delay = Self.bruteForceDelay(forAttempts: count)
+                        patternLockLogger.info("Vault limit hit: attempt \(count), delay=\(delay)s")
+                        if delay > 0 {
+                            applyLockout(duration: delay)
+                        } else {
+                            showingPaywall = true
+                        }
                         isProcessing = false
                         patternState.reset()
-                        showingPaywall = true
                     }
                     return
                 }
@@ -221,14 +262,77 @@ struct PatternLockView: View {
 
             await MainActor.run {
                 if unlocked {
+                    SecureEnclaveManager.shared.resetWipeCounter()
+                    clearLockout()
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                 } else {
+                    SecureEnclaveManager.shared.incrementWipeCounter()
+                    let count = SecureEnclaveManager.shared.getWipeCounter()
+                    let delay = Self.bruteForceDelay(forAttempts: count)
+                    patternLockLogger.info("Unlock failed: attempt \(count), delay=\(delay)s")
+                    if delay > 0 {
+                        applyLockout(duration: delay)
+                    }
                     UINotificationFeedbackGenerator().notificationOccurred(.error)
                 }
                 isProcessing = false
                 patternState.reset()
             }
         }
+    }
+
+    // MARK: - Lockout Helpers
+
+    private func checkLockout() {
+        if let endTime = UserDefaults.standard.object(forKey: Self.lockoutEndTimeKey) as? Date {
+            let remaining = endTime.timeIntervalSinceNow
+            if remaining > 0 {
+                lockoutRemaining = remaining
+                startLockoutTimer(until: endTime)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Self.lockoutEndTimeKey)
+            }
+        }
+    }
+
+    private func applyLockout(duration: TimeInterval) {
+        let endTime = Date().addingTimeInterval(duration)
+        UserDefaults.standard.set(endTime, forKey: Self.lockoutEndTimeKey)
+        lockoutRemaining = duration
+        startLockoutTimer(until: endTime)
+    }
+
+    private func clearLockout() {
+        lockoutTimerTask?.cancel()
+        lockoutTimerTask = nil
+        lockoutRemaining = 0
+        UserDefaults.standard.removeObject(forKey: Self.lockoutEndTimeKey)
+    }
+
+    private func startLockoutTimer(until endTime: Date) {
+        lockoutTimerTask?.cancel()
+        lockoutTimerTask = Task {
+            while !Task.isCancelled {
+                let remaining = endTime.timeIntervalSinceNow
+                if remaining <= 0 {
+                    lockoutRemaining = 0
+                    UserDefaults.standard.removeObject(forKey: Self.lockoutEndTimeKey)
+                    break
+                }
+                lockoutRemaining = remaining
+                try? await Task.sleep(for: .seconds(1))
+            }
+        }
+    }
+
+    private func formatCountdown(_ remaining: TimeInterval) -> String {
+        let total = Int(remaining.rounded(.up))
+        let minutes = total / 60
+        let seconds = total % 60
+        if minutes > 0 {
+            return String(format: "%d:%02d", minutes, seconds)
+        }
+        return "\(seconds)s"
     }
 }
 
