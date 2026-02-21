@@ -28,7 +28,6 @@ struct JoinVaultView: View {
     // Pending shared vault import state
     @State private var pendingImportState: BackgroundShareTransferManager.PendingImportState?
     @State private var isResumingImport = false
-    @State private var showDownloadWarning = false
 
     enum ViewMode: Equatable {
         case input
@@ -85,11 +84,6 @@ struct JoinVaultView: View {
         .onAppear {
             checkForPendingImport()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .sharedVaultDownloadStarted)) { notification in
-            if let message = notification.userInfo?["message"] as? String {
-                showDownloadWarning = true
-            }
-        }
         .task(id: mode) {
             #if DEBUG
             if mode == .patternSetup,
@@ -134,31 +128,6 @@ struct JoinVaultView: View {
                     onResume: resumePendingImport,
                     isResuming: $isResumingImport
                 )
-            }
-            
-            // Show download warning toast
-            if showDownloadWarning {
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.vaultHighlight)
-                    Text("Keep app open until download completes")
-                        .font(.caption)
-                        .foregroundStyle(.vaultSecondaryText)
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color.vaultHighlight.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .padding(.horizontal)
-                .transition(.move(edge: .top).combined(with: .opacity))
-                .onAppear {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                        withAnimation {
-                            showDownloadWarning = false
-                        }
-                    }
-                }
             }
 
             Image(systemName: "person.2.fill")

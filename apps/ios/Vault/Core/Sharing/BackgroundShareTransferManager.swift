@@ -4,15 +4,6 @@ import Foundation
 import os.log
 import UIKit
 
-// MARK: - Notifications
-
-extension Notification.Name {
-    /// Posted when a shared vault download starts to alert UI to show warning
-    static let sharedVaultDownloadStarted = Notification.Name("sharedVaultDownloadStarted")
-    /// Posted when there's a pending shared vault import that needs UI attention
-    static let pendingSharedVaultImportAvailable = Notification.Name("pendingSharedVaultImportAvailable")
-}
-
 /// Manages background upload/import of shared vaults so the UI is not blocked.
 /// Keys are captured by value in Task closures, so transfers survive lockVault().
 @MainActor
@@ -69,6 +60,8 @@ final class BackgroundShareTransferManager {
         var importedFileIds: [String]  // Track which files have been successfully imported
         let shareVaultVersion: Int
         let createdAt: Date
+        var isDownloadComplete: Bool  // Track if vault data has been fully downloaded
+        var downloadError: String?    // Track download errors for debugging
     }
 
     private nonisolated static let pendingDir: URL = {
@@ -946,13 +939,6 @@ final class BackgroundShareTransferManager {
 
         // Prevent screen from sleeping during download/import
         IdleTimerManager.shared.disable()
-        
-        // Post notification to show warning toast
-        NotificationCenter.default.post(
-            name: .sharedVaultDownloadStarted,
-            object: nil,
-            userInfo: ["message": "Keep app open until download completes"]
-        )
 
         let bgTaskId = beginProtectedTask(
             failureStatus: .importFailed("Import interrupted — iOS suspended the app. Tap to resume."),
@@ -979,8 +965,8 @@ final class BackgroundShareTransferManager {
                 let sharedVault: SharedVaultData
                 let result: (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int)
                 
-                if let pending = pendingImport {
-                    // Resume from pending import
+                if let pending = pendingImport, pending.isDownloadComplete {
+                    // Resume from completed download - just need to finish import
                     Self.logger.info("[import] Resuming interrupted import with \(pending.importedFileIds.count)/\(pending.totalFiles) files already imported")
                     shareKey = ShareKey(pending.shareKeyData)
                     
@@ -995,6 +981,18 @@ final class BackgroundShareTransferManager {
                     result = (vaultData, pending.shareVaultId, pending.policy, pending.shareVaultVersion)
                     self.setTargetProgress(95, message: "Resuming import...")
                 } else {
+                    // Fresh download or download was interrupted
+                    if let pending = pendingImport {
+                        Self.logger.info("[import] Resuming interrupted download for vault \(pending.shareVaultId)")
+                    }
+                    
+                    // Create pending state BEFORE download for resume capability
+                    shareKey = ShareKey(try KeyDerivation.deriveShareKey(from: capturedPhrase))
+                    
+                    // We need to derive shareKey first to save it in pending state
+                    // But we don't know shareVaultId yet, so we'll create a placeholder
+                    // and update it after download
+                    
                     // Fresh download
                     result = try await CloudKitSharingManager.shared.downloadSharedVault(
                         phrase: capturedPhrase,
@@ -1006,16 +1004,19 @@ final class BackgroundShareTransferManager {
                         }
                     )
 
-                    guard !Task.isCancelled else { return }
+                    guard !Task.isCancelled else { 
+                        Self.logger.info("[import] Download cancelled, will resume on next attempt")
+                        return 
+                    }
 
-                    shareKey = ShareKey(try KeyDerivation.deriveShareKey(from: capturedPhrase))
                     if SVDFSerializer.isSVDF(result.data) {
                         sharedVault = try SVDFSerializer.deserialize(from: result.data, shareKey: shareKey.rawBytes)
                     } else {
                         sharedVault = try SharedVaultData.decode(from: result.data)
                     }
                     
-                    // Save pending import state for resume capability
+                    // Save pending import state AFTER download completes
+                    // This marks download as complete so we can resume import if interrupted
                     pendingImport = PendingImportState(
                         shareVaultId: result.shareVaultId,
                         phrase: capturedPhrase,
@@ -1024,9 +1025,12 @@ final class BackgroundShareTransferManager {
                         totalFiles: sharedVault.files.count,
                         importedFileIds: [],
                         shareVaultVersion: result.version,
-                        createdAt: Date()
+                        createdAt: Date(),
+                        isDownloadComplete: true,
+                        downloadError: nil
                     )
                     try Self.savePendingImport(pendingImport!, vaultData: result.data)
+                    Self.logger.info("[import] Download complete - saved state with \(sharedVault.files.count) files ready to import")
                 }
                 
                 guard var pendingImportState = pendingImport else {
@@ -1259,6 +1263,11 @@ final class BackgroundShareTransferManager {
             LocalNotificationManager.shared.sendImportComplete()
         case .importFailed:
             success = false
+            // Schedule background resume task if there's a pending import to complete
+            if hasPendingImport {
+                scheduleBackgroundResumeTask(earliestIn: 30)
+                Self.logger.info("[import] Import failed with pending state - scheduled background resume task")
+            }
             LocalNotificationManager.shared.sendImportFailed()
         default:
             success = false
