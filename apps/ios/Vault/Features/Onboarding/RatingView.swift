@@ -51,6 +51,8 @@ struct RatingView: View {
                 VStack(spacing: 12) {
                     Button(action: {
                         // Show native iOS rating dialog on this screen
+                        // Note: requestReview() only works in App Store builds.
+                        // In TestFlight, this button has no effect (expected behavior).
                         requestReview()
                         hasRequestedReview = true
                     }) {
