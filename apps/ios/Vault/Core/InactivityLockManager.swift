@@ -12,27 +12,33 @@ final class InactivityLockManager: ObservableObject {
     private let logger = Logger(subsystem: "app.vaultaire.ios", category: "InactivityLockManager")
     
     /// Time interval before auto-lock (5 minutes)
-    private let lockTimeout: TimeInterval = 300 // 5 minutes
-    
+    let lockTimeout: TimeInterval
+
     /// Timer for tracking inactivity
     private var inactivityTimer: Timer?
-    
+
     /// Timestamp of last user activity
-    private var lastActivityTime: Date = Date()
-    
+    var lastActivityTime: Date = Date()
+
     /// Whether video is currently playing
     @Published private(set) var isVideoPlaying = false
-    
+
     /// Whether the vault should auto-lock (set by app state)
-    private var shouldAutoLock = false
-    
+    private(set) var shouldAutoLock = false
+
     /// Callback to lock the vault
     private var lockCallback: (() -> Void)?
-    
+
     /// Cancellables for Combine subscriptions
     private var cancellables = Set<AnyCancellable>()
-    
-    private init() {
+
+    private convenience init() {
+        self.init(lockTimeout: 300)
+    }
+
+    /// Internal init for testing with configurable timeout.
+    init(lockTimeout: TimeInterval = 300) {
+        self.lockTimeout = lockTimeout
         setupNotifications()
     }
     
@@ -139,7 +145,7 @@ final class InactivityLockManager: ObservableObject {
         }
     }
     
-    private func checkInactivity() {
+    func checkInactivity() {
         guard shouldAutoLock else { return }
         
         // Don't lock if video is playing
