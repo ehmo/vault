@@ -99,6 +99,7 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
 }
 
 .logo {
@@ -134,6 +135,11 @@ header {
 .nav-links {
   display: flex;
   gap: 32px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .nav-links a {
@@ -144,6 +150,7 @@ header {
   letter-spacing: 0.1em;
   opacity: 0.8;
   position: relative;
+  white-space: nowrap;
 }
 
 .nav-links a::after {
@@ -165,6 +172,7 @@ header {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .btn {
@@ -553,5 +561,42 @@ footer {
   .footer-compare {
     grid-template-columns: 1fr;
     gap: 6px;
+  }
+}
+
+@media (max-width: 1360px) {
+  .nav-links {
+    gap: 24px;
+  }
+
+  .nav-links a {
+    font-size: 0.84rem;
+    letter-spacing: 0.08em;
+  }
+
+  .nav-cta {
+    gap: 10px;
+  }
+}
+
+@media (max-width: 1160px) {
+  .nav-links {
+    display: none;
+  }
+
+  .mobile-menu-btn {
+    display: flex;
+  }
+
+  .mobile-nav-expand {
+    display: block;
+  }
+
+  .nav-cta .btn-nav {
+    display: none;
+  }
+
+  .theme-toggle #theme-label {
+    display: none;
   }
 }
