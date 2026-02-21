@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "9bc23078e97d",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".scratch-pad.md",
+    "AGENTS.md",
+    "apps/ios/AGENTS.md",
+    "apps/web/AGENTS.md",
+    "apps/web/styles/pages/home.css",
+    "apps/web/styles/pages/invite.css"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9b/c23078e97d/0/metadata.json",
+      "transcript": "/9b/c23078e97d/0/full.jsonl",
+      "context": "/9b/c23078e97d/0/context.md",
+      "content_hash": "/9b/c23078e97d/0/content_hash.txt",
+      "prompt": "/9b/c23078e97d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6526,
+    "cache_creation_tokens": 129912,
+    "cache_read_tokens": 2056466,
+    "output_tokens": 15287,
+    "api_call_count": 19
+  }
+}

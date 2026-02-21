@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "9bc23078e97d",
+  "session_id": "ea426b69-04de-4d6b-92a2-ce450a856484",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-21T19:39:10.342617Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".scratch-pad.md",
+    "AGENTS.md",
+    "apps/ios/AGENTS.md",
+    "apps/web/AGENTS.md",
+    "apps/web/styles/pages/home.css",
+    "apps/web/styles/pages/invite.css"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "48d93641-cb44-4ddd-b088-508789055a53",
+  "checkpoint_transcript_start": 563,
+  "transcript_lines_at_start": 563,
+  "token_usage": {
+    "input_tokens": 6526,
+    "cache_creation_tokens": 129912,
+    "cache_read_tokens": 2056466,
+    "output_tokens": 15287,
+    "api_call_count": 19
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-21T19:39:09.946714Z",
+    "agent_lines": 0,
+    "human_added": 30,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 30,
+    "agent_percentage": 0
+  }
+}
