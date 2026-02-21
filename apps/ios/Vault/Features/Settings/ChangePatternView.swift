@@ -183,7 +183,11 @@ struct ChangePatternView: View {
                     completePatternChange()
                 }
             } message: {
-                Text("Your current pattern will no longer work. Make sure you've written down your new recovery phrase.")
+                if isBackupEnabled {
+                    Text("Your current pattern will no longer work. Make sure you've written down your new recovery phrase.\n\nYour iCloud backup will be automatically updated with your new pattern.")
+                } else {
+                    Text("Your current pattern will no longer work. Make sure you've written down your new recovery phrase.")
+                }
             }
         }
     }
@@ -324,6 +328,10 @@ struct ChangePatternView: View {
 
     private var validationResult: PatternValidationResult? { flow.validationResult }
     private var errorMessage: String? { flow.errorMessage }
+
+    private var isBackupEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "iCloudBackupEnabled")
+    }
 
     private var isMaestroHookEnabled: Bool {
         #if DEBUG
@@ -503,6 +511,15 @@ struct ChangePatternView: View {
 
                 await MainActor.run {
                     flow.complete(with: newPhrase)
+                }
+
+                // Force iCloud backup with new key so backup matches new pattern
+                if UserDefaults.standard.bool(forKey: "iCloudBackupEnabled") {
+                    UserDefaults.standard.set(0, forKey: "lastBackupTimestamp")
+                    await MainActor.run {
+                        iCloudBackupManager.shared.performBackupIfNeeded(with: newKey)
+                    }
+                    changePatternLogger.info("Triggered iCloud backup after pattern change")
                 }
 
                 changePatternLogger.info("Pattern changed successfully")
