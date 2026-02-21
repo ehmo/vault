@@ -151,6 +151,7 @@
 		SMT00001 /* SubscriptionManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SMT00000 /* SubscriptionManagerTests.swift */; };
 		ILM00001 /* InactivityLockManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ILM00000 /* InactivityLockManagerTests.swift */; };
 		SEM00001 /* SecureEnclaveManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SEM00000 /* SecureEnclaveManagerTests.swift */; };
+		DLH00001 /* DeepLinkHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DLH00000 /* DeepLinkHandlerTests.swift */; };
 		019000009 /* PatternSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000008 /* PatternSetupCoordinator.swift */; };
 		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
 		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
@@ -361,6 +362,7 @@
 		SMT00000 /* SubscriptionManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManagerTests.swift; sourceTree = "<group>"; };
 		ILM00000 /* InactivityLockManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InactivityLockManagerTests.swift; sourceTree = "<group>"; };
 		SEM00000 /* SecureEnclaveManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureEnclaveManagerTests.swift; sourceTree = "<group>"; };
+		DLH00000 /* DeepLinkHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkHandlerTests.swift; sourceTree = "<group>"; };
 		019000008 /* PatternSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinator.swift; sourceTree = "<group>"; };
 		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
@@ -793,6 +795,7 @@
 				SMT00000 /* SubscriptionManagerTests.swift */,
 				ILM00000 /* InactivityLockManagerTests.swift */,
 				SEM00000 /* SecureEnclaveManagerTests.swift */,
+				DLH00000 /* DeepLinkHandlerTests.swift */,
 			);
 			path = VaultTests;
 			sourceTree = "<group>";
@@ -1215,6 +1218,7 @@
 				SMT00001 /* SubscriptionManagerTests.swift in Sources */,
 				ILM00001 /* InactivityLockManagerTests.swift in Sources */,
 				SEM00001 /* SecureEnclaveManagerTests.swift in Sources */,
+				DLH00001 /* DeepLinkHandlerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
