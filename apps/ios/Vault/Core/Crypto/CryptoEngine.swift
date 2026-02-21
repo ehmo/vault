@@ -656,7 +656,7 @@ enum CryptoEngine {
     }
 
     static func verifyHMAC(_ hmac: Data, for data: Data, with key: Data) -> Bool {
-        let computed = computeHMAC(for: data, with: key)
-        return hmac == computed
+        let symmetricKey = SymmetricKey(data: key)
+        return HMAC<SHA256>.isValidAuthenticationCode(hmac, authenticating: data, using: symmetricKey)
     }
 }
