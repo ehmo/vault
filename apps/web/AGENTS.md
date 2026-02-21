@@ -45,12 +45,12 @@ Defined in `styles/input.css` as `@theme` variables, used as `bg-vault-bg`, `tex
 
 ## Shared Frontend Assets
 
-- Shared cross-page chrome styles live in `styles/site-shared.css` (header, nav, footer, buttons, responsive nav behavior).
-- Use `.btn-nav` (in `styles/site-shared.css`) for compact header CTA sizing instead of repeating inline button styles.
-- Shared interactive behavior (theme toggle, mobile nav, compare icon fallback, home/invite runtime) lives in `assets/alpine-app.js` and is initialized via Alpine (`assets/alpine.min.js` + `x-data="vaultaireApp()"`).
-- Competitor icons are stored locally in `assets/compare-icons/` (App Store sourced) and should be referenced by relative paths from compare pages, not hotlinked from `is1-ssl.mzstatic.com`.
-- Keep page-specific styles in `styles/pages/*.css` and import them from `styles/input.css` so all CSS is emitted through `styles/output.css`.
-- Avoid adding new inline `<style>` blocks in production pages; treat the Tailwind input/import graph as the single stylesheet entrypoint.
+- Shared chrome styles: `styles/site-shared.css` (header, nav, footer, buttons, responsive nav).
+- Use `.btn-nav` for compact header CTA sizing — don't repeat inline button styles.
+- Shared interactive behavior (theme toggle, mobile nav, compare icon fallback, home/invite runtime): `assets/alpine-app.js`, initialized via Alpine (`assets/alpine.min.js` + `x-data="vaultaireApp()"`).
+- Competitor icons: stored locally in `assets/compare-icons/` — reference by relative path, never hotlink from `is1-ssl.mzstatic.com`.
+- Page-specific styles: `styles/pages/*.css`, imported from `styles/input.css` so all CSS emits through `styles/output.css`.
+- No new inline `<style>` blocks in production pages — treat the Tailwind input/import graph as the single stylesheet entrypoint.
 
 ## Deployment
 
@@ -61,9 +61,7 @@ Cloudflare Pages project `vaultaire-web`:
 
 Deploy manually: `npx wrangler pages deploy . --project-name vaultaire-web`
 
-Deployment notes:
-- Wrangler prints a unique deployment URL (for example `https://<hash>.vaultaire-web.pages.dev`) after each successful deploy.
-- In dirty git working trees, add `--commit-dirty=true` to silence wrangler's uncommitted-changes warning.
+Wrangler prints a unique deployment URL after each deploy. In dirty git trees, add `--commit-dirty=true`.
 
 ## AASA Requirements
 
@@ -73,28 +71,42 @@ The `apple-app-site-association` file MUST:
 - Be accessible without redirects
 - Contain the correct Team ID + Bundle ID: `UFV835UGV6.app.vaultaire.ios`
 
-## Brand Learnings
+## Brand & Design Learnings
 
-- Use the iOS app logo assets directly in web pages: `/assets/vault-logo.png` for dark theme and `/assets/vault-logo-light.png` for light theme.
-- Keep product naming/casing consistent everywhere: `Vaultaire`.
-- Prefer explicit static links (`../terms/index.html`, `manifesto/index.html`) over router-style paths so pages work both on static hosts and direct file previews.
-- Reuse the exact home-page header/footer chrome (nav spacing, theme glyph toggle `☀︎/☽`, angular `Get App` button, footer brand block) across every page to avoid visual drift.
-- For nested compare pages (`/compare/<slug>/review/`), header nav links and shared script paths must use `../../../` depth; top-level compare pages use `../`, comparison detail pages use `../../`.
-- Keep compare-specific layout in `compare/styles.css`, but always import and rely on `styles/site-shared.css` for shared chrome so header/footer/theme behavior stays identical across pages.
-- Compare icon URLs from App Store can fail intermittently; attach a local fallback (`/assets/compare-fallback-icon.svg`) for all competitor icon images so cards/lists never render broken placeholders.
-- For all-caps headings, keep positive tracking (around `0.02em`-`0.03em`) and avoid negative letter-spacing; keep body/legal copy at `1rem`+ with line-height near `1.6` for readability.
-- Keep the primary nav item set in sync across all pages, including home. If compare exists in secondary pages, include `Compare` on `index.html` header nav too.
-- For compare detail pages, breadcrumb display text and BreadcrumbList item #3 label must always start with `Vaultaire vs ...` (never just `vs ...`).
-- Keep SEO baseline files explicit in repo root: `robots.txt` (allow crawl + sitemap link), `sitemap.xml` (real XML file + `/sitemap.xml` XML content-type header), and root favicon assets (`/favicon.png`, `/apple-touch-icon.png`) linked from page heads.
-- Invite fallback page (`/s`) should use native iOS Smart App Banner only (no custom in-page app-store banner UI) with a static `<meta name="apple-itunes-app" content="app-id=6758529311">`. Do not mutate the Smart App Banner meta tag at runtime via JavaScript.
-- The iOS Smart App Banner renders a native 1px separator line at its bottom edge (iOS system UI). This line cannot be removed or styled via CSS — it is not a web border or backdrop-filter artifact. Any attempt to fix it via `border-bottom`, `backdrop-filter`, or `background` on the header will fail. The only way to eliminate the line is to remove the `<meta name="apple-itunes-app">` tag entirely.
-- Safari keeps same-domain universal links in-browser by design. On `/s`, the manual `Open in Vaultaire` action should deep-link to custom scheme first (include invite token in both `#fragment` and `?p=` for resilience), then optionally fall back to `https://vaultaire.app/s...` if app handoff does not occur.
-- For animation-heavy pages (home hero/mockup), pause RAF/timer loops on `visibilitychange`/`pagehide` and resume on `pageshow`; otherwise detached DOM + listener retention appears in heap snapshots during navigation.
-- In Alpine pages, do not combine `x-init="init()"` with a component `init()` method; Alpine already auto-runs `init()` and double-wiring causes duplicated listeners (for example theme toggle double-flip).
-- Keep hero/mockup placeholder media local (`assets/mockup/*`) instead of third-party placeholder hosts to avoid extra DNS/network latency and flaky external dependencies.
-- Scope non-home page CSS under page-specific body classes (`.page-privacy`, `.page-terms`, `.page-manifesto`, `.page-invite`, `.page-compare`) so later imports do not leak `main/h1/section` rules back into home and break header/hero layout.
-- Home hero animation should pause when the hero is off-screen (IntersectionObserver), not only on tab-hide/pagehide, to reduce long-session CPU/memory churn from always-on RAF/timers while users read lower sections.
-- Theme toggle icon should use inline SVG (sun/moon) rather than glyph characters (`☀︎/☽`) to avoid font-metric drift and off-center rendering across browsers; in icon-only breakpoints force a fixed `44x44` button with centered content.
-- In the phone mockup, avoid text glyph icons for circular controls (`+`) because font metrics drift by browser; use geometric bars/pseudo-elements and keep the FAB around `40x40` to match iOS proportions.
-- For the hero phone mockup, do not set fixed `width` and constrained `height` together at desktop/tablet breakpoints; drive width from the same `--mockup-h` variable (`width = height * 0.48`) to keep proportions stable across short viewports (for example `1024x800`).
-- Keep trust-strip overlap off the hero section (`margin-top: 0`) so the hero phone never collides with the strip on edge resolutions; if overlap is desired, apply it between trust-strip and the following section (features) instead.
+### Brand & Copy
+- Product name is always `Vaultaire` (never `vaultaire`, never `VAULTAIRE`).
+- Keep the primary nav item set in sync across ALL pages including `index.html`. If Compare exists in secondary pages, include it on the home header nav too.
+- For all-caps headings: positive letter-spacing (`0.02em`–`0.03em`), never negative. Body/legal copy: `1rem`+, `line-height: 1.6`.
+
+### Navigation & Links
+- Use explicit static links (`../terms/index.html`, `manifesto/index.html`) — not router-style paths — so pages work on static hosts and direct file previews.
+- Path depth for nav links and shared scripts:
+  - Top-level pages: `./` or root-relative
+  - Compare top-level (`/compare/<slug>/`): `../`
+  - Compare detail (`/compare/<slug>/review/`): `../../`
+  - Further nested: `../../../`
+- Compare detail breadcrumb display text and `BreadcrumbList` item #3 label must always start with `Vaultaire vs ...` (never just `vs ...`).
+
+### CSS Architecture
+- Scope non-home page CSS under page-specific body classes (`.page-privacy`, `.page-terms`, `.page-manifesto`, `.page-invite`, `.page-compare`) to prevent `main`/`h1`/`section` rules leaking into home and breaking header/hero layout.
+- Compare-specific layout goes in `compare/styles.css`; always import `styles/site-shared.css` for shared chrome so header/footer/theme behavior stays identical.
+- Attach `assets/compare-fallback-icon.svg` as a local fallback on all competitor icon `<img>` elements — App Store icon URLs fail intermittently.
+
+### SEO
+- Keep SEO baseline files explicit in repo root: `robots.txt` (allow crawl + sitemap link), `sitemap.xml` (real XML + `/sitemap.xml` content-type header in `_headers`), root favicons (`/favicon.png`, `/apple-touch-icon.png`) linked from page heads.
+
+### iOS Smart App Banner (`/s` page)
+- Use native iOS Smart App Banner only (`<meta name="apple-itunes-app" content="app-id=6758529311">`). No custom in-page App Store banner UI. Do not mutate the meta tag at runtime via JavaScript.
+- The banner renders a native **1px separator line** at its bottom edge (iOS system UI). This line **cannot be removed via CSS** — it is not a web border or backdrop-filter artifact. Any attempt via `border-bottom`, `backdrop-filter`, or `background` on the header will fail. The only way to remove the line is to remove the `<meta name="apple-itunes-app">` tag.
+- Safari keeps same-domain universal links in-browser. The manual "Open in Vaultaire" action should deep-link to the custom scheme first (include invite token in both `#fragment` and `?p=` for resilience), then optionally fall back to `https://vaultaire.app/s...`.
+
+### Home Hero & Mockup
+- Logo assets: `/assets/vault-logo.png` (dark theme), `/assets/vault-logo-light.png` (light theme).
+- Reuse the exact home header/footer chrome (nav spacing, theme glyph toggle, angular "Get App" button, footer brand block) across every page to avoid visual drift.
+- Keep hero/mockup placeholder media local (`assets/mockup/*`) — no third-party placeholder hosts.
+- Pause RAF/timer animation loops on `visibilitychange`/`pagehide`, resume on `pageshow`. Also pause when hero is off-screen via `IntersectionObserver` — not only on tab-hide — to reduce long-session CPU/memory churn.
+- In Alpine pages, do not combine `x-init="init()"` with a component `init()` method — Alpine auto-runs `init()` and double-wiring causes duplicate listeners (e.g., theme toggle double-flip).
+- Theme toggle: use inline SVG (sun/moon), not glyph characters (`☀︎/☽`) — glyphs have font-metric drift across browsers. At icon-only breakpoints, force a fixed `44×44` button with centered content.
+- Phone mockup circular controls (`+`): use geometric bars/pseudo-elements, not text glyphs. Font metrics drift by browser. Keep FAB around `40×40` to match iOS proportions.
+- Hero phone mockup proportions: drive `width` from the same `--mockup-h` variable (`width = height * 0.48`) — never set fixed `width` and constrained `height` together at desktop/tablet breakpoints. This keeps proportions stable on short viewports (e.g., 1024×800).
+- Keep trust-strip `margin-top: 0` (no overlap into the hero section) so the hero phone never collides with the strip at edge resolutions.

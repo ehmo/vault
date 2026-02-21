@@ -36,7 +36,7 @@ bd sync && git push              # Complete
 
 ## Learnings Source
 
-Detailed session history: `.scratch-pad.md` (2,800+ lines)
+Pitfalls, preferences, and corrections: `.scratch-pad.md`
 Quick reference: See subproject AGENTS.md files
 
 **Model preference**: Use opus for subagents
