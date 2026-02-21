@@ -551,7 +551,11 @@ final class CloudKitSharingManager {
         let results = try await publicDatabase.records(matching: query)
 
         for (recordId, _) in results.matchResults {
-            _ = try? await publicDatabase.deleteRecord(withID: recordId)
+            do {
+                try await publicDatabase.deleteWithRetry(recordId)
+            } catch {
+                Self.logger.error("[delete-vault] Failed to delete manifest \(recordId.recordName, privacy: .public): \(error.localizedDescription, privacy: .private)")
+            }
         }
     }
 

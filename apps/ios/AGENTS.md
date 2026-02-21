@@ -70,6 +70,12 @@ Always use `-destination 'id=<UUID>'`, never `-destination 'name=...'` (duplicat
 - `CKError.serverRecordChanged` (code 14) = record already exists. Fetch-or-create is mandatory
 - After initial upload, always seed `ShareSyncCache` — incremental sync with empty cache = CKError 14 on all chunks
 
+### Error Logging Policy (CloudKit / Network)
+- **Never** `try?` on CloudKit save/delete — use `do/catch` or `throws`
+- **Tier 1 (Embrace)**: data loss, security failures, CloudKit save/delete final failures
+- **Tier 2 (Logger.error)**: recoverable failures, degraded functionality
+- **Tier 3 (silent)**: expected states (no network, user cancellation, empty results)
+
 ### Security
 - Never `try?` on security paths (duress, file deletion, recovery). Use `do/catch` + Sentry
 - `Data(repeating: 0)` ≠ proper key. Use `SymmetricKey(size: .bits256)`
