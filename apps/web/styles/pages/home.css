@@ -919,6 +919,12 @@
             margin-bottom: 16px;
         }
 
+        .section-header-subtitle {
+            color: var(--text-light);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
         .feature-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -1095,10 +1101,16 @@
 
         .code-key { color: var(--highlight-dark); }
         .code-val { color: var(--text-dark); }
+        .code-comment { color: var(--text-secondary); }
 
         .tech-content h3 {
             font-size: 2.5rem;
             margin-bottom: 24px;
+        }
+
+        .tech-lead {
+            color: var(--accent-dark);
+            font-size: 1.1rem;
         }
 
         .tech-content ul {

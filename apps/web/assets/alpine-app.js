@@ -1,5 +1,5 @@
 (() => {
-  const APPLE_STORE_URL = "https://apps.apple.com/app/vaultaire/id6740526623";
+  const APPLE_STORE_URL = "https://apps.apple.com/app/vaultaire/id6758529311";
   const COMPARE_ICON_FALLBACK = "/assets/compare-fallback-icon.svg";
   const APP_STORE_ICON_HOST = /is1-ssl\.mzstatic\.com/;
 
@@ -32,6 +32,7 @@
   document.addEventListener("alpine:init", () => {
     Alpine.data("vaultaireApp", () => ({
       theme: "dark",
+      _initialized: false,
       _cleanupCallbacks: [],
       _aborted: false,
       _homeRuntime: null,
@@ -53,6 +54,8 @@
       },
 
       init() {
+        if (this._initialized) return;
+        this._initialized = true;
         this._registerPagehideCleanup();
         this._initTheme();
         this._initCompareIconFallback();
@@ -100,12 +103,26 @@
         const label = document.getElementById("theme-label");
         const preferred = window.matchMedia("(prefers-color-scheme: dark)");
         const key = "vaultaire-theme";
+        const readTheme = () => {
+          try {
+            return localStorage.getItem(key);
+          } catch (_) {
+            return null;
+          }
+        };
+        const writeTheme = (value) => {
+          try {
+            localStorage.setItem(key, value);
+          } catch (_) {
+            // no-op (private mode / blocked storage)
+          }
+        };
 
         const applyTheme = (theme, persist) => {
           this.theme = theme === "light" ? "light" : "dark";
           root.dataset.theme = this.theme;
           if (persist) {
-            localStorage.setItem(key, this.theme);
+            writeTheme(this.theme);
           }
 
           const isDark = this.theme === "dark";
@@ -121,7 +138,7 @@
           }));
         };
 
-        const saved = localStorage.getItem(key);
+        const saved = readTheme();
         const hasOverride = saved === "dark" || saved === "light";
         applyTheme(hasOverride ? saved : (preferred.matches ? "dark" : "light"), false);
 
@@ -130,7 +147,7 @@
         };
 
         const onPreferredChange = (event) => {
-          if (!localStorage.getItem(key)) {
+          if (!readTheme()) {
             applyTheme(event.matches ? "dark" : "light", false);
           }
         };
@@ -140,30 +157,13 @@
           this._pushCleanup(() => toggle.removeEventListener("click", onToggleClick));
         }
 
-        preferred.addEventListener("change", onPreferredChange);
-        this._pushCleanup(() => preferred.removeEventListener("change", onPreferredChange));
-      },
-
-      toggleTheme() {
-        const next = this.isDark ? "light" : "dark";
-        this.theme = next;
-        document.documentElement.dataset.theme = next;
-        localStorage.setItem("vaultaire-theme", next);
-
-        const toggle = document.getElementById("theme-toggle");
-        const icon = document.getElementById("theme-icon");
-        const label = document.getElementById("theme-label");
-
-        if (toggle) {
-          toggle.setAttribute("aria-pressed", String(!(next === "dark")));
-          toggle.setAttribute("aria-label", this.themeAriaLabel);
+        if (typeof preferred.addEventListener === "function") {
+          preferred.addEventListener("change", onPreferredChange);
+          this._pushCleanup(() => preferred.removeEventListener("change", onPreferredChange));
+        } else if (typeof preferred.addListener === "function") {
+          preferred.addListener(onPreferredChange);
+          this._pushCleanup(() => preferred.removeListener(onPreferredChange));
         }
-        setElementText(icon, this.themeIcon);
-        setElementText(label, this.themeLabel);
-
-        window.dispatchEvent(new CustomEvent("vaultaire-themechange", {
-          detail: { theme: next, isDark: next === "dark" }
-        }));
       },
 
       _initCompareIconFallback() {

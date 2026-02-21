@@ -78,6 +78,39 @@ ul {
   padding: 48px 0;
 }
 
+.compare-text-center {
+  text-align: center;
+}
+
+.compare-pb-0 {
+  padding-bottom: 0;
+}
+
+.compare-link-accent {
+  color: var(--accent);
+}
+
+.compare-rating-note {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-top: 12px;
+}
+
+.compare-summary-note {
+  margin-top: 16px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.compare-review-link {
+  margin-top: 16px;
+}
+
+.compare-back-wrap {
+  text-align: center;
+  margin-top: 32px;
+}
+
 .compare-section h2 {
   font-size: clamp(1.3rem, 2.5vw, 1.8rem);
   margin-bottom: 24px;

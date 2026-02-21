@@ -13,7 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../styles/output.css">
 </head>
-<body x-data="vaultaireApp()" x-init="init()">
+<body x-data="vaultaireApp()">
   <a href="#main-content" class="skip-link">Skip to main content</a>
   <header>
     <div class="container nav-inner">
@@ -43,7 +43,7 @@
   <main id="main-content">
     <section class="invite-card" id="invite-card" aria-live="polite" aria-atomic="true" role="status">
       <img src="../assets/vault-logo.png" alt="" class="hero-logo" id="hero-logo-dark" loading="lazy" width="74" height="74">
-      <img src="../assets/vault-logo-light.png" alt="" class="hero-logo" id="hero-logo-light" style="display:none;" loading="lazy" width="74" height="74">
+      <img src="../assets/vault-logo-light.png" alt="" class="hero-logo hero-logo-light-hidden" id="hero-logo-light" loading="lazy" width="74" height="74">
       <h1>Vault Invitation</h1>
       <p>Someone shared a secure vault with you.</p>
       <div id="fallback" class="stack">
@@ -89,7 +89,7 @@
     </div>
   </footer>
 
-  <script defer src="/assets/alpine.min.js"></script>
   <script defer src="/assets/alpine-app.js"></script>
+  <script defer src="/assets/alpine.min.js"></script>
 </body>
 </html>

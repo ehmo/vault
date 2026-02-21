@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#304D92"/>
+      <stop offset="100%" stop-color="#4A67AE"/>
+    </linearGradient>
+    <pattern id="p" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="4" cy="4" r="1.8" fill="rgba(255,255,255,0.16)"/>
+    </pattern>
+  </defs>
+  <rect width="300" height="300" fill="url(#g)"/>
+  <rect width="300" height="300" fill="url(#p)"/>
+  <rect x="22" y="204" width="256" height="62" rx="12" fill="rgba(0,0,0,0.28)"/>
+  <text x="150" y="234" text-anchor="middle" font-family="'Plus Jakarta Sans',Arial,sans-serif" font-size="20" font-weight="700" fill="#F3F2FF">Covert Llama</text>
+  <text x="150" y="112" text-anchor="middle" font-family="'Space Grotesk',Arial,sans-serif" font-size="34" font-weight="700" fill="rgba(255,255,255,0.92)">VAULT</text>
+</svg>

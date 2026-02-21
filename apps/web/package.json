@@ -3,9 +3,14 @@
   "private": true,
   "scripts": {
     "dev": "npx @tailwindcss/cli -i styles/input.css -o styles/output.css --watch",
-    "build": "npx @tailwindcss/cli -i styles/input.css -o styles/output.css --minify"
+    "build": "npx @tailwindcss/cli -i styles/input.css -o styles/output.css --minify",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:static": "node --test tests/static/markup.spec.js",
+    "test": "npm run test:static && npm run test:e2e"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/cli": "^4.0.0"
   }
 }

@@ -48,6 +48,14 @@
       gap: 8px;
     }
 
+    .legal-mt-10 {
+      margin-top: 10px;
+    }
+
+    .legal-section-last {
+      margin-bottom: 0;
+    }
+
     a {
       color: var(--accent);
       text-underline-offset: 3px;

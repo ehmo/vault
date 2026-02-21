@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../styles/output.css">
 </head>
-<body x-data="vaultaireApp()" x-init="init()">
+<body x-data="vaultaireApp()">
   <header>
     <div class="container nav-inner">
       <a href="../index.html" class="logo">
@@ -33,7 +33,7 @@
           <span class="theme-icon" id="theme-icon">☀︎</span>
           <span id="theme-label">Light</span>
         </button>
-        <a href="https://apps.apple.com/app/vaultaire/id6740526623" class="btn btn-primary btn-nav">Get App</a>
+        <a href="https://apps.apple.com/app/vaultaire/id6758529311" class="btn btn-primary btn-nav">Get App</a>
       </div>
     </div>
   </header>
@@ -62,11 +62,11 @@
         <section>
           <h2>Analytics (Opt-In Only)</h2>
           <p>During onboarding, you are asked whether you'd like to help improve Vaultaire by sharing anonymous usage data. This is entirely optional. If you consent:</p>
-          <ul style="margin-top:10px">
+          <ul class="legal-mt-10">
             <li><strong>TelemetryDeck</strong> collects anonymous usage signals (e.g., which screens are visited, feature adoption). No device identifiers, IP addresses, or personal data are collected. Data cannot be traced back to you. <a href="https://telemetrydeck.com/privacy">TelemetryDeck's privacy policy</a>.</li>
             <li><strong>Sentry</strong> collects crash reports and performance data to help us fix bugs. Crash reports may include device model, OS version, and stack traces. No personal content is ever included. <a href="https://sentry.io/privacy">Sentry's privacy policy</a>.</li>
           </ul>
-          <p style="margin-top:10px">You can change your analytics preference at any time in the app's Settings.</p>
+          <p class="legal-mt-10">You can change your analytics preference at any time in the app's Settings.</p>
         </section>
 
         <section>
@@ -104,7 +104,7 @@
           <p>We may update this policy from time to time. Changes will be posted on this page with an updated revision date.</p>
         </section>
 
-        <section style="margin-bottom:0">
+        <section class="legal-section-last">
           <h2>Contact</h2>
           <p>If you have questions about this privacy policy, contact us at <a href="mailto:support@vaultaire.app">support@vaultaire.app</a>.</p>
         </section>
@@ -141,7 +141,7 @@
       </div>
     </div>
   </footer>
-  <script defer src="/assets/alpine.min.js"></script>
   <script defer src="/assets/alpine-app.js"></script>
+  <script defer src="/assets/alpine.min.js"></script>
 </body>
 </html>
