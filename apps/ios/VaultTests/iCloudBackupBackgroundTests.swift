@@ -225,7 +225,9 @@ final class iCloudBackupBackgroundTests: XCTestCase {
             createdAt: Date(),
             uploadFinished: false,
             manifestSaved: false,
-            retryCount: 3
+            retryCount: 3,
+            fileCount: 42,
+            vaultTotalSize: 10_485_760
         )
 
         let data = try JSONEncoder().encode(state)
@@ -249,7 +251,9 @@ final class iCloudBackupBackgroundTests: XCTestCase {
             createdAt: Date(),
             uploadFinished: true,
             manifestSaved: true,
-            retryCount: 0
+            retryCount: 0,
+            fileCount: 10,
+            vaultTotalSize: 25_165_824
         )
 
         let data = try JSONEncoder().encode(state)
@@ -270,7 +274,9 @@ final class iCloudBackupBackgroundTests: XCTestCase {
             createdAt: createdAt,
             uploadFinished: false,
             manifestSaved: false,
-            retryCount: 0
+            retryCount: 0,
+            fileCount: 1,
+            vaultTotalSize: 100
         )
 
         let data = try JSONEncoder().encode(state)
@@ -293,7 +299,9 @@ final class iCloudBackupBackgroundTests: XCTestCase {
             createdAt: Date(),
             uploadFinished: false,
             manifestSaved: false,
-            retryCount: 0
+            retryCount: 0,
+            fileCount: 1,
+            vaultTotalSize: 100
         )
 
         let data = try JSONEncoder().encode(state)
