@@ -503,7 +503,7 @@
             left: 50%;
             top: 1px;
             transform: translateX(-50%);
-            width: min(122px, 42%);
+            width: min(92px, 32%);
             height: 24px;
             border-radius: 999px;
             background: #05060A;
@@ -512,7 +512,7 @@
         .status-right {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
             flex-shrink: 0;
         }
 
