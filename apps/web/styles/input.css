@@ -1,4 +1,11 @@
 @import "tailwindcss";
+@import "./site-shared.css";
+@import "../compare/styles.css";
+@import "./pages/home.css";
+@import "./pages/manifesto.css";
+@import "./pages/privacy.css";
+@import "./pages/terms.css";
+@import "./pages/invite.css";
 
 @theme {
   /* Vaultaire design tokens (matching iOS app) */

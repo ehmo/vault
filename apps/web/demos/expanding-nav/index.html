@@ -508,7 +508,7 @@
   }
 </style>
 </head>
-<body>
+<body x-data="vaultaireApp()" x-init="init()">
 
 <div class="phone">
   <div class="phone-screen">
@@ -810,5 +810,7 @@
   });
 </script>
 
+  <script defer src="/assets/alpine.min.js"></script>
+  <script defer src="/assets/alpine-app.js"></script>
 </body>
 </html>

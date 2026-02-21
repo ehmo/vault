@@ -47,11 +47,10 @@ Defined in `styles/input.css` as `@theme` variables, used as `bg-vault-bg`, `tex
 
 - Shared cross-page chrome styles live in `styles/site-shared.css` (header, nav, footer, buttons, responsive nav behavior).
 - Use `.btn-nav` (in `styles/site-shared.css`) for compact header CTA sizing instead of repeating inline button styles.
-- Shared theme toggle behavior lives in `assets/theme-toggle.js` (`vaultaire-theme` localStorage key, `☀︎/☽` icon swap, `vaultaire-themechange` event).
-- Shared competitor icon fallback behavior lives in `assets/compare-icon-fallback.js` (replace duplicated per-page inline scripts on compare pages).
+- Shared interactive behavior (theme toggle, mobile nav, compare icon fallback, home/invite runtime) lives in `assets/alpine-app.js` and is initialized via Alpine (`assets/alpine.min.js` + `x-data="vaultaireApp()"`).
 - Competitor icons are stored locally in `assets/compare-icons/` (App Store sourced) and should be referenced by relative paths from compare pages, not hotlinked from `is1-ssl.mzstatic.com`.
-- Keep per-page `<style>` blocks focused on page-specific layout/content only.
-- `index.html` still contains an embedded style block for the hero/mockup experience; when changing global chrome (header/footer/mobile spacing), mirror equivalent adjustments there so home does not drift from shared pages.
+- Keep page-specific styles in `styles/pages/*.css` and import them from `styles/input.css` so all CSS is emitted through `styles/output.css`.
+- Avoid adding new inline `<style>` blocks in production pages; treat the Tailwind input/import graph as the single stylesheet entrypoint.
 
 ## Deployment
 
@@ -89,3 +88,4 @@ The `apple-app-site-association` file MUST:
 - Keep SEO baseline files explicit in repo root: `robots.txt` (allow crawl + sitemap link), `sitemap.xml` (real XML file + `/sitemap.xml` XML content-type header), and root favicon assets (`/favicon.png`, `/apple-touch-icon.png`) linked from page heads.
 - Invite fallback page (`/s`) should use native iOS Smart App Banner only (no custom in-page app-store banner UI) with a static `<meta name="apple-itunes-app" content="app-id=6758529311">`. Do not mutate the Smart App Banner meta tag at runtime via JavaScript.
 - Safari keeps same-domain universal links in-browser by design. On `/s`, the manual `Open in Vaultaire` action should deep-link to custom scheme first (include invite token in both `#fragment` and `?p=` for resilience), then optionally fall back to `https://vaultaire.app/s...` if app handoff does not occur.
+- For animation-heavy pages (home hero/mockup), pause RAF/timer loops on `visibilitychange`/`pagehide` and resume on `pageshow`; otherwise detached DOM + listener retention appears in heap snapshots during navigation.

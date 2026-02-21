@@ -11,95 +11,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../styles/site-shared.css">
-  <style>
-    main {
-      flex: 1;
-      display: grid;
-      place-items: center;
-      padding: 116px 16px 48px;
-    }
-
-    .invite-card {
-      width: min(100%, 620px);
-      background: color-mix(in srgb, var(--surface) 94%, transparent 6%);
-      border: 1px solid color-mix(in srgb, var(--text) 12%, transparent 88%);
-      border-radius: 28px;
-      padding: 34px 26px;
-      text-align: center;
-    }
-
-    .hero-logo {
-      width: 74px;
-      height: 74px;
-      border-radius: 20px;
-      margin: 0 auto 18px;
-      box-shadow: 0 12px 26px color-mix(in srgb, var(--bg) 75%, transparent 25%);
-    }
-
-    h1 {
-      margin: 0 0 8px;
-      font-family: var(--font-display);
-      font-size: clamp(1.6rem, 4vw, 2.2rem);
-      letter-spacing: 0.02em;
-      line-height: 1.12;
-    }
-
-    p {
-      margin: 0;
-      color: var(--text-secondary);
-      line-height: 1.65;
-    }
-
-    .stack {
-      margin-top: 18px;
-      display: grid;
-      gap: 12px;
-    }
-
-    .cta {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 9px;
-      margin-top: 10px;
-      text-decoration: none;
-      background: var(--accent);
-      color: var(--accent-contrast);
-      font-weight: 700;
-      padding: 14px 22px;
-      border-radius: 999px;
-    }
-
-    .cta-open {
-      background: transparent;
-      color: var(--text);
-      border: 1px solid color-mix(in srgb, var(--text) 20%, transparent 80%);
-    }
-
-    .hint {
-      margin-top: 14px;
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-    }
-
-    @media (max-width: 768px) {
-      main {
-        place-items: start center;
-        padding-top: 96px;
-        padding-bottom: 36px;
-      }
-      .invite-card { border-radius: 18px; padding: 24px 18px; }
-      .cta {
-        width: 100%;
-      }
-      .stack {
-        margin-top: 14px;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="../styles/output.css">
 </head>
-<body>
+<body x-data="vaultaireApp()" x-init="init()">
   <a href="#main-content" class="skip-link">Skip to main content</a>
   <header>
     <div class="container nav-inner">
@@ -175,70 +89,7 @@
     </div>
   </footer>
 
-  <script src="../assets/theme-toggle.js" defer></script>
-  <script>
-    (function () {
-      const darkHero = document.getElementById('hero-logo-dark');
-      const lightHero = document.getElementById('hero-logo-light');
-      const openInAppButton = document.getElementById('open-in-app');
-
-      function buildUniversalInviteUrl() {
-        const url = new URL(window.location.href);
-        url.protocol = 'https:';
-        url.host = 'vaultaire.app';
-        if (url.pathname === '/s/index.html') {
-          url.pathname = '/s';
-        }
-        url.searchParams.set('open_in_app', String(Date.now()));
-        return url.toString();
-      }
-
-      function buildCustomSchemeInviteUrl() {
-        const token = window.location.hash ? window.location.hash.slice(1) : '';
-        if (!token) {
-          return 'vaultaire://s';
-        }
-        return 'vaultaire://s?p=' + encodeURIComponent(token) + '#' + token;
-      }
-
-      if (openInAppButton) {
-        openInAppButton.href = buildCustomSchemeInviteUrl();
-        openInAppButton.addEventListener('click', function (event) {
-          event.preventDefault();
-          const fallbackUrl = buildUniversalInviteUrl();
-          const schemeUrl = buildCustomSchemeInviteUrl();
-
-          const onVisibilityChange = function () {
-            if (document.visibilityState === 'hidden') {
-              clearTimeout(fallbackTimer);
-              document.removeEventListener('visibilitychange', onVisibilityChange);
-            }
-          };
-
-          document.addEventListener('visibilitychange', onVisibilityChange);
-
-          const fallbackTimer = setTimeout(function () {
-            document.removeEventListener('visibilitychange', onVisibilityChange);
-            if (document.visibilityState === 'visible') {
-              window.location.assign(fallbackUrl);
-            }
-          }, 900);
-
-          window.location.assign(schemeUrl);
-        });
-      }
-
-      function syncHeroLogo(isDark) {
-        darkHero.style.display = isDark ? 'block' : 'none';
-        lightHero.style.display = isDark ? 'none' : 'block';
-      }
-
-      syncHeroLogo((document.documentElement.dataset.theme || 'dark') === 'dark');
-      window.addEventListener('vaultaire-themechange', (event) => {
-        syncHeroLogo(Boolean(event.detail && event.detail.isDark));
-      });
-    })();
-  </script>
-    <script src="../scripts/mobile-nav.js"></script>
+  <script defer src="/assets/alpine.min.js"></script>
+  <script defer src="/assets/alpine-app.js"></script>
 </body>
 </html>

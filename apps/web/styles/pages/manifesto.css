@@ -1,0 +1,63 @@
+    main {
+      padding: 118px 0 70px;
+    }
+
+    .manifesto-card {
+      background: color-mix(in srgb, var(--surface) 94%, transparent 6%);
+      border: 1px solid color-mix(in srgb, var(--text) 10%, transparent 90%);
+      border-radius: 24px;
+      padding: 38px;
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 4.5vw, 3.1rem);
+      line-height: 1.06;
+      letter-spacing: 0.02em;
+    }
+
+    .intro {
+      margin: 0 0 28px;
+      color: var(--text-secondary);
+      font-size: 1.05rem;
+      max-width: 740px;
+      line-height: 1.65;
+    }
+
+    section { margin-bottom: 30px; }
+
+    h2 {
+      margin: 0 0 10px;
+      color: var(--text);
+      font-size: clamp(1.1rem, 2.2vw, 1.45rem);
+      line-height: 1.25;
+      font-weight: 700;
+      letter-spacing: 0.025em;
+    }
+
+    p {
+      margin: 0 0 12px;
+      color: var(--text-secondary);
+      font-size: 1rem;
+      line-height: 1.65;
+    }
+
+    hr {
+      border: 0;
+      border-top: 1px solid color-mix(in srgb, var(--text) 14%, transparent 86%);
+      margin: 14px 0 18px;
+    }
+
+    .manifesto-note {
+      margin: 0;
+      color: var(--text-secondary);
+      font-style: italic;
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 768px) {
+      .manifesto-card { padding: 24px 18px; border-radius: 18px; }
+    }
