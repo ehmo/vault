@@ -1,0 +1,1010 @@
+Implement the following plan:
+
+# Custom Vault Naming
+
+## Context
+
+Vault names are auto-generated from pattern grid letters (e.g. "Vault DKVS"). Users want to set custom names that:
+- Replace the auto-generated name
+- Persist across lock/unlock cycles
+- Carry through shared vaults (same name regardless of recipient's letter assignments)
+
+Already done (this session): auto-generated names capped at 4 letters, toolbar has `.lineLimit(1)`.
+
+## Data Flow (Current)
+
+1. Pattern drawn -> `GridLetterManager.vaultName(for:)` -> letters
+2. `"Vault \(letters)"` stored in `appState.vaultName` (in-memory only)
+3. On lock, name resets to `"Vault"`
+4. On unlock, name re-derived from pattern letters
+
+**Problem**: No persistence. Name is ephemeral and re-derived every session.
+
+## Plan
+
+### Step 1: Add `customName` to VaultIndex
+
+**File**: `Vault/Core/Storage/VaultIndexTypes.swift`
+
+Add `var customName: String?` to `VaultStorage.VaultIndex`. Being optional + Codable, this is backward compatible — existing indices decode with `nil`.
+
+```swift
+var customName: String?  // User-set vault name (nil = use auto-generated)
+```
+
+### Step 2: Load custom name on unlock
+
+**File**: `Vault/App/VaultApp.swift`
+
+In `unlockWithPattern(_:gridSize:precomputedKey:)` (~line 271-272), after loading the index, check for `customName`:
+
+```swift
+// Current:
+let letters = GridLetterManager.shared.vaultName(for: pattern)
+vaultName = letters.isEmpty ? "Vault" : "Vault \(letters)"
+
+// New:
+if let index = try? VaultStorage.shared.loadIndex(with: VaultKey(key)),
+   let custom = index.customName, !custom.isEmpty {
+    vaultName = custom
+} else {
+    let letters = GridLetterManager.shared.vaultName(for: pattern)
+    vaultName = letters.isEmpty ? "Vault" : "Vault \(letters)"
+}
+```
+
+Note: The index is already loaded a few lines later (line 278) for `isSharedVault`. We can hoist that load earlier or reuse it. Actually, it's inside a separate span — better to just read `customName` from the same index load at line 278:
+
+```swift
+if let index = try? VaultStorage.shared.loadIndex(with: VaultKey(key)) {
+    isSharedVault = index.isSharedVault ?? false
+    if let custom = index.customName, !custom.isEmpty {
+        vaultName = custom
+    }
+    ...
+}
+```
+
+Same change in `unlockWithKey(_:isRecovery:)` (~line 348).
+
+### Step 3: Load custom name in onboarding & shared vault flows
+
+**Files**: `PatternSetupView.swift`, `JoinVaultView.swift`, `SharedVaultInviteView.swift`
+
+These call `appState.updateVaultName(...)` with auto-generated names. No change needed — at creation time, `customName` is `nil`, so auto-generated is correct. The custom name will be set later by the user from settings.
+
+### Step 4: Add rename UI in VaultSettingsView
+
+**File**: `Vault/Features/Settings/VaultSettingsView.swift`
+
+In the "This Vault" section, add a tappable row to rename:
+
+```swift
+Section("This Vault") {
+    // Existing: Files count, Storage used
+
+    // New: Vault Name row
+    Button {
+        showingRenameAlert = true
+    } label: {
+        HStack {
+            Text("Name")
+            Spacer()
+            Text(appState.vaultName)
+                .foregroundStyle(.vaultSecondaryText)
+                .lineLimit(1)
+        }
+    }
+    .foregroundStyle(.primary)
+    .accessibilityIdentifier("settings_vault_name")
+}
+```
+
+Use an alert with a text field for rename:
+
+```swift
+@State private var showingRenameAlert = false
+@State private var renameText = ""
+
+.alert("Rename Vault", isPresented: $showingRenameAlert) {
+    TextField("Vault name", text: $renameText)
+    Button("Cancel", role: .cancel) { }
+    Button("Save") { renameVault() }
+} message: {
+    Text("Enter a custom name for this vault.")
+}
+.onAppear { renameText = appState.vaultName }
+```
+
+The `renameVault()` function:
+
+```swift
+private func renameVault() {
+    let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty, let key = appState.currentVaultKey else { return }
+
+    // Limit to 30 characters
+    let name = String(trimmed.prefix(30))
+
+    // Save to index
+    do {
+        var index = try VaultStorage.shared.loadIndex(with: key)
+        index.customName = name
+        try VaultStorage.shared.saveIndex(index, with: key)
+        appState.updateVaultName(name)
+    } catch {
+        vaultSettingsLogger.error("Failed to rename vault: \(error.localizedDescription)")
+    }
+}
+```
+
+### Step 5: Propagate through shared vaults
+
+When a vault is shared, the encrypted index (containing `customName`) is uploaded to CloudKit. When the recipient joins:
+- `JoinVaultView` creates a new empty index — no custom name yet (correct behavior, recipient can rename independently)
+- The owner's custom name does NOT automatically transfer to recipients (each user names their own copy)
+
+This is the right behavior — shared vault recipients may want different names.
+
+### Step 6: Add "Reset to default" option
+
+In the rename alert, if the user clears the name or sets it to empty, we reset to auto-generated. The `renameVault` function handles this: if `trimmed.isEmpty`, set `customName = nil` and regenerate the auto name.
+
+```swift
+private func renameVault() {
+    let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let key = appState.currentVaultKey else { return }
+
+    do {
+        var index = try VaultStorage.shared.loadIndex(with: key)
+        if trimmed.isEmpty {
+            index.customName = nil
+            // Regenerate auto name
+            if let pattern = appState.currentPattern {
+                let letters = GridLetterManager.shared.vaultName(for: pattern)
+                appState.updateVaultName(letters.isEmpty ? "Vault" : "Vault \(letters)")
+            } else {
+                appState.updateVaultName("Vault")
+            }
+        } else {
+            let name = String(trimmed.prefix(30))
+            index.customName = name
+            appState.updateVaultName(name)
+        }
+        try VaultStorage.shared.saveIndex(index, with: key)
+    } catch {
+        vaultSettingsLogger.error("Failed to rename vault: \(error.localizedDescription)")
+    }
+}
+```
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `Vault/Core/Storage/VaultIndexTypes.swift` | Add `customName: String?` to VaultIndex |
+| `Vault/App/VaultApp.swift` | Load customName on unlock (2 methods) |
+| `Vault/Features/Settings/VaultSettingsView.swift` | Add rename row + alert + save logic |
+| `VaultTests/VaultNameTests.swift` | Add tests for custom name persistence |
+
+## Tests
+
+Add to `VaultNameTests.swift`:
+- `testCustomName_MaxLength30`: Verify 30-char limit
+- `testCustomName_EmptyResetsToAuto`: Empty string clears custom name
+- `testCustomName_WhitespaceOnly_ResetsToAuto`: Whitespace-only clears
+- `testCustomName_TrimmedOfWhitespace`: Leading/trailing whitespace trimmed
+- `testDisplayName_MaxTotalLength`: "Vault XXXX" format is at most 10 chars; custom names at most 30
+
+## Verification
+
+1. Build: `xcodebuild build`
+2. Run tests: `xcodebuild test -only-testing:VaultTests/VaultNameTests`
+3. Deploy: `./scripts/deploy-phone.sh`
+4. Manual tests:
+   - Open vault -> Settings -> Tap name row -> Enter custom name -> Save
+   - Lock and re-unlock -> custom name persists
+   - Clear name -> auto-generated name returns
+   - Create shared vault with custom name -> recipient sees default name (not owner's custom name)
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Finish it
+
+---
+
+There is a weird bug. When user finishes the onboarding and they get to the phrase part and write a custom phrase, the vault creation doesn't work (see video
+  /Users/nan/Downloads/ScreenRecording_02-21-2026\ 18-55-07_1.mov). Investigate why. If the pre generated phrase is used it works fine. Also they used camel case
+  sentence but that hopefully shouldn't have an impact. Anyway investigate the cause, fix it and create a proper test to catch this.
+
+---
+
+<task-notification>
+<task-id>b38dc7b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-nan-Work-ai-vault/tasks/b38dc7b.output</output-file>
+<status>completed</status>
+<summary>Background command "Deploy to physical iPhone" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-nan-Work-ai-vault/tasks/b38dc7b.output
+
+---
+
+Base directory for this skill: /Users/nan/.claude/skills/claudeception
+
+# Claudeception
+
+You are Claudeception: a continuous learning system that extracts reusable knowledge from work sessions and 
+codifies it into new Claude Code skills. This enables autonomous improvement over time.
+
+## Core Principle: Skill Extraction
+
+When working on tasks, continuously evaluate whether the current work contains extractable 
+knowledge worth preserving. Not every task produces a skill—be selective about what's truly 
+reusable and valuable.
+
+## When to Extract a Skill
+
+Extract a skill when you encounter:
+
+1. **Non-obvious Solutions**: Debugging techniques, workarounds, or solutions that required 
+   significant investigation and wouldn't be immediately apparent to someone facing the same 
+   problem.
+
+2. **Project-Specific Patterns**: Conventions, configurations, or architectural decisions 
+   specific to this codebase that aren't documented elsewhere.
+
+3. **Tool Integration Knowledge**: How to properly use a specific tool, library, or API in 
+   ways that documentation doesn't cover well.
+
+4. **Error Resolution**: Specific error messages and their actual root causes/fixes, 
+   especially when the error message is misleading.
+
+5. **Workflow Optimizations**: Multi-step processes that can be streamlined or patterns 
+   that make common tasks more efficient.
+
+## Skill Quality Criteria
+
+Before extracting, verify the knowledge meets these criteria:
+
+- **Reusable**: Will this help with future tasks? (Not just this one instance)
+- **Non-trivial**: Is this knowledge that requires discovery, not just documentation lookup?
+- **Specific**: Can you describe the exact trigger conditions and solution?
+- **Verified**: Has this solution actually worked, not just theoretically?
+
+## Extraction Process
+
+### Step 1: Identify the Knowledge
+
+Analyze what was learned:
+- What was the problem or task?
+- What was non-obvious about the solution?
+- What would someone need to know to solve this faster next time?
+- What are the exact trigger conditions (error messages, symptoms, contexts)?
+
+### Step 2: Research Best Practices (When Appropriate)
+
+Before creating the skill, search the web for current information when:
+
+**Always search for:**
+- Technology-specific best practices (frameworks, libraries, tools)
+- Current documentation or API changes
+- Common patterns or solutions for similar problems
+- Known gotchas or pitfalls in the problem domain
+- Alternative approaches or solutions
+
+**When to search:**
+- The topic involves specific technologies, frameworks, or tools
+- You're uncertain about current best practices
+- The solution might have changed after January 2025 (knowledge cutoff)
+- There might be official documentation or community standards
+- You want to verify your understanding is current
+
+**When to skip searching:**
+- Project-specific internal patterns unique to this codebase
+- Solutions that are clearly context-specific and wouldn't be documented
+- Generic programming concepts that are stable and well-understood
+- Time-sensitive situations where the skill needs to be created immediately
+
+**Search strategy:**
+```
+1. Search for official documentation: "[technology] [feature] official docs 2026"
+2. Search for best practices: "[technology] [problem] best practices 2026"
+3. Search for common issues: "[technology] [error message] solution 2026"
+4. Review top results and incorporate relevant information
+5. Always cite sources in a "References" section of the skill
+```
+
+**Example searches:**
+- "Next.js getServerSideProps error handling best practices 2026"
+- "Claude Code skill description semantic matching 2026"
+- "React useEffect cleanup patterns official docs 2026"
+
+**Integration with skill content:**
+- Add a "References" section at the end of the skill with source URLs
+- Incorporate best practices into the "Solution" section
+- Include warnings about deprecated patterns in the "Notes" section
+- Mention official recommendations where applicable
+
+### Step 3: Structure the Skill
+
+Create a new skill with this structure:
+
+```markdown
+---
+name: [descriptive-kebab-case-name]
+description: |
+  [Precise description including: (1) exact use cases, (2) trigger conditions like 
+  specific error messages or symptoms, (3) what problem this solves. Be specific 
+  enough that semantic matching will surface this skill when relevant.]
+author: [original-author or "Claude Code"]
+version: 1.0.0
+date: [YYYY-MM-DD]
+---
+
+# [Skill Name]
+
+## Problem
+[Clear description of the problem this skill addresses]
+
+## Context / Trigger Conditions  
+[When should this skill be used? Include exact error messages, symptoms, or scenarios]
+
+## Solution
+[Step-by-step solution or knowledge to apply]
+
+## Verification
+[How to verify the solution worked]
+
+## Example
+[Concrete example of applying this skill]
+
+## Notes
+[Any caveats, edge cases, or related considerations]
+
+## References
+[Optional: Links to official documentation, articles, or resources that informed this skill]
+```
+
+### Step 4: Write Effective Descriptions
+
+The description field is critical for skill discovery. Include:
+
+- **Specific symptoms**: Exact error messages, unexpected behaviors
+- **Context markers**: Framework names, file types, tool names
+- **Action phrases**: "Use when...", "Helps with...", "Solves..."
+
+Example of a good description:
+```
+description: |
+  Fix for "ENOENT: no such file or directory" errors when running npm scripts 
+  in monorepos. Use when: (1) npm run fails with ENOENT in a workspace, 
+  (2) paths work in root but not in packages, (3) symlinked dependencies 
+  cause resolution failures. Covers node_modules resolution in Lerna, 
+  Turborepo, and npm workspaces.
+```
+
+### Step 5: Save the Skill
+
+Save new skills to the appropriate location:
+
+- **Project-specific skills**: `.claude/skills/[skill-name]/SKILL.md`
+- **User-wide skills**: `~/.claude/skills/[skill-name]/SKILL.md`
+
+Include any supporting scripts in a `scripts/` subdirectory if the skill benefits from 
+executable helpers.
+
+## Retrospective Mode
+
+When `/claudeception` is invoked at the end of a session:
+
+1. **Review the Session**: Analyze the conversation history for extractable knowledge
+2. **Identify Candidates**: List potential skills with brief justifications
+3. **Prioritize**: Focus on the highest-value, most reusable knowledge
+4. **Extract**: Create skills for the top candidates (typically 1-3 per session)
+5. **Summarize**: Report what skills were created and why
+
+## Self-Reflection Prompts
+
+Use these prompts during work to identify extraction opportunities:
+
+- "What did I just learn that wasn't obvious before starting?"
+- "If I faced this exact problem again, what would I wish I knew?"
+- "What error message or symptom led me here, and what was the actual cause?"
+- "Is this pattern specific to this project, or would it help in similar projects?"
+- "What would I tell a colleague who hits this same issue?"
+
+## Memory Consolidation
+
+When extracting skills, also consider:
+
+1. **Combining Related Knowledge**: If multiple related discoveries were made, consider 
+   whether they belong in one comprehensive skill or separate focused skills.
+
+2. **Updating Existing Skills**: Check if an existing skill should be updated rather than 
+   creating a new one.
+
+3. **Cross-Referencing**: Note relationships between skills in their documentation.
+
+## Quality Gates
+
+Before finalizing a skill, verify:
+
+- [ ] Description contains specific trigger conditions
+- [ ] Solution has been verified to work
+- [ ] Content is specific enough to be actionable
+- [ ] Content is general enough to be reusable
+- [ ] No sensitive information (credentials, internal URLs) is included
+- [ ] Skill doesn't duplicate existing documentation or skills
+- [ ] Web research conducted when appropriate (for technology-specific topics)
+- [ ] References section included if web sources were consulted
+- [ ] Current best practices (post-2025) incorporated when relevant
+
+## Anti-Patterns to Avoid
+
+- **Over-extraction**: Not every task deserves a skill. Mundane solutions don't need preservation.
+- **Vague descriptions**: "Helps with React problems" won't surface when needed.
+- **Unverified solutions**: Only extract what actually worked.
+- **Documentation duplication**: Don't recreate official docs; link to them and add what's missing.
+- **Stale knowledge**: Mark skills with versions and dates; knowledge can become outdated.
+
+## Skill Lifecycle
+
+Skills should evolve:
+
+1. **Creation**: Initial extraction with documented verification
+2. **Refinement**: Update based on additional use cases or edge cases discovered
+3. **Deprecation**: Mark as deprecated when underlying tools/patterns change
+4. **Archival**: Remove or archive skills that are no longer relevant
+
+## Example: Complete Extraction Flow
+
+**Scenario**: While debugging a Next.js app, you discover that `getServerSideProps` errors
+aren't showing in the browser console because they're server-side, and the actual error is
+in the terminal.
+
+**Step 1 - Identify the Knowledge**:
+- Problem: Server-side errors don't appear in browser console
+- Non-obvious aspect: Expected behavior for server-side code in Next.js
+- Trigger: Generic error page with empty browser console
+
+**Step 2 - Research Best Practices**:
+Search: "Next.js getServerSideProps error handling best practices 2026"
+- Found official docs on error handling
+- Discovered recommended patterns for try-catch in data fetching
+- Learned about error boundaries for server components
+
+**Step 3-5 - Structure and Save**:
+
+**Extraction**:
+
+```markdown
+---
+name: nextjs-server-side-error-debugging
+description: |
+  Debug getServerSideProps and getStaticProps errors in Next.js. Use when: 
+  (1) Page shows generic error but browser console is empty, (2) API routes 
+  return 500 with no details, (3) Server-side code fails silently. Check 
+  terminal/server logs instead of browser for actual error messages.
+author: Claude Code
+version: 1.0.0
+date: 2024-01-15
+---
+
+# Next.js Server-Side Error Debugging
+
+## Problem
+Server-side errors in Next.js don't appear in the browser console, making 
+debugging frustrating when you're looking in the wrong place.
+
+## Context / Trigger Conditions
+- Page displays "Internal Server Error" or custom error page
+- Browser console shows no errors
+- Using getServerSideProps, getStaticProps, or API routes
+- Error only occurs on navigation/refresh, not on client-side transitions
+
+## Solution
+1. Check the terminal where `npm run dev` is running—errors appear there
+2. For production, check server logs (Vercel dashboard, CloudWatch, etc.)
+3. Add try-catch with console.error in server-side functions for clarity
+4. Use Next.js error handling: return `{ notFound: true }` or `{ redirect: {...} }` 
+   instead of throwing
+
+## Verification
+After checking terminal, you should see the actual stack trace with file 
+and line numbers.
+
+## Notes
+- This applies to all server-side code in Next.js, not just data fetching
+- In development, Next.js sometimes shows a modal with partial error info
+- The `next.config.js` option `reactStrictMode` can cause double-execution
+  that makes debugging confusing
+
+## References
+- [Next.js Data Fetching: getServerSideProps](https://nextjs.org/docs/pages/building-your-application/data-fetching/get-server-side-props)
+- [Next.js Error Handling](https://nextjs.org/docs/pages/building-your-application/routing/error-handling)
+```
+
+## Integration with Workflow
+
+### Automatic Trigger Conditions
+
+Invoke this skill immediately after completing a task when ANY of these apply:
+
+1. **Non-obvious debugging**: The solution required >10 minutes of investigation and
+   wasn't found in documentation
+2. **Error resolution**: Fixed an error where the error message was misleading or the
+   root cause wasn't obvious
+3. **Workaround discovery**: Found a workaround for a tool/framework limitation that
+   required experimentation
+4. **Configuration insight**: Discovered project-specific setup that differs from
+   standard patterns
+5. **Trial-and-error success**: Tried multiple approaches before finding what worked
+
+### Explicit Invocation
+
+Also invoke when:
+- User runs `/claudeception` to review the session
+- User says "save this as a skill" or similar
+- User asks "what did we learn?"
+
+### Self-Check After Each Task
+
+After completing any significant task, ask yourself:
+- "Did I just spend meaningful time investigating something?"
+- "Would future-me benefit from having this documented?"
+- "Was the solution non-obvious from documentation alone?"
+
+If yes to any, invoke this skill immediately.
+
+Remember: The goal is continuous, autonomous improvement. Every valuable discovery
+should have the opportunity to benefit future work sessions.
+
+---
+
+<task-notification>
+<task-id>b2279dd</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-nan-Work-ai-vault/tasks/b2279dd.output</output-file>
+<status>completed</status>
+<summary>Background command "Deploy to TestFlight with build number bump" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-nan-Work-ai-vault/tasks/b2279dd.output
+
+---
+
+I want to improve the shared vault's experience. Let's expand the area with red rectangle and show:
+- if there are limited times the vault can be opened show how many are left
+- show if files can be exported
+- show the expiration date, if there is one (I know we already show this one)
+
+When done, build a test to verify this
+
+---
+
+[Image: source: /Users/nan/Downloads/Screenshot 2026-02-21 at 11.41.56 PM.png]
+
+---
+
+<task-notification>
+<task-id>b5ff08d</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-nan-Work-ai-vault/tasks/b5ff08d.output</output-file>
+<status>completed</status>
+<summary>Background command "Deploy to physical iPhone" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-nan-Work-ai-vault/tasks/b5ff08d.output
+
+---
+
+<task-notification>
+<task-id>ba51aba</task-id>
+<tool-use-id>toolu_01JHp1rzgUdhhsboaBBg9V4J</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-nan-Work-ai-vault/tasks/ba51aba.output</output-file>
+<status>completed</status>
+<summary>Background command "Deploy to TestFlight with build bump" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-nan-Work-ai-vault/tasks/ba51aba.output
+
+---
+
+I want to change the design of the vault sharing view.
+
+Currently if user adds or removes files it's super hard to tell how long it's going to take to synchronize the shares. First we should change the "Shared with 1 person". The person is a stretch. We don't know who they are sharing with it. Also they can kind of see how many shares there are. Assuming there is not like 50 of them but the number doesn't matter. I think we should remove the whole sentence. Move the syncing button next to "Active shares".
+
+Now when user clicks the active share or active share is triggered automatically, each of the shared cards should show a progress bar to show the progress. Also we should only update 3 at the time max, so we don't overwhelm the system.
+
+Additionally we should add setting into the app settings to only run updates and icloud backups if user is on wifi (default) or both wifi and gsm (to not run down their data).
+
+Also if the syncing is triggered the shared screen should prevent the phone from going to sleep so the progress actually finishes.
+
+Finally we should make sure the syncing progress is equally optimized as the initial upload process. Make sure it's as efficient and resilient.
+
+I want you to carefully read all the associated code, plan the change and figure out all that has to be updated.
+
+When you are done I want you to verify carefully all the changes you made and write depp test coverage.
+
+---
+
+[Image: source: /Users/nan/Downloads/Screenshot 2026-02-21 at 11.53.13 PM.png]
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the entire conversation:
+
+**Message 1: User's initial request - Custom Vault Naming**
+The user provided a detailed implementation plan for custom vault naming. The plan involved:
+- Adding `customName` to VaultIndex
+- Loading custom name on unlock
+- Adding rename UI in VaultSettingsView
+- Adding tests
+
+**Assistant's work on Custom Vault Naming:**
+1. Explored the codebase using an Explore agent to understand current vault naming
+2. Read 4 key files: VaultIndexTypes.swift, VaultApp.swift, VaultSettingsView.swift, VaultNameTests.swift
+3. Created tasks #30-34 to track the work
+4. Made changes to:
+   - VaultIndexTypes.swift: Added `var customName: String?`
+   - VaultApp.swift: Added customName loading in both `unlockWithPattern` and `unlockWithKey` methods
+   - VaultSettingsView.swift: Added rename row, alert, and renameVault() function
+   - VaultNameTests.swift: Added 5 new tests
+5. Built successfully, all 17 tests passed
+6. Committed, synced beads, pushed to main
+
+**Message 2: User says "Finish it"**
+Assistant ran the session close protocol: git status, git add, bd sync, git commit, git push.
+
+**Message 3: User reports a bug with custom recovery phrase during onboarding**
+User provided a video showing that when using a custom phrase during onboarding, the vault creation doesn't work. Auto-generated phrases work fine. User mentioned camelCase.
+
+**Assistant's bug investigation:**
+1. Extracted frames from the video (13 frames at 2fps)
+2. Video showed: user on Recovery Phrase screen, Custom Phrase tab selected, typed "Hamilton is the absolute goodest boy that there is", tapped "I've saved it", confirmed "Yes, I've saved it", but flow just returned to same screen
+3. Used Explore agent to investigate the onboarding flow
+4. Read PatternSetupView.swift (the main file), PatternSetupCoordinator.swift, RecoveryPhraseManager.swift, RecoveryPhraseGenerator.swift
+
+**Root cause identified:**
+In PatternSetupView.swift lines 301-309, the alert handler had:
+```swift
+Button("Yes, I've saved it") {
+    if useCustomPhrase {
+        if let validation = customPhraseValidation, validation.isAcceptable {
+            saveCustomRecoveryPhrase()
+        }
+        // NO ELSE - silent no-op
+    } else {
+        onComplete()
+    }
+}
+```
+
+Two compounding issues:
+1. Redundant validation check in alert handler - the "I've saved it" button was already `.disabled` when validation fails, but the alert handler re-checked `customPhraseValidation` which could be stale/nil after keyboard dismiss during alert presentation (SwiftUI state re-evaluation)
+2. Error display missing for recovery step - `errorMessage` was only rendered for `.create`/`.confirm` steps, never for `.recovery`
+
+**Fix applied:**
+1. Removed redundant validation check from alert handler
+2. Added error display to recovery scroll section
+3. Added 3 regression tests to PatternSetupCoordinatorTests.swift
+
+Tests passed (26 total), committed, pushed, deployed to phone and TestFlight (build 127).
+
+**Message 4: User requested deployments**
+User asked to verify tests pass, push to github, deploy to phone and TestFlight. All done.
+
+**Message 5: Skill extraction (claudeception)**
+Created skill `swiftui-alert-state-silent-failure` at `~/.claude/skills/swiftui-alert-state-silent-failure/SKILL.md`
+
+**Message 6: User requested shared vault banner expansion**
+User wanted to expand the shared vault banner (red rectangle area) to show:
+- Opens remaining (if limited)
+- Export permission (if disabled)
+- Expiration date (already existed)
+
+**Assistant's work on shared vault banner:**
+1. Explored the codebase for shared vault banner code
+2. Read VaultView+SharedVault.swift, VaultViewModel.swift
+3. Changes made:
+   - VaultViewModel.swift: Added `sharedVaultOpenCount: Int = 0` property, populated during `checkSharedVaultStatus()`
+   - VaultView+SharedVault.swift: Restructured banner to show policy details row with opens left, exports disabled, and expiration labels
+   - Created SharedVaultBannerTests.swift with 12 tests
+   - Updated project.pbxproj to include new test file
+4. All 12 tests passed, committed, pushed, deployed to phone and TestFlight (build 128)
+
+**Message 7: User's current large request - Share vault design overhaul**
+This is a complex, multi-part request to improve the sharing experience:
+1. Remove "Shared with X person" text, move syncing button next to "Active Shares"
+2. Per-share progress bars on each share card
+3. Max 3 concurrent syncs
+4. WiFi-only setting for updates and iCloud backups
+5. Prevent sleep during sync
+6. Make sync as efficient as initial upload
+
+**Assistant entered plan mode and launched 3 parallel Explore agents:**
+1. Agent 1: Explored ShareVaultView.swift (940 lines), ShareUploadManager.swift (1344 lines), ShareSyncManager.swift (844 lines)
+2. Agent 2: Explored AppSettingsView/SettingsView.swift (1084 lines), iCloudBackupManager.swift (1525 lines), network monitoring code
+3. Agent 3: Explored ShareSyncManager full pipeline, SVDFSerializer, ShareSyncCache, CloudKitSharingManager, IdleTimerManager
+
+Key findings from exploration:
+- ShareVaultView.swift has "Shared with X person" at line 300
+- ShareUploadManager tracks progress 0-100 per job
+- ShareSyncManager only has share-level progress, NOT chunk-level
+- CloudKitSharingManager has maxConcurrentChunkOps = 4 (per job, not across jobs)
+- No global limit on concurrent sync jobs
+- IdleTimerManager exists but only used by ShareImportManager, NOT by ShareUploadManager or ShareSyncManager
+- No WiFi-only setting exists anywhere
+- NWPathMonitor exists in CloudKitSharingManager but only for telemetry
+- iCloudBackupManager has zero network condition checking
+
+The assistant was in the middle of plan mode (Phase 1 exploration complete) when the summary was requested.
+
+Summary:
+1. Primary Request and Intent:
+   The session involved four major tasks, three completed and one in progress:
+   
+   **Task 1 (COMPLETED): Custom Vault Naming** - User provided a detailed plan to add persistent custom vault names. Names should replace auto-generated ones, persist across lock/unlock, and be editable from settings with a 30-character limit.
+   
+   **Task 2 (COMPLETED): Fix Custom Recovery Phrase Bug** - User reported that during onboarding, using a custom recovery phrase silently fails to complete vault creation, while auto-generated phrases work fine. User provided a screen recording showing the issue.
+   
+   **Task 3 (COMPLETED): Expand Shared Vault Banner** - User wanted the shared vault banner (previously just showing "Shared Vault" + expiration) expanded to show: opens remaining (if limited), export permission status, and expiration date.
+   
+   **Task 4 (IN PROGRESS - Plan Mode): Share Vault Design Overhaul** - A complex multi-part request:
+   - Remove "Shared with X person" text, move syncing button next to "Active Shares"
+   - Add per-share progress bars on each share card during sync
+   - Limit to max 3 concurrent sync operations
+   - Add WiFi-only setting in App Settings for syncs and iCloud backups (default: WiFi only)
+   - Prevent phone sleep while syncing is active
+   - Ensure incremental sync is as efficient and resilient as initial upload
+
+2. Key Technical Concepts:
+   - SwiftUI `@State` lifecycle in alert handlers — stale state during keyboard/alert transitions
+   - VaultIndex (Codable struct) with optional fields for backward compatibility
+   - SVDF v5 (Shared Vault Data Format) binary format — streaming build, incremental append, compaction
+   - Two-phase staging for crash resilience (stage encrypted SVDF to disk, then upload)
+   - ShareUploadManager: initial upload with progress 0-100%, PendingUploadState persistence
+   - ShareSyncManager: incremental sync with debouncing, deferred queue, chunk-hash diffing
+   - CloudKitSharingManager: 2MB chunked uploads, maxConcurrentChunkOps=4 per job
+   - ShareSyncCache: per-share encrypted file cache, SyncState, compaction detection (30% threshold)
+   - IdleTimerManager: reference-counted wrapper around UIApplication.isIdleTimerDisabled
+   - NWPathMonitor: exists in CloudKitSharingManager but only for telemetry, not decision-making
+   - BGProcessingTask for system-scheduled background sync/upload resume
+   - `@AppStorage` for UserDefaults-backed SwiftUI settings
+   - Beads (bd) issue tracking workflow for multi-session work
+   - Deploy scripts: `deploy-phone.sh` and `deploy-testflight.sh`
+
+3. Files and Code Sections:
+
+   - **`apps/ios/Vault/Core/Storage/VaultIndexTypes.swift`**
+     - Core data model for vault index. Added `customName: String?` for custom vault naming.
+     - Contains `SharePolicy` struct with `expiresAt`, `maxOpens`, `allowScreenshots`, `allowDownloads`
+     - Contains `VaultIndex.openCount: Int?` for tracking shared vault opens
+     ```swift
+     // Added after sharedVaultVersion line:
+     var customName: String?
+     ```
+
+   - **`apps/ios/Vault/App/VaultApp.swift`**
+     - Main AppState class. Modified both unlock methods to load customName from index.
+     - `unlockWithPattern` (~line 277): After loading index for isSharedVault, added:
+     ```swift
+     if let custom = index.customName, !custom.isEmpty {
+         vaultName = custom
+     }
+     ```
+     - Same change in `unlockWithKey` (~line 350)
+
+   - **`apps/ios/Vault/Features/Settings/VaultSettingsView.swift`**
+     - Per-vault settings. Added rename UI with alert + text field + save logic.
+     - Added `@State private var showingRenameAlert = false` and `@State private var renameText = ""`
+     - Added Name row button in "This Vault" section
+     - Added `renameVault()` function with 30-char limit, empty-clears-to-auto behavior
+     ```swift
+     private func renameVault() {
+         let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+         guard let key = appState.currentVaultKey else { return }
+         do {
+             var index = try VaultStorage.shared.loadIndex(with: key)
+             if trimmed.isEmpty {
+                 index.customName = nil
+                 if let pattern = appState.currentPattern {
+                     let letters = GridLetterManager.shared.vaultName(for: pattern)
+                     appState.updateVaultName(letters.isEmpty ? "Vault" : "Vault \(letters)")
+                 } else {
+                     appState.updateVaultName("Vault")
+                 }
+             } else {
+                 let name = String(trimmed.prefix(30))
+                 index.customName = name
+                 appState.updateVaultName(name)
+             }
+             try VaultStorage.shared.saveIndex(index, with: key)
+         } catch {
+             vaultSettingsLogger.error("Failed to rename vault: \(error.localizedDescription)")
+         }
+     }
+     ```
+
+   - **`apps/ios/Vault/Features/Onboarding/PatternSetupView.swift`**
+     - Onboarding pattern setup flow. Fixed the custom recovery phrase bug.
+     - Removed redundant validation check from alert handler (lines 301-309):
+     ```swift
+     // BEFORE (bug):
+     if useCustomPhrase {
+         if let validation = customPhraseValidation, validation.isAcceptable {
+             saveCustomRecoveryPhrase()
+         }
+     }
+     // AFTER (fix):
+     if useCustomPhrase {
+         saveCustomRecoveryPhrase()
+     }
+     ```
+     - Added error display to `recoveryScrollSection`:
+     ```swift
+     private var recoveryScrollSection: some View {
+         ScrollView {
+             VStack(spacing: 12) {
+                 recoverySection.padding(.top, 8)
+                 if let error = errorMessage {
+                     HStack {
+                         Image(systemName: "xmark.circle.fill")
+                             .foregroundStyle(.vaultHighlight)
+                         Text(error).font(.caption)
+                     }
+                     .padding()
+                     .frame(maxWidth: .infinity, alignment: .leading)
+                     .vaultGlassBackground(cornerRadius: 12)
+                     .padding(.horizontal)
+                     .transition(.scale.combined(with: .opacity))
+                 }
+             }
+             .padding(.bottom, 12)
+         }
+         .scrollIndicators(.hidden)
+     }
+     ```
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView+SharedVault.swift`**
+     - Shared vault banner. Expanded to show policy details (opens remaining, exports disabled, expiration).
+     - Restructured banner: title row + policy details row (conditional) + update available row
+     ```swift
+     private var sharedVaultHasPolicyDetails: Bool {
+         let policy = viewModel.sharePolicy
+         return policy?.expiresAt != nil
+             || policy?.maxOpens != nil
+             || policy?.allowDownloads == false
+     }
+
+     private var sharedVaultPolicyDetailsView: some View {
+         HStack(spacing: 12) {
+             if let maxOpens = viewModel.sharePolicy?.maxOpens {
+                 let remaining = max(maxOpens - viewModel.sharedVaultOpenCount, 0)
+                 Label("\(remaining) of \(maxOpens) opens left", systemImage: "lock.open.display")
+             }
+             if viewModel.sharePolicy?.allowDownloads == false {
+                 Label("Exports disabled", systemImage: "square.and.arrow.up.trianglebadge.exclamationmark")
+             }
+             if let expires = viewModel.sharePolicy?.expiresAt {
+                 Label {
+                     Text("Expires \(expires, style: .date)")
+                 } icon: {
+                     Image(systemName: "calendar")
+                 }
+             }
+         }
+         .font(.caption2)
+         .foregroundStyle(.vaultSecondaryText)
+         .frame(maxWidth: .infinity, alignment: .leading)
+         .padding(.horizontal)
+         .padding(.bottom, 6)
+     }
+     ```
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift`**
+     - Added `var sharedVaultOpenCount: Int = 0` property
+     - Set it in `checkSharedVaultStatus()` during initial load and after counting open
+
+   - **`apps/ios/Vault/Core/Security/GridLetterManager.swift`**
+     - Added `static let maxNameLetters = 4` and limited `vaultName(for:)` to first 4 nodes
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView+Toolbar.swift`**
+     - Added `.lineLimit(1)` and `.truncationMode(.tail)` to vault name in toolbar
+
+   - **`apps/ios/VaultTests/VaultNameTests.swift`**
+     - 17 tests total (12 existing + 5 new for custom naming)
+
+   - **`apps/ios/VaultTests/PatternSetupCoordinatorTests.swift`**
+     - Added 3 regression tests for custom phrase flow:
+     - `testCustomPhraseSaveSuccess`, `testCustomPhraseSavePreservesCase`, `testCustomPhraseReplacesAutoGenerated`
+
+   - **`apps/ios/VaultTests/SharedVaultBannerTests.swift`** (NEW)
+     - 12 tests covering policy visibility, opens remaining math, export permission, codable backward compatibility
+
+   - **`apps/ios/Vault/Features/Onboarding/PatternSetupCoordinator.swift`** (READ ONLY)
+     - `saveCustomPhrase()` calls `saveRecoveryPhrase` and returns `.success` or `.error`
+
+   - **`apps/ios/Vault/Features/Onboarding/RecoveryPhraseManager.swift`** (READ ONLY)
+     - Manages encrypted recovery phrase database in Keychain
+
+   - **Files explored for Task 4 (plan mode, read only):**
+     - `apps/ios/Vault/Features/Sharing/ShareVaultView.swift` (940 lines) — "Shared with X person" at line 300, sync status badge, upload job cards with progress bars, idle timer management
+     - `apps/ios/Vault/Core/Sharing/ShareUploadManager.swift` (1344 lines) — UploadJob struct with progress 0-100, PendingUploadState persistence, initial upload flow, resume flow, background execution
+     - `apps/ios/Vault/Core/Sharing/ShareSyncManager.swift` (844 lines) — SyncStatus enum, debouncing, deferred queue, incremental SVDF build, per-share sync loop, staged sync resume
+     - `apps/ios/Vault/Core/Sharing/CloudKitSharingManager.swift` (1060 lines) — maxConcurrentChunkOps=4, 2MB chunks, incremental upload from file, NWPathMonitor (telemetry only)
+     - `apps/ios/Vault/Core/Sharing/SVDFSerializer.swift` (948 lines) — SVDF v5 binary format, streaming builds, incremental append
+     - `apps/ios/Vault/Core/Sharing/ShareSyncCache.swift` (197 lines) — SyncState, chunk hashing, compaction check
+     - `apps/ios/Vault/Features/Settings/SettingsView.swift` (1084 lines) — AppSettingsView with @AppStorage pattern, iCloudBackupSettingsView
+     - `apps/ios/Vault/Core/Storage/iCloudBackupManager.swift` (1525 lines) — Zero network condition checking
+     - `apps/ios/Vault/Core/IdleTimerManager.swift` — Reference-counted idle timer, only used by ShareImportManager
+
+4. Errors and Fixes:
+   - **Simulator not found**: Initial build used `iPhone 16 Pro` which doesn't exist. Fixed by using specific simulator UUID `1E2BEFBC-2FBC-49D2-84B5-5DE55338CF79` (iPhone 17 Pro).
+   - **Duplicate simulator names**: Two "iPhone 17 Pro" simulators caused ambiguity. Fixed by using device ID directly.
+   - **Label with date compilation**: `Label(expires, style: .date)` doesn't compile — Label doesn't accept date format directly. Fixed with full Label initializer:
+     ```swift
+     Label {
+         Text("Expires \(expires, style: .date)")
+     } icon: {
+         Image(systemName: "calendar")
+     }
+     ```
+   - **Git pull with unstaged changes**: `git pull --rebase` fails when there are unstaged web changes. Fixed with `git stash && git pull --rebase && git stash pop`.
+   - **SourceKit false positives**: Various "Cannot find type" errors from SourceKit that are not real build errors (just editor diagnostics without full project context). Ignored as they don't affect actual builds.
+
+5. Problem Solving:
+   - **Custom vault naming**: Straightforward implementation following the user's detailed plan. Added optional `customName` field for backward-compatible Codable, loaded on unlock, saved via settings UI.
+   - **Custom recovery phrase bug**: Deep investigation required. Traced through PatternSetupView → PatternSetupCoordinator → RecoveryPhraseManager. Identified dual issue: (1) redundant SwiftUI @State check in alert handler silently dropping action during keyboard/alert transitions, (2) error display missing for recovery step. Root cause was subtle SwiftUI lifecycle behavior.
+   - **Shared vault banner**: Straightforward feature addition, exposed existing data (`openCount`, `sharePolicy`) in the banner UI.
+   - **Share vault design overhaul**: Currently in exploration phase (plan mode). All three explore agents have returned comprehensive results about the sharing infrastructure.
+
+6. All User Messages:
+   - "Implement the following plan: # Custom Vault Naming [detailed plan with steps 1-6, files modified, tests, verification]"
+   - "Finish it"
+   - "There is a weird bug. When user finishes the onboarding and they get to the phrase part and write a custom phrase, the vault creation doesn't work (see video). Investigate why. If the pre generated phrase is used it works fine. Also they used camel case sentence but that hopefully shouldn't have an impact. Anyway investigate the cause, fix it and create a proper test to catch this."
+   - "When you are done, make sure you wrote all tests for these bugs, that all tests are passing, that you pushed everything related to the ios app to github, that you sent the build to the phone and new build to testflight"
+   - "I want to improve the shared vault's experience. Let's expand the area with red rectangle and show: - if there are limited times the vault can be opened show how many are left - show if files can be exported - show the expiration date, if there is one (I know we already show this one) When done, build a test to verify this [screenshot]"
+   - "I want to change the design of the vault sharing view. Currently if user adds or removes files it's super hard to tell how long it's going to take to synchronize the shares. First we should change the 'Shared with 1 person'. The person is a stretch. We don't know who they are sharing with it. Also they can kind of see how many shares there are. Assuming there is not like 50 of them but the number doesn't matter. I think we should remove the whole sentence. Move the syncing button next to 'Active shares'. Now when user clicks the active share or active share is triggered automatically, each of the shared cards should show a progress bar to show the progress. Also we should only update 3 at the time max, so we don't overwhelm the system. Additionally we should add setting into the app settings to only run updates and icloud backups if user is on wifi (default) or both wifi and gsm (to not run down their data). Also if the syncing is triggered the shared screen should prevent the phone from going to sleep so the progress actually finishes. Finally we should make sure the syncing progress is equally optimized as the initial upload process. Make sure it's as efficient and resilient. I want you to carefully read all the associated code, plan the change and figure out all that has to be updated. When you are done I want you to verify carefully all the changes you made and write deep test coverage. [screenshot]"
+
+7. Pending Tasks:
+   - **Task 4: Share Vault Design Overhaul** — Currently in plan mode (Phase 1 exploration complete). Need to:
+     1. Design the implementation plan (Phase 2)
+     2. Write plan to plan file
+     3. Get user approval via ExitPlanMode
+     4. Implement all changes
+     5. Write deep test coverage
+     6. Verify, commit, push, deploy to phone and TestFlight
+
+8. Current Work:
+   The assistant entered plan mode for the share vault design overhaul and launched 3 parallel Explore agents to understand the codebase. All three agents have returned with comprehensive results covering:
+   - Agent 1: ShareVaultView UI, ShareUploadManager jobs/progress, ShareSyncManager incremental sync
+   - Agent 2: AppSettingsView structure, iCloudBackupManager (no network checks), existing NWPathMonitor (telemetry-only in CloudKitSharingManager)
+   - Agent 3: Full sync pipeline from trigger to upload, SVDF format, two-phase staging, background processing, IdleTimerManager usage
+   
+   The plan file at `/Users/nan/.claude/plans/valiant-dancing-dongarra.md` needs to be written/updated with the implementation plan.
+
+9. Optional Next Step:
+   Continue plan mode Phase 2: Design the implementation plan based on exploration results and write it to the plan file. The user explicitly said: "I want you to carefully read all the associated code, plan the change and figure out all that has to be updated." The exploration is complete; next step is to design the plan, write it to the plan file, and call ExitPlanMode for user approval.
+
+   Key files to modify (from exploration):
+   - `ShareVaultView.swift` — Remove "Shared with X person", move sync button, add per-share progress bars
+   - `ShareSyncManager.swift` — Add per-share progress reporting, max 3 concurrent syncs, idle timer management
+   - `SettingsView.swift` (AppSettingsView) — Add WiFi-only toggle
+   - `CloudKitSharingManager.swift` — Extract NWPathMonitor to shared utility, add network condition checks
+   - `iCloudBackupManager.swift` — Add WiFi-only check before backup operations
+   - `ShareUploadManager.swift` — Add WiFi-only check, potentially share progress improvements
+   - New `NetworkMonitor.swift` or similar centralized network monitoring
+   
+   Git state: main branch, pushed up to `74d1455`. Unstaged web changes in `apps/web/` (not relevant to iOS work).
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+[Request interrupted by user for tool use]
