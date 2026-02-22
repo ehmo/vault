@@ -102,6 +102,7 @@ struct PermissionsView: View {
                 Text(description)
                     .font(.caption)
                     .foregroundStyle(.vaultSecondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer()

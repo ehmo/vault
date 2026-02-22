@@ -949,7 +949,8 @@ struct RestoreFromBackupView: View {
                     .font(.subheadline)
                     .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
-                    .frame(height: 44, alignment: .top)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(minHeight: 44, alignment: .top)
             }
 
             Spacer(minLength: 0)
@@ -995,7 +996,7 @@ struct RestoreFromBackupView: View {
                 }
             } else {
                 Color.clear
-                    .frame(height: 80)
+                    .frame(minHeight: 80)
             }
         }
         .padding(.horizontal)

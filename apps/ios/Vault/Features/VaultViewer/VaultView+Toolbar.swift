@@ -109,7 +109,7 @@ extension VaultView {
             } label: {
                 Text(viewModel.selectedIds.count == allVisible.count ? "Deselect All" : "Select All (\(allVisible.count))")
                     .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
+                    .lineLimit(2)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                     .frame(maxWidth: .infinity)

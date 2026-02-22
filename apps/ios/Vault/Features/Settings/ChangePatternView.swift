@@ -122,7 +122,8 @@ struct ChangePatternView: View {
                             .font(.subheadline)
                             .foregroundStyle(.vaultSecondaryText)
                             .multilineTextAlignment(.center)
-                            .frame(height: 44, alignment: .top)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(minHeight: 44, alignment: .top)
                     }
                     .padding(.horizontal)
                 }
@@ -155,7 +156,7 @@ struct ChangePatternView: View {
                             Color.clear
                         }
                     }
-                    .frame(height: 80)
+                    .frame(minHeight: 80)
 
                 case .complete:
                     ScrollView {

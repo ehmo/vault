@@ -51,7 +51,8 @@ struct PatternSetupView: View {
                     .font(.subheadline)
                     .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
-                    .frame(height: 44, alignment: .top)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(minHeight: 44, alignment: .top)
             }
             .padding(.horizontal)
 
@@ -82,7 +83,7 @@ struct PatternSetupView: View {
                         Color.clear
                     }
                 }
-                .frame(height: 80)
+                .frame(minHeight: 80)
 
             case .recovery:
                 recoveryScrollSection
@@ -224,19 +225,20 @@ struct PatternSetupView: View {
                                     .foregroundStyle(validation.isAcceptable ? .green : .orange)
                                 Text(validation.message)
                                     .font(.caption)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                             .padding(.horizontal)
                         } else {
                             Color.clear
                         }
                     }
-                    .frame(height: 20)
+                    .frame(minHeight: 20)
                 } else {
                     PhraseDisplayCard(phrase: generatedPhrase)
-                        .frame(height: 148)
+                        .frame(minHeight: 148)
                 }
             }
-            .frame(height: 190, alignment: .top)
+            .frame(minHeight: 190, alignment: .top)
             .padding(.horizontal)
 
             PhraseActionButtons(phrase: useCustomPhrase ? customPhrase.trimmingCharacters(in: .whitespacesAndNewlines) : generatedPhrase)

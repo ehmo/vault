@@ -17,6 +17,7 @@ struct PatternValidationFeedbackView: View {
                         .foregroundStyle(.vaultHighlight)
                     Text(error.message)
                         .font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
 
@@ -28,6 +29,7 @@ struct PatternValidationFeedbackView: View {
                             .foregroundStyle(.vaultHighlight)
                         Text(warning.rawValue)
                             .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
 

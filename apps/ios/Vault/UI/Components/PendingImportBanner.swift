@@ -16,6 +16,7 @@ struct PendingImportBanner: View {
             Text("\(fileCount) file\(fileCount == 1 ? "" : "s") ready to import")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.white)
+                .fixedSize(horizontal: false, vertical: true)
 
             Spacer()
 
@@ -62,6 +63,7 @@ struct PendingSharedVaultImportBanner: View {
                 Text("Shared vault download interrupted")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.white)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("\(importedCount) of \(totalCount) files downloaded")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.8))

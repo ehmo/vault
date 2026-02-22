@@ -172,7 +172,8 @@ struct SharedVaultInviteView: View {
                     .font(.subheadline)
                     .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
-                    .frame(height: 44, alignment: .top)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(minHeight: 44, alignment: .top)
             }
 
             Spacer()
@@ -206,7 +207,7 @@ struct SharedVaultInviteView: View {
                     Color.clear
                 }
             }
-            .frame(height: 80)
+            .frame(minHeight: 80)
 
             if patternStep == .confirm {
                 Button("Start Over") {
