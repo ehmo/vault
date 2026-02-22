@@ -1,0 +1,555 @@
+Implement the following plan:
+
+# Share Vault Design Overhaul
+
+## Context
+
+The share vault sync experience lacks visibility and control. Users can't tell how long sync takes, there's no per-share progress, syncs can overwhelm the system, there's no WiFi-only option, and the phone can sleep during sync. This plan addresses all six issues.
+
+## Changes
+
+### 1. Remove "Shared with X person" + Move Sync Button
+
+**File**: `ShareVaultView.swift` — `manageSharesView` (line 296)
+
+Replace the current header:
+```swift
+// REMOVE:
+Text("Shared with \(activeShares.count) \(activeShares.count == 1 ? "person" : "people")")
+
+// REPLACE WITH:
+HStack {
+    Text("Active Shares")
+        .font(.title3).fontWeight(.semibold)
+    Spacer()
+    syncStatusBadge  // move here from separate row
+}
+```
+
+Remove the separate `syncStatusBadge` from the old HStack at line 310. The "X uploads running" subtitle can stay underneath.
+
+### 2. Per-Share Progress Bars on Share Cards
+
+**Files**: `ShareSyncManager.swift`, `ShareVaultView.swift`
+
+**a) Add per-share sync progress to ShareSyncManager:**
+
+```swift
+// ShareSyncManager — new observable property
+var perShareProgress: [String: ShareSyncProgress] = [:]
+
+struct ShareSyncProgress {
+    var status: ShareSyncStatus
+    var fractionCompleted: Double // 0.0-1.0
+    var message: String
+}
+enum ShareSyncStatus { case waiting, building, uploading, done, error(String) }
+```
+
+In `performSync()`, update `perShareProgress[share.id]` at each stage:
+- Before SVDF build: `.building`, 0.0
+- After SVDF build, before upload: `.uploading`, 0.0
+- During upload (hook into `syncSharedVaultIncrementalFromFile`): update fraction based on chunks uploaded
+- After upload: `.done`, 1.0
+
+**b) Add chunk-level progress callback to CloudKitSharingManager:**
+
+`syncSharedVaultIncrementalFromFile` currently has no progress callback. Add an optional `onChunkUploaded: ((Int, Int) -> Void)?` parameter (chunkIndex, totalChunks). Call it after each chunk upload completes. This mirrors how `ShareUploadManager` already tracks progress.
+
+**c) Update share card UI in ShareVaultView:**
+
+In `shareRow(_ share:)` (line 478), add a progress bar when sync is active for that share:
+
+```swift
+if let progress = ShareSyncManager.shared.perShareProgress[share.id] {
+    VStack(alignment: .leading, spacing: 4) {
+        ProgressView(value: progress.fractionCompleted)
+            .tint(.accentColor)
+        Text(progress.message)
+            .font(.caption2)
+            .foregroundStyle(.vaultSecondaryText)
+    }
+}
+```
+
+Also update the status badge: show "Syncing" instead of "Active" when sync is in progress for that share.
+
+### 3. Max 3 Concurrent Syncs
+
+**File**: `ShareSyncManager.swift` — `performSync()`
+
+Currently `performSync()` loops over all active shares sequentially in a single `for` loop (line 395). Change to process up to 3 shares concurrently using `TaskGroup`:
+
+```swift
+private static let maxConcurrentSyncs = 3
+
+// In performSync():
+await withTaskGroup(of: SyncResult.self) { group in
+    var running = 0
+    var shareIndex = 0
+
+    while shareIndex < activeShares.count || !group.isEmpty {
+        // Launch up to maxConcurrentSyncs
+        while running < Self.maxConcurrentSyncs && shareIndex < activeShares.count {
+            let share = activeShares[shareIndex]
+            shareIndex += 1
+            running += 1
+            group.addTask { /* sync single share */ }
+        }
+        // Wait for one to finish before launching next
+        if let result = await group.next() {
+            running -= 1
+            // process result
+        }
+    }
+}
+```
+
+Also for background resume (`handleBackgroundProcessingTask`), limit concurrent resume tasks to 3.
+
+### 4. WiFi-Only Setting
+
+**Files**: `SettingsView.swift`, `ShareSyncManager.swift`, `ShareUploadManager.swift`, `iCloudBackupManager.swift`, `CloudKitSharingManager.swift`
+
+**a) Add setting in AppSettingsView:**
+
+After the "Storage" section (line ~168), add a new "Network" section:
+
+```swift
+Section {
+    Picker("Sync & Backup over", selection: $networkPreference) {
+        Text("Wi-Fi Only").tag("wifi")
+        Text("Wi-Fi & Cellular").tag("any")
+    }
+    .accessibilityIdentifier("app_network_preference")
+} header: {
+    Text("Network")
+} footer: {
+    Text("Controls when share syncs and iCloud backups run. Wi-Fi Only saves cellular data.")
+}
+```
+
+```swift
+@AppStorage("networkPreference") private var networkPreference = "wifi"
+```
+
+**b) Centralize network checking:**
+
+The existing `NWPathMonitor` in `CloudKitSharingManager` already tracks network type. Extract a shared `NetworkCondition` check:
+
+Add a static method to `CloudKitSharingManager`:
+```swift
+static var isOnWiFi: Bool {
+    currentNetworkType == "wifi" || currentNetworkType == "ethernet"
+}
+
+static func canProceedWithNetwork() -> Bool {
+    let preference = UserDefaults.standard.string(forKey: "networkPreference") ?? "wifi"
+    if preference == "any" { return true }
+    return isOnWiFi
+}
+```
+
+**c) Guard sync/upload/backup operations:**
+
+- `ShareSyncManager.performSync()`: Check `canProceedWithNetwork()` at start, set status to `.error("Waiting for Wi-Fi")` if not met
+- `ShareSyncManager.resumePendingSyncsIfNeeded()`: Skip if not on WiFi
+- `ShareUploadManager`: Check before starting/resuming uploads
+- `iCloudBackupManager`: Check before `performBackup()` and `resumePendingBackups()`
+
+### 5. Prevent Sleep During Sync
+
+**Files**: `ShareSyncManager.swift`, `ShareVaultView.swift`
+
+Currently `IdleTimerManager` is used in `ShareVaultView` only for uploads and only when the share screen is visible. The user wants sync to also prevent sleep.
+
+**a) Move idle timer management into ShareSyncManager:**
+
+In `performSync()`:
+```swift
+IdleTimerManager.shared.disable()
+defer { IdleTimerManager.shared.enable() }
+```
+
+This keeps the screen on during the entire sync process regardless of which screen is visible.
+
+**b) Update ShareVaultView idle timer policy:**
+
+Update `shouldDisableIdleTimer` to also check sync status:
+```swift
+static func shouldDisableIdleTimer(
+    isShareScreenVisible: Bool,
+    uploadJobs: [ShareUploadManager.UploadJob]
+) -> Bool {
+    guard isShareScreenVisible else { return false }
+    return uploadJobs.contains(where: { $0.status.isRunning })
+        || ShareSyncManager.shared.syncStatus == .syncing
+}
+```
+
+### 6. Ensure Sync Efficiency Matches Upload
+
+**Analysis**: The sync pipeline is already efficient:
+- Streaming SVDF build (O(largest_file) memory)
+- Incremental builds (only re-encrypt new files, cache existing)
+- Chunk-hash diffing (only upload changed 2MB chunks)
+- Two-phase staging for crash resilience
+- Background task resume
+
+**Gap**: The upload pipeline has `maxConcurrentChunkOps = 4` for parallel chunk uploads. The sync pipeline uses the same `syncSharedVaultIncrementalFromFile` which already uses the same concurrent chunk upload. No efficiency gap.
+
+**One improvement**: Add retry logic to sync chunk uploads. Currently `syncSharedVaultIncrementalFromFile` doesn't retry failed chunks (unlike `ShareUploadManager.uploadChunkedFromFile` which has retry). Add 1 retry per chunk in the sync path to match upload resilience.
+
+**File**: `CloudKitSharingManager.swift` — `syncSharedVaultIncrementalFromFile`
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `ShareVaultView.swift` | Remove "Shared with X", move sync badge, add per-share progress bars, update idle timer |
+| `ShareSyncManager.swift` | Add `perShareProgress`, max 3 concurrent syncs, idle timer during sync, WiFi check |
+| `CloudKitSharingManager.swift` | Add progress callback to sync upload, add `canProceedWithNetwork()`, add chunk retry |
+| `SettingsView.swift` | Add "Network" section with WiFi-only toggle |
+| `ShareUploadManager.swift` | Add WiFi check before upload/resume |
+| `iCloudBackupManager.swift` | Add WiFi check before backup/resume |
+
+## Tests
+
+**New test file**: `VaultTests/ShareSyncTests.swift`
+
+- `testMaxConcurrentSyncs`: Verify TaskGroup limits to 3
+- `testPerShareProgressUpdates`: Verify progress dict populated during sync
+- `testWiFiOnlyBlocksOnCellular`: Verify sync blocked when preference is wifi-only and on cellular
+- `testWiFiOnlyAllowsOnWiFi`: Verify sync proceeds on wifi
+- `testAnyNetworkAllowsBoth`: Verify sync proceeds with "any" preference
+- `testIdleTimerDisabledDuringSyncAndReEnabled`: Verify idle timer lifecycle
+- `testSyncStatusBadgeVisibility`: Test sync badge shows correct states
+
+**Existing test updates**: `SharedVaultBannerTests.swift` — no changes needed
+
+## Verification
+
+1. Build: `xcodebuild build -scheme Vault -destination 'id=...'`
+2. Run tests: `xcodebuild test -scheme Vault -destination 'id=...'`
+3. Deploy: `./scripts/deploy-phone.sh`
+4. Manual tests:
+   - Share vault with 2+ shares → verify progress bars on each card
+   - Check sync runs max 3 at a time
+   - Toggle WiFi-only in settings → verify sync waits for WiFi
+   - Start sync → verify phone doesn't sleep
+   - Verify "Active Shares" header with sync badge (no "Shared with X person")
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases.
+
+---
+
+Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial Request**: User provided a detailed plan for "Share Vault Design Overhaul" with 6 main changes to implement across multiple files in an iOS SwiftUI app.
+
+2. **Exploration Phase**: I explored all relevant files using subagents and direct reads to understand the codebase structure before making changes.
+
+3. **Implementation Phase**: I implemented all 6 changes from the plan:
+   - Removed "Shared with X person" header, replaced with "Active Shares" + sync badge
+   - Added per-share progress bars (ShareSyncProgress struct, ShareSyncStatus enum, perShareProgress dict)
+   - Changed sequential sync loop to TaskGroup with max 3 concurrent syncs
+   - Added WiFi-only setting in SettingsView
+   - Added WiFi checks to ShareSyncManager, ShareUploadManager, iCloudBackupManager
+   - Added idle timer disable during sync
+   - Added tests
+
+4. **First Review (user requested)**: User asked me to review all code for bugs. I found and fixed 7 bugs:
+   - Bug 1: successCount comparison used wrong total (totalShares vs syncableShares.count)
+   - Bug 2: Background task group completed instantly (fire-and-forget inner Task)
+   - Bug 3: startBackgroundUpload silently dropped uploads on WiFi check
+   - Bug 4: performBackup threw misleading iCloudError.notAvailable for WiFi
+   - Bug 5: Fire-and-forget progress tasks could write after removeAll()
+   - Bug 6: Progress bar shown for done/error states
+   - Bug 7: Unused totalShares variable
+
+5. **Second Review (user requested again)**: User asked for another review. I found 3 more bugs:
+   - Bug 8: handleBackgroundProcessingTask lost resumeTasks tracking (regression from Bug 2 fix)
+   - Bug 9: Duplicate "Active Shares" text (header + sub-section)
+   - Bug 10: Unused totalChunks variable
+   - Also found: performBackupIfNeeded and handleBackgroundProcessingTask in iCloudBackupManager missing WiFi guards
+
+6. **Final state**: All fixes applied, build succeeds with 0 errors, 50 tests pass with 0 failures.
+
+Let me now trace all the specific files, code changes, and technical details carefully.
+
+Key files modified:
+- ShareSyncManager.swift - Major refactor (perShareProgress, TaskGroup, WiFi check, idle timer)
+- CloudKitSharingManager.swift - Added isOnWiFi, canProceedWithNetwork()
+- ShareVaultView.swift - UI changes (header, progress bars, idle timer policy)
+- SettingsView.swift - Network section with WiFi-only picker
+- ShareUploadManager.swift - WiFi guard on resumePendingUploadsIfNeeded
+- iCloudBackupManager.swift - WiFi guards, new wifiRequired error case
+- ShareSyncManagerTests.swift - 10 new test cases
+
+The session close protocol has NOT been run yet. No git commit or push has been done.
+
+Summary:
+1. Primary Request and Intent:
+   The user provided a detailed implementation plan titled "Share Vault Design Overhaul" for an iOS SwiftUI app (Vaultaire). The plan had 6 main objectives:
+   1. Remove "Shared with X person" header, replace with "Active Shares" + move sync badge
+   2. Add per-share progress bars on share cards during sync
+   3. Limit to max 3 concurrent syncs using TaskGroup
+   4. Add WiFi-only setting for sync/backup operations
+   5. Prevent phone sleep during sync (idle timer management)
+   6. Ensure sync efficiency matches upload (chunk retry — turned out to already be handled by `saveWithRetry`)
+   
+   After implementation, the user requested TWO rounds of code review: "Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change."
+
+2. Key Technical Concepts:
+   - SwiftUI `@Observable` macro and observation tracking for UI updates
+   - Swift structured concurrency: `withTaskGroup`, `Task.detached`, `@MainActor` isolation
+   - `@MainActor` serial executor semantics — concurrent I/O via suspension points
+   - Fire-and-forget `Task { @MainActor in ... }` draining order on MainActor queue
+   - `Task.yield()` to drain queued MainActor tasks before clearing state
+   - `NWPathMonitor` for network type detection (WiFi/cellular/ethernet)
+   - `@AppStorage` for persisted user preferences
+   - `BGProcessingTask` for iOS background task scheduling
+   - `IdleTimerManager` reference-counted idle timer (disable/enable pairing)
+   - CloudKit chunked uploads with `saveWithRetry` (3 retries built-in)
+   - Two-phase sync: stage SVDF to disk → upload chunks from staged file
+   - `CloudKitSharingClient` protocol for testability with mock implementations
+
+3. Files and Code Sections:
+
+   - **`apps/ios/Vault/Core/Sharing/ShareSyncManager.swift`** (most heavily modified)
+     - Core sync engine. Added `perShareProgress`, `ShareSyncProgress`, `ShareSyncStatus`, `maxConcurrentSyncs`.
+     - Refactored `performSync()` to: check WiFi, disable idle timer, pre-filter consumed/missing-key shares, run TaskGroup with max 3 concurrent syncs, yield before clearing progress.
+     - Extracted `syncSingleShare()` with per-stage progress tracking and onProgress callback.
+     - Updated `handleBackgroundProcessingTask()` with TaskGroup concurrency limit AND proper `resumeTasks` tracking.
+     - Added WiFi guard to `resumePendingSyncsIfNeeded()`.
+     - Key new properties and types:
+     ```swift
+     var perShareProgress: [String: ShareSyncProgress] = [:]
+     
+     struct ShareSyncProgress {
+         var status: ShareSyncStatus
+         var fractionCompleted: Double
+         var message: String
+     }
+     
+     enum ShareSyncStatus {
+         case waiting, building, uploading, done, error(String)
+     }
+     
+     private static let maxConcurrentSyncs = 3
+     ```
+     - Key TaskGroup pattern in `performSync()`:
+     ```swift
+     await withTaskGroup(of: (String, Bool, Int?).self) { group in
+         var running = 0
+         var shareIndex = 0
+         while shareIndex < syncableShares.count || !group.isEmpty {
+             while running < Self.maxConcurrentSyncs && shareIndex < syncableShares.count {
+                 let (share, shareKeyData) = syncableShares[shareIndex]
+                 shareIndex += 1
+                 running += 1
+                 group.addTask {
+                     await self.syncSingleShare(share: share, shareKeyData: shareKeyData, index: index, vaultKey: vaultKey)
+                 }
+             }
+             if let (shareId, success, syncSeq) = await group.next() {
+                 running -= 1
+                 if success, let seq = syncSeq { successCount += 1; shareUpdates.append((id: shareId, syncSequence: seq)) }
+             }
+         }
+     }
+     ```
+     - Fixed success comparison logic:
+     ```swift
+     let syncableCount = syncableShares.count
+     if syncableCount == 0 && missingKeyCount > 0 {
+         syncStatus = .error("Shares need to be re-created to enable sync")
+     } else if successCount == syncableCount {
+         syncStatus = .upToDate
+     } else if successCount > 0 {
+         syncStatus = .error("Synced \(successCount)/\(syncableCount) shares")
+     } else if syncableCount > 0 {
+         syncStatus = .error("Sync failed for all shares")
+     } else {
+         syncStatus = .upToDate // All consumed
+     }
+     ```
+     - Background task handler with proper tracking:
+     ```swift
+     group.addTask { [weak self, capturedCloudKit] in
+         let uploadTask = Task<Void, Never> { [weak self] in
+             guard let self else { return }
+             await self.uploadStagedSync(shareVaultId: shareVaultId, cloudKit: capturedCloudKit)
+         }
+         await MainActor.run { [weak self] in
+             self?.resumeTasks[shareVaultId] = uploadTask
+         }
+         await uploadTask.value
+         await MainActor.run { [weak self] in
+             self?.resumeTasks.removeValue(forKey: shareVaultId)
+         }
+     }
+     ```
+
+   - **`apps/ios/Vault/Core/Sharing/CloudKitSharingManager.swift`**
+     - Added centralized network condition checks using existing `NWPathMonitor`.
+     ```swift
+     static var isOnWiFi: Bool {
+         currentNetworkType == "wifi" || currentNetworkType == "ethernet"
+     }
+     
+     static func canProceedWithNetwork() -> Bool {
+         let preference = UserDefaults.standard.string(forKey: "networkPreference") ?? "wifi"
+         if preference == "any" { return true }
+         return isOnWiFi
+     }
+     ```
+     - Note: `syncSharedVaultIncrementalFromFile` already had an `onProgress: ((Int, Int) -> Void)?` parameter — no protocol change needed.
+
+   - **`apps/ios/Vault/Features/Sharing/ShareVaultView.swift`**
+     - Changed header from `"Shared with X person"` to `"Active Shares"`.
+     - Removed duplicate "Active Shares" sub-section heading (was redundant after header change).
+     - Added per-share progress bar in `shareRow()`:
+     ```swift
+     private func shareRow(_ share: VaultStorage.ShareRecord) -> some View {
+         let syncProgress = ShareSyncManager.shared.perShareProgress[share.id]
+         let isSyncingShare = syncProgress != nil && {
+             if case .done = syncProgress?.status { return false }
+             if case .error = syncProgress?.status { return false }
+             return true
+         }()
+         return VStack(alignment: .leading, spacing: 8) {
+             HStack {
+                 // ... share info ...
+                 Text(isSyncingShare ? "Syncing" : "Active")
+                     .background((isSyncingShare ? Color.blue : Color.green).opacity(0.15))
+             }
+             if isSyncingShare, let progress = syncProgress {
+                 VStack(alignment: .leading, spacing: 4) {
+                     ProgressView(value: progress.fractionCompleted).tint(.accentColor)
+                     Text(progress.message).font(.caption2).foregroundStyle(.vaultSecondaryText)
+                 }
+             }
+             // ... expiry, revoke button ...
+         }
+     }
+     ```
+     - Updated idle timer policy:
+     ```swift
+     static func shouldDisableIdleTimer(isShareScreenVisible: Bool, uploadJobs: [ShareUploadManager.UploadJob]) -> Bool {
+         guard isShareScreenVisible else { return false }
+         return uploadJobs.contains(where: { $0.status.isRunning })
+             || ShareSyncManager.shared.syncStatus == .syncing
+     }
+     ```
+
+   - **`apps/ios/Vault/Features/Settings/SettingsView.swift`**
+     - Added `@AppStorage("networkPreference") private var networkPreference = "wifi"`.
+     - Added Network section after Storage section:
+     ```swift
+     Section {
+         Picker("Sync & Backup over", selection: $networkPreference) {
+             Text("Wi-Fi Only").tag("wifi")
+             Text("Wi-Fi & Cellular").tag("any")
+         }
+         .accessibilityIdentifier("app_network_preference")
+     } header: { Text("Network") }
+       footer: { Text("Controls when share syncs and iCloud backups run. Wi-Fi Only saves cellular data.") }
+     ```
+     - Added `catch iCloudError.wifiRequired` clause in `performBackup()`:
+     ```swift
+     } catch iCloudError.wifiRequired {
+         await MainActor.run {
+             errorMessage = "Wi-Fi required. Change in Settings → Network to allow cellular."
+             isBackingUp = false
+             backupStage = nil
+         }
+     ```
+
+   - **`apps/ios/Vault/Core/Sharing/ShareUploadManager.swift`**
+     - Added WiFi guard to `resumePendingUploadsIfNeeded()` only (NOT `startBackgroundUpload` — user-initiated actions should proceed):
+     ```swift
+     func resumePendingUploadsIfNeeded(trigger: String) {
+         guard hasPendingUpload else { return }
+         guard CloudKitSharingManager.canProceedWithNetwork() else {
+             Self.logger.info("[resume] Skipping upload resume: waiting for Wi-Fi (user preference)")
+             return
+         }
+         resumePendingUploads(vaultKey: vaultKeyProvider?(), trigger: trigger)
+     }
+     ```
+
+   - **`apps/ios/Vault/Core/Storage/iCloudBackupManager.swift`**
+     - Added `wifiRequired` case to `iCloudError` enum with `LocalizedError` conformance:
+     ```swift
+     enum iCloudError: Error, LocalizedError {
+         case notAvailable, containerNotFound, uploadFailed, downloadFailed, fileNotFound, checksumMismatch, wifiRequired
+         var errorDescription: String? {
+             switch self {
+             case .notAvailable: return "iCloud is not available"
+             case .wifiRequired: return "Wi-Fi required. Change in Settings → Network to allow cellular."
+             default: return nil
+             }
+         }
+     }
+     ```
+     - Added WiFi guards to `performBackup()` (throws `.wifiRequired`), `resumeBackupUploadIfNeeded()`, `performBackupIfNeeded()`, and `handleBackgroundProcessingTask()`.
+
+   - **`apps/ios/VaultTests/ShareSyncManagerTests.swift`**
+     - Added 10 new test cases: `testPerShareProgressStartsEmpty`, `testPerShareProgressClearedAfterSync`, `testWiFiOnlyBlocksOnCellular`, `testAnyNetworkAllowsBoth`, `testWiFiOnlyResumeSkipsOnCellular`, `testSyncStatusBadge_IdleState`, `testSyncStatusBadge_ErrorState`, `testMaxConcurrentSyncsConstant`, `testShareSyncProgress_Init`, `testShareSyncStatus_AllCases`.
+     - Total: 50 tests, 0 failures.
+
+4. Errors and Fixes:
+   - **First Review - Bug 1 (successCount comparison)**: `successCount == totalShares` compared against ALL shares including consumed/missing-key. Fixed by comparing against `syncableShares.count` with proper edge case handling (all consumed → upToDate, all missing keys → re-create error).
+   - **First Review - Bug 2 (BG task group instant completion)**: `group.addTask` wrapped upload in `MainActor.run { Task { ... } }` — fire-and-forget, group completed instantly. Fixed by calling `uploadStagedSync` directly in group task.
+   - **First Review - Bug 3 (silent upload failure)**: `startBackgroundUpload` WiFi guard silently dropped user-initiated uploads. Fixed by removing WiFi guard from user-initiated upload (kept only on `resumePendingUploadsIfNeeded`).
+   - **First Review - Bug 4 (misleading backup error)**: `performBackup` threw `iCloudError.notAvailable` for WiFi block, showing "iCloud is not available". Fixed by adding new `iCloudError.wifiRequired` case with proper `LocalizedError` and dedicated catch clause.
+   - **First Review - Bug 5 (stale progress after removeAll)**: Fire-and-forget `Task { @MainActor in ... }` from onProgress callbacks could write after `perShareProgress.removeAll()`. Fixed with `await Task.yield()` before `removeAll()`.
+   - **First Review - Bug 6 (progress bar for done/error)**: ProgressView shown even when sync done/errored. Fixed by adding `isSyncingShare` guard.
+   - **First Review - Bug 7 (unused totalShares)**: Removed unused variable.
+   - **Second Review - Bug 8 (lost resumeTasks tracking)**: Bug 2 fix removed `resumeTasks` registration from BG handler, enabling duplicate uploads. Fixed by creating inner tracked `Task<Void, Never>` registered in `resumeTasks`, awaited by group task, cleaned up after.
+   - **Second Review - Bug 9 (duplicate "Active Shares")**: Header changed to "Active Shares" but sub-section also said "Active Shares". Removed sub-section heading.
+   - **Second Review - Bug 10 (unused totalChunks)**: Removed unused variable.
+   - **Second Review - Missing WiFi guards**: `performBackupIfNeeded()` and `handleBackgroundProcessingTask()` in iCloudBackupManager were missing WiFi guards. Added guards to both.
+   - **Build issues**: iPhone 16 Pro simulator not found — used specific device ID `1E2BEFBC-2FBC-49D2-84B5-5DE55338CF79` (iPhone 17 Pro, booted). Project must be built from `apps/ios/` directory, not repo root.
+
+5. Problem Solving:
+   - Discovered `syncSharedVaultIncrementalFromFile` already had `onProgress` parameter — no protocol change needed, just needed to wire it up in callers.
+   - Discovered `saveChunkRecord` already uses `saveWithRetry` with 3 retries — no retry gap to fix (plan item 6).
+   - Resolved concurrency model: `@MainActor` TaskGroup child tasks allow concurrency because `Task.detached` for SVDF builds and non-isolated `CloudKitSharingManager` methods release the MainActor at suspension points.
+   - Addressed the nuance that user-initiated actions (share upload, manual backup) should NOT be blocked by WiFi preference — only automatic/background operations should be gated.
+
+6. All user messages:
+   - "Implement the following plan: [detailed Share Vault Design Overhaul plan with 6 changes]"
+   - "Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases." (first review)
+   - "Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases." (second review, identical request)
+
+7. Pending Tasks:
+   - **Session close protocol NOT completed**: No `git add`, `bd sync`, `git commit`, `git push` has been run. The AGENTS.md requires this before session completion.
+   - **Scratch pad update**: AGENTS.md requires updating `.scratch-pad.md` with errors/learnings at session end.
+   - **Build verification was done** (0 errors, 50 tests pass) but no deployment or manual testing yet.
+
+8. Current Work:
+   The second code review was just completed. All bugs found during both review rounds have been fixed. The final build and test run confirmed: 0 build errors, 50 tests passing with 0 failures. The `git diff --stat HEAD` shows changes across 7 iOS source files (plus pre-existing web changes). No git commit has been made yet.
+
+9. Optional Next Step:
+   The implementation and two review rounds are complete. The session close protocol from AGENTS.md should be run:
+   ```
+   git status → git add <files> → bd sync → git commit → bd sync → git push
+   ```
+   This was not explicitly requested by the user but is required by the project's AGENTS.md before ending the session. The user should be asked if they want to commit and push, or if they want to do additional manual testing first.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
