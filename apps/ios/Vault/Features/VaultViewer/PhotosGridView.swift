@@ -17,6 +17,7 @@ struct PhotosGridView: View {
     @State private var dragAffectedIds: Set<UUID> = []
     @State private var isDragSelecting = true
     @State private var isDragging = false
+    @State private var isDragVertical = false
 
     var body: some View {
         grid
@@ -116,23 +117,39 @@ struct PhotosGridView: View {
                 if !isDragging {
                     let dx = abs(value.translation.width)
                     let dy = abs(value.translation.height)
-                    // Only activate on predominantly horizontal drags
-                    guard dx > dy else { return }
-
+                    isDragVertical = dy > dx
                     isDragging = true
-                    if let id = cellId(at: value.startLocation) {
+
+                    if isDragVertical {
+                        let ids = rowCellIds(at: value.startLocation.y)
+                        if let first = ids.first {
+                            isDragSelecting = !selectedIds.contains(first)
+                        }
+                        if ids.reduce(false, { changed, id in applyDragSelection(to: id) || changed }) {
+                            UISelectionFeedbackGenerator().selectionChanged()
+                        }
+                    } else if let id = cellId(at: value.startLocation) {
                         isDragSelecting = !selectedIds.contains(id)
-                        applyDragSelection(to: id)
+                        if applyDragSelection(to: id) {
+                            UISelectionFeedbackGenerator().selectionChanged()
+                        }
                     }
                 }
 
-                if let id = cellId(at: value.location) {
-                    applyDragSelection(to: id)
+                if isDragVertical {
+                    if rowCellIds(at: value.location.y).reduce(false, { changed, id in applyDragSelection(to: id) || changed }) {
+                        UISelectionFeedbackGenerator().selectionChanged()
+                    }
+                } else if let id = cellId(at: value.location) {
+                    if applyDragSelection(to: id) {
+                        UISelectionFeedbackGenerator().selectionChanged()
+                    }
                 }
             }
             .onEnded { _ in
                 dragAffectedIds.removeAll()
                 isDragging = false
+                isDragVertical = false
             }
     }
 
@@ -140,15 +157,27 @@ struct PhotosGridView: View {
         cellFrames.first(where: { $0.value.contains(point) })?.key
     }
 
-    private func applyDragSelection(to id: UUID) {
-        guard !dragAffectedIds.contains(id) else { return }
+    private func rowCellIds(at y: CGFloat) -> [UUID] {
+        guard let anchor = cellFrames.first(where: { $0.value.minY <= y && y <= $0.value.maxY }) else {
+            return []
+        }
+        let rowMidY = anchor.value.midY
+        return cellFrames.compactMap { id, frame in
+            abs(frame.midY - rowMidY) <= 5 ? id : nil
+        }
+    }
+
+    @discardableResult
+    private func applyDragSelection(to id: UUID) -> Bool {
+        guard !dragAffectedIds.contains(id) else { return false }
         dragAffectedIds.insert(id)
 
         let isSelected = selectedIds.contains(id)
         if (isDragSelecting && !isSelected) || (!isDragSelecting && isSelected) {
             onToggleSelect?(id)
-            UISelectionFeedbackGenerator().selectionChanged()
+            return true
         }
+        return false
     }
 
     // MARK: - Duration Formatting
