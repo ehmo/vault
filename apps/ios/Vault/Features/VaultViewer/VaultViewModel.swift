@@ -26,6 +26,7 @@ final class VaultViewModel {
 
     var importProgress: (completed: Int, total: Int)?
     var activeImportTask: Task<Void, Never>?
+    private var importGeneration = 0
     var activeLoadTask: Task<Void, Never>?
     var isImportingPendingFiles = false
     var pendingImport: PendingImport?
@@ -425,6 +426,8 @@ final class VaultViewModel {
         let optimizationMode = MediaOptimizer.Mode(rawValue: fileOptimization) ?? .optimized
 
         activeImportTask?.cancel()
+        importGeneration += 1
+        let myGeneration = importGeneration
         importProgress = (0, count)
         IdleTimerManager.shared.disable()
 
@@ -482,15 +485,20 @@ final class VaultViewModel {
                 self.importProgress = (successCount + failedCount, count)
             }
 
-            // Always clean up, whether cancelled or completed normally
-            self.importProgress = nil
-            IdleTimerManager.shared.enable()
-
+            // Cancel workers if we were cancelled
             if Task.isCancelled {
                 workerTask.cancel()
                 vmLogger.warning("Photo import cancelled (imported=\(successCount), failed=\(failedCount))")
-                return
             }
+
+            // Only clean up state if we're still the current import — a newer import
+            // may have already set its own importProgress and disabled IdleTimerManager
+            guard self.importGeneration == myGeneration else { return }
+
+            self.importProgress = nil
+            IdleTimerManager.shared.enable()
+
+            guard !Task.isCancelled else { return }
 
             vmLogger.info("Import complete — success: \(successCount), failed: \(failedCount), files.count: \(self.files.count)")
 
@@ -542,6 +550,8 @@ final class VaultViewModel {
         let optimizationMode = MediaOptimizer.Mode(rawValue: fileOptimization) ?? .optimized
 
         activeImportTask?.cancel()
+        importGeneration += 1
+        let myGeneration = importGeneration
         if showProgress { importProgress = (0, count) }
         IdleTimerManager.shared.disable()
 
@@ -598,15 +608,18 @@ final class VaultViewModel {
                 }
             }
 
-            // Always clean up, whether cancelled or completed normally
-            self.importProgress = nil
-            IdleTimerManager.shared.enable()
-
             if Task.isCancelled {
                 workerTask.cancel()
                 vmLogger.warning("File import cancelled (imported=\(successCount), failed=\(failedCount))")
-                return
             }
+
+            // Only clean up state if we're still the current import
+            guard self.importGeneration == myGeneration else { return }
+
+            self.importProgress = nil
+            IdleTimerManager.shared.enable()
+
+            guard !Task.isCancelled else { return }
 
             if failedCount > 0 && successCount == 0 {
                 self.toastMessage = .importFailed(failedCount, imported: 0, reason: lastErrorReason)
