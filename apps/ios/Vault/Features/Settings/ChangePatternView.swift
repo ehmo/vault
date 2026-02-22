@@ -52,6 +52,14 @@ struct ChangePatternFlowState {
         isProcessing = false
     }
 
+    mutating func skipVerification() {
+        step = .createNew
+        currentPattern = []
+        newPattern = []
+        clearFeedback()
+        isProcessing = false
+    }
+
     mutating func skipVerifyForTesting(pattern: [Int]) {
         step = .createNew
         currentPattern = pattern
@@ -96,7 +104,7 @@ struct ChangePatternView: View {
                 if step != .complete {
                     // Progress indicator
                     HStack(spacing: 8) {
-                        ForEach(0..<3) { index in
+                        ForEach(0..<totalSteps, id: \.self) { index in
                             Capsule()
                                 .fill(stepIndex >= index ? Color.accentColor : Color.vaultSecondaryText.opacity(0.3))
                                 .frame(width: 40, height: 4)
@@ -104,11 +112,26 @@ struct ChangePatternView: View {
                     }
                     .padding(.top)
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("Step \(stepIndex + 1) of 3")
+                    .accessibilityLabel("Step \(stepIndex + 1) of \(totalSteps)")
                 }
 
                 if isMaestroHookEnabled {
                     maestroChangePatternTestHooks
+                }
+
+                if skipVerification && step != .complete {
+                    HStack(spacing: 8) {
+                        Image(systemName: "info.circle.fill")
+                            .foregroundStyle(.blue)
+                        Text("You unlocked with your recovery phrase, so pattern verification is not required.")
+                            .font(.caption)
+                            .foregroundStyle(.vaultSecondaryText)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .vaultGlassBackground(cornerRadius: 10)
+                    .padding(.horizontal, 4)
+                    .accessibilityIdentifier("change_pattern_skip_info_banner")
                 }
 
                 if step != .complete {
@@ -190,6 +213,13 @@ struct ChangePatternView: View {
                     Text("Your current pattern will no longer work. Make sure you've written down your new recovery phrase.")
                 }
             }
+            .onAppear {
+                if skipVerification {
+                    changePatternLogger.debug("Recovery unlock detected — skipping pattern verification")
+                    flow.skipVerification()
+                    patternState.reset()
+                }
+            }
         }
     }
 
@@ -256,7 +286,11 @@ struct ChangePatternView: View {
                 HStack(spacing: 16) {
                     if step == .confirmNew {
                         Button("Try Again") {
-                            flow.resetForStartOver()
+                            if skipVerification {
+                                flow.skipVerification()
+                            } else {
+                                flow.resetForStartOver()
+                            }
                             patternState.reset()
                         }
                         .accessibilityIdentifier("change_pattern_try_again")
@@ -291,7 +325,12 @@ struct ChangePatternView: View {
 
     // MARK: - Computed Properties
 
+    private var skipVerification: Bool {
+        appState.currentPattern == nil
+    }
+
     private var step: ChangePatternStep { flow.step }
+    private var totalSteps: Int { skipVerification ? 2 : 3 }
     private var stepIndex: Int {
         switch step {
         case .verifyCurrent: return 0
