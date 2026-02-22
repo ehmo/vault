@@ -1,0 +1,115 @@
+Implement the following plan:
+
+# Shared Vault "Update Now" UX — Button Placement, Progress Modal, and Resilience
+
+## Context
+
+When a shared vault has new files, two UI elements appear: the "Shared Vault" header row with the "Update Now" button, and a separate "New files available" strip below it. The button should be **on** the "New files available" strip, not above it. Additionally, tapping "Update Now" currently shows only a tiny spinner on the button — it should show the same full-screen progress modal used for file imports, with idle timer prevention and background task resilience.
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `apps/ios/Vault/Features/VaultViewer/VaultView+SharedVault.swift` | Move button to "New files available" strip; rewrite `downloadUpdate()` with progress, idle timer, background task; add per-file progress to `importSVDFDelta` and `importLegacyFull` |
+| `apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift` | Add `sharedVaultUpdateProgress` property; update `activeOperationProgress` to include it |
+
+No changes needed to: `VaultView.swift` (overlay already works), `FileOperationProgressCard.swift` (already generic), `CloudKitSharingManager.swift` (`onProgress` already supported), `IdleTimerManager.swift` (already reference-counted).
+
+## Changes
+
+### 1. VaultViewModel.swift — Add shared vault update progress
+
+**a) New property** (in "Shared Vault State" section, ~line 70):
+```swift
+var sharedVaultUpdateProgress: (completed: Int, total: Int, message: String)?
+```
+
+**b) Update `activeOperationProgress`** (~line 39) — add third source after existing `importProgress` and `transferManager.status`:
+```swift
+if let p = sharedVaultUpdateProgress {
+    return p
+}
+```
+
+This makes the existing overlay in `VaultView.swift:183-196` automatically display `FileOperationProgressCard` during shared vault updates.
+
+### 2. VaultView+SharedVault.swift — Move button
+
+**a) Remove** the "Update Now" button from the "Shared Vault" header HStack (Section A, lines 22-35).
+
+**b) Add** it into the "New files available" HStack (Section C, lines 44-55):
+```swift
+if viewModel.updateAvailable {
+    HStack {
+        Image(systemName: "arrow.down.circle.fill")
+            .foregroundStyle(.tint)
+        Text("New files available")
+            .font(.caption)
+        Spacer()
+        Button(action: { Task { await downloadUpdate() } }) {
+            // same button content as before (spinner or "Update Now")
+        }
+        .vaultProminentButtonStyle()
+        .controlSize(.mini)
+        .disabled(viewModel.isUpdating)
+    }
+    .padding(.horizontal)
+    .padding(.vertical, 4)
+    .background(Color.accentColor.opacity(0.1))
+}
+```
+
+### 3. VaultView+SharedVault.swift — Rewrite `downloadUpdate()` with full resilience
+
+Add three capabilities:
+- **IdleTimerManager**: `disable()` before, `enable()` in defer
+- **Background task**: `beginBackgroundTask` with expiration handler that cleans up progress state
+- **Two-phase progress**: Download chunks = 0→70%, Import files = 70→100%
+
+Use `onProgress` callback on `downloadUpdatedVault` for chunk-level progress. A `bgTaskCleaned` flag prevents double-cleanup between expiration handler and defer.
+
+On error, show toast via `viewModel.toastMessage`. On success, set `updateAvailable = false` and refresh files.
+
+### 4. VaultView+SharedVault.swift — Add per-file progress to import functions
+
+**`importSVDFDelta`**: Add counter in the `for entry in manifest where newIds.contains(entry.id)` loop. After each file stored, update `viewModel.sharedVaultUpdateProgress` mapping to 70→100 range with message "Importing X of Y..."
+
+**`importLegacyFull`**: Same pattern in the `for file in sharedVault.files` loop.
+
+## Progress Flow
+
+```
+Tap "Update Now" on "New files available" strip
+  → isUpdating=true (button spinner)
+  → sharedVaultUpdateProgress = (0, 100, "Downloading update...")
+  → Overlay appears with FileOperationProgressCard
+  → Download chunks: progress 0%→70%, "Downloading update..."
+  → Import files: progress 70%→100%, "Importing X of Y..."
+  → sharedVaultUpdateProgress = nil (overlay disappears)
+  → updateAvailable = false (strip disappears)
+  → loadFiles() (grid refreshes)
+```
+
+## Verification
+
+1. Build: `xcodebuild build -scheme Vault -destination 'id=<device>'`
+2. Deploy: `./scripts/deploy-phone.sh --launch`
+3. Manual test:
+   - Open shared vault with pending update → "New files available" strip shows with "Update Now" button
+   - Tap "Update Now" → full-screen progress modal appears
+   - Progress advances through download (0→70%) and import (70→100%)
+   - On completion: modal disappears, "New files available" strip disappears, new files visible in grid
+   - Screen stays on during entire operation (idle timer disabled)
+4. Verify no regression: imports, deletes, initial share import still show progress correctly
+5. Verify `SharedVaultBannerTests.swift` still passes (tests only cover policy details, not the button placement)
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases.
+
+---
+
+Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases.
