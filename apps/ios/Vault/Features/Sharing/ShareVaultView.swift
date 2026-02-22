@@ -630,7 +630,7 @@ struct ShareVaultView: View {
                 guard let url = ShareLinkEncoder.shareURL(for: phrase) else { return }
 
                 appState.suppressLockForShareSheet = true
-                ShareSheetHelper.present(items: [url]) {
+                ShareSheetHelper.present(items: [url.absoluteString]) {
                     appState.suppressLockForShareSheet = false
                 }
             } label: {
