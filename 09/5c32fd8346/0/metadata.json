@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "095c32fd8346",
+  "session_id": "cf1cddc4-e685-4726-8152-26f8e86fbba8",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-22T02:34:37.213347Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "AGENTS.md",
+    "apps/ios/AGENTS.md",
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Features/VaultViewer/DragRowSelector.swift",
+    "apps/ios/Vault/Features/VaultViewer/FilesGridView.swift",
+    "apps/ios/Vault/Features/VaultViewer/ParallelImporter.swift",
+    "apps/ios/Vault/Features/VaultViewer/PhotosGridView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift",
+    "apps/ios/VaultTests/BackgroundTaskTests.swift",
+    "apps/ios/VaultTests/DragRowSelectorTests.swift",
+    "apps/ios/VaultTests/OnboardingStepTests.swift",
+    "apps/ios/VaultTests/ParallelImporterTests.swift",
+    "apps/ios/VaultTests/PatternValidationStateTests.swift",
+    "apps/ios/VaultTests/SVDFSerializerTests.swift",
+    "apps/ios/VaultTests/VaultIndexManagerTests.swift",
+    "apps/ios/VaultTests/VaultViewModelTests.swift",
+    "scripts/deploy-phone.sh",
+    "scripts/deploy-testflight.sh"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "a826f97a-af3b-48af-bf6a-9431fa399cd0",
+  "checkpoint_transcript_start": 1518,
+  "transcript_lines_at_start": 1518,
+  "token_usage": {
+    "input_tokens": 3355,
+    "cache_creation_tokens": 53796,
+    "cache_read_tokens": 3629027,
+    "output_tokens": 881,
+    "api_call_count": 28
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-22T02:34:36.842758Z",
+    "agent_lines": 22,
+    "human_added": 5702,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 5724,
+    "agent_percentage": 0.38434661076170507
+  }
+}
