@@ -1,0 +1,215 @@
+Implement the following plan:
+
+# Custom Vault Naming
+
+## Context
+
+Vault names are auto-generated from pattern grid letters (e.g. "Vault DKVS"). Users want to set custom names that:
+- Replace the auto-generated name
+- Persist across lock/unlock cycles
+- Carry through shared vaults (same name regardless of recipient's letter assignments)
+
+Already done (this session): auto-generated names capped at 4 letters, toolbar has `.lineLimit(1)`.
+
+## Data Flow (Current)
+
+1. Pattern drawn -> `GridLetterManager.vaultName(for:)` -> letters
+2. `"Vault \(letters)"` stored in `appState.vaultName` (in-memory only)
+3. On lock, name resets to `"Vault"`
+4. On unlock, name re-derived from pattern letters
+
+**Problem**: No persistence. Name is ephemeral and re-derived every session.
+
+## Plan
+
+### Step 1: Add `customName` to VaultIndex
+
+**File**: `Vault/Core/Storage/VaultIndexTypes.swift`
+
+Add `var customName: String?` to `VaultStorage.VaultIndex`. Being optional + Codable, this is backward compatible — existing indices decode with `nil`.
+
+```swift
+var customName: String?  // User-set vault name (nil = use auto-generated)
+```
+
+### Step 2: Load custom name on unlock
+
+**File**: `Vault/App/VaultApp.swift`
+
+In `unlockWithPattern(_:gridSize:precomputedKey:)` (~line 271-272), after loading the index, check for `customName`:
+
+```swift
+// Current:
+let letters = GridLetterManager.shared.vaultName(for: pattern)
+vaultName = letters.isEmpty ? "Vault" : "Vault \(letters)"
+
+// New:
+if let index = try? VaultStorage.shared.loadIndex(with: VaultKey(key)),
+   let custom = index.customName, !custom.isEmpty {
+    vaultName = custom
+} else {
+    let letters = GridLetterManager.shared.vaultName(for: pattern)
+    vaultName = letters.isEmpty ? "Vault" : "Vault \(letters)"
+}
+```
+
+Note: The index is already loaded a few lines later (line 278) for `isSharedVault`. We can hoist that load earlier or reuse it. Actually, it's inside a separate span — better to just read `customName` from the same index load at line 278:
+
+```swift
+if let index = try? VaultStorage.shared.loadIndex(with: VaultKey(key)) {
+    isSharedVault = index.isSharedVault ?? false
+    if let custom = index.customName, !custom.isEmpty {
+        vaultName = custom
+    }
+    ...
+}
+```
+
+Same change in `unlockWithKey(_:isRecovery:)` (~line 348).
+
+### Step 3: Load custom name in onboarding & shared vault flows
+
+**Files**: `PatternSetupView.swift`, `JoinVaultView.swift`, `SharedVaultInviteView.swift`
+
+These call `appState.updateVaultName(...)` with auto-generated names. No change needed — at creation time, `customName` is `nil`, so auto-generated is correct. The custom name will be set later by the user from settings.
+
+### Step 4: Add rename UI in VaultSettingsView
+
+**File**: `Vault/Features/Settings/VaultSettingsView.swift`
+
+In the "This Vault" section, add a tappable row to rename:
+
+```swift
+Section("This Vault") {
+    // Existing: Files count, Storage used
+
+    // New: Vault Name row
+    Button {
+        showingRenameAlert = true
+    } label: {
+        HStack {
+            Text("Name")
+            Spacer()
+            Text(appState.vaultName)
+                .foregroundStyle(.vaultSecondaryText)
+                .lineLimit(1)
+        }
+    }
+    .foregroundStyle(.primary)
+    .accessibilityIdentifier("settings_vault_name")
+}
+```
+
+Use an alert with a text field for rename:
+
+```swift
+@State private var showingRenameAlert = false
+@State private var renameText = ""
+
+.alert("Rename Vault", isPresented: $showingRenameAlert) {
+    TextField("Vault name", text: $renameText)
+    Button("Cancel", role: .cancel) { }
+    Button("Save") { renameVault() }
+} message: {
+    Text("Enter a custom name for this vault.")
+}
+.onAppear { renameText = appState.vaultName }
+```
+
+The `renameVault()` function:
+
+```swift
+private func renameVault() {
+    let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty, let key = appState.currentVaultKey else { return }
+
+    // Limit to 30 characters
+    let name = String(trimmed.prefix(30))
+
+    // Save to index
+    do {
+        var index = try VaultStorage.shared.loadIndex(with: key)
+        index.customName = name
+        try VaultStorage.shared.saveIndex(index, with: key)
+        appState.updateVaultName(name)
+    } catch {
+        vaultSettingsLogger.error("Failed to rename vault: \(error.localizedDescription)")
+    }
+}
+```
+
+### Step 5: Propagate through shared vaults
+
+When a vault is shared, the encrypted index (containing `customName`) is uploaded to CloudKit. When the recipient joins:
+- `JoinVaultView` creates a new empty index — no custom name yet (correct behavior, recipient can rename independently)
+- The owner's custom name does NOT automatically transfer to recipients (each user names their own copy)
+
+This is the right behavior — shared vault recipients may want different names.
+
+### Step 6: Add "Reset to default" option
+
+In the rename alert, if the user clears the name or sets it to empty, we reset to auto-generated. The `renameVault` function handles this: if `trimmed.isEmpty`, set `customName = nil` and regenerate the auto name.
+
+```swift
+private func renameVault() {
+    let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let key = appState.currentVaultKey else { return }
+
+    do {
+        var index = try VaultStorage.shared.loadIndex(with: key)
+        if trimmed.isEmpty {
+            index.customName = nil
+            // Regenerate auto name
+            if let pattern = appState.currentPattern {
+                let letters = GridLetterManager.shared.vaultName(for: pattern)
+                appState.updateVaultName(letters.isEmpty ? "Vault" : "Vault \(letters)")
+            } else {
+                appState.updateVaultName("Vault")
+            }
+        } else {
+            let name = String(trimmed.prefix(30))
+            index.customName = name
+            appState.updateVaultName(name)
+        }
+        try VaultStorage.shared.saveIndex(index, with: key)
+    } catch {
+        vaultSettingsLogger.error("Failed to rename vault: \(error.localizedDescription)")
+    }
+}
+```
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `Vault/Core/Storage/VaultIndexTypes.swift` | Add `customName: String?` to VaultIndex |
+| `Vault/App/VaultApp.swift` | Load customName on unlock (2 methods) |
+| `Vault/Features/Settings/VaultSettingsView.swift` | Add rename row + alert + save logic |
+| `VaultTests/VaultNameTests.swift` | Add tests for custom name persistence |
+
+## Tests
+
+Add to `VaultNameTests.swift`:
+- `testCustomName_MaxLength30`: Verify 30-char limit
+- `testCustomName_EmptyResetsToAuto`: Empty string clears custom name
+- `testCustomName_WhitespaceOnly_ResetsToAuto`: Whitespace-only clears
+- `testCustomName_TrimmedOfWhitespace`: Leading/trailing whitespace trimmed
+- `testDisplayName_MaxTotalLength`: "Vault XXXX" format is at most 10 chars; custom names at most 30
+
+## Verification
+
+1. Build: `xcodebuild build`
+2. Run tests: `xcodebuild test -only-testing:VaultTests/VaultNameTests`
+3. Deploy: `./scripts/deploy-phone.sh`
+4. Manual tests:
+   - Open vault -> Settings -> Tap name row -> Enter custom name -> Save
+   - Lock and re-unlock -> custom name persists
+   - Clear name -> auto-generated name returns
+   - Create shared vault with custom name -> recipient sees default name (not owner's custom name)
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Finish it

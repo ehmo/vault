@@ -3,14 +3,17 @@
   "checkpoint_id": "c13d92ec885d",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Storage/VaultIndexTypes.swift",
     "apps/ios/Vault/Features/Onboarding/PatternSetupView.swift",
     "apps/ios/Vault/Features/Onboarding/PermissionsView.swift",
     "apps/ios/Vault/Features/Onboarding/WelcomeView.swift",
     "apps/ios/Vault/Features/Settings/ChangePatternView.swift",
     "apps/ios/Vault/Features/Settings/SettingsView.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
     "apps/ios/Vault/Features/Sharing/JoinVaultView.swift",
     "apps/ios/Vault/Features/Sharing/ShareVaultView.swift",
     "apps/ios/Vault/Features/Sharing/SharedVaultInviteView.swift",
@@ -24,6 +27,7 @@
     "apps/ios/VaultTests/DynamicTypeTruncationTests.swift",
     "apps/ios/VaultTests/FileOperationProgressCardTests.swift",
     "apps/ios/VaultTests/ShareLinkEncoderTests.swift",
+    "apps/ios/VaultTests/VaultNameTests.swift",
     "apps/ios/VaultTests/VaultViewModelTests.swift"
   ],
   "sessions": [
@@ -33,13 +37,20 @@
       "context": "/c1/3d92ec885d/0/context.md",
       "content_hash": "/c1/3d92ec885d/0/content_hash.txt",
       "prompt": "/c1/3d92ec885d/0/prompt.txt"
+    },
+    {
+      "metadata": "/c1/3d92ec885d/1/metadata.json",
+      "transcript": "/c1/3d92ec885d/1/full.jsonl",
+      "context": "/c1/3d92ec885d/1/context.md",
+      "content_hash": "/c1/3d92ec885d/1/content_hash.txt",
+      "prompt": "/c1/3d92ec885d/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 39,
-    "cache_creation_tokens": 75768,
-    "cache_read_tokens": 2459929,
-    "output_tokens": 2478,
-    "api_call_count": 35
+    "input_tokens": 84,
+    "cache_creation_tokens": 124678,
+    "cache_read_tokens": 4540591,
+    "output_tokens": 3338,
+    "api_call_count": 76
   }
 }
