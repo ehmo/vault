@@ -26,7 +26,14 @@ struct PhotosGridView: View {
             .coordinateSpace(name: "photosGrid")
             .onPreferenceChange(PhotoCellFramePreference.self) { cellFrames = $0 }
             .onChange(of: isEditing) { _, editing in
-                if !editing { cellFrames.removeAll() }
+                if !editing {
+                    cellFrames.removeAll()
+                    isDragging = false
+                    isDragVertical = false
+                    dragStartIndex = nil
+                    currentDragTargetIds.removeAll()
+                    dragToggledIds.removeAll()
+                }
             }
     }
 
@@ -129,7 +136,7 @@ struct PhotosGridView: View {
                     }
                 }
 
-                guard let startIdx = dragStartIndex else { return }
+                guard let startIdx = dragStartIndex, startIdx < files.count else { return }
 
                 let newTargetIds: Set<UUID>
 
