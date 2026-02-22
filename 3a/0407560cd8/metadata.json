@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "3a0407560cd8",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Features/VaultViewer/FilesGridView.swift",
+    "apps/ios/Vault/Features/VaultViewer/PhotosGridView.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3a/0407560cd8/0/metadata.json",
+      "transcript": "/3a/0407560cd8/0/full.jsonl",
+      "context": "/3a/0407560cd8/0/context.md",
+      "content_hash": "/3a/0407560cd8/0/content_hash.txt",
+      "prompt": "/3a/0407560cd8/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 42055,
+    "cache_read_tokens": 1455708,
+    "output_tokens": 196,
+    "api_call_count": 14
+  }
+}
