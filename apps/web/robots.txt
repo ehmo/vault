@@ -1,4 +1,20 @@
 User-agent: *
 Allow: /
 
+# Explicitly allow major AI crawlers for AI discoverability
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
 Sitemap: https://vaultaire.app/sitemap.xml

@@ -1,0 +1,46 @@
+# Vaultaire Website (Full Index)
+
+> Full navigation index for LLM tools covering all production website pages.
+
+## Core Pages
+
+- [Home](https://vaultaire.app/): Main marketing page.
+- [Manifesto](https://vaultaire.app/manifesto/): Product philosophy.
+- [Privacy Policy](https://vaultaire.app/privacy/): Privacy policy.
+- [Terms of Use](https://vaultaire.app/terms/): Legal terms.
+- [Invite Fallback](https://vaultaire.app/s/): Share-link fallback page.
+- [Compare Hub](https://vaultaire.app/compare/): Compare directory.
+
+## Compare Pages
+
+- [Vaultaire vs Calculator#](https://vaultaire.app/compare/vaultaire-vs-calculator-hide-photos/): Feature-by-feature comparison.
+- [Vaultaire vs Calculator# Review](https://vaultaire.app/compare/vaultaire-vs-calculator-hide-photos/review/): Long-form review.
+- [Vaultaire vs Hide it Pro](https://vaultaire.app/compare/vaultaire-vs-hide-it-pro/): Feature-by-feature comparison.
+- [Vaultaire vs Hide it Pro Review](https://vaultaire.app/compare/vaultaire-vs-hide-it-pro/review/): Long-form review.
+- [Vaultaire vs Keepsafe](https://vaultaire.app/compare/vaultaire-vs-keepsafe/): Feature-by-feature comparison.
+- [Vaultaire vs Keepsafe Review](https://vaultaire.app/compare/vaultaire-vs-keepsafe/review/): Long-form review.
+- [Vaultaire vs Private Photo Vault](https://vaultaire.app/compare/vaultaire-vs-private-photo-vault/): Feature-by-feature comparison.
+- [Vaultaire vs Private Photo Vault Review](https://vaultaire.app/compare/vaultaire-vs-private-photo-vault/review/): Long-form review.
+- [Vaultaire vs Privault](https://vaultaire.app/compare/vaultaire-vs-privault/): Feature-by-feature comparison.
+- [Vaultaire vs Privault Review](https://vaultaire.app/compare/vaultaire-vs-privault/review/): Long-form review.
+- [Vaultaire vs PV Secret Photo Album](https://vaultaire.app/compare/vaultaire-vs-pv-secret-photo-album/): Feature-by-feature comparison.
+- [Vaultaire vs PV Secret Photo Album Review](https://vaultaire.app/compare/vaultaire-vs-pv-secret-photo-album/review/): Long-form review.
+- [Vaultaire vs Safe Lock](https://vaultaire.app/compare/vaultaire-vs-safe-lock/): Feature-by-feature comparison.
+- [Vaultaire vs Safe Lock Review](https://vaultaire.app/compare/vaultaire-vs-safe-lock/review/): Long-form review.
+- [Vaultaire vs Secret Photo Album](https://vaultaire.app/compare/vaultaire-vs-secret-photo-album/): Feature-by-feature comparison.
+- [Vaultaire vs Secret Photo Album Review](https://vaultaire.app/compare/vaultaire-vs-secret-photo-album/review/): Long-form review.
+- [Vaultaire vs Secret Photo Vault](https://vaultaire.app/compare/vaultaire-vs-secret-photo-vault/): Feature-by-feature comparison.
+- [Vaultaire vs Secret Photo Vault Review](https://vaultaire.app/compare/vaultaire-vs-secret-photo-vault/review/): Long-form review.
+- [Vaultaire vs SPV](https://vaultaire.app/compare/vaultaire-vs-spv/): Feature-by-feature comparison.
+- [Vaultaire vs SPV Review](https://vaultaire.app/compare/vaultaire-vs-spv/review/): Long-form review.
+
+## Discovery and Machine-Readable Endpoints
+
+- [Sitemap](https://vaultaire.app/sitemap.xml): URL inventory with `<lastmod>` metadata.
+- [RSS Feed](https://vaultaire.app/feed.xml): Update feed.
+- [MCP Manifest](https://vaultaire.app/.well-known/mcp.json): MCP discovery metadata.
+- [AASA](https://vaultaire.app/.well-known/apple-app-site-association): Universal links configuration.
+
+## Optional
+
+- [App Store Listing](https://apps.apple.com/app/vaultaire/id6758529311): Public install page.

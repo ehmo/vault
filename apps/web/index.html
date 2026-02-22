@@ -23,6 +23,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&amp;family=Space+Grotesk:wght@300;500;700&amp;display=swap" rel="stylesheet">
+  <meta property="article:published_time" content="2026-02-01T00:00:00Z">
+  <meta property="article:modified_time" content="2026-02-22T00:00:00Z">
+  <link rel="alternate" type="application/rss+xml" title="Vaultaire Updates" href="https://vaultaire.app/feed.xml">
+  <link rel="alternate" type="application/json" title="MCP manifest" href="https://vaultaire.app/.well-known/mcp.json">
     <link rel="stylesheet" href="styles/output.css">
 
     <script type="application/ld+json">
@@ -42,16 +46,17 @@
     </script>
 </head>
 <body class="page-home" x-data="vaultaireApp()">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
 
     <!-- Header (from baseline design-4379) -->
-    <header>
+    <header role="banner">
         <div class="container nav-inner">
             <a href="index.html" class="logo">
-                <img src="assets/vault-logo.png" alt="Vaultaire logo" class="logo-mark logo-mark--dark">
-                <img src="assets/vault-logo-light.png" alt="Vaultaire logo for light theme" class="logo-mark logo-mark--light">
+                <img src="assets/vault-logo.png" alt="Vaultaire logo" class="logo-mark logo-mark--dark" srcset="assets/vault-logo.png 1x" sizes="32px" width="32" height="32">
+                <img src="assets/vault-logo-light.png" alt="Vaultaire logo for light theme" class="logo-mark logo-mark--light" srcset="assets/vault-logo-light.png 1x" sizes="32px" width="32" height="32">
                 <span>Vaultaire</span>
             </a>
-            <nav class="nav-links">
+            <nav class="nav-links" role="navigation" aria-label="Primary">
                 <a href="index.html">Home</a>
                 <a href="#features">Features</a>
                 <a href="#how-it-works">How it Works</a>
@@ -70,7 +75,7 @@
         </div>
     </header>
 
-    <main>
+    <main id="main-content" role="main">
         <!-- Hero: Stacked title (from design-724b) + Phone mockup (from design-9bff) -->
         <section class="hero">
             <div class="hero-bg-x">
@@ -416,7 +421,7 @@
     </main>
 
     <!-- Footer (from baseline design-4379) -->
-    <footer>
+    <footer role="contentinfo">
         <div class="container footer-content">
             <div class="footer-brand">
                 <h4>Vaultaire</h4>

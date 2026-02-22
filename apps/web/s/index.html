@@ -11,18 +11,34 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="canonical" href="https://vaultaire.app/s/">
+  <meta property="og:title" content="Open in Vaultaire">
+  <meta property="og:description" content="Someone shared a vault with you. Open this link in Vaultaire to accept the invitation.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://vaultaire.app/s/">
+  <meta property="og:image" content="https://vaultaire.app/assets/social-share.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Open in Vaultaire">
+  <meta name="twitter:description" content="Someone shared a vault with you. Open this link in Vaultaire to accept the invitation.">
+  <meta name="twitter:image" content="https://vaultaire.app/assets/social-share.png">
+  <meta property="article:published_time" content="2026-02-01T00:00:00Z">
+  <meta property="article:modified_time" content="2026-02-22T00:00:00Z">
+  <link rel="alternate" type="application/rss+xml" title="Vaultaire Updates" href="https://vaultaire.app/feed.xml">
+  <link rel="alternate" type="application/json" title="MCP manifest" href="https://vaultaire.app/.well-known/mcp.json">
   <link rel="stylesheet" href="../styles/output.css">
 </head>
 <body class="page-invite" x-data="vaultaireApp()">
   <a href="#main-content" class="skip-link">Skip to main content</a>
-  <header>
+  <header role="banner">
     <div class="container nav-inner">
       <a href="../index.html" class="logo" aria-label="Vaultaire home">
-        <img src="../assets/vault-logo.png" alt="" class="logo-mark logo-mark--dark" loading="lazy" width="32" height="32">
-        <img src="../assets/vault-logo-light.png" alt="" class="logo-mark logo-mark--light" loading="lazy" width="32" height="32">
+        <img src="../assets/vault-logo.png" alt="" class="logo-mark logo-mark--dark" loading="lazy" width="32" height="32" srcset="../assets/vault-logo.png 1x" sizes="32px">
+        <img src="../assets/vault-logo-light.png" alt="" class="logo-mark logo-mark--light" loading="lazy" width="32" height="32" srcset="../assets/vault-logo-light.png 1x" sizes="32px">
         <span>Vaultaire</span>
       </a>
-      <nav class="nav-links" aria-label="Main navigation">
+      <nav class="nav-links" role="navigation" aria-label="Primary">
         <a href="../index.html">Home</a>
         <a href="../index.html#features">Features</a>
         <a href="../index.html#how-it-works">How It Works</a>
@@ -40,7 +56,7 @@
     </div>
   </header>
 
-  <main id="main-content">
+  <main id="main-content" role="main">
     <section class="invite-card" id="invite-card" aria-live="polite" aria-atomic="true" role="status">
       <img src="../assets/vault-logo.png" alt="" class="hero-logo" id="hero-logo-dark" loading="lazy" width="74" height="74">
       <img src="../assets/vault-logo-light.png" alt="" class="hero-logo hero-logo-light-hidden" id="hero-logo-light" loading="lazy" width="74" height="74">
@@ -59,7 +75,7 @@
     </section>
   </main>
 
-  <footer>
+  <footer role="contentinfo">
     <div class="container footer-content">
       <div class="footer-brand">
         <h4>Vaultaire</h4>

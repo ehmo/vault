@@ -1,0 +1,26 @@
+# Vaultaire Website
+
+> Vaultaire is a local-first encrypted vault for iOS.
+> This website contains product documentation, legal pages, invite fallback UX, and detailed competitor comparisons.
+
+## Documentation
+
+- [Home](https://vaultaire.app/): Product overview, feature sections, and security summary.
+- [Manifesto](https://vaultaire.app/manifesto/): Core privacy philosophy and positioning.
+- [Privacy Policy](https://vaultaire.app/privacy/): Data handling and third-party service policies.
+- [Terms of Use](https://vaultaire.app/terms/): Terms and legal agreements.
+
+## Product Navigation
+
+- [Compare Hub](https://vaultaire.app/compare/): Directory of app-to-app comparisons.
+- [Vault Invite Fallback](https://vaultaire.app/s/): Deep-link fallback page for shared vault invites.
+
+## Discovery
+
+- [Sitemap](https://vaultaire.app/sitemap.xml): Canonical page inventory with freshness dates.
+- [RSS Feed](https://vaultaire.app/feed.xml): Machine-readable update feed.
+- [MCP Manifest](https://vaultaire.app/.well-known/mcp.json): MCP discovery metadata.
+
+## Optional
+
+- [App Store Listing](https://apps.apple.com/app/vaultaire/id6758529311): Install Vaultaire on iPhone.

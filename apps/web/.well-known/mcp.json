@@ -1,0 +1,11 @@
+{
+  "name": "Vaultaire Web MCP",
+  "description": "Read-only MCP metadata endpoint for Vaultaire website discovery and documentation indexing.",
+  "url": "https://vaultaire.app/.well-known/mcp.json",
+  "website": "https://vaultaire.app",
+  "version": "1.0.0",
+  "capabilities": [
+    "site-discovery",
+    "docs-index"
+  ]
+}

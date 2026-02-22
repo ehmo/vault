@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Vaultaire Updates</title>
+    <link>https://vaultaire.app/</link>
+    <description>Product and documentation updates for Vaultaire.</description>
+    <language>en-us</language>
+    <lastBuildDate>Sun, 22 Feb 2026 00:00:00 GMT</lastBuildDate>
+    <atom:link href="https://vaultaire.app/feed.xml" rel="self" type="application/rss+xml" />
+
+    <item>
+      <title>Vaultaire Compare Hub</title>
+      <link>https://vaultaire.app/compare/</link>
+      <guid>https://vaultaire.app/compare/</guid>
+      <pubDate>Sat, 21 Feb 2026 00:00:00 GMT</pubDate>
+      <description>Head-to-head security comparisons between Vaultaire and popular vault apps.</description>
+    </item>
+
+    <item>
+      <title>Vaultaire Manifesto</title>
+      <link>https://vaultaire.app/manifesto/</link>
+      <guid>https://vaultaire.app/manifesto/</guid>
+      <pubDate>Mon, 16 Feb 2026 00:00:00 GMT</pubDate>
+      <description>The privacy philosophy and threat model behind Vaultaire.</description>
+    </item>
+
+    <item>
+      <title>Vaultaire Home</title>
+      <link>https://vaultaire.app/</link>
+      <guid>https://vaultaire.app/</guid>
+      <pubDate>Sat, 22 Feb 2026 00:00:00 GMT</pubDate>
+      <description>Local-first encrypted vault for iOS with pattern-based key derivation.</description>
+    </item>
+  </channel>
+</rss>
