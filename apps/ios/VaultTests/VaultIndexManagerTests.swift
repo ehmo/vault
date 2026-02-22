@@ -138,11 +138,18 @@ final class VaultIndexManagerTests: XCTestCase {
 
     /// Tests that wrong key throws decryption error.
     func testLoadIndex_WrongKeyThrows() throws {
-        // Create index with testKey
-        _ = try manager.loadIndex(with: testKey)
+        // Create and persist index with testKey
+        let index = try manager.loadIndex(with: testKey)
+        try manager.saveIndex(index, with: testKey)
 
-        // Try to open with different key
+        // Copy testKey's encrypted file to wrongKey's path so decryption is attempted
         let wrongKey = VaultKey(CryptoEngine.generateRandomBytes(count: 32)!)
+        let srcURL = manager.indexURL(for: testKey)
+        let dstURL = manager.indexURL(for: wrongKey)
+        try FileManager.default.copyItem(at: srcURL, to: dstURL)
+
+        // Invalidate cache so it reads from disk
+        manager.invalidateCache()
 
         XCTAssertThrowsError(try manager.loadIndex(with: wrongKey)) { error in
             XCTAssertEqual(error as? VaultStorageError, .indexDecryptionFailed)

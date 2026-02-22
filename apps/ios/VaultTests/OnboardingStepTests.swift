@@ -5,14 +5,14 @@ final class OnboardingStepTests: XCTestCase {
 
     // MARK: - Case Count
 
-    func testAllCasesCountIsFive() {
-        XCTAssertEqual(OnboardingStep.allCases.count, 5)
+    func testAllCasesCountIsSix() {
+        XCTAssertEqual(OnboardingStep.allCases.count, 6)
     }
 
     // MARK: - Ordering
 
     func testCaseOrderMatchesExpectedFlow() {
-        let expected: [OnboardingStep] = [.welcome, .permissions, .analytics, .paywall, .thankYou]
+        let expected: [OnboardingStep] = [.welcome, .permissions, .analytics, .paywall, .thankYou, .rating]
         XCTAssertEqual(OnboardingStep.allCases, expected)
     }
 
@@ -34,8 +34,12 @@ final class OnboardingStepTests: XCTestCase {
         XCTAssertEqual(OnboardingStep.paywall.next(), .thankYou)
     }
 
-    func testNextFromThankYouReturnsNil() {
-        XCTAssertNil(OnboardingStep.thankYou.next())
+    func testNextFromThankYouReturnsRating() {
+        XCTAssertEqual(OnboardingStep.thankYou.next(), .rating)
+    }
+
+    func testNextFromRatingReturnsNil() {
+        XCTAssertNil(OnboardingStep.rating.next())
     }
 
     // MARK: - previous()
@@ -52,15 +56,19 @@ final class OnboardingStepTests: XCTestCase {
         XCTAssertEqual(OnboardingStep.thankYou.previous(), .paywall)
     }
 
+    func testPreviousFromRatingReturnsThankYou() {
+        XCTAssertEqual(OnboardingStep.rating.previous(), .thankYou)
+    }
+
     // MARK: - progressFraction
 
     func testProgressFractionForFirstStep() {
         let fraction = OnboardingStep.welcome.progressFraction
-        XCTAssertEqual(fraction, 1.0 / 5.0, accuracy: 0.001)
+        XCTAssertEqual(fraction, 1.0 / 6.0, accuracy: 0.001)
     }
 
     func testProgressFractionForLastStep() {
-        let fraction = OnboardingStep.thankYou.progressFraction
+        let fraction = OnboardingStep.rating.progressFraction
         XCTAssertEqual(fraction, 1.0, accuracy: 0.001)
     }
 

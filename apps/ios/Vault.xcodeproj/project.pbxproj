@@ -145,6 +145,7 @@
 		SRT00001 /* ShareRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SRT00000 /* ShareRoundTripTests.swift */; };
 		VIM0000003 /* VaultIndexManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = VIM0000002 /* VaultIndexManagerTests.swift */; };
 		VVM000003 /* VaultViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = VVM000002 /* VaultViewModelTests.swift */; };
+		PIT000001 /* ParallelImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PIT000000 /* ParallelImporterTests.swift */; };
 		BT0000001 /* BackgroundTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BT0000000 /* BackgroundTaskTests.swift */; };
 		PV0000001 /* PatternValidationStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PV0000000 /* PatternValidationStateTests.swift */; };
 		ICB000001 /* iCloudBackupBackgroundTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ICB000000 /* iCloudBackupBackgroundTests.swift */; };
@@ -165,6 +166,7 @@
 		VV0000007 /* VaultView+SharedVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000006 /* VaultView+SharedVault.swift */; };
 		VV0000009 /* VaultView+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000008 /* VaultView+Actions.swift */; };
 		VVM000001 /* VaultViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = VVM000000 /* VaultViewModel.swift */; };
+		PI0000001 /* ParallelImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = PI0000000 /* ParallelImporter.swift */; };
 		UI0000001 /* BaseUITest.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000000 /* BaseUITest.swift */; };
 		UI0000003 /* XCUIElement+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000002 /* XCUIElement+Helpers.swift */; };
 		UI0000005 /* AccessibilityIDs.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000004 /* AccessibilityIDs.swift */; };
@@ -359,6 +361,7 @@
 		SRT00000 /* ShareRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareRoundTripTests.swift; sourceTree = "<group>"; };
 		VIM0000002 /* VaultIndexManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultIndexManagerTests.swift; sourceTree = "<group>"; };
 		VVM000002 /* VaultViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultViewModelTests.swift; sourceTree = "<group>"; };
+		PIT000000 /* ParallelImporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParallelImporterTests.swift; sourceTree = "<group>"; };
 		BT0000000 /* BackgroundTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTaskTests.swift; sourceTree = "<group>"; };
 		PV0000000 /* PatternValidationStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidationStateTests.swift; sourceTree = "<group>"; };
 		ICB000000 /* iCloudBackupBackgroundTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iCloudBackupBackgroundTests.swift; sourceTree = "<group>"; };
@@ -379,6 +382,7 @@
 		VV0000006 /* VaultView+SharedVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+SharedVault.swift"; sourceTree = "<group>"; };
 		VV0000008 /* VaultView+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Actions.swift"; sourceTree = "<group>"; };
 		VVM000000 /* VaultViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultViewModel.swift; sourceTree = "<group>"; };
+		PI0000000 /* ParallelImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParallelImporter.swift; sourceTree = "<group>"; };
 		UI0000020 /* VaultUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VaultUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		UI0000000 /* BaseUITest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaseUITest.swift; sourceTree = "<group>"; };
 		UI0000002 /* XCUIElement+Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCUIElement+Helpers.swift"; sourceTree = "<group>"; };
@@ -619,6 +623,7 @@
 				VV0000006 /* VaultView+SharedVault.swift */,
 				VV0000008 /* VaultView+Actions.swift */,
 				VVM000000 /* VaultViewModel.swift */,
+				PI0000000 /* ParallelImporter.swift */,
 				021000004 /* PhotosGridView.swift */,
 				021000006 /* FilesGridView.swift */,
 				021000008 /* FullScreenPhotoViewer.swift */,
@@ -796,6 +801,7 @@
 				SRT00000 /* ShareRoundTripTests.swift */,
 				VIM0000002 /* VaultIndexManagerTests.swift */,
 				VVM000002 /* VaultViewModelTests.swift */,
+				PIT000000 /* ParallelImporterTests.swift */,
 				BT0000000 /* BackgroundTaskTests.swift */,
 				PV0000000 /* PatternValidationStateTests.swift */,
 				ICB000000 /* iCloudBackupBackgroundTests.swift */,
@@ -1097,6 +1103,7 @@
 				VV0000007 /* VaultView+SharedVault.swift in Sources */,
 				VV0000009 /* VaultView+Actions.swift in Sources */,
 				VVM000001 /* VaultViewModel.swift in Sources */,
+				PI0000001 /* ParallelImporter.swift in Sources */,
 				021000001 /* ThumbnailCache.swift in Sources */,
 				021000003 /* AsyncThumbnailView.swift in Sources */,
 				022000001 /* PixelAnimation.swift in Sources */,
@@ -1222,6 +1229,7 @@
 				SRT00001 /* ShareRoundTripTests.swift in Sources */,
 				VIM0000003 /* VaultIndexManagerTests.swift in Sources */,
 				VVM000003 /* VaultViewModelTests.swift in Sources */,
+				PIT000001 /* ParallelImporterTests.swift in Sources */,
 				BT0000001 /* BackgroundTaskTests.swift in Sources */,
 				PV0000001 /* PatternValidationStateTests.swift in Sources */,
 				ICB000001 /* iCloudBackupBackgroundTests.swift in Sources */,

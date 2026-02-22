@@ -38,7 +38,7 @@ final class SVDFSerializerTests: XCTestCase {
         )
 
         let header = try SVDFSerializer.parseHeader(from: data)
-        XCTAssertEqual(header.version, 4)
+        XCTAssertEqual(header.version, 5)
         XCTAssertEqual(header.fileCount, 2)
         XCTAssertTrue(header.manifestOffset > 0)
         XCTAssertTrue(header.manifestSize > 0)
@@ -63,8 +63,13 @@ final class SVDFSerializerTests: XCTestCase {
     // MARK: - Magic Bytes
 
     func testIsSVDF() {
-        let validMagic = Data([0x53, 0x56, 0x44, 0x34]) + Data(repeating: 0, count: 60)
-        XCTAssertTrue(SVDFSerializer.isSVDF(validMagic))
+        // Current v5 magic
+        let v5Magic = Data([0x53, 0x56, 0x44, 0x35]) + Data(repeating: 0, count: 60)
+        XCTAssertTrue(SVDFSerializer.isSVDF(v5Magic))
+
+        // Legacy v4 magic is still accepted
+        let v4Magic = Data([0x53, 0x56, 0x44, 0x34]) + Data(repeating: 0, count: 60)
+        XCTAssertTrue(SVDFSerializer.isSVDF(v4Magic))
 
         let invalidMagic = Data([0x00, 0x00, 0x00, 0x00])
         XCTAssertFalse(SVDFSerializer.isSVDF(invalidMagic))
@@ -149,7 +154,7 @@ final class SVDFSerializerTests: XCTestCase {
         XCTAssertEqual(data[0], 0x53) // S
         XCTAssertEqual(data[1], 0x56) // V
         XCTAssertEqual(data[2], 0x44) // D
-        XCTAssertEqual(data[3], 0x34) // 4
+        XCTAssertEqual(data[3], 0x35) // 5
 
         let header = try SVDFSerializer.parseHeader(from: data)
         XCTAssertEqual(header.version, SVDFSerializer.currentVersion)

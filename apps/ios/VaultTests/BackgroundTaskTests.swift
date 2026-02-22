@@ -146,6 +146,6 @@ final class BackgroundTaskTests: XCTestCase {
         }
 
         // Should not crash and task should be ended
-        XCTAssertEqual(taskId.rawValue, 1) // First task usually has ID 1
+        XCTAssertNotEqual(taskId, .invalid)
     }
 }

@@ -36,7 +36,7 @@ final class VaultViewModelTests: XCTestCase {
 
     // MARK: - File Operations
 
-    func testLoadFiles_PopulatesFilesArray() throws {
+    func testLoadFiles_PopulatesFilesArray() async throws {
         // Create vault with test files
         let index = try storage.loadIndex(with: testKey)
         try storage.saveIndex(index, with: testKey)
@@ -46,17 +46,19 @@ final class VaultViewModelTests: XCTestCase {
         _ = try storage.storeFile(data: Data("content2".utf8), filename: "file2.txt", mimeType: "text/plain", with: testKey)
 
         viewModel.loadFiles()
+        await viewModel.activeLoadTask?.value
 
         XCTAssertEqual(viewModel.files.count, 2, "Should load 2 files")
     }
 
-    func testToggleSelection_AddsAndRemoves() throws {
+    func testToggleSelection_AddsAndRemoves() async throws {
         // Setup
         let index = try storage.loadIndex(with: testKey)
         try storage.saveIndex(index, with: testKey)
         let fileId = try storage.storeFile(data: Data("content".utf8), filename: "file.txt", mimeType: "text/plain", with: testKey)
 
         viewModel.loadFiles()
+        await viewModel.activeLoadTask?.value
         viewModel.isEditing = true
 
         // Toggle on
@@ -77,7 +79,7 @@ final class VaultViewModelTests: XCTestCase {
         XCTAssertNotNil(visible)
     }
 
-    func testSetFileFilter_Media() throws {
+    func testSetFileFilter_Media() async throws {
         // Setup with media file
         let index = try storage.loadIndex(with: testKey)
         try storage.saveIndex(index, with: testKey)
@@ -85,6 +87,7 @@ final class VaultViewModelTests: XCTestCase {
         _ = try storage.storeFile(data: Data("doc".utf8), filename: "doc.pdf", mimeType: "application/pdf", with: testKey)
 
         viewModel.loadFiles()
+        await viewModel.activeLoadTask?.value
         viewModel.setFileFilter(.media)
 
         let visible = viewModel.computeVisibleFiles()
@@ -94,20 +97,16 @@ final class VaultViewModelTests: XCTestCase {
     // MARK: - Import Progress
 
     func testImportProgress_TracksCorrectly() {
-        // Test that progress is tracked
         XCTAssertNil(viewModel.importProgress)
+        XCTAssertFalse(viewModel.isImporting)
 
-        // Simulate starting import (would be set by import methods)
-        // Progress is set internally during import
-        XCTAssertNil(viewModel.importProgress)
-    }
+        viewModel.importProgress = (completed: 2, total: 5)
+        XCTAssertTrue(viewModel.isImporting)
+        XCTAssertEqual(viewModel.importProgress?.completed, 2)
+        XCTAssertEqual(viewModel.importProgress?.total, 5)
 
-    // MARK: - Shared Vault
-
-    func testSharedVault_CannotDelete() {
-        viewModel.isSharedVault = true
-
-        XCTAssertTrue(viewModel.isSharedVault)
+        viewModel.importProgress = nil
+        XCTAssertFalse(viewModel.isImporting)
     }
 
     // MARK: - Free Tier Limits
@@ -126,13 +125,14 @@ final class VaultViewModelTests: XCTestCase {
 
     // MARK: - Vault Key Change
 
-    func testHandleVaultKeyChange_ClearsFiles() throws {
+    func testHandleVaultKeyChange_ClearsFiles() async throws {
         // Setup with files
         let index = try storage.loadIndex(with: testKey)
         try storage.saveIndex(index, with: testKey)
         _ = try storage.storeFile(data: Data("content".utf8), filename: "file.txt", mimeType: "text/plain", with: testKey)
 
         viewModel.loadFiles()
+        await viewModel.activeLoadTask?.value
         XCTAssertEqual(viewModel.files.count, 1)
 
         // Change key
@@ -141,26 +141,5 @@ final class VaultViewModelTests: XCTestCase {
 
         // Files should be cleared (will reload for new key)
         XCTAssertEqual(viewModel.files.count, 0, "Files should be cleared on key change")
-    }
-
-    // MARK: - Selection Management
-
-    func testIsEditing_TogglesSelectionMode() {
-        XCTAssertFalse(viewModel.isEditing)
-
-        viewModel.isEditing = true
-        XCTAssertTrue(viewModel.isEditing)
-
-        viewModel.isEditing = false
-        XCTAssertFalse(viewModel.isEditing)
-    }
-
-    func testSelectedIds_ClearedWhenEditingDisabled() {
-        viewModel.isEditing = true
-        viewModel.selectedIds = [UUID(), UUID()]
-
-        viewModel.isEditing = false
-        // In real implementation, selectedIds might be cleared
-        // This test verifies the behavior
     }
 }

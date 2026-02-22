@@ -98,7 +98,7 @@ final class PatternValidationStateTests: XCTestCase {
     }
 
     func testPatternValidation_TooFewDirectionChanges() {
-        let straightPattern = [1, 2, 3, 4, 5, 6] // Straight line, no direction changes
+        let straightPattern = [0, 1, 2, 3, 4, 9] // Right×4 then down = 1 direction change
 
         let result = PatternValidator.shared.validate(straightPattern, gridSize: 5)
 
