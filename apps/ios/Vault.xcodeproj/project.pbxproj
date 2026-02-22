@@ -157,6 +157,7 @@
 		PBT00001 /* PerformanceBenchmarkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PBT00000 /* PerformanceBenchmarkTests.swift */; };
 		FOPT0001 /* FileOperationProgressCardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FOPT0000 /* FileOperationProgressCardTests.swift */; };
 		DTT00001 /* DynamicTypeTruncationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DTT00000 /* DynamicTypeTruncationTests.swift */; };
+		VNT00001 /* VaultNameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = VNT00000 /* VaultNameTests.swift */; };
 		CAT00001 /* ConcurrentAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAT00000 /* ConcurrentAccessTests.swift */; };
 		019000009 /* PatternSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000008 /* PatternSetupCoordinator.swift */; };
 		FOP00000 /* FileOperationProgressCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = FOP00001 /* FileOperationProgressCard.swift */; };
@@ -378,6 +379,7 @@
 		PBT00000 /* PerformanceBenchmarkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceBenchmarkTests.swift; sourceTree = "<group>"; };
 		FOPT0000 /* FileOperationProgressCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationProgressCardTests.swift; sourceTree = "<group>"; };
 		DTT00000 /* DynamicTypeTruncationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicTypeTruncationTests.swift; sourceTree = "<group>"; };
+		VNT00000 /* VaultNameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultNameTests.swift; sourceTree = "<group>"; };
 		CAT00000 /* ConcurrentAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConcurrentAccessTests.swift; sourceTree = "<group>"; };
 		019000008 /* PatternSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinator.swift; sourceTree = "<group>"; };
 		FOP00001 /* FileOperationProgressCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationProgressCard.swift; sourceTree = "<group>"; };
@@ -826,6 +828,7 @@
 				CAT00000 /* ConcurrentAccessTests.swift */,
 				FOPT0000 /* FileOperationProgressCardTests.swift */,
 				DTT00000 /* DynamicTypeTruncationTests.swift */,
+				VNT00000 /* VaultNameTests.swift */,
 			);
 			path = VaultTests;
 			sourceTree = "<group>";
@@ -1259,6 +1262,7 @@
 				CAT00001 /* ConcurrentAccessTests.swift in Sources */,
 				FOPT0001 /* FileOperationProgressCardTests.swift in Sources */,
 				DTT00001 /* DynamicTypeTruncationTests.swift in Sources */,
+				VNT00001 /* VaultNameTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

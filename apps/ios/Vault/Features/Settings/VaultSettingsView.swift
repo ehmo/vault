@@ -24,11 +24,28 @@ struct VaultSettingsView: View {
     @State private var fileCount = 0
     @State private var storageUsed: Int64 = 0
     @State private var showingPaywall = false
+    @State private var showingRenameAlert = false
+    @State private var renameText = ""
 
     var body: some View {
         List {
             // Vault Info
             Section("This Vault") {
+                Button {
+                    renameText = appState.vaultName
+                    showingRenameAlert = true
+                } label: {
+                    HStack {
+                        Text("Name")
+                        Spacer()
+                        Text(appState.vaultName)
+                            .foregroundStyle(.vaultSecondaryText)
+                            .lineLimit(1)
+                    }
+                }
+                .foregroundStyle(.primary)
+                .accessibilityIdentifier("settings_vault_name")
+
                 HStack {
                     Text("Files")
                     Spacer()
@@ -220,6 +237,13 @@ struct VaultSettingsView: View {
         } message: {
             Text(regenerateErrorMessage ?? "An unexpected error occurred.")
         }
+        .alert("Rename Vault", isPresented: $showingRenameAlert) {
+            TextField("Vault name", text: $renameText)
+            Button("Cancel", role: .cancel) { }
+            Button("Save") { renameVault() }
+        } message: {
+            Text("Enter a custom name, or clear to reset to the default name.")
+        }
         .alert("Enable Duress Vault?", isPresented: $showingDuressConfirmation) {
             Button("Cancel", role: .cancel) {
                 isDuressVault = !pendingDuressValue
@@ -276,6 +300,31 @@ struct VaultSettingsView: View {
         EmbraceManager.shared.addBreadcrumb(category: "settings.duressToggled")
         Task {
             await DuressHandler.shared.clearDuressVault()
+        }
+    }
+
+    private func renameVault() {
+        let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let key = appState.currentVaultKey else { return }
+
+        do {
+            var index = try VaultStorage.shared.loadIndex(with: key)
+            if trimmed.isEmpty {
+                index.customName = nil
+                if let pattern = appState.currentPattern {
+                    let letters = GridLetterManager.shared.vaultName(for: pattern)
+                    appState.updateVaultName(letters.isEmpty ? "Vault" : "Vault \(letters)")
+                } else {
+                    appState.updateVaultName("Vault")
+                }
+            } else {
+                let name = String(trimmed.prefix(30))
+                index.customName = name
+                appState.updateVaultName(name)
+            }
+            try VaultStorage.shared.saveIndex(index, with: key)
+        } catch {
+            vaultSettingsLogger.error("Failed to rename vault: \(error.localizedDescription)")
         }
     }
 

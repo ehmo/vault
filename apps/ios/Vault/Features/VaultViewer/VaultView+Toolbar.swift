@@ -14,6 +14,8 @@ extension VaultView {
             // Title centered on screen (independent of button widths)
             Text(appState.vaultName)
                 .font(.headline)
+                .lineLimit(1)
+                .truncationMode(.tail)
 
             // Buttons on the edges
             HStack {

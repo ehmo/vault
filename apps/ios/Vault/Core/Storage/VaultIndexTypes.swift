@@ -61,6 +61,9 @@ extension VaultStorage {
         var shareKeyData: Data?          // phrase-derived share key for update downloads
         var sharedVaultVersion: Int?     // last known remote version for update checks
 
+        // User-set vault name (nil = use auto-generated from pattern letters)
+        var customName: String?
+
         // Legacy initializer for backward compatibility
         init(files: [VaultFileEntry], nextOffset: Int, totalSize: Int) {
             self.files = files

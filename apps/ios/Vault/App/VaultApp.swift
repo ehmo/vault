@@ -277,6 +277,9 @@ final class AppState {
             let indexSpan = EmbraceManager.shared.startSpan(parent: transaction, operation: "storage.index_load", description: "Load vault index")
             if let index = try? VaultStorage.shared.loadIndex(with: VaultKey(key)) {
                 isSharedVault = index.isSharedVault ?? false
+                if let custom = index.customName, !custom.isEmpty {
+                    vaultName = custom
+                }
                 let fileCount = index.files.filter { !$0.isDeleted }.count
                 transaction.setTag(value: "\(fileCount)", key: "fileCount")
             }
@@ -347,15 +350,18 @@ final class AppState {
         let indexSpan = EmbraceManager.shared.startSpan(parent: transaction, operation: "storage.index_load", description: "Load vault index")
         if let index = try? VaultStorage.shared.loadIndex(with: VaultKey(key)) {
             isSharedVault = index.isSharedVault ?? false
+            if let custom = index.customName, !custom.isEmpty {
+                vaultName = custom
+            }
             let fileCount = index.files.filter { !$0.isDeleted }.count
             transaction.setTag(value: "\(fileCount)", key: "fileCount")
         }
         indexSpan.finish()
-        
+
         // Clean up expired staged imports (older than 24h)
         StagedImportManager.cleanupExpiredBatches()
         StagedImportManager.cleanupOrphans()
-        
+
         // Check for pending imports from share extension
         let fingerprint = KeyDerivation.keyFingerprint(from: key)
         let pending = StagedImportManager.pendingBatches(for: fingerprint)
@@ -363,11 +369,11 @@ final class AppState {
             pendingImportCount = pending.reduce(0) { $0 + $1.files.count }
             hasPendingImports = true
         }
-        
+
         ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "vault_unlocked")
-        
+
         transaction.finish(status: .ok)
-        
+
         Self.logger.info("Vault unlocked via recovery: shared=\(self.isSharedVault)")
     }
 

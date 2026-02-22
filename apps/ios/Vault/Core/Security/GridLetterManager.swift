@@ -33,19 +33,25 @@ final class GridLetterManager {
         return newLetters
     }
     
+    /// Maximum number of letters used from the pattern for auto-generated vault names.
+    /// 4 letters gives 456,976 combinations (26^4) — plenty for differentiation
+    /// while keeping the toolbar title compact (e.g. "Vault DKVS").
+    static let maxNameLetters = 4
+
     /// Generates a vault name from a pattern using the letter assignments.
     /// Pattern is a sequence of node indices (0-24 for 5x5 grid).
+    /// Only the first `maxNameLetters` nodes are used to keep names short.
     func vaultName(for pattern: [Int]) -> String {
         let letters = getLetterAssignments()
-        
+
         var name = ""
-        for nodeIndex in pattern {
+        for nodeIndex in pattern.prefix(Self.maxNameLetters) {
             guard nodeIndex >= 0 && nodeIndex < letters.count else {
                 continue
             }
             name.append(letters[nodeIndex])
         }
-        
+
         return name
     }
     
