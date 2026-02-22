@@ -1,0 +1,159 @@
+Implement the following plan:
+
+# Test Suite Overhaul
+
+## Context
+14 tests failing (production code changed, tests not updated), several stub tests that assert nothing, and zero coverage for import parallelism — which silently regressed to serial processing without any test catching it.
+
+## Phase 1: Fix 14 Failing Tests
+
+### 1A. OnboardingStepTests.swift — 5 failures
+Production `OnboardingStep` gained `.rating` (6th case). Tests hardcode 5.
+
+- `testAllCasesCountIsFive` → rename, assert count == 6
+- `testCaseOrderMatchesExpectedFlow` → add `.rating` to expected array
+- `testNextFromThankYouReturnsNil` → rename to `testNextFromThankYouReturnsRating`, assert `== .rating`
+- Add `testNextFromRatingReturnsNil` and `testPreviousFromRatingReturnsThankYou`
+- `testProgressFractionForFirstStep` → fraction `1.0 / 6.0`
+- `testProgressFractionForLastStep` → use `.rating`, assert fraction == 1.0
+
+### 1B. SVDFSerializerTests.swift — 2 failures
+SVDF v4→v5. Magic `0x34`→`0x35`, version 4→5.
+
+- Line 41: `header.version == 4` → `5`
+- Line 152: `data[3] == 0x34` → `0x35`
+- `testIsSVDF`: update validMagic to v5 (`0x35`), add assertion that v4 is still accepted
+
+### 1C. VaultViewModelTests.swift — 3 failures
+`loadFiles()` now uses `Task.detached` into `activeLoadTask`. Tests assert synchronously.
+
+- `testLoadFiles_PopulatesFilesArray` (line 39): make `async`, add `await viewModel.activeLoadTask?.value` before assert
+- `testSetFileFilter_Media` (line 80): same
+- `testHandleVaultKeyChange_ClearsFiles` (line 129): same for first `loadFiles()` call
+- Also fix `testToggleSelection_AddsAndRemoves` (line 53) preventively — same pattern
+
+### 1D. BackgroundTaskTests.swift — 1 failure
+Line 149: `taskId.rawValue == 1` → `XCTAssertNotEqual(taskId, .invalid)`
+
+### 1E. PatternValidationStateTests.swift — 1 failure
+Pattern `[1,2,3,4,5,6]` on 5×5 grid wraps at node 5 (row1col0), creating 2 direction changes — meets threshold.
+
+- Change to `[0, 1, 2, 3, 4, 9]` → right×4 then down = 1 direction change, fails validation
+
+### 1F. VaultIndexManagerTests.swift — 1 failure
+`loadIndex(wrongKey)` finds no file at wrongKey's path → creates new empty vault instead of throwing.
+
+- After `loadIndex(testKey)`, call `manager.saveIndex(index, with: testKey)` to persist
+- Copy encrypted file from `indexURL(for: testKey)` to `indexURL(for: wrongKey)`
+- Now wrongKey tries to decrypt testKey's data → throws `.indexDecryptionFailed`
+
+## Phase 2: Clean Up Shallow Tests
+
+In `VaultViewModelTests.swift`:
+
+| Test | Problem | Action |
+|------|---------|--------|
+| `testImportProgress_TracksCorrectly` | Asserts `nil == nil` twice | Replace: set `importProgress = (2,5)`, assert `isImporting == true`, assert tuple values, clear, assert `isImporting == false` |
+| `testSharedVault_CannotDelete` | Sets+reads a boolean | Delete — just tests Swift property storage |
+| `testSelectedIds_ClearedWhenEditingDisabled` | Zero assertions | Add `XCTAssertTrue(viewModel.selectedIds.isEmpty)`. If production doesn't clear on `isEditing=false`, add `didSet` or delete test |
+| `testIsEditing_TogglesSelectionMode` | Trivially sets booleans | Delete — subsumed by the selectedIds clearing test |
+
+## Phase 3: Make ParallelImporter Testable
+
+**Extract to own file** `Vault/Features/VaultViewer/ParallelImporter.swift`:
+
+1. Cut lines 860-1236 from `VaultViewModel.swift`
+2. Change `private enum ParallelImporter` → `enum ParallelImporter`
+3. Change `private actor Queue` → `actor Queue` (internal)
+4. Add generic `runWorkers` method:
+
+```swift
+static func runWorkers<Work: Sendable>(
+    queues: [(Queue<Work>, Int)],  // (queue, workerCount) pairs
+    process: @Sendable (Work) async throws -> VaultFileItem?,
+    continuation: AsyncStream<ImportEvent>.Continuation
+) async {
+    await withTaskGroup(of: Void.self) { group in
+        for (queue, count) in queues {
+            for _ in 0..<count {
+                group.addTask {
+                    while let item = await queue.next() {
+                        guard !Task.isCancelled else { return }
+                        do {
+                            if let file = try await process(item) {
+                                continuation.yield(.imported(file))
+                            }
+                        } catch {
+                            continuation.yield(.failed(reason: error.localizedDescription))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+5. Refactor `runPhotoImport`/`runFileImport` to call `runWorkers` internally
+6. Add file to Xcode target in `project.pbxproj`
+
+## Phase 4: New ParallelImporter Tests
+
+Create `VaultTests/ParallelImporterTests.swift`:
+
+### 4A. ConcurrencyMonitor actor
+Tracks `current` and `peak` concurrent operations via `enter()`/`exit()`.
+
+### 4B. testRunWorkers_ExecutesConcurrently (the key regression test)
+- 9 work items, 3 workers, each sleeps 100ms
+- Assert `peak >= 3` — if serial, peak would be 1
+- Serial: ~900ms. Parallel with 3 workers: ~300ms. Also assert elapsed < 500ms as secondary check.
+
+### 4C. testRunWorkers_AllItemsProcessed
+- 12 items, 3 workers, verify all 12 events yielded
+
+### 4D. testRunWorkers_CancellationStopsProcessing
+- 50 items, cancel after short delay, verify most items NOT processed
+
+### 4E. testQueue_ThreadSafety
+- 100 items, 10 concurrent consumers, verify total dequeued == 100 with no duplicates
+
+## Verification
+```bash
+xcodebuild test -project apps/ios/Vault.xcodeproj -scheme Vault \
+  -destination 'platform=iOS Simulator,id=1E2BEFBC-2FBC-49D2-84B5-5DE55338CF79' \
+  -only-testing:VaultTests 2>&1 | grep -E "Test Suite|Executed|failed"
+```
+Target: 0 failures (0 unexpected).
+
+## Files Modified
+| File | Action |
+|------|--------|
+| `VaultTests/OnboardingStepTests.swift` | Fix 5 assertions, add 2 tests |
+| `VaultTests/SVDFSerializerTests.swift` | Update 3 constants |
+| `VaultTests/VaultViewModelTests.swift` | Async fixes, remove/replace 4 stubs |
+| `VaultTests/BackgroundTaskTests.swift` | 1-line assertion fix |
+| `VaultTests/PatternValidationStateTests.swift` | Change test pattern |
+| `VaultTests/VaultIndexManagerTests.swift` | Save+copy file before wrongKey test |
+| `Vault/Features/VaultViewer/VaultViewModel.swift` | Remove ParallelImporter (cut) |
+| `Vault/Features/VaultViewer/ParallelImporter.swift` | **New**: extracted + `runWorkers` |
+| `VaultTests/ParallelImporterTests.swift` | **New**: concurrency regression tests |
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Commit and push but don't push to devices yet
+
+---
+
+[Request interrupted by user]
+
+---
+
+Commit and push but don't push to devices yet
+
+---
+
+The select all is not working. It still only picks up files I take my finger over. I would like it to work exactly like the native photos app, where whole row is selected if I navigate down. Review the code you written prior and find out why is not working. Then create a test to always verify this is working
