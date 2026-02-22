@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Vaultaire Onboarding Prototype</title>
+<style>
+  :root {
+    /* Light mode tokens from VaultTheme.swift */
+    --bg: #d1d1e9;
+    --surface: #fffffe;
+    --text: #2b2c34;
+    --accent: #6246ea;
+    --highlight: #e45858;
+    --secondary-text: rgba(43, 44, 52, 0.55);
+    --btn-text: #fffffe;
+    --glass-bg: rgba(255, 255, 254, 0.7);
+    --glass-border: rgba(255, 255, 254, 0.3);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #20233c;
+      --surface: #323444;
+      --text: #fffffe;
+      --accent: #6e5cf9;
+      --highlight: #e45858;
+      --secondary-text: rgba(255, 255, 254, 0.55);
+      --btn-text: #fffffe;
+      --glass-bg: rgba(50, 52, 68, 0.7);
+      --glass-border: rgba(255, 255, 254, 0.1);
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    background: #111;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 20px;
+    color: var(--text);
+  }
+
+  /* Phone frame */
+  .phone {
+    width: 393px;
+    height: 852px;
+    background: var(--bg);
+    border-radius: 44px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 25px 80px rgba(0,0,0,0.4);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .phone::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 126px; height: 34px;
+    background: #111;
+    border-radius: 0 0 20px 20px;
+    z-index: 100;
+  }
+
+  /* Screen container */
+  .screen {
+    display: none;
+    flex-direction: column;
+    height: 100%;
+    padding-top: 54px; /* notch clearance */
+    overflow: hidden;
+  }
+  .screen.active { display: flex; }
+
+  /* Progress bar header */
+  .progress-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px 8px;
+    flex-shrink: 0;
+  }
+
+  .back-btn {
+    background: none; border: none;
+    font-size: 18px; font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .back-btn.hidden { opacity: 0; pointer-events: none; }
+
+  .progress-track {
+    flex: 1;
+    height: 4px;
+    background: rgba(128,128,128,0.2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+
+  .skip-btn {
+    background: none; border: none;
+    font-size: 15px; font-weight: 500;
+    color: var(--secondary-text);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .skip-btn.hidden { display: none; }
+
+  /* Content area */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    background: var(--accent);
+    color: var(--btn-text);
+    border: none;
+    border-radius: 14px;
+    padding: 16px 24px;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    transition: opacity 0.15s;
+  }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-primary:active { opacity: 0.8; }
+
+  .btn-secondary {
+    background: var(--glass-bg);
+    color: var(--text);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    padding: 16px 24px;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .btn-text {
+    background: none; border: none;
+    color: var(--secondary-text);
+    font-size: 15px; font-weight: 500;
+    cursor: pointer;
+    padding: 12px;
+    width: 100%;
+  }
+
+  /* Glass card */
+  .glass-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  /* Icon circle */
+  .icon-circle {
+    width: 72px; height: 72px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px;
+  }
+
+  /* Feature row */
+  .feature-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .feature-icon {
+    font-size: 24px;
+    width: 32px;
+    text-align: center;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+  .feature-title {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .feature-desc {
+    font-size: 15px;
+    color: var(--secondary-text);
+    line-height: 1.4;
+  }
+
+  /* Screen-specific: Welcome */
+  .welcome-logo {
+    width: 120px; height: 120px;
+    background: linear-gradient(135deg, var(--accent), #8b5cf6);
+    border-radius: 28px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 48px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    animation: breathe 3s ease-in-out infinite;
+    margin: 0 auto;
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+
+  /* Screen-specific: Permissions */
+  .permission-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+  }
+  .permission-icon {
+    font-size: 24px;
+    width: 32px; text-align: center;
+    flex-shrink: 0;
+  }
+  .permission-info { flex: 1; }
+  .permission-info h4 { font-size: 17px; font-weight: 600; }
+  .permission-info p { font-size: 13px; color: var(--secondary-text); margin-top: 2px; }
+
+  .allow-btn {
+    background: var(--accent);
+    color: var(--btn-text);
+    border: none;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .check-icon {
+    color: #22c55e;
+    font-size: 22px;
+  }
+
+  /* Screen-specific: Pattern Grid */
+  .pattern-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    width: 260px; height: 260px;
+    margin: 0 auto;
+    padding: 20px;
+    background: var(--glass-bg);
+    border-radius: 16px;
+    border: 1px solid var(--glass-border);
+  }
+  .grid-dot {
+    width: 100%; aspect-ratio: 1;
+    background: var(--secondary-text);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.15s;
+    opacity: 0.5;
+  }
+  .grid-dot:hover { opacity: 0.8; transform: scale(1.2); }
+  .grid-dot.selected {
+    background: var(--accent);
+    opacity: 1;
+    transform: scale(1.3);
+    box-shadow: 0 0 12px rgba(98,70,234,0.5);
+  }
+
+  /* Pattern step indicators */
+  .step-pills {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+  .step-pill {
+    width: 40px; height: 4px;
+    background: rgba(128,128,128,0.3);
+    border-radius: 2px;
+  }
+  .step-pill.active { background: var(--accent); }
+
+  /* Recovery phrase card */
+  .phrase-card {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    border: 1px solid var(--glass-border);
+  }
+  .phrase-text {
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.6;
+    letter-spacing: 0.5px;
+    color: var(--text);
+  }
+
+  /* Recovery tips */
+  .tip-row {
+    display: flex; gap: 10px; align-items: center;
+    font-size: 15px;
+    color: var(--secondary-text);
+  }
+  .tip-icon { font-size: 16px; }
+
+  /* Rating screen */
+  .stat-number {
+    font-size: 38px;
+    font-weight: 800;
+    text-align: center;
+    line-height: 1.2;
+  }
+  .avatar-stack {
+    display: flex;
+    justify-content: center;
+    margin: 14px 0 6px;
+  }
+  .avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 2.5px solid var(--bg);
+    margin-left: -10px;
+    object-fit: cover;
+    background: var(--surface);
+  }
+  .avatar:first-child { margin-left: 0; }
+
+  .review-card-container {
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+  }
+  .review-track {
+    display: flex;
+    transition: transform 0.3s ease;
+  }
+  .review-card {
+    flex: 0 0 100%;
+    padding: 20px;
+  }
+  .review-text {
+    font-size: 15px;
+    color: var(--secondary-text);
+    line-height: 1.5;
+    font-style: italic;
+  }
+  .review-author {
+    display: flex; gap: 10px; align-items: center;
+    margin-top: 16px;
+  }
+  .review-author-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--surface);
+  }
+  .review-author-name { font-size: 13px; font-weight: 600; }
+  .review-stars { font-size: 11px; color: #facc15; }
+
+  .dot-indicators {
+    display: flex; gap: 6px; justify-content: center;
+    padding: 8px 0;
+  }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--secondary-text);
+    opacity: 0.3;
+  }
+  .dot.active { opacity: 1; }
+
+  /* Thank you seal */
+  .seal {
+    width: 160px; height: 160px;
+    margin: 0 auto;
+    background: linear-gradient(135deg, var(--accent), #8b5cf6, var(--accent));
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    color: white;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.2);
+  }
+  .seal-icon { font-size: 40px; margin-bottom: 4px; }
+  .seal-text { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* Paywall */
+  .paywall-feature {
+    display: flex; gap: 12px; align-items: center;
+    padding: 8px 0;
+  }
+  .paywall-check {
+    color: var(--accent);
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .paywall-price {
+    text-align: center;
+    padding: 20px;
+  }
+  .paywall-price .amount {
+    font-size: 36px;
+    font-weight: 800;
+  }
+  .paywall-price .period {
+    font-size: 15px;
+    color: var(--secondary-text);
+  }
+
+  /* Utility */
+  .text-center { text-align: center; }
+  .mx-auto { margin-left: auto; margin-right: auto; }
+  .px-6 { padding-left: 24px; padding-right: 24px; }
+  .px-10 { padding-left: 40px; padding-right: 40px; }
+  .pb-10 { padding-bottom: 40px; }
+  .pt-2 { padding-top: 8px; }
+  .mt-auto { margin-top: auto; }
+  .gap-3 { gap: 12px; }
+  .gap-5 { gap: 20px; }
+
+  /* Navigation hint */
+  .nav-hint {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    z-index: 200;
+    pointer-events: none;
+    opacity: 0.8;
+  }
+
+  /* Screen label */
+  .screen-label {
+    position: absolute;
+    top: 60px;
+    right: 10px;
+    background: var(--accent);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    z-index: 50;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+
+<div class="phone" id="phone">
+
+  <!-- ===== SCREEN 1: WELCOME ===== -->
+  <div class="screen active" id="screen-welcome">
+    <div class="screen-label">1/8 Welcome</div>
+    <div class="progress-header">
+      <button class="back-btn hidden">&lsaquo;</button>
+      <div class="progress-track"><div class="progress-fill" style="width: 16.6%"></div></div>
+    </div>
+
+    <div class="content">
+      <div style="flex: 1; display: flex; flex-direction: column; padding: 0 16px;">
+        <div style="height: 8%"></div>
+
+        <div class="welcome-logo">🔐</div>
+
+        <div style="height: 3%"></div>
+
+        <div class="text-center">
+          <h1 style="font-size: 22px; font-weight: 700;">Welcome to Vaultaire</h1>
+          <p style="font-size: 16px; color: var(--secondary-text); margin-top: 8px;">Secure storage with plausible deniability</p>
+        </div>
+
+        <div style="height: 4%"></div>
+
+        <div style="display: flex; flex-direction: column; gap: 16px; padding: 0 4px;">
+          <div class="feature-row">
+            <div class="feature-icon" style="color: var(--accent)">✋</div>
+            <div>
+              <div class="feature-title">Pattern-Based Encryption</div>
+              <div class="feature-desc">Each pattern creates a unique encrypted vault</div>
+            </div>
+          </div>
+          <div class="feature-row">
+            <div class="feature-icon" style="color: var(--accent)">👁️‍🗨️</div>
+            <div>
+              <div class="feature-title">True Plausible Deniability</div>
+              <div class="feature-desc">Nobody can tell how many vaults you have</div>
+            </div>
+          </div>
+          <div class="feature-row">
+            <div class="feature-icon" style="color: var(--accent)">🛡️</div>
+            <div>
+              <div class="feature-title">Hardware Security</div>
+              <div class="feature-desc">Your encryption keys are protected by your device's Secure Enclave</div>
+            </div>
+          </div>
+          <div class="feature-row">
+            <div class="feature-icon" style="color: var(--accent)">☁️</div>
+            <div>
+              <div class="feature-title">Encrypted Backup</div>
+              <div class="feature-desc">Back up to your iCloud. Only you can decrypt it with your pattern</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex: 1"></div>
+      </div>
+
+      <div class="px-10 pb-10" style="flex-shrink: 0;">
+        <button class="btn-primary" onclick="goTo('permissions')">Protect Your First Vault</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN 2: PERMISSIONS ===== -->
+  <div class="screen" id="screen-permissions">
+    <div class="screen-label">2/8 Permissions</div>
+    <div class="progress-header">
+      <button class="back-btn" onclick="goTo('welcome')">&lsaquo;</button>
+      <div class="progress-track"><div class="progress-fill" style="width: 33.3%"></div></div>
+    </div>
+
+    <div class="content" style="justify-content: center;">
+      <div style="padding: 0 24px; display: flex; flex-direction: column; align-items: center; gap: 28px;">
+        <div class="icon-circle" style="color: var(--accent); font-size: 56px;">🛡️</div>
+
+        <div class="text-center">
+          <h2 style="font-size: 24px; font-weight: 700;">Enable Permissions</h2>
+          <p style="font-size: 15px; color: var(--secondary-text); margin-top: 8px; padding: 0 12px;">Vaultaire works best with these permissions. You can change them anytime in Settings.</p>
+        </div>
+
+        <div style="width: 100%; display: flex; flex-direction: column; gap: 12px;">
+          <div class="glass-card permission-row" id="perm-notif">
+            <div class="permission-icon" style="color: var(--accent)">🔔</div>
+            <div class="permission-info">
+              <h4>Notifications</h4>
+              <p>Know when backups and imports finish</p>
+            </div>
+            <button class="allow-btn" onclick="grantPermission('notif')">Allow</button>
+          </div>
+
+          <div class="glass-card permission-row" id="perm-camera">
+            <div class="permission-icon" style="color: var(--accent)">📷</div>
+            <div class="permission-info">
+              <h4>Camera</h4>
+              <p>Capture photos directly into your vault</p>
+            </div>
+            <button class="allow-btn" onclick="grantPermission('camera')">Allow</button>
+          </div>
+
+          <div class="glass-card permission-row" id="perm-photos">
+            <div class="permission-icon" style="color: var(--accent)">🖼️</div>
+            <div class="permission-info">
+              <h4>Photos</h4>
+              <p>Import existing photos and videos</p>
+            </div>
+            <button class="allow-btn" onclick="grantPermission('photos')">Allow</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-10 pb-10 mt-auto">
+        <button class="btn-primary" onclick="goTo('analytics')">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN 3: ANALYTICS CONSENT ===== -->
+  <div class="screen" id="screen-analytics">
+    <div class="screen-label">3/8 Analytics</div>
+    <div class="progress-header">
+      <button class="back-btn" onclick="goTo('permissions')">&lsaquo;</button>
+      <div class="progress-track"><div class="progress-fill" style="width: 50%"></div></div>
+    </div>
+
+    <div class="content" style="justify-content: center;">
+      <div style="padding: 0 24px; display: flex; flex-direction: column; align-items: center; gap: 28px; flex: 1; justify-content: center;">
+        <div style="font-size: 56px; color: var(--accent);">📊</div>
+
+        <div class="text-center">
+          <h2 style="font-size: 24px; font-weight: 700;">Help Improve Vaultaire</h2>
+          <div style="margin-top: 12px;">
+            <p style="font-size: 16px; line-height: 1.5;">Share anonymous crash reports and usage statistics to help us make Vaultaire better.</p>
+            <p style="font-size: 15px; color: var(--secondary-text); margin-top: 12px;">No personal data is collected. You can change this anytime in Settings.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-10 pb-10" style="display: flex; flex-direction: column; gap: 12px;">
+        <button class="btn-primary" onclick="goTo('paywall')">Enable Analytics</button>
+        <button class="btn-secondary" onclick="goTo('paywall')">No Thanks</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN 4: PAYWALL ===== -->
+  <div class="screen" id="screen-paywall">
+    <div class="screen-label">4/8 Paywall</div>
+    <div class="progress-header">
+      <button class="back-btn" onclick="goTo('analytics')">&lsaquo;</button>
+      <div class="progress-track"><div class="progress-fill" style="width: 66.6%"></div></div>
+      <button class="skip-btn" onclick="goTo('thankyou')">Skip</button>
+    </div>
+
+    <div class="content" style="justify-content: center;">
+      <div style="padding: 0 24px; display: flex; flex-direction: column; align-items: center; gap: 20px; flex: 1; justify-content: center;">
+        <div style="font-size: 56px;">✨</div>
+
+        <div class="text-center">
+          <h2 style="font-size: 24px; font-weight: 700;">Vaultaire Pro</h2>
+          <p style="font-size: 15px; color: var(--secondary-text); margin-top: 8px;">Unlock the full experience</p>
+        </div>
+
+        <div style="width: 100%; display: flex; flex-direction: column; gap: 4px; padding: 0 12px;">
+          <div class="paywall-feature">
+            <span class="paywall-check">✓</span>
+            <span style="font-size: 16px;">Unlimited files per vault</span>
+          </div>
+          <div class="paywall-feature">
+            <span class="paywall-check">✓</span>
+            <span style="font-size: 16px;">iCloud encrypted backup</span>
+          </div>
+          <div class="paywall-feature">
+            <span class="paywall-check">✓</span>
+            <span style="font-size: 16px;">Vault sharing with end-to-end encryption</span>
+          </div>
+          <div class="paywall-feature">
+            <span class="paywall-check">✓</span>
+            <span style="font-size: 16px;">Duress vault protection</span>
+          </div>
+        </div>
+
+        <div class="paywall-price">
+          <div class="amount">$2.99</div>
+          <div class="period">per month</div>
+        </div>
+      </div>
+
+      <div class="px-10 pb-10" style="display: flex; flex-direction: column; gap: 12px;">
+        <button class="btn-primary" onclick="goTo('thankyou')">Start Free Trial</button>
+        <button class="btn-text" onclick="goTo('thankyou')">Restore Purchases</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN 5: THANK YOU ===== -->
+  <div class="screen" id="screen-thankyou">
+    <div class="screen-label">5/8 Thank You</div>
+    <div class="progress-header">
+      <button class="back-btn" onclick="goTo('paywall')">&lsaquo;</button>
+      <div class="progress-track"><div class="progress-fill" style="width: 83.3%"></div></div>
+    </div>
+
+    <div class="content">
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding: 0 24px;">
+
+        <div class="seal">
+          <div class="seal-icon">🛡️</div>
+          <div class="seal-text">Protected</div>
+          <div class="seal-text">by Design</div>
+        </div>
+
+        <h2 style="font-size: 24px; font-weight: 700; text-align: center;">Protected by Design</h2>
+
+        <div style="width: 100%; display: flex; flex-direction: column; gap: 20px; padding: 0 4px;">
+          <div class="feature-row">
+            <div class="feature-icon" style="color: var(--accent)">🚫</div>
+            <div>
+              <div class="feature-title">No accounts</div>
+              <div class="feature-desc">No sign-ups. No personal profiles.</div>
+            </div>
+          </div>
+          <div class="feature-row">
+            <div class="feature-icon" style="color: var(--accent)">👁️</div>
+            <div>
+              <div class="feature-title">No way to spy</div>
+              <div class="feature-desc">Your vault stays private by design.</div>
+            </div>
+          </div>
+          <div class="feature-row">
+            <div class="feature-icon" style="color: var(--accent)">🔒</div>
+            <div>
+              <div class="feature-title">No backdoors</div>
+              <div class="feature-desc">Only your pattern can decrypt your files.</div>
+            </div>
+          </div>
+          <div class="feature-row">
+            <div class="feature-icon" style="color: var(--accent)">🙈</div>
+            <div>
+              <div class="feature-title">Hidden from all</div>
+              <div class="feature-desc">Nobody can tell how many vaults you have.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-10 pb-10">
+        <button class="btn-primary" onclick="goTo('rating')">Create My Secure Vault</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN 6: RATING ===== -->
+  <div class="screen" id="screen-rating">
+    <div class="screen-label">6/8 Rating</div>
+    <div class="progress-header">
+      <button class="back-btn" onclick="goTo('thankyou')">&lsaquo;</button>
+      <div class="progress-track"><div class="progress-fill" style="width: 100%"></div></div>
+    </div>
+
+    <div class="content">
+      <h2 style="font-size: 22px; font-weight: 700; text-align: center; padding: 20px 24px 0;">Give us a rating</h2>
+
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0 24px;">
+        <div class="stat-number">1M+ vaults<br>created</div>
+
+        <div class="avatar-stack">
+          <img class="avatar" src="https://i.pravatar.cc/96?img=32" alt="">
+          <img class="avatar" src="https://i.pravatar.cc/96?img=26" alt="">
+          <img class="avatar" src="https://i.pravatar.cc/96?img=23" alt="">
+          <img class="avatar" src="https://i.pravatar.cc/96?img=33" alt="">
+          <img class="avatar" src="https://i.pravatar.cc/96?img=12" alt="">
+        </div>
+        <div style="font-size: 15px; color: var(--secondary-text);">by people like you</div>
+      </div>
+
+      <div style="padding: 0 24px;">
+        <div class="glass-card review-card-container" id="reviewContainer">
+          <div class="review-track" id="reviewTrack">
+            <div class="review-card">
+              <div class="review-text">"I have photos on my phone I'd literally die if anyone saw. Knowing they're behind real encryption and not just a hidden album with a passcode? I can finally breathe."</div>
+              <div class="review-author">
+                <img class="review-author-avatar" src="https://i.pravatar.cc/96?img=32" alt="">
+                <div>
+                  <div class="review-author-name">jessicam_26</div>
+                  <div class="review-stars">⭐⭐⭐⭐⭐</div>
+                </div>
+              </div>
+            </div>
+            <div class="review-card">
+              <div class="review-text">"My husband and I keep our private photos in a shared vault. No cloud, no accounts, no one at some tech company reviewing our moments. As it should be."</div>
+              <div class="review-author">
+                <img class="review-author-avatar" src="https://i.pravatar.cc/96?img=26" alt="">
+                <div>
+                  <div class="review-author-name">brooke.h</div>
+                  <div class="review-stars">⭐⭐⭐⭐⭐</div>
+                </div>
+              </div>
+            </div>
+            <div class="review-card">
+              <div class="review-text">"After my divorce I needed somewhere truly private. Not behind a paywall. Not on someone's cloud. Not accessible by lawyers or exes. Actually encrypted. This is it."</div>
+              <div class="review-author">
+                <img class="review-author-avatar" src="https://i.pravatar.cc/96?img=23" alt="">
+                <div>
+                  <div class="review-author-name">Michelle_R</div>
+                  <div class="review-stars">⭐⭐⭐⭐⭐</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="dot-indicators" id="reviewDots">
+          <div class="dot active"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
+
+      <div style="padding: 0 40px 40px; display: flex; flex-direction: column; gap: 0;">
+        <button class="btn-primary" onclick="goTo('pattern-create')">Rate App</button>
+        <button class="btn-text" onclick="goTo('pattern-create')">Not Now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN 7: PATTERN CREATE ===== -->
+  <div class="screen" id="screen-pattern-create">
+    <div class="screen-label">7/8 Pattern Create</div>
+
+    <div class="content" style="padding: 16px;">
+      <div class="step-pills" style="margin-bottom: 16px;">
+        <div class="step-pill active"></div>
+        <div class="step-pill"></div>
+        <div class="step-pill"></div>
+      </div>
+
+      <div class="text-center" style="margin-bottom: 8px;">
+        <h2 style="font-size: 22px; font-weight: 700;" id="patternTitle">Create Your Pattern</h2>
+        <p style="font-size: 15px; color: var(--secondary-text); min-height: 44px; margin-top: 8px;" id="patternSubtitle">Connect at least 6 dots on the 5&times;5 grid with 2+ direction changes</p>
+      </div>
+
+      <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+        <div class="pattern-grid" id="patternGrid"></div>
+      </div>
+
+      <div style="min-height: 80px; display: flex; align-items: center; justify-content: center; padding: 0 16px;">
+        <div id="patternFeedback" style="text-align: center; font-size: 14px; color: var(--secondary-text);"></div>
+      </div>
+
+      <div class="text-center" style="padding-bottom: 16px;">
+        <button class="btn-text" id="patternAction" onclick="resetPattern()">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN 8: RECOVERY PHRASE ===== -->
+  <div class="screen" id="screen-recovery">
+    <div class="screen-label">8/8 Recovery</div>
+
+    <div class="content" style="padding: 16px;">
+      <div class="step-pills" style="margin-bottom: 16px;">
+        <div class="step-pill active"></div>
+        <div class="step-pill active"></div>
+        <div class="step-pill active"></div>
+      </div>
+
+      <div class="text-center" style="margin-bottom: 16px;">
+        <h2 style="font-size: 22px; font-weight: 700;">Recovery Phrase</h2>
+        <p style="font-size: 15px; color: var(--secondary-text); margin-top: 8px;">Save this phrase to recover your vault if you forget the pattern</p>
+      </div>
+
+      <div style="flex: 1; overflow-y: auto; padding: 0 8px;">
+        <!-- Segmented picker -->
+        <div style="display: flex; background: var(--glass-bg); border-radius: 8px; overflow: hidden; border: 1px solid var(--glass-border); margin-bottom: 16px;">
+          <button style="flex: 1; padding: 8px; border: none; background: var(--accent); color: white; font-size: 14px; font-weight: 500; cursor: pointer;" id="phraseAutoBtn" onclick="setPhraseMode('auto')">Auto-Generated</button>
+          <button style="flex: 1; padding: 8px; border: none; background: transparent; color: var(--text); font-size: 14px; font-weight: 500; cursor: pointer;" id="phraseCustomBtn" onclick="setPhraseMode('custom')">Custom Phrase</button>
+        </div>
+
+        <!-- Generated phrase display -->
+        <div id="phraseAutoMode">
+          <div class="phrase-card">
+            <div class="phrase-text">harbor crystal meadow falcon sunset anchor</div>
+          </div>
+        </div>
+
+        <!-- Custom phrase input -->
+        <div id="phraseCustomMode" style="display: none;">
+          <h4 style="font-size: 17px; font-weight: 600; text-align: center; margin-bottom: 12px;">Enter Your Custom Recovery Phrase</h4>
+          <textarea style="width: 100%; height: 100px; padding: 12px; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--surface); color: var(--text); font-size: 16px; resize: none; font-family: inherit;" placeholder="Type a memorable phrase with 6-9 words..."></textarea>
+        </div>
+
+        <!-- Copy / Share buttons -->
+        <div style="display: flex; gap: 12px; margin: 16px 0;">
+          <button class="btn-secondary" style="flex: 1; padding: 12px; font-size: 15px;">📋 Copy</button>
+          <button class="btn-secondary" style="flex: 1; padding: 12px; font-size: 15px;">📤 Share</button>
+        </div>
+
+        <!-- Tips -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="tip-row"><span class="tip-icon">✏️</span> Write this down</div>
+          <div class="tip-row"><span class="tip-icon">🔒</span> Store it somewhere safe</div>
+          <div class="tip-row"><span class="tip-icon">🚫</span> Never share it with anyone</div>
+        </div>
+      </div>
+
+      <div style="padding: 8px 0 16px;">
+        <button class="btn-primary" onclick="showComplete()">I've saved it</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="nav-hint">Click buttons to navigate between screens</div>
+
+<script>
+  // Navigation
+  function goTo(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const target = document.getElementById('screen-' + screenId);
+    if (target) target.classList.add('active');
+  }
+
+  // Permissions mock
+  function grantPermission(type) {
+    const row = document.getElementById('perm-' + type);
+    const btn = row.querySelector('.allow-btn');
+    btn.outerHTML = '<span class="check-icon">✅</span>';
+  }
+
+  // Pattern grid
+  const grid = document.getElementById('patternGrid');
+  let selectedDots = [];
+  let patternStep = 'create'; // 'create' | 'confirm'
+  let firstPattern = [];
+
+  for (let i = 0; i < 25; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'grid-dot';
+    dot.dataset.index = i;
+    dot.addEventListener('click', () => toggleDot(i, dot));
+    grid.appendChild(dot);
+  }
+
+  function toggleDot(index, dot) {
+    if (selectedDots.includes(index)) return;
+    selectedDots.push(index);
+    dot.classList.add('selected');
+
+    if (selectedDots.length >= 6) {
+      const feedback = document.getElementById('patternFeedback');
+      if (patternStep === 'create') {
+        feedback.innerHTML = '<span style="color: #22c55e; font-weight: 600;">✓ Pattern valid! Tap any dot to continue.</span>';
+        setTimeout(() => {
+          firstPattern = [...selectedDots];
+          patternStep = 'confirm';
+          resetPatternUI();
+          document.getElementById('patternTitle').textContent = 'Confirm Your Pattern';
+          document.getElementById('patternSubtitle').textContent = 'Draw the same pattern to confirm';
+          document.getElementById('patternAction').textContent = 'Start Over';
+          // Update step pills
+          document.querySelectorAll('#screen-pattern-create .step-pill')[1].classList.add('active');
+          feedback.innerHTML = '';
+        }, 800);
+      } else {
+        // Confirm step - go to recovery
+        feedback.innerHTML = '<span style="color: #22c55e; font-weight: 600;">✓ Pattern confirmed!</span>';
+        setTimeout(() => goTo('recovery'), 800);
+      }
+    }
+  }
+
+  function resetPattern() {
+    if (patternStep === 'confirm') {
+      patternStep = 'create';
+      firstPattern = [];
+      document.getElementById('patternTitle').textContent = 'Create Your Pattern';
+      document.getElementById('patternSubtitle').textContent = 'Connect at least 6 dots on the 5×5 grid with 2+ direction changes';
+      document.getElementById('patternAction').textContent = 'Clear';
+      document.querySelectorAll('#screen-pattern-create .step-pill')[1].classList.remove('active');
+    }
+    resetPatternUI();
+    document.getElementById('patternFeedback').innerHTML = '';
+  }
+
+  function resetPatternUI() {
+    selectedDots = [];
+    document.querySelectorAll('.grid-dot').forEach(d => d.classList.remove('selected'));
+  }
+
+  // Recovery phrase mode
+  function setPhraseMode(mode) {
+    document.getElementById('phraseAutoMode').style.display = mode === 'auto' ? 'block' : 'none';
+    document.getElementById('phraseCustomMode').style.display = mode === 'custom' ? 'block' : 'none';
+    document.getElementById('phraseAutoBtn').style.background = mode === 'auto' ? 'var(--accent)' : 'transparent';
+    document.getElementById('phraseAutoBtn').style.color = mode === 'auto' ? 'white' : 'var(--text)';
+    document.getElementById('phraseCustomBtn').style.background = mode === 'custom' ? 'var(--accent)' : 'transparent';
+    document.getElementById('phraseCustomBtn').style.color = mode === 'custom' ? 'white' : 'var(--text)';
+  }
+
+  // Review carousel
+  let currentReview = 0;
+  const totalReviews = 3;
+  setInterval(() => {
+    currentReview = (currentReview + 1) % totalReviews;
+    document.getElementById('reviewTrack').style.transform = `translateX(-${currentReview * 100}%)`;
+    document.querySelectorAll('#reviewDots .dot').forEach((d, i) => {
+      d.classList.toggle('active', i === currentReview);
+    });
+  }, 4000);
+
+  // Complete
+  function showComplete() {
+    alert('Onboarding complete! In the real app, this creates your vault and takes you to the main screen.');
+  }
+
+  // Hide nav hint after 5s
+  setTimeout(() => {
+    document.querySelector('.nav-hint').style.opacity = '0';
+    document.querySelector('.nav-hint').style.transition = 'opacity 1s';
+  }, 5000);
+</script>
+
+</body>
+</html>
