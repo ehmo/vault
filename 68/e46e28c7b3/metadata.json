@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "68e46e28c7b3",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "AGENTS.md",
+    "apps/ios/AGENTS.md",
+    "scripts/deploy-phone.sh",
+    "scripts/deploy-testflight.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/68/e46e28c7b3/0/metadata.json",
+      "transcript": "/68/e46e28c7b3/0/full.jsonl",
+      "context": "/68/e46e28c7b3/0/context.md",
+      "content_hash": "/68/e46e28c7b3/0/content_hash.txt",
+      "prompt": "/68/e46e28c7b3/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 10048,
+    "cache_read_tokens": 1215450,
+    "output_tokens": 2932,
+    "api_call_count": 14
+  }
+}
