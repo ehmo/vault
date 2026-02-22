@@ -17,6 +17,7 @@ extension VaultView {
                 ProgressView("Decrypting...")
             }
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     @ViewBuilder
