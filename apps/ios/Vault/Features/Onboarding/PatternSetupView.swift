@@ -257,9 +257,25 @@ struct PatternSetupView: View {
 
     private var recoveryScrollSection: some View {
         ScrollView {
-            recoverySection
-                .padding(.top, 8)
-                .padding(.bottom, 12)
+            VStack(spacing: 12) {
+                recoverySection
+                    .padding(.top, 8)
+
+                if let error = errorMessage {
+                    HStack {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.vaultHighlight)
+                        Text(error)
+                            .font(.caption)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .vaultGlassBackground(cornerRadius: 12)
+                    .padding(.horizontal)
+                    .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .padding(.bottom, 12)
         }
         .scrollIndicators(.hidden)
     }
@@ -300,9 +316,10 @@ struct PatternSetupView: View {
                     Button("Cancel", role: .cancel) { /* No-op */ }
                     Button("Yes, I've saved it") {
                         if useCustomPhrase {
-                            if let validation = customPhraseValidation, validation.isAcceptable {
-                                saveCustomRecoveryPhrase()
-                            }
+                            // Validation already enforced by the disabled button guard;
+                            // re-checking here caused a silent no-op when SwiftUI
+                            // re-evaluated state during alert/keyboard transitions.
+                            saveCustomRecoveryPhrase()
                         } else {
                             onComplete()
                         }
