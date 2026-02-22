@@ -47,6 +47,9 @@ final class VaultViewModel {
             let p = max(0, min(transferManager.displayProgress, 100))
             return (completed: p, total: 100, message: transferManager.currentMessage)
         }
+        if let p = sharedVaultUpdateProgress {
+            return p
+        }
         return nil
     }
 
@@ -68,6 +71,7 @@ final class VaultViewModel {
     var sharedVaultId: String?
     var updateAvailable = false
     var isUpdating = false
+    var sharedVaultUpdateProgress: (completed: Int, total: Int, message: String)?
     var hasCountedOpenThisSession = false
     var sharedVaultOpenCount: Int = 0
     var selfDestructMessage: String?
@@ -849,6 +853,10 @@ final class VaultViewModel {
         activeImportTask = nil
         importProgress = nil
         isDeleteInProgress = false
+        if sharedVaultUpdateProgress != nil {
+            sharedVaultUpdateProgress = nil
+            isUpdating = false
+        }
         IdleTimerManager.shared.enable()
 
         if oldKey != newKey {

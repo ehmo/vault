@@ -1,5 +1,6 @@
 import AVFoundation
 import SwiftUI
+import UIKit
 
 // MARK: - Shared Vault
 
@@ -18,21 +19,6 @@ extension VaultView {
                     .font(.caption).fontWeight(.medium)
 
                 Spacer()
-
-                if viewModel.updateAvailable {
-                    Button(action: { Task { await downloadUpdate() } }) {
-                        if viewModel.isUpdating {
-                            ProgressView().scaleEffect(0.7)
-                        } else {
-                            Text("Update Now")
-                                .font(.caption).fontWeight(.medium)
-                        }
-                    }
-                    .vaultProminentButtonStyle()
-                    .controlSize(.mini)
-                    .disabled(viewModel.isUpdating)
-                    .accessibilityLabel(viewModel.isUpdating ? "Updating shared vault" : "Update shared vault")
-                }
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
@@ -48,6 +34,18 @@ extension VaultView {
                     Text("New files available")
                         .font(.caption)
                     Spacer()
+                    Button(action: { Task { await downloadUpdate() } }) {
+                        if viewModel.isUpdating {
+                            ProgressView().scaleEffect(0.7)
+                        } else {
+                            Text("Update Now")
+                                .font(.caption).fontWeight(.medium)
+                        }
+                    }
+                    .vaultProminentButtonStyle()
+                    .controlSize(.mini)
+                    .disabled(viewModel.isUpdating)
+                    .accessibilityLabel(viewModel.isUpdating ? "Updating shared vault" : "Update shared vault")
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 4)
@@ -101,7 +99,35 @@ extension VaultView {
               let vaultId = viewModel.sharedVaultId else { return }
 
         viewModel.isUpdating = true
-        defer { viewModel.isUpdating = false }
+        viewModel.sharedVaultUpdateProgress = (completed: 0, total: 100, message: "Downloading update...")
+        IdleTimerManager.shared.disable()
+
+        var bgTaskCleaned = false
+        var bgTaskId: UIBackgroundTaskIdentifier = .invalid
+        bgTaskId = UIApplication.shared.beginBackgroundTask(withName: "SharedVaultUpdate") {
+            // Expiration handler — clean up progress state so the overlay disappears
+            bgTaskCleaned = true
+            Task { @MainActor [weak viewModel] in
+                viewModel?.sharedVaultUpdateProgress = nil
+                viewModel?.isUpdating = false
+                IdleTimerManager.shared.enable()
+            }
+            UIApplication.shared.endBackgroundTask(bgTaskId)
+            bgTaskId = .invalid
+        }
+
+        defer {
+            viewModel.isUpdating = false
+            viewModel.sharedVaultUpdateProgress = nil
+            if !bgTaskCleaned {
+                // Only re-enable here if the expiration handler hasn't already;
+                // otherwise we'd double-decrement the ref-counted idle timer.
+                IdleTimerManager.shared.enable()
+                if bgTaskId != .invalid {
+                    UIApplication.shared.endBackgroundTask(bgTaskId)
+                }
+            }
+        }
 
         do {
             let index = try VaultStorage.shared.loadIndex(with: key)
@@ -117,14 +143,19 @@ extension VaultView {
             let shareKey = ShareKey(shareKeyData)
             let data = try await CloudKitSharingManager.shared.downloadUpdatedVault(
                 shareVaultId: vaultId,
-                shareKey: shareKey
+                shareKey: shareKey,
+                onProgress: { [weak viewModel] completed, total in
+                    Task { @MainActor in
+                        // Map download progress to 0→70% range
+                        let pct = total > 0 ? Int(Double(completed) / Double(total) * 70) : 0
+                        viewModel?.sharedVaultUpdateProgress = (completed: pct, total: 100, message: "Downloading update...")
+                    }
+                }
             )
 
             if SVDFSerializer.isSVDF(data) {
-                // SVDF v4 delta import: only import new files, delete removed files
                 try await importSVDFDelta(data: data, shareKey: shareKeyData, vaultKey: key, index: index)
             } else {
-                // Legacy v1-v3: full wipe-and-replace
                 try await importLegacyFull(data: data, shareKey: shareKeyData, vaultKey: key, index: index)
             }
 
@@ -140,6 +171,7 @@ extension VaultView {
             viewModel.updateAvailable = false
             viewModel.loadFiles()
         } catch {
+            viewModel.toastMessage = .error("Update failed: \(error.localizedDescription)")
             #if DEBUG
             print("❌ [VaultView] Failed to download update: \(error)")
             #endif
@@ -181,10 +213,11 @@ extension VaultView {
 
         // Import only new files
         let newIds = remoteFileIds.subtracting(localFileIds)
+        let newEntries = manifest.filter { newIds.contains($0.id) && !$0.deleted }
         #if DEBUG
-        print("📥 [importSVDFDelta] Importing \(newIds.count) new files")
+        print("📥 [importSVDFDelta] Importing \(newEntries.count) new files")
         #endif
-        for entry in manifest where newIds.contains(entry.id) && !entry.deleted {
+        for (idx, entry) in newEntries.enumerated() {
             let file = try SVDFSerializer.extractFileEntry(from: data, at: entry.offset, size: entry.size, version: header.version)
             let decrypted = try CryptoEngine.decrypt(file.encryptedContent, with: shareKey)
 
@@ -211,6 +244,10 @@ extension VaultView {
                 duration: file.duration,
                 fileId: file.id  // <- Preserve original file ID from shared vault
             )
+
+            // Map import progress to 70→100% range
+            let pct = newEntries.count > 0 ? 70 + Int(Double(idx + 1) / Double(newEntries.count) * 30) : 100
+            viewModel.sharedVaultUpdateProgress = (completed: pct, total: 100, message: "Importing \(idx + 1) of \(newEntries.count)...")
         }
 
         #if DEBUG
@@ -255,7 +292,8 @@ extension VaultView {
         }
 
         // Import all files
-        for file in sharedVault.files {
+        let totalFiles = sharedVault.files.count
+        for (idx, file) in sharedVault.files.enumerated() {
             let decrypted = try CryptoEngine.decrypt(file.encryptedContent, with: shareKey)
 
             // Decrypt thumbnail from shared file if available
@@ -281,6 +319,10 @@ extension VaultView {
                 duration: file.duration,
                 fileId: file.id  // <- Preserve original file ID from shared vault
             )
+
+            // Map import progress to 70→100% range
+            let pct = totalFiles > 0 ? 70 + Int(Double(idx + 1) / Double(totalFiles) * 30) : 100
+            viewModel.sharedVaultUpdateProgress = (completed: pct, total: 100, message: "Importing \(idx + 1) of \(totalFiles)...")
         }
     }
 }

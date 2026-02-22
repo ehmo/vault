@@ -183,6 +183,80 @@ final class VaultViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.activeOperationProgress, "Should be nil after import progress cleared")
     }
 
+    // MARK: - Shared Vault Update Progress
+
+    func testSharedVaultUpdateProgress_NilByDefault() {
+        XCTAssertNil(viewModel.sharedVaultUpdateProgress, "Should be nil when no update is running")
+    }
+
+    func testActiveOperationProgress_ShowsSharedVaultUpdateProgress() {
+        viewModel.sharedVaultUpdateProgress = (completed: 42, total: 100, message: "Downloading update...")
+
+        let progress = viewModel.activeOperationProgress
+        XCTAssertNotNil(progress)
+        XCTAssertEqual(progress?.completed, 42)
+        XCTAssertEqual(progress?.total, 100)
+        XCTAssertEqual(progress?.message, "Downloading update...")
+    }
+
+    func testActiveOperationProgress_ImportTakesPriorityOverSharedVaultUpdate() {
+        // Both import and shared vault update active → import should win
+        viewModel.importProgress = (completed: 2, total: 5)
+        viewModel.isDeleteInProgress = false
+        viewModel.sharedVaultUpdateProgress = (completed: 50, total: 100, message: "Downloading update...")
+
+        let progress = viewModel.activeOperationProgress
+        XCTAssertNotNil(progress)
+        XCTAssertEqual(progress?.completed, 2, "Import progress should take priority over shared vault update")
+        XCTAssertEqual(progress?.total, 5)
+        XCTAssertTrue(progress?.message.contains("Importing") == true)
+    }
+
+    func testActiveOperationProgress_SharedVaultUpdateDisappearsWhenCleared() {
+        viewModel.sharedVaultUpdateProgress = (completed: 70, total: 100, message: "Importing 3 of 5...")
+        XCTAssertNotNil(viewModel.activeOperationProgress)
+
+        viewModel.sharedVaultUpdateProgress = nil
+        XCTAssertNil(viewModel.activeOperationProgress, "Should be nil after shared vault update cleared")
+    }
+
+    func testActiveOperationProgress_SharedVaultUpdateProgressMessages() {
+        // Download phase: 0→70%
+        viewModel.sharedVaultUpdateProgress = (completed: 35, total: 100, message: "Downloading update...")
+        let downloadProgress = viewModel.activeOperationProgress
+        XCTAssertEqual(downloadProgress?.message, "Downloading update...")
+        XCTAssertEqual(downloadProgress?.completed, 35)
+
+        // Import phase: 70→100%
+        viewModel.sharedVaultUpdateProgress = (completed: 85, total: 100, message: "Importing 2 of 4...")
+        let importProgress = viewModel.activeOperationProgress
+        XCTAssertEqual(importProgress?.message, "Importing 2 of 4...")
+        XCTAssertEqual(importProgress?.completed, 85)
+    }
+
+    func testHandleVaultKeyChange_ClearsSharedVaultUpdateProgress() {
+        viewModel.sharedVaultUpdateProgress = (completed: 50, total: 100, message: "Downloading update...")
+        viewModel.isUpdating = true
+
+        let newKey = VaultKey(CryptoEngine.generateRandomBytes(count: 32)!)
+        viewModel.handleVaultKeyChange(oldKey: testKey, newKey: newKey)
+
+        XCTAssertNil(viewModel.sharedVaultUpdateProgress, "Vault key change should clear shared vault update progress")
+        XCTAssertFalse(viewModel.isUpdating, "Vault key change should reset isUpdating")
+        XCTAssertNil(viewModel.activeOperationProgress, "Overlay should disappear after key change")
+    }
+
+    func testHandleVaultKeyChange_NoOpWhenNoUpdateInProgress() {
+        // isUpdating should not be touched when no update is in progress
+        viewModel.isUpdating = false
+        viewModel.sharedVaultUpdateProgress = nil
+
+        let newKey = VaultKey(CryptoEngine.generateRandomBytes(count: 32)!)
+        viewModel.handleVaultKeyChange(oldKey: testKey, newKey: newKey)
+
+        XCTAssertFalse(viewModel.isUpdating, "Should remain false when no update was in progress")
+    }
+
     // MARK: - Free Tier Limits
 
     func testCanAddFile_FreeTierLimit() {
