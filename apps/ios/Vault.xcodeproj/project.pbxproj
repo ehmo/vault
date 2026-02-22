@@ -157,6 +157,7 @@
 		PBT00001 /* PerformanceBenchmarkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PBT00000 /* PerformanceBenchmarkTests.swift */; };
 		CAT00001 /* ConcurrentAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAT00000 /* ConcurrentAccessTests.swift */; };
 		019000009 /* PatternSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000008 /* PatternSetupCoordinator.swift */; };
+		FOP00000 /* FileOperationProgressCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = FOP00001 /* FileOperationProgressCard.swift */; };
 		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
 		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
 
@@ -375,6 +376,7 @@
 		PBT00000 /* PerformanceBenchmarkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceBenchmarkTests.swift; sourceTree = "<group>"; };
 		CAT00000 /* ConcurrentAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConcurrentAccessTests.swift; sourceTree = "<group>"; };
 		019000008 /* PatternSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinator.swift; sourceTree = "<group>"; };
+		FOP00001 /* FileOperationProgressCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationProgressCard.swift; sourceTree = "<group>"; };
 		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
 
@@ -715,6 +717,7 @@
 				022000002 /* VaultSyncIndicator.swift */,
 				022000004 /* PhraseActionButtons.swift */,
 				SE0000018 /* PendingImportBanner.swift */,
+				FOP00001 /* FileOperationProgressCard.swift */,
 				UX0000000 /* ToastView.swift */,
 				UX0000002 /* StorageRingView.swift */,
 				UX0000006 /* PatternValidationFeedbackView.swift */,
@@ -1116,6 +1119,7 @@
 				022000001 /* PixelAnimation.swift in Sources */,
 				022000003 /* VaultSyncIndicator.swift in Sources */,
 				022000005 /* PhraseActionButtons.swift in Sources */,
+				FOP00000 /* FileOperationProgressCard.swift in Sources */,
 				UX0000001 /* ToastView.swift in Sources */,
 				UX0000003 /* StorageRingView.swift in Sources */,
 

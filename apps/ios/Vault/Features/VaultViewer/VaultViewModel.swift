@@ -35,6 +35,21 @@ final class VaultViewModel {
         importProgress != nil || isImportingPendingFiles
     }
 
+    /// Unified progress for all file operations (import, delete, shared vault download).
+    var activeOperationProgress: (completed: Int, total: Int, message: String)? {
+        if let p = importProgress {
+            let msg = isDeleteInProgress
+                ? "Deleting \(p.completed) of \(p.total)..."
+                : "Importing \(p.completed) of \(p.total)..."
+            return (completed: p.completed, total: p.total, message: msg)
+        }
+        if case .importing = transferManager.status {
+            let p = max(0, min(transferManager.displayProgress, 100))
+            return (completed: p, total: 100, message: transferManager.currentMessage)
+        }
+        return nil
+    }
+
     // MARK: - Batch Edit State
 
     var isEditing = false

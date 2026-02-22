@@ -181,13 +181,17 @@ struct VaultView: View {
                     .animation(.easeInOut(duration: 0.25), value: showingFanMenu)
             }
             .overlay {
-                if let progress = viewModel.importProgress {
+                if let progress = viewModel.activeOperationProgress {
                     ZStack {
                         Color.black.opacity(0.4)
                             .ignoresSafeArea()
-                        localImportProgressContent(completed: progress.completed, total: progress.total)
+                        FileOperationProgressCard(
+                            completed: progress.completed,
+                            total: progress.total,
+                            message: progress.message
+                        )
                     }
-                    .accessibilityIdentifier("vault_local_import_progress")
+                    .accessibilityIdentifier("vault_operation_progress")
                 }
             }
             .overlay(alignment: .bottomTrailing) {

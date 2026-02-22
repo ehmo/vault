@@ -127,11 +127,7 @@ extension VaultView {
 
     var emptyStateContent: some View {
         VStack(spacing: 20) {
-            if case .importing = viewModel.transferManager.status {
-                Spacer()
-                importingProgressContent
-                Spacer()
-            } else if viewModel.isSharedVault {
+            if viewModel.isSharedVault {
                 Image(systemName: "person.2.fill")
                     .font(.system(size: 48))
                     .foregroundStyle(.vaultSecondaryText)
@@ -216,53 +212,4 @@ extension VaultView {
         .accessibilityElement(children: .combine)
     }
 
-    // MARK: - Import Progress
-
-    var importingProgressContent: some View {
-        let progress = max(0, min(viewModel.transferManager.displayProgress, 100))
-        return VStack(spacing: 20) {
-            PixelAnimation.loading(size: 80)
-
-            VStack(spacing: 8) {
-                ProgressView(value: Double(progress), total: 100)
-                    .tint(.accentColor)
-
-                Text("\(progress)%")
-                    .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(.vaultSecondaryText)
-            }
-
-            Text(viewModel.transferManager.currentMessage)
-                .font(.subheadline)
-                .foregroundStyle(.vaultSecondaryText)
-                .multilineTextAlignment(.center)
-        }
-        .padding(24)
-        .frame(maxWidth: 360)
-        .vaultGlassBackground(cornerRadius: 16)
-        .accessibilityIdentifier("vault_import_progress")
-    }
-
-    // MARK: - Local Import Progress
-
-    func localImportProgressContent(completed: Int, total: Int) -> some View {
-        let percentage = total > 0 ? Int(Double(completed) / Double(total) * 100) : 0
-        return VStack(spacing: 24) {
-            PixelAnimation.loading(size: 60)
-
-            Text(viewModel.isDeleteInProgress ? "Deleting \(completed) of \(total)..." : "Importing \(completed) of \(total)...")
-                .font(.title3)
-                .fontWeight(.medium)
-
-            VStack(spacing: 8) {
-                ProgressView(value: Double(completed), total: Double(total))
-                    .tint(.accentColor)
-                    .padding(.horizontal, 40)
-
-                Text("\(percentage)%")
-                    .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(.vaultSecondaryText)
-            }
-        }
-    }
 }
