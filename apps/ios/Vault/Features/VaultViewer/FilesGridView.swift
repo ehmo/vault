@@ -14,10 +14,12 @@ struct FilesGridView: View {
 
     // Drag-to-select state
     @State private var cellFrames: [UUID: CGRect] = [:]
-    @State private var dragAffectedIds: Set<UUID> = []
     @State private var isDragSelecting = true
     @State private var isDragging = false
     @State private var isDragVertical = false
+    @State private var dragStartIndex: Int?
+    @State private var currentDragTargetIds: Set<UUID> = []
+    @State private var dragToggledIds: Set<UUID> = []
 
     var body: some View {
         grid
@@ -137,42 +139,75 @@ struct FilesGridView: View {
             .onChanged { value in
                 guard isEditing else { return }
 
+                // Determine direction and starting item on first callback
                 if !isDragging {
+                    isDragging = true
                     let dx = abs(value.translation.width)
                     let dy = abs(value.translation.height)
                     isDragVertical = dy > dx
-                    isDragging = true
+                    dragStartIndex = nearestItemIndex(to: value.startLocation)
 
-                    if isDragVertical {
-                        let ids = rowCellIds(at: value.startLocation.y)
-                        if let first = ids.first {
-                            isDragSelecting = !selectedIds.contains(first)
-                        }
-                        if ids.reduce(false, { changed, id in applyDragSelection(to: id) || changed }) {
-                            UISelectionFeedbackGenerator().selectionChanged()
-                        }
-                    } else if let id = cellId(at: value.startLocation) {
-                        isDragSelecting = !selectedIds.contains(id)
-                        if applyDragSelection(to: id) {
-                            UISelectionFeedbackGenerator().selectionChanged()
-                        }
+                    if let startIdx = dragStartIndex {
+                        isDragSelecting = !selectedIds.contains(files[startIdx].id)
                     }
                 }
 
+                guard let startIdx = dragStartIndex else { return }
+
+                let newTargetIds: Set<UUID>
+
                 if isDragVertical {
-                    if rowCellIds(at: value.location.y).reduce(false, { changed, id in applyDragSelection(to: id) || changed }) {
-                        UISelectionFeedbackGenerator().selectionChanged()
+                    // Row-span selection: select ALL items in rows from start to current
+                    guard let currentIdx = nearestItemIndex(to: value.location) else { return }
+                    let indices = DragRowSelector.indicesInRowSpan(
+                        itemCount: files.count,
+                        columns: columns.count,
+                        startIndex: startIdx,
+                        endIndex: currentIdx
+                    )
+                    newTargetIds = Set(indices.map { files[$0].id })
+                } else {
+                    // Horizontal: accumulate individual cells under the finger
+                    var ids = currentDragTargetIds
+                    if let id = cellId(at: value.location) {
+                        ids.insert(id)
                     }
-                } else if let id = cellId(at: value.location) {
-                    if applyDragSelection(to: id) {
-                        UISelectionFeedbackGenerator().selectionChanged()
+                    newTargetIds = ids
+                }
+
+                var changed = false
+
+                // Items entering the drag range
+                for id in newTargetIds.subtracting(currentDragTargetIds) {
+                    let isSelected = selectedIds.contains(id)
+                    if (isDragSelecting && !isSelected) || (!isDragSelecting && isSelected) {
+                        onToggleSelect?(id)
+                        dragToggledIds.insert(id)
+                        changed = true
                     }
+                }
+
+                // Items leaving the drag range (user dragged back)
+                for id in currentDragTargetIds.subtracting(newTargetIds) {
+                    if dragToggledIds.contains(id) {
+                        onToggleSelect?(id)
+                        dragToggledIds.remove(id)
+                        changed = true
+                    }
+                }
+
+                currentDragTargetIds = newTargetIds
+
+                if changed {
+                    UISelectionFeedbackGenerator().selectionChanged()
                 }
             }
             .onEnded { _ in
-                dragAffectedIds.removeAll()
                 isDragging = false
                 isDragVertical = false
+                dragStartIndex = nil
+                currentDragTargetIds.removeAll()
+                dragToggledIds.removeAll()
             }
     }
 
@@ -180,27 +215,19 @@ struct FilesGridView: View {
         cellFrames.first(where: { $0.value.contains(point) })?.key
     }
 
-    private func rowCellIds(at y: CGFloat) -> [UUID] {
-        guard let anchor = cellFrames.first(where: { $0.value.minY <= y && y <= $0.value.maxY }) else {
-            return []
+    /// Finds the index in `files` of the cell nearest to `point` by distance to frame center.
+    private func nearestItemIndex(to point: CGPoint) -> Int? {
+        var bestIndex: Int?
+        var bestDist = CGFloat.infinity
+        for (i, file) in files.enumerated() {
+            guard let frame = cellFrames[file.id] else { continue }
+            let dist = hypot(frame.midX - point.x, frame.midY - point.y)
+            if dist < bestDist {
+                bestDist = dist
+                bestIndex = i
+            }
         }
-        let rowMidY = anchor.value.midY
-        return cellFrames.compactMap { id, frame in
-            abs(frame.midY - rowMidY) <= 5 ? id : nil
-        }
-    }
-
-    @discardableResult
-    private func applyDragSelection(to id: UUID) -> Bool {
-        guard !dragAffectedIds.contains(id) else { return false }
-        dragAffectedIds.insert(id)
-
-        let isSelected = selectedIds.contains(id)
-        if (isDragSelecting && !isSelected) || (!isDragSelecting && isSelected) {
-            onToggleSelect?(id)
-            return true
-        }
-        return false
+        return bestIndex
     }
 
     // MARK: - Selection Circle
