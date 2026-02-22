@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "64279ee8916c",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Storage/VaultIndexTypes.swift",
+    "apps/ios/Vault/Features/Onboarding/PatternSetupView.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/VaultTests/PatternSetupCoordinatorTests.swift",
+    "apps/ios/VaultTests/VaultNameTests.swift",
+    "apps/web/.well-known/mcp.json",
+    "apps/web/feed.xml",
+    "apps/web/llms-full.txt",
+    "apps/web/llms.txt",
+    "apps/web/test-results/e2e-invite-and-compare-com-abc7f-rds-have-loaded-icon-assets-chromium/error-context.md",
+    "apps/web/test-results/e2e-invite-and-compare-com-abc7f-rds-have-loaded-icon-assets-chromium/test-failed-1.png",
+    "apps/web/test-results/e2e-invite-and-compare-com-abc7f-rds-have-loaded-icon-assets-chromium/trace.zip",
+    "apps/web/test-results/e2e-invite-and-compare-com-abc7f-rds-have-loaded-icon-assets-chromium/video.webm"
+  ],
+  "sessions": [
+    {
+      "metadata": "/64/279ee8916c/0/metadata.json",
+      "transcript": "/64/279ee8916c/0/full.jsonl",
+      "context": "/64/279ee8916c/0/context.md",
+      "content_hash": "/64/279ee8916c/0/content_hash.txt",
+      "prompt": "/64/279ee8916c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 29,
+    "cache_creation_tokens": 55829,
+    "cache_read_tokens": 2519592,
+    "output_tokens": 635,
+    "api_call_count": 25
+  }
+}

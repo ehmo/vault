@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "64279ee8916c",
+  "session_id": "8a1aef4f-64a8-4eeb-9393-8bc3c96fb009",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-22T04:28:04.270123Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Storage/VaultIndexTypes.swift",
+    "apps/ios/Vault/Features/Onboarding/PatternSetupView.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/VaultTests/PatternSetupCoordinatorTests.swift",
+    "apps/ios/VaultTests/VaultNameTests.swift",
+    "apps/web/.well-known/mcp.json",
+    "apps/web/feed.xml",
+    "apps/web/llms-full.txt",
+    "apps/web/llms.txt",
+    "apps/web/test-results/e2e-invite-and-compare-com-abc7f-rds-have-loaded-icon-assets-chromium/error-context.md",
+    "apps/web/test-results/e2e-invite-and-compare-com-abc7f-rds-have-loaded-icon-assets-chromium/test-failed-1.png",
+    "apps/web/test-results/e2e-invite-and-compare-com-abc7f-rds-have-loaded-icon-assets-chromium/trace.zip",
+    "apps/web/test-results/e2e-invite-and-compare-com-abc7f-rds-have-loaded-icon-assets-chromium/video.webm"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "6520b6dd-f2f2-4574-90b8-8c82fa61e933",
+  "checkpoint_transcript_start": 400,
+  "transcript_lines_at_start": 400,
+  "token_usage": {
+    "input_tokens": 29,
+    "cache_creation_tokens": 55829,
+    "cache_read_tokens": 2519592,
+    "output_tokens": 635,
+    "api_call_count": 25
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-22T04:28:04.096051Z",
+    "agent_lines": 0,
+    "human_added": 2695,
+    "human_modified": 281,
+    "human_removed": 0,
+    "total_committed": 2970,
+    "agent_percentage": 0
+  }
+}
