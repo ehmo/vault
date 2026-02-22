@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "0b437b9eecdc",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "AGENTS.md",
+    "apps/ios/AGENTS.md",
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Features/VaultViewer/DragRowSelector.swift",
+    "apps/ios/Vault/Features/VaultViewer/FilesGridView.swift",
+    "apps/ios/Vault/Features/VaultViewer/ParallelImporter.swift",
+    "apps/ios/Vault/Features/VaultViewer/PhotosGridView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift",
+    "apps/ios/VaultTests/BackgroundTaskTests.swift",
+    "apps/ios/VaultTests/DragRowSelectorTests.swift",
+    "apps/ios/VaultTests/OnboardingStepTests.swift",
+    "apps/ios/VaultTests/ParallelImporterTests.swift",
+    "apps/ios/VaultTests/PatternValidationStateTests.swift",
+    "apps/ios/VaultTests/SVDFSerializerTests.swift",
+    "apps/ios/VaultTests/VaultIndexManagerTests.swift",
+    "apps/ios/VaultTests/VaultViewModelTests.swift",
+    "scripts/deploy-phone.sh",
+    "scripts/deploy-testflight.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0b/437b9eecdc/0/metadata.json",
+      "transcript": "/0b/437b9eecdc/0/full.jsonl",
+      "context": "/0b/437b9eecdc/0/context.md",
+      "content_hash": "/0b/437b9eecdc/0/content_hash.txt",
+      "prompt": "/0b/437b9eecdc/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 23,
+    "cache_creation_tokens": 73800,
+    "cache_read_tokens": 1846066,
+    "output_tokens": 3477,
+    "api_call_count": 15
+  }
+}
