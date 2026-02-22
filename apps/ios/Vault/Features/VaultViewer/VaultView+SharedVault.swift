@@ -14,15 +14,8 @@ extension VaultView {
                     .font(.caption)
                     .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Shared Vault")
-                        .font(.caption).fontWeight(.medium)
-
-                    if let expires = viewModel.sharePolicy?.expiresAt {
-                        Text("Expires: \(expires, style: .date)")
-                            .font(.caption2).foregroundStyle(.vaultSecondaryText)
-                    }
-                }
+                Text("Shared Vault")
+                    .font(.caption).fontWeight(.medium)
 
                 Spacer()
 
@@ -43,7 +36,10 @@ extension VaultView {
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
-            .accessibilityElement(children: .combine)
+
+            if sharedVaultHasPolicyDetails {
+                sharedVaultPolicyDetailsView
+            }
 
             if viewModel.updateAvailable {
                 HStack {
@@ -59,6 +55,43 @@ extension VaultView {
             }
         }
         .vaultBannerBackground()
+        .accessibilityElement(children: .combine)
+    }
+
+    private var sharedVaultHasPolicyDetails: Bool {
+        let policy = viewModel.sharePolicy
+        return policy?.expiresAt != nil
+            || policy?.maxOpens != nil
+            || policy?.allowDownloads == false
+    }
+
+    private var sharedVaultPolicyDetailsView: some View {
+        HStack(spacing: 12) {
+            if let maxOpens = viewModel.sharePolicy?.maxOpens {
+                let remaining = max(maxOpens - viewModel.sharedVaultOpenCount, 0)
+                Label("\(remaining) of \(maxOpens) opens left", systemImage: "lock.open.display")
+                    .accessibilityIdentifier("shared_vault_opens_left")
+            }
+
+            if viewModel.sharePolicy?.allowDownloads == false {
+                Label("Exports disabled", systemImage: "square.and.arrow.up.trianglebadge.exclamationmark")
+                    .accessibilityIdentifier("shared_vault_exports_disabled")
+            }
+
+            if let expires = viewModel.sharePolicy?.expiresAt {
+                Label {
+                    Text("Expires \(expires, style: .date)")
+                } icon: {
+                    Image(systemName: "calendar")
+                }
+                .accessibilityIdentifier("shared_vault_expires")
+            }
+        }
+        .font(.caption2)
+        .foregroundStyle(.vaultSecondaryText)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal)
+        .padding(.bottom, 6)
     }
 
     // MARK: - Download Update

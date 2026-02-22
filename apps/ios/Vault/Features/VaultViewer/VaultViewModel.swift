@@ -69,6 +69,7 @@ final class VaultViewModel {
     var updateAvailable = false
     var isUpdating = false
     var hasCountedOpenThisSession = false
+    var sharedVaultOpenCount: Int = 0
     var selfDestructMessage: String?
     var showSelfDestructAlert = false
 
@@ -738,6 +739,7 @@ final class VaultViewModel {
                     isSharedVault = shared
                     sharePolicy = index.sharePolicy
                     sharedVaultId = index.sharedVaultId
+                    sharedVaultOpenCount = index.openCount ?? 0
                 }
 
                 guard shared else { return }
@@ -768,7 +770,10 @@ final class VaultViewModel {
 
                     index.openCount = currentOpens
                     try VaultStorage.shared.saveIndex(index, with: key)
-                    await MainActor.run { hasCountedOpenThisSession = true }
+                    await MainActor.run {
+                        hasCountedOpenThisSession = true
+                        sharedVaultOpenCount = currentOpens
+                    }
                 }
 
                 if let vaultId = index.sharedVaultId {
