@@ -109,6 +109,80 @@ final class VaultViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.isImporting)
     }
 
+    // MARK: - Unified Progress Overlay (activeOperationProgress)
+
+    func testActiveOperationProgress_NilWhenIdle() {
+        // No import, no delete, no transfer → should be nil
+        viewModel.importProgress = nil
+        viewModel.isDeleteInProgress = false
+        XCTAssertNil(viewModel.activeOperationProgress, "Should be nil when no operation is active")
+    }
+
+    func testActiveOperationProgress_ShowsImportProgress() {
+        viewModel.importProgress = (completed: 3, total: 10)
+        viewModel.isDeleteInProgress = false
+
+        let progress = viewModel.activeOperationProgress
+        XCTAssertNotNil(progress)
+        XCTAssertEqual(progress?.completed, 3)
+        XCTAssertEqual(progress?.total, 10)
+        XCTAssertTrue(progress?.message.contains("Importing") == true,
+                       "Message should say 'Importing' not 'Deleting'")
+        XCTAssertTrue(progress?.message.contains("3") == true)
+        XCTAssertTrue(progress?.message.contains("10") == true)
+    }
+
+    func testActiveOperationProgress_ShowsDeleteProgress() {
+        viewModel.importProgress = (completed: 5, total: 8)
+        viewModel.isDeleteInProgress = true
+
+        let progress = viewModel.activeOperationProgress
+        XCTAssertNotNil(progress)
+        XCTAssertEqual(progress?.completed, 5)
+        XCTAssertEqual(progress?.total, 8)
+        XCTAssertTrue(progress?.message.contains("Deleting") == true,
+                       "Message should say 'Deleting' when isDeleteInProgress is true")
+    }
+
+    func testActiveOperationProgress_ImportTakesPriorityOverTransfer() {
+        // Both import and transfer active → import should win
+        viewModel.importProgress = (completed: 1, total: 5)
+        viewModel.isDeleteInProgress = false
+
+        let progress = viewModel.activeOperationProgress
+        XCTAssertNotNil(progress)
+        XCTAssertEqual(progress?.total, 5, "Import progress should take priority over transfer manager")
+        XCTAssertTrue(progress?.message.contains("Importing") == true)
+    }
+
+    func testActiveOperationProgress_ZeroProgress() {
+        viewModel.importProgress = (completed: 0, total: 10)
+        viewModel.isDeleteInProgress = false
+
+        let progress = viewModel.activeOperationProgress
+        XCTAssertNotNil(progress)
+        XCTAssertEqual(progress?.completed, 0)
+        XCTAssertEqual(progress?.total, 10)
+    }
+
+    func testActiveOperationProgress_CompletedEqualsTotal() {
+        viewModel.importProgress = (completed: 10, total: 10)
+        viewModel.isDeleteInProgress = false
+
+        let progress = viewModel.activeOperationProgress
+        XCTAssertNotNil(progress, "Should still show progress when completed == total (cleanup hasn't run yet)")
+        XCTAssertEqual(progress?.completed, 10)
+    }
+
+    func testActiveOperationProgress_DisappearsWhenImportCleared() {
+        viewModel.importProgress = (completed: 3, total: 5)
+        XCTAssertNotNil(viewModel.activeOperationProgress)
+
+        viewModel.importProgress = nil
+        // transferManager is idle by default
+        XCTAssertNil(viewModel.activeOperationProgress, "Should be nil after import progress cleared")
+    }
+
     // MARK: - Free Tier Limits
 
     func testCanAddFile_FreeTierLimit() {

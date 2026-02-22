@@ -131,6 +131,46 @@ final class ShareLinkEncoderTests: XCTestCase {
         XCTAssertEqual(extracted, original)
     }
 
+    // MARK: - Share Sheet URL Type Safety
+
+    /// Regression test: sharing a URL object that matches the app's Associated Domains
+    /// (Universal Links) causes iOS to suppress messaging apps (Messages, WhatsApp) in
+    /// the share sheet. The share URL string must be passed as a String, not a URL, to
+    /// UIActivityViewController. This test ensures the URL is a valid string that can be
+    /// shared as text and still be parseable when received.
+    func testShareURLAbsoluteStringRoundTrips() {
+        let phrase = "the purple elephant dances quietly"
+        let url = ShareLinkEncoder.shareURL(for: phrase)!
+
+        // The string that would be passed to UIActivityViewController
+        let sharedString = url.absoluteString
+
+        // Recipient parses the string back to a URL
+        let parsedURL = URL(string: sharedString)!
+        let extracted = ShareLinkEncoder.phrase(from: parsedURL)
+
+        XCTAssertEqual(extracted, phrase,
+                       "Phrase must survive URL → absoluteString → URL → phrase round trip")
+    }
+
+    func testShareURLAbsoluteStringIsHTTPS() {
+        let phrase = "golden castle ancient wizard"
+        let url = ShareLinkEncoder.shareURL(for: phrase)!
+        let str = url.absoluteString
+
+        XCTAssertTrue(str.hasPrefix("https://"),
+                       "Share URL string must be HTTPS so it renders as a clickable link in Messages")
+    }
+
+    func testShareURLAbsoluteStringContainsNoSpaces() {
+        let phrase = "the purple elephant dances quietly under the golden castle"
+        let url = ShareLinkEncoder.shareURL(for: phrase)!
+        let str = url.absoluteString
+
+        XCTAssertFalse(str.contains(" "),
+                        "Share URL string must not contain spaces (would break as a link in messages)")
+    }
+
     // MARK: - Invalid URL Handling
 
     func testPhraseFromWrongHostReturnsNil() {

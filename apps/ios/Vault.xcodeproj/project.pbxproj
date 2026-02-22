@@ -155,6 +155,7 @@
 		SEM00001 /* SecureEnclaveManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SEM00000 /* SecureEnclaveManagerTests.swift */; };
 		DLH00001 /* DeepLinkHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DLH00000 /* DeepLinkHandlerTests.swift */; };
 		PBT00001 /* PerformanceBenchmarkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PBT00000 /* PerformanceBenchmarkTests.swift */; };
+		FOPT0001 /* FileOperationProgressCardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FOPT0000 /* FileOperationProgressCardTests.swift */; };
 		CAT00001 /* ConcurrentAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAT00000 /* ConcurrentAccessTests.swift */; };
 		019000009 /* PatternSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000008 /* PatternSetupCoordinator.swift */; };
 		FOP00000 /* FileOperationProgressCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = FOP00001 /* FileOperationProgressCard.swift */; };
@@ -374,6 +375,7 @@
 		SEM00000 /* SecureEnclaveManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureEnclaveManagerTests.swift; sourceTree = "<group>"; };
 		DLH00000 /* DeepLinkHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkHandlerTests.swift; sourceTree = "<group>"; };
 		PBT00000 /* PerformanceBenchmarkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceBenchmarkTests.swift; sourceTree = "<group>"; };
+		FOPT0000 /* FileOperationProgressCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationProgressCardTests.swift; sourceTree = "<group>"; };
 		CAT00000 /* ConcurrentAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConcurrentAccessTests.swift; sourceTree = "<group>"; };
 		019000008 /* PatternSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinator.swift; sourceTree = "<group>"; };
 		FOP00001 /* FileOperationProgressCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationProgressCard.swift; sourceTree = "<group>"; };
@@ -820,6 +822,7 @@
 				DLH00000 /* DeepLinkHandlerTests.swift */,
 				PBT00000 /* PerformanceBenchmarkTests.swift */,
 				CAT00000 /* ConcurrentAccessTests.swift */,
+				FOPT0000 /* FileOperationProgressCardTests.swift */,
 			);
 			path = VaultTests;
 			sourceTree = "<group>";
@@ -1251,6 +1254,7 @@
 				DLH00001 /* DeepLinkHandlerTests.swift in Sources */,
 				PBT00001 /* PerformanceBenchmarkTests.swift in Sources */,
 				CAT00001 /* ConcurrentAccessTests.swift in Sources */,
+				FOPT0001 /* FileOperationProgressCardTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
