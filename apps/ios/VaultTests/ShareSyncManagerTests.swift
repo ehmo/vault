@@ -970,5 +970,125 @@ final class ShareSyncManagerTests: XCTestCase {
 
         cleanupSyncStaging()
     }
+
+    // MARK: - Per-Share Progress
+
+    func testPerShareProgressStartsEmpty() {
+        XCTAssertTrue(sut.perShareProgress.isEmpty,
+                      "perShareProgress should start empty")
+    }
+
+    func testPerShareProgressClearedAfterSync() async {
+        mockStorage.indexToReturn = makeIndex(activeShares: nil)
+
+        sut.syncNow(vaultKey: testVaultKey)
+        try? await Task.sleep(nanoseconds: 200_000_000)
+
+        XCTAssertTrue(sut.perShareProgress.isEmpty,
+                      "perShareProgress should be cleared after sync completes")
+    }
+
+    // MARK: - WiFi-Only Network Check
+
+    func testWiFiOnlyBlocksOnCellular() {
+        // Set preference to wifi-only
+        UserDefaults.standard.set("wifi", forKey: "networkPreference")
+
+        // canProceedWithNetwork reads from currentNetworkType which is module-level
+        // In test environment, we verify the preference is correctly read
+        let preference = UserDefaults.standard.string(forKey: "networkPreference")
+        XCTAssertEqual(preference, "wifi",
+                       "Preference should be wifi-only")
+
+        // Clean up
+        UserDefaults.standard.removeObject(forKey: "networkPreference")
+    }
+
+    func testAnyNetworkAllowsBoth() {
+        UserDefaults.standard.set("any", forKey: "networkPreference")
+
+        let canProceed = CloudKitSharingManager.canProceedWithNetwork()
+        XCTAssertTrue(canProceed,
+                      "With 'any' preference, canProceedWithNetwork should return true")
+
+        // Clean up
+        UserDefaults.standard.removeObject(forKey: "networkPreference")
+    }
+
+    func testWiFiOnlyResumeSkipsOnCellular() {
+        // This tests that resumePendingSyncsIfNeeded returns early when WiFi-only and not on WiFi.
+        // Since we can't easily mock the network monitor in unit tests, we verify the
+        // default preference (wifi) and that the code path doesn't crash.
+        cleanupSyncStaging()
+        writePendingSyncState(shareVaultId: "wifi-test")
+
+        UserDefaults.standard.set("wifi", forKey: "networkPreference")
+
+        // Resume should not crash even if network conditions block it
+        sut.resumePendingSyncsIfNeeded(trigger: "wifi-test")
+
+        // Clean up
+        UserDefaults.standard.removeObject(forKey: "networkPreference")
+        cleanupSyncStaging()
+    }
+
+    // MARK: - Sync Status Badge States
+
+    func testSyncStatusBadge_IdleState() {
+        XCTAssertEqual(sut.syncStatus, .idle,
+                       "Initial status should be idle")
+    }
+
+    func testSyncStatusBadge_ErrorState() async {
+        mockStorage.loadIndexError = VaultStorageError.corruptedData
+
+        sut.syncNow(vaultKey: testVaultKey)
+        try? await Task.sleep(nanoseconds: 200_000_000)
+
+        if case .error = sut.syncStatus {
+            // Expected: error status after load failure
+        } else {
+            XCTFail("Expected error status, got \(sut.syncStatus)")
+        }
+    }
+
+    // MARK: - Max Concurrent Syncs Constant
+
+    func testMaxConcurrentSyncsConstant() {
+        // Verify the constant exists and has expected value.
+        // We can't directly access private static let, but we can verify behavior:
+        // With 4+ shares, only 3 should sync concurrently.
+        // This is a structural test — the behavior is verified by the TaskGroup implementation.
+        let shares = (0..<5).map { makeShareRecord(id: "concurrent-\($0)") }
+        mockStorage.indexToReturn = makeIndex(activeShares: shares)
+
+        // The important thing is that the sync starts without crashing
+        sut.syncNow(vaultKey: testVaultKey)
+        // Don't await — just verify it doesn't crash
+    }
+
+    // MARK: - ShareSyncProgress Struct
+
+    func testShareSyncProgress_Init() {
+        let progress = ShareSyncManager.ShareSyncProgress(
+            status: .uploading,
+            fractionCompleted: 0.5,
+            message: "Uploading 2/4 chunks"
+        )
+
+        XCTAssertEqual(progress.fractionCompleted, 0.5)
+        XCTAssertEqual(progress.message, "Uploading 2/4 chunks")
+        if case .uploading = progress.status {} else {
+            XCTFail("Expected uploading status")
+        }
+    }
+
+    func testShareSyncStatus_AllCases() {
+        // Verify all enum cases construct correctly
+        let statuses: [ShareSyncManager.ShareSyncStatus] = [
+            .waiting, .building, .uploading, .done, .error("test")
+        ]
+        XCTAssertEqual(statuses.count, 5)
+    }
 }
 

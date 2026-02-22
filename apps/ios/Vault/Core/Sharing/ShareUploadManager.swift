@@ -391,6 +391,10 @@ final class ShareUploadManager {
 
     func resumePendingUploadsIfNeeded(trigger: String) {
         guard hasPendingUpload else { return }
+        guard CloudKitSharingManager.canProceedWithNetwork() else {
+            Self.logger.info("[resume] Skipping upload resume: waiting for Wi-Fi (user preference)")
+            return
+        }
         resumePendingUploads(vaultKey: vaultKeyProvider?(), trigger: trigger)
     }
 

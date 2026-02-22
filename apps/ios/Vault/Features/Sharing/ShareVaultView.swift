@@ -297,7 +297,7 @@ struct ShareVaultView: View {
         VStack(spacing: 20) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Shared with \(activeShares.count) \(activeShares.count == 1 ? "person" : "people")")
+                    Text("Active Shares")
                         .font(.title3).fontWeight(.semibold)
 
                     if !uploadJobs.isEmpty {
@@ -325,10 +325,6 @@ struct ShareVaultView: View {
 
             if !activeShares.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Active Shares")
-                        .font(.headline)
-                        .foregroundStyle(.vaultSecondaryText)
-
                     ForEach(activeShares) { share in
                         shareRow(share)
                     }
@@ -476,7 +472,14 @@ struct ShareVaultView: View {
     }
 
     private func shareRow(_ share: VaultStorage.ShareRecord) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let syncProgress = ShareSyncManager.shared.perShareProgress[share.id]
+        let isSyncingShare = syncProgress != nil && {
+            if case .done = syncProgress?.status { return false }
+            if case .error = syncProgress?.status { return false }
+            return true
+        }()
+
+        return VStack(alignment: .leading, spacing: 8) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Share #\(share.id.prefix(8))")
@@ -485,12 +488,22 @@ struct ShareVaultView: View {
                         .font(.caption).foregroundStyle(.vaultSecondaryText)
                 }
                 Spacer()
-                Text("Active")
+                Text(isSyncingShare ? "Syncing" : "Active")
                     .font(.caption)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(Color.green.opacity(0.15))
+                    .background((isSyncingShare ? Color.blue : Color.green).opacity(0.15))
                     .clipShape(Capsule())
+            }
+
+            if isSyncingShare, let progress = syncProgress {
+                VStack(alignment: .leading, spacing: 4) {
+                    ProgressView(value: progress.fractionCompleted)
+                        .tint(.accentColor)
+                    Text(progress.message)
+                        .font(.caption2)
+                        .foregroundStyle(.vaultSecondaryText)
+                }
             }
 
             if let expires = share.policy.expiresAt {
@@ -915,6 +928,7 @@ struct ShareVaultView: View {
     ) -> Bool {
         guard isShareScreenVisible else { return false }
         return uploadJobs.contains(where: { $0.status.isRunning })
+            || ShareSyncManager.shared.syncStatus == .syncing
     }
 
     private func iCloudStatusMessage(_ status: CKAccountStatus) -> String {

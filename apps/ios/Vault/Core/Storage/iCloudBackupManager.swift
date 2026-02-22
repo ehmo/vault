@@ -21,13 +21,22 @@ enum SettingsURLHelper {
     }
 }
 
-enum iCloudError: Error {
+enum iCloudError: Error, LocalizedError {
     case notAvailable
     case containerNotFound
     case uploadFailed
     case downloadFailed
     case fileNotFound
     case checksumMismatch
+    case wifiRequired
+
+    var errorDescription: String? {
+        switch self {
+        case .notAvailable: return "iCloud is not available"
+        case .wifiRequired: return "Wi-Fi required. Change in Settings → Network to allow cellular."
+        default: return nil
+        }
+    }
 }
 
 /// Backs up encrypted vault data to CloudKit private database.
@@ -190,6 +199,10 @@ final class iCloudBackupManager: @unchecked Sendable {
     func performBackup(with key: Data, onProgress: @escaping (BackupStage) -> Void, onUploadProgress: @escaping (Double) -> Void = { _ in
         // No-op: default ignores progress
     }) async throws {
+        guard CloudKitSharingManager.canProceedWithNetwork() else {
+            Self.logger.info("[backup] Backup deferred: waiting for Wi-Fi (user preference)")
+            throw iCloudError.wifiRequired
+        }
         Self.logger.info("[backup] Starting two-phase backup...")
 
         // Phase 1: Stage
@@ -433,6 +446,10 @@ final class iCloudBackupManager: @unchecked Sendable {
     @MainActor
     func resumeBackupUploadIfNeeded(trigger: String) {
         guard UserDefaults.standard.bool(forKey: "iCloudBackupEnabled") else { return }
+        guard CloudKitSharingManager.canProceedWithNetwork() else {
+            Self.logger.info("[resume] Skipping backup resume: waiting for Wi-Fi (user preference)")
+            return
+        }
         guard let state = loadPendingBackupState() else { return }
         guard autoBackupTask == nil else {
             Self.logger.info("[resume] Backup already running, skipping (trigger=\(trigger, privacy: .public))")
@@ -928,6 +945,10 @@ final class iCloudBackupManager: @unchecked Sendable {
     func performBackupIfNeeded(with key: Data) {
         let defaults = UserDefaults.standard
         guard defaults.bool(forKey: "iCloudBackupEnabled") else { return }
+        guard CloudKitSharingManager.canProceedWithNetwork() else {
+            Self.logger.info("[auto-backup] Skipping: waiting for Wi-Fi (user preference)")
+            return
+        }
         guard autoBackupTask == nil else {
             Self.logger.info("[auto-backup] Backup already running, skipping")
             return
@@ -1352,6 +1373,12 @@ final class iCloudBackupManager: @unchecked Sendable {
         }
 
         guard UserDefaults.standard.bool(forKey: "iCloudBackupEnabled") else {
+            completeBackgroundProcessingTask(success: true)
+            return
+        }
+
+        guard CloudKitSharingManager.canProceedWithNetwork() else {
+            Self.logger.info("[bg-task] Skipping: waiting for Wi-Fi (user preference)")
             completeBackgroundProcessingTask(success: true)
             return
         }

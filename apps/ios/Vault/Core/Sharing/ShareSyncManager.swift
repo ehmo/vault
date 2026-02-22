@@ -33,6 +33,22 @@ final class ShareSyncManager {
     var syncProgress: (current: Int, total: Int)?
     var lastSyncedAt: Date?
 
+    /// Per-share sync progress for UI display.
+    var perShareProgress: [String: ShareSyncProgress] = [:]
+
+    struct ShareSyncProgress {
+        var status: ShareSyncStatus
+        var fractionCompleted: Double
+        var message: String
+    }
+
+    enum ShareSyncStatus {
+        case waiting, building, uploading, done, error(String)
+    }
+
+    /// Maximum number of shares to sync concurrently.
+    private static let maxConcurrentSyncs = 3
+
     private var debounceTask: Task<Void, Never>?
     private var syncTask: Task<Void, Never>?
     private var deferredSyncVaultKey: VaultKey?
@@ -237,42 +253,50 @@ final class ShareSyncManager {
         // Capture CloudKit client before async work
         let capturedCloudKit = cloudKit
         
-        // Create a task group to wait for all uploads to complete
+        // Process up to maxConcurrentSyncs at a time
         Task { [weak self] in
             guard let self else {
                 task.setTaskCompleted(success: false)
                 return
             }
-            
-            // Track which uploads we started
-            var startedUploads: [String: Task<Void, Never>] = [:]
-            
-            // Start all uploads from MainActor
-            await MainActor.run { [weak self] in
-                guard let self else { return }
-                for shareVaultId in pendingIds {
-                    guard self.resumeTasks[shareVaultId] == nil else { continue }
-                    
-                    let uploadTask = Task { [weak self] in
-                        defer {
-                            Task { @MainActor [weak self] in
+
+            // Filter out shares already being resumed
+            let idsToResume: [String] = await MainActor.run {
+                pendingIds.filter { self.resumeTasks[$0] == nil }
+            }
+
+            await withTaskGroup(of: Void.self) { group in
+                var running = 0
+                var idIndex = 0
+
+                while idIndex < idsToResume.count || !group.isEmpty {
+                    while running < Self.maxConcurrentSyncs && idIndex < idsToResume.count {
+                        let shareVaultId = idsToResume[idIndex]
+                        idIndex += 1
+                        running += 1
+
+                        group.addTask { [weak self, capturedCloudKit] in
+                            // Create a tracked upload task to prevent duplicate resume attempts
+                            let uploadTask = Task<Void, Never> { [weak self] in
+                                guard let self else { return }
+                                await self.uploadStagedSync(shareVaultId: shareVaultId, cloudKit: capturedCloudKit)
+                            }
+                            await MainActor.run { [weak self] in
+                                self?.resumeTasks[shareVaultId] = uploadTask
+                            }
+                            await uploadTask.value
+                            await MainActor.run { [weak self] in
                                 self?.resumeTasks.removeValue(forKey: shareVaultId)
                             }
                         }
-                        guard let self else { return }
-                        await self.uploadStagedSync(shareVaultId: shareVaultId, cloudKit: capturedCloudKit)
                     }
-                    
-                    self.resumeTasks[shareVaultId] = uploadTask
-                    startedUploads[shareVaultId] = uploadTask
+                    if !group.isEmpty {
+                        await group.next()
+                        running -= 1
+                    }
                 }
             }
-            
-            // Wait for all started uploads to complete
-            for (_, uploadTask) in startedUploads {
-                _ = await uploadTask.result
-            }
-            
+
             shareSyncLogger.info("[bg-task] All pending sync uploads completed")
             task.setTaskCompleted(success: true)
         }
@@ -343,9 +367,20 @@ final class ShareSyncManager {
     }
 
     private func performSync(vaultKey: VaultKey) async {
+        // Check network conditions before starting
+        guard CloudKitSharingManager.canProceedWithNetwork() else {
+            syncStatus = .error("Waiting for Wi-Fi")
+            shareSyncLogger.info("Sync deferred: waiting for Wi-Fi (user preference)")
+            return
+        }
+
         beginBackgroundExecution()
-        defer { endBackgroundExecution() }
-        
+        IdleTimerManager.shared.disable()
+        defer {
+            IdleTimerManager.shared.enable()
+            endBackgroundExecution()
+        }
+
         // Capture vault key fingerprint for consistency verification
         let vaultKeyFingerprint = vaultKey.rawBytes.hashValue
         shareSyncLogger.info("Starting sync for vault with key hash: \(vaultKeyFingerprint, privacy: .private)")
@@ -385,123 +420,68 @@ final class ShareSyncManager {
             consumedByShareId = [:]
         }
 
-        // Upload to each active share
-        let totalShares = activeShares.count
-        var successCount = 0
+        // Pre-filter consumed and missing-key shares
         var missingKeyCount = 0
-        var shareUpdates: [(id: String, syncSequence: Int)] = []
         var consumedShareIds: Set<String> = []
+        var syncableShares: [(share: VaultStorage.ShareRecord, shareKeyData: Data)] = []
 
-        for (i, share) in activeShares.enumerated() {
-            do {
-                // Check if recipient has consumed this share
-                if consumedByShareId[share.id] == true {
-                    consumedShareIds.insert(share.id)
-                    shareSyncLogger.info("Share \(share.id, privacy: .public) consumed by recipient, skipping sync")
-                    continue
-                }
-                // Use the stored phrase-derived share key
-                guard let shareKeyData = share.shareKeyData else {
-                    missingKeyCount += 1
-                    continue
-                }
+        for share in activeShares {
+            if consumedByShareId[share.id] == true {
+                consumedShareIds.insert(share.id)
+                shareSyncLogger.info("Share \(share.id, privacy: .public) consumed by recipient, skipping sync")
+                continue
+            }
+            guard let shareKeyData = share.shareKeyData else {
+                missingKeyCount += 1
+                continue
+            }
+            syncableShares.append((share, shareKeyData))
+        }
 
-                let capturedIndex = index
-                let capturedVaultKey = vaultKey
-                let capturedShareKey = ShareKey(shareKeyData)
-                let capturedShareId = share.id
-                let capturedStorage = storage
+        // Initialize per-share progress
+        for (share, _) in syncableShares {
+            perShareProgress[share.id] = ShareSyncProgress(status: .waiting, fractionCompleted: 0.0, message: "Waiting...")
+        }
 
-                // Build SVDF to a temp file off main thread (streaming, O(largest_file) memory)
-                let buildResult: (svdfFileURL: URL, chunkHashes: [String], syncState: ShareSyncCache.SyncState)
-                do {
-                    buildResult = try await Task.detached(priority: .userInitiated) {
-                        try ShareSyncManager.buildIncrementalSharedVaultData(
-                            index: capturedIndex,
-                            vaultKey: capturedVaultKey,
-                            shareKey: capturedShareKey,
-                            shareVaultId: capturedShareId,
-                            storage: capturedStorage
+        // Sync up to maxConcurrentSyncs at a time using TaskGroup
+        var successCount = 0
+        var shareUpdates: [(id: String, syncSequence: Int)] = []
+
+        await withTaskGroup(of: (String, Bool, Int?).self) { group in
+            var running = 0
+            var shareIndex = 0
+
+            while shareIndex < syncableShares.count || !group.isEmpty {
+                // Launch up to maxConcurrentSyncs
+                while running < Self.maxConcurrentSyncs && shareIndex < syncableShares.count {
+                    let (share, shareKeyData) = syncableShares[shareIndex]
+                    shareIndex += 1
+                    running += 1
+                    group.addTask {
+                        await self.syncSingleShare(
+                            share: share,
+                            shareKeyData: shareKeyData,
+                            index: index,
+                            vaultKey: vaultKey
                         )
-                    }.value
-                } catch {
-                    shareSyncLogger.warning("Failed to build vault data for share \(capturedShareId, privacy: .public): \(error.localizedDescription, privacy: .public)")
-                    continue
+                    }
                 }
-
-                syncProgress = (i + 1, totalShares)
-
-                // Cancel any in-flight resume upload for this share to avoid
-                // reading stale SVDF data while we replace the staging directory.
-                // Wait briefly for cancellation to complete to avoid race conditions.
-                if let existingTask = resumeTasks[share.id] {
-                    existingTask.cancel()
-                    resumeTasks.removeValue(forKey: share.id)
-                    // Small delay to allow the cancelled task to clean up
-                    try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+                // Wait for one to finish before launching next
+                if let (shareId, success, syncSeq) = await group.next() {
+                    running -= 1
+                    if success, let seq = syncSeq {
+                        successCount += 1
+                        shareUpdates.append((id: shareId, syncSequence: seq))
+                    }
                 }
-
-                // Stage SVDF to persistent dir (replaces any old staging for this share)
-                let stagingDir = Self.syncStagingDir(for: share.id)
-                let stagedSvdfURL = Self.syncSvdfURL(for: share.id)
-                clearSyncStaging(for: share.id)
-                try FileManager.default.createDirectory(at: stagingDir, withIntermediateDirectories: true)
-                try FileManager.default.moveItem(at: buildResult.svdfFileURL, to: stagedSvdfURL)
-                try FileManager.default.setAttributes(
-                    [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
-                    ofItemAtPath: stagedSvdfURL.path
-                )
-
-                let keyFingerprint = vaultKey.rawBytes.hashValue
-                let currentSyncSeq = (buildResult.syncState.syncSequence) + 1
-                let pendingSyncState = PendingSyncState(
-                    shareVaultId: share.id,
-                    shareKeyData: shareKeyData,
-                    totalChunks: buildResult.chunkHashes.count,
-                    newChunkHashes: buildResult.chunkHashes,
-                    previousChunkHashes: buildResult.syncState.chunkHashes,
-                    createdAt: Date(),
-                    uploadFinished: false,
-                    vaultKeyFingerprint: String(keyFingerprint),
-                    manifest: buildResult.syncState.manifest,
-                    syncedFileIds: buildResult.syncState.syncedFileIds,
-                    syncSequence: currentSyncSeq
-                )
-                savePendingSyncState(pendingSyncState)
-
-                // Upload changed chunks from staged file (reads 2MB at a time)
-                try await cloudKit.syncSharedVaultIncrementalFromFile(
-                    shareVaultId: share.id,
-                    svdfFileURL: stagedSvdfURL,
-                    newChunkHashes: buildResult.chunkHashes,
-                    previousChunkHashes: buildResult.syncState.chunkHashes
-                )
-
-                // Save updated cache (copies file, doesn't load into memory)
-                let cache = ShareSyncCache(shareVaultId: share.id, vaultKeyFingerprint: String(keyFingerprint))
-                try cache.saveSVDF(from: stagedSvdfURL)
-
-                // Get file size for sync state
-                let fileAttrs = try FileManager.default.attributesOfItem(atPath: stagedSvdfURL.path)
-                let svdfSize = (fileAttrs[.size] as? Int) ?? 0
-
-                var updatedState = buildResult.syncState
-                updatedState.chunkHashes = buildResult.chunkHashes
-                updatedState.totalBytes = svdfSize
-                updatedState.syncSequence += 1
-                try cache.saveSyncState(updatedState)
-
-                // Upload succeeded — clear staging for this share
-                clearSyncStaging(for: share.id)
-
-                successCount += 1
-                shareUpdates.append((id: share.id, syncSequence: updatedState.syncSequence))
-            } catch {
-                shareSyncLogger.warning("Failed to sync share \(share.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
             }
         }
 
         syncProgress = nil
+        // Yield to drain any queued fire-and-forget progress tasks from onProgress callbacks
+        // before clearing, so stale entries don't reappear after removeAll.
+        await Task.yield()
+        perShareProgress.removeAll()
 
         // Remove consumed shares from the index
         if !consumedShareIds.isEmpty {
@@ -536,20 +516,141 @@ final class ShareSyncManager {
             }
         }
 
-        if successCount == totalShares {
+        let syncableCount = syncableShares.count
+        if syncableCount == 0 && missingKeyCount > 0 {
+            // All non-consumed shares are missing keys
+            syncStatus = .error("Shares need to be re-created to enable sync")
+            transaction.finish(status: .internalError)
+        } else if successCount == syncableCount {
             syncStatus = .upToDate
             lastSyncedAt = Date()
             transaction.finish(status: .ok)
-        } else if missingKeyCount == totalShares {
-            syncStatus = .error("Shares need to be re-created to enable sync")
-            transaction.finish(status: .internalError)
         } else if successCount > 0 {
-            syncStatus = .error("Synced \(successCount)/\(totalShares) shares")
+            syncStatus = .error("Synced \(successCount)/\(syncableCount) shares")
             lastSyncedAt = Date()
             transaction.finish(status: .ok)
-        } else {
+        } else if syncableCount > 0 {
             syncStatus = .error("Sync failed for all shares")
             transaction.finish(status: .internalError)
+        } else {
+            // All shares were consumed, nothing to sync
+            syncStatus = .upToDate
+            lastSyncedAt = Date()
+            transaction.finish(status: .ok)
+        }
+    }
+
+    /// Syncs a single share: builds SVDF, stages, uploads, and updates cache.
+    /// Returns (shareId, success, syncSequence).
+    private func syncSingleShare(
+        share: VaultStorage.ShareRecord,
+        shareKeyData: Data,
+        index: VaultStorage.VaultIndex,
+        vaultKey: VaultKey
+    ) async -> (String, Bool, Int?) {
+        let shareId = share.id
+        do {
+            perShareProgress[shareId] = ShareSyncProgress(status: .building, fractionCompleted: 0.0, message: "Building...")
+
+            let capturedIndex = index
+            let capturedVaultKey = vaultKey
+            let capturedShareKey = ShareKey(shareKeyData)
+            let capturedStorage = storage
+
+            // Build SVDF to a temp file off main thread (streaming, O(largest_file) memory)
+            let buildResult: (svdfFileURL: URL, chunkHashes: [String], syncState: ShareSyncCache.SyncState)
+            do {
+                buildResult = try await Task.detached(priority: .userInitiated) {
+                    try ShareSyncManager.buildIncrementalSharedVaultData(
+                        index: capturedIndex,
+                        vaultKey: capturedVaultKey,
+                        shareKey: capturedShareKey,
+                        shareVaultId: shareId,
+                        storage: capturedStorage
+                    )
+                }.value
+            } catch {
+                shareSyncLogger.warning("Failed to build vault data for share \(shareId, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                perShareProgress[shareId] = ShareSyncProgress(status: .error(error.localizedDescription), fractionCompleted: 0.0, message: "Build failed")
+                return (shareId, false, nil)
+            }
+
+            perShareProgress[shareId] = ShareSyncProgress(status: .uploading, fractionCompleted: 0.0, message: "Uploading...")
+
+            // Cancel any in-flight resume upload for this share
+            if let existingTask = resumeTasks[shareId] {
+                existingTask.cancel()
+                resumeTasks.removeValue(forKey: shareId)
+                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            }
+
+            // Stage SVDF to persistent dir
+            let stagingDir = Self.syncStagingDir(for: shareId)
+            let stagedSvdfURL = Self.syncSvdfURL(for: shareId)
+            clearSyncStaging(for: shareId)
+            try FileManager.default.createDirectory(at: stagingDir, withIntermediateDirectories: true)
+            try FileManager.default.moveItem(at: buildResult.svdfFileURL, to: stagedSvdfURL)
+            try FileManager.default.setAttributes(
+                [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+                ofItemAtPath: stagedSvdfURL.path
+            )
+
+            let keyFingerprint = vaultKey.rawBytes.hashValue
+            let currentSyncSeq = (buildResult.syncState.syncSequence) + 1
+            let pendingSyncState = PendingSyncState(
+                shareVaultId: shareId,
+                shareKeyData: shareKeyData,
+                totalChunks: buildResult.chunkHashes.count,
+                newChunkHashes: buildResult.chunkHashes,
+                previousChunkHashes: buildResult.syncState.chunkHashes,
+                createdAt: Date(),
+                uploadFinished: false,
+                vaultKeyFingerprint: String(keyFingerprint),
+                manifest: buildResult.syncState.manifest,
+                syncedFileIds: buildResult.syncState.syncedFileIds,
+                syncSequence: currentSyncSeq
+            )
+            savePendingSyncState(pendingSyncState)
+
+            // Upload changed chunks from staged file with progress callback
+            try await cloudKit.syncSharedVaultIncrementalFromFile(
+                shareVaultId: shareId,
+                svdfFileURL: stagedSvdfURL,
+                newChunkHashes: buildResult.chunkHashes,
+                previousChunkHashes: buildResult.syncState.chunkHashes,
+                onProgress: { [weak self] completed, total in
+                    Task { @MainActor [weak self] in
+                        let fraction = Double(completed) / Double(max(total, 1))
+                        self?.perShareProgress[shareId] = ShareSyncProgress(
+                            status: .uploading,
+                            fractionCompleted: fraction,
+                            message: "Uploading \(completed)/\(total) chunks"
+                        )
+                    }
+                }
+            )
+
+            // Save updated cache
+            let cache = ShareSyncCache(shareVaultId: shareId, vaultKeyFingerprint: String(keyFingerprint))
+            try cache.saveSVDF(from: stagedSvdfURL)
+
+            let fileAttrs = try FileManager.default.attributesOfItem(atPath: stagedSvdfURL.path)
+            let svdfSize = (fileAttrs[.size] as? Int) ?? 0
+
+            var updatedState = buildResult.syncState
+            updatedState.chunkHashes = buildResult.chunkHashes
+            updatedState.totalBytes = svdfSize
+            updatedState.syncSequence += 1
+            try cache.saveSyncState(updatedState)
+
+            clearSyncStaging(for: shareId)
+
+            perShareProgress[shareId] = ShareSyncProgress(status: .done, fractionCompleted: 1.0, message: "Done")
+            return (shareId, true, updatedState.syncSequence)
+        } catch {
+            shareSyncLogger.warning("Failed to sync share \(shareId, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            perShareProgress[shareId] = ShareSyncProgress(status: .error(error.localizedDescription), fractionCompleted: 0.0, message: "Failed")
+            return (shareId, false, nil)
         }
     }
 
@@ -747,6 +848,11 @@ final class ShareSyncManager {
     /// Scans staging directory for pending sync uploads and resumes them.
     /// No vault key needed — SVDF files are already share-key encrypted.
     func resumePendingSyncsIfNeeded(trigger: String) {
+        guard CloudKitSharingManager.canProceedWithNetwork() else {
+            shareSyncLogger.info("[resume] Skipping resume: waiting for Wi-Fi (user preference)")
+            return
+        }
+
         let pendingIds = pendingSyncShareVaultIds()
         guard !pendingIds.isEmpty else { return }
 

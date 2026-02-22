@@ -15,6 +15,7 @@ struct AppSettingsView: View {
     @AppStorage("showPatternFeedback") private var showFeedback = true
     @AppStorage("analyticsEnabled") private var analyticsEnabled = false
     @AppStorage("fileOptimization") private var fileOptimization = "optimized"
+    @AppStorage("networkPreference") private var networkPreference = "wifi"
 
     @State private var showingNuclearConfirmation = false
     @State private var showingPaywall = false
@@ -165,6 +166,19 @@ struct AppSettingsView: View {
                 } else {
                     Text("Keeps files at original size and format. Uses significantly more storage.")
                 }
+            }
+
+            // Network
+            Section {
+                Picker("Sync & Backup over", selection: $networkPreference) {
+                    Text("Wi-Fi Only").tag("wifi")
+                    Text("Wi-Fi & Cellular").tag("any")
+                }
+                .accessibilityIdentifier("app_network_preference")
+            } header: {
+                Text("Network")
+            } footer: {
+                Text("Controls when share syncs and iCloud backups run. Wi-Fi Only saves cellular data.")
             }
 
             // Storage Management
@@ -753,6 +767,12 @@ struct iCloudBackupSettingsView: View {
             } catch iCloudError.fileNotFound {
                 await MainActor.run {
                     errorMessage = "No vault data found to back up. Add some files first."
+                    isBackingUp = false
+                    backupStage = nil
+                }
+            } catch iCloudError.wifiRequired {
+                await MainActor.run {
+                    errorMessage = "Wi-Fi required. Change in Settings → Network to allow cellular."
                     isBackingUp = false
                     backupStage = nil
                 }

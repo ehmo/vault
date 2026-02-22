@@ -79,6 +79,19 @@ final class CloudKitSharingManager {
         currentNetworkType
     }
 
+    /// Whether the device is currently on WiFi or Ethernet.
+    static var isOnWiFi: Bool {
+        currentNetworkType == "wifi" || currentNetworkType == "ethernet"
+    }
+
+    /// Checks whether network conditions allow sync/upload/backup based on user preference.
+    /// Returns `true` if the user allows any network, or if currently on WiFi/Ethernet.
+    static func canProceedWithNetwork() -> Bool {
+        let preference = UserDefaults.standard.string(forKey: "networkPreference") ?? "wifi"
+        if preference == "any" { return true }
+        return isOnWiFi
+    }
+
     // MARK: - Key & ID Derivation
 
     /// Generates a unique share vault ID (UUID-based, not phrase-derived).
