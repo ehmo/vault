@@ -482,14 +482,16 @@ final class VaultViewModel {
                 self.importProgress = (successCount + failedCount, count)
             }
 
+            // Always clean up, whether cancelled or completed normally
+            self.importProgress = nil
+            IdleTimerManager.shared.enable()
+
             if Task.isCancelled {
                 workerTask.cancel()
                 vmLogger.warning("Photo import cancelled (imported=\(successCount), failed=\(failedCount))")
                 return
             }
 
-            self.importProgress = nil
-            IdleTimerManager.shared.enable()
             vmLogger.info("Import complete — success: \(successCount), failed: \(failedCount), files.count: \(self.files.count)")
 
             if failedCount > 0 && successCount == 0 {
@@ -596,13 +598,15 @@ final class VaultViewModel {
                 }
             }
 
-            if Task.isCancelled {
-                workerTask.cancel()
-                return
-            }
-
+            // Always clean up, whether cancelled or completed normally
             self.importProgress = nil
             IdleTimerManager.shared.enable()
+
+            if Task.isCancelled {
+                workerTask.cancel()
+                vmLogger.warning("File import cancelled (imported=\(successCount), failed=\(failedCount))")
+                return
+            }
 
             if failedCount > 0 && successCount == 0 {
                 self.toastMessage = .importFailed(failedCount, imported: 0, reason: lastErrorReason)
@@ -907,9 +911,8 @@ private enum ParallelImporter {
                         do {
                             if let file = try await importVideo(item: item, key: key, encryptionKey: encryptionKey, optimizationMode: optimizationMode) {
                                 continuation.yield(.imported(file))
-                            } else {
-                                continuation.yield(.failed(reason: nil))
                             }
+                            // nil return means Task was cancelled — don't count as failure
                         } catch {
                             continuation.yield(.failed(reason: error.localizedDescription))
                         }
@@ -924,9 +927,8 @@ private enum ParallelImporter {
                         do {
                             if let file = try await importImage(item: item, key: key, encryptionKey: encryptionKey, optimizationMode: optimizationMode) {
                                 continuation.yield(.imported(file))
-                            } else {
-                                continuation.yield(.failed(reason: nil))
                             }
+                            // nil return means Task was cancelled — don't count as failure
                         } catch {
                             continuation.yield(.failed(reason: error.localizedDescription))
                         }
@@ -959,8 +961,6 @@ private enum ParallelImporter {
                         do {
                             if let file = try await importFileFromURL(url: item.url, key: key, encryptionKey: encryptionKey, optimizationMode: optimizationMode) {
                                 continuation.yield(.imported(file))
-                            } else {
-                                continuation.yield(.failed(reason: nil))
                             }
                         } catch {
                             continuation.yield(.failed(reason: error.localizedDescription))
@@ -976,8 +976,6 @@ private enum ParallelImporter {
                         do {
                             if let file = try await importFileFromURL(url: item.url, key: key, encryptionKey: encryptionKey, optimizationMode: optimizationMode) {
                                 continuation.yield(.imported(file))
-                            } else {
-                                continuation.yield(.failed(reason: nil))
                             }
                         } catch {
                             continuation.yield(.failed(reason: error.localizedDescription))
