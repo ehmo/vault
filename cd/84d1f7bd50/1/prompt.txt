@@ -1,0 +1,119 @@
+Implement the following plan:
+
+# Skip Pattern Verification After Recovery Phrase Unlock
+
+## Context
+
+Logical fallacy: if a user forgets their pattern and recovers via recovery phrase, they can unlock the vault—but can't change their pattern, because `ChangePatternView` requires entering the current pattern first (which they've forgotten). The vault is already unlocked and authenticated; re-verifying identity is redundant.
+
+## Approach: Skip Verify Step When Pattern Is Unknown
+
+When `appState.currentPattern == nil`, the user opened the vault via recovery phrase (see `unlockWithKey` at `VaultApp.swift:344` which sets `currentPattern = nil`). In this case, skip the `verifyCurrent` step entirely—the user already proved their identity.
+
+This is better than asking for the phrase again because:
+- The vault is already unlocked—identity is proven
+- Re-entering the phrase is redundant UX friction
+- `currentPattern == nil` is a reliable signal (set only by recovery flow)
+
+## Changes
+
+### 1. ChangePatternView.swift — Skip verify step
+
+**a) Add `skipVerification` computed property:**
+```swift
+private var skipVerification: Bool {
+    appState.currentPattern == nil
+}
+```
+
+**b) Set initial step on appear:**
+Add `.onAppear` to the NavigationStack that checks `skipVerification` and transitions directly to `.createNew` if true.
+
+**c) Update progress indicator:**
+When skipping verification, show 2 steps instead of 3 (create + confirm). Adjust `stepIndex` accordingly.
+
+**d) Update step titles:**
+No title change needed for `verifyCurrent` since it won't be shown. But the `createNew` subtitle should stay the same.
+
+### 2. ChangePatternFlowState — Add `skipVerification` transition
+
+Add a method `skipVerification()` that transitions straight to `.createNew` without requiring a current pattern:
+```swift
+mutating func skipVerification() {
+    step = .createNew
+    currentPattern = []
+    newPattern = []
+    clearFeedback()
+    isProcessing = false
+}
+```
+
+### 3. UI Polish
+
+- When `skipVerification` is true, show an info banner below the title explaining why verification was skipped: "You unlocked with your recovery phrase, so pattern verification is not required."
+- Progress bar shows 2 steps instead of 3
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `ChangePatternView.swift` | Skip verify step when `currentPattern == nil`, adjust progress, add info banner |
+
+## Tests
+
+**New test file**: `VaultTests/ChangePatternFlowTests.swift`
+
+Unit tests for `ChangePatternFlowState` (pure state machine, no UI):
+- `testInitialStepIsVerifyCurrent` — default state starts at `.verifyCurrent`
+- `testSkipVerification_transitionsToCreateNew` — calling `skipVerification()` sets step to `.createNew`
+- `testSkipVerification_clearsState` — pattern arrays cleared, no errors
+- `testTransitionToCreate_setsPattern` — `transitionToCreate(currentPattern:)` stores pattern
+- `testTransitionToConfirm_setsNewPattern` — `transitionToConfirm(newPattern:)` stores new pattern
+- `testComplete_setsRecoveryPhrase` — `complete(with:)` stores phrase
+- `testResetForStartOver_resetsToVerify` — `resetForStartOver()` returns to `.verifyCurrent`
+- `testResetForStartOver_afterSkipVerification_resetsToVerify` — even after skip, reset goes to `.verifyCurrent` (important edge case)
+- `testBeginProcessingIfIdle_preventsDoubleProcessing` — idempotency guard
+- `testEndProcessing_allowsNewProcessing` — re-enables processing
+- `testStepIndex_withVerification` — step indices for 3-step flow: verify=0, create=0, confirm=1, complete=2
+- `testStepIndex_withSkippedVerification` — step indices for 2-step flow: create=0, confirm=1, complete=2 (same as 3-step for create/confirm/complete since the function just maps enum cases)
+- `testSkipVerification_afterPartialProgress_clearsState` — calling skip after setting partial state clears it
+- `testRecoveryUnlockSetsPatternNil` — verify `unlockWithKey` sets `currentPattern = nil` (integration-level, may mock AppState)
+
+Also add view-level tests:
+- `testChangePatternView_withRecoveryUnlock_skipsVerifyStep` — when `appState.currentPattern == nil`, the view starts on `.createNew`
+- `testChangePatternView_withPatternUnlock_showsVerifyStep` — when `appState.currentPattern != nil`, the view starts on `.verifyCurrent`
+- `testProgressIndicator_showsTwoSteps_whenSkippingVerification` — 2 capsules when skipping
+- `testProgressIndicator_showsThreeSteps_normally` — 3 capsules normally
+- `testInfoBanner_shownWhenSkippingVerification` — recovery info text visible
+- `testInfoBanner_hiddenNormally` — recovery info text not present
+
+## Verification
+
+1. Build: `xcodebuild build -scheme Vault -destination 'id=<device>'`
+2. Tests: `xcodebuild test -scheme Vault -destination 'id=<device>'`
+3. Deploy: `./scripts/deploy-phone.sh --launch`
+4. Manual test:
+   - Set up vault with pattern → change pattern works (3 steps: verify → create → confirm)
+   - Lock vault → use recovery phrase to unlock → change pattern skips verify (2 steps: create → confirm)
+   - Info banner visible when verification skipped
+   - After changing pattern, new pattern works for unlock
+   - Recovery phrase regenerated after change
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases.
+
+---
+
+Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases.
+
+---
+
+The change pattern after using passphrase is not working. I believe we have implemented it such that if user uses passphrase to get into the vault, then in change pattern for this vault we skip the verification which is not happening currently. I assume it was included in the last build.
+
+---
+
+it works now, commit and push
