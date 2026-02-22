@@ -1,0 +1,51 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "b0cf0fbcf752",
+  "session_id": "ca9778f4-add6-4ca0-bf67-3325d7f73387",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-22T03:32:32.097344Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Features/Onboarding/PatternSetupView.swift",
+    "apps/ios/Vault/Features/Onboarding/PermissionsView.swift",
+    "apps/ios/Vault/Features/Onboarding/WelcomeView.swift",
+    "apps/ios/Vault/Features/Settings/ChangePatternView.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift",
+    "apps/ios/Vault/Features/Sharing/JoinVaultView.swift",
+    "apps/ios/Vault/Features/Sharing/ShareVaultView.swift",
+    "apps/ios/Vault/Features/Sharing/SharedVaultInviteView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Grid.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Toolbar.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift",
+    "apps/ios/Vault/UI/Components/FileOperationProgressCard.swift",
+    "apps/ios/Vault/UI/Components/PatternValidationFeedbackView.swift",
+    "apps/ios/Vault/UI/Components/PendingImportBanner.swift",
+    "apps/ios/VaultTests/DynamicTypeTruncationTests.swift",
+    "apps/ios/VaultTests/FileOperationProgressCardTests.swift",
+    "apps/ios/VaultTests/ShareLinkEncoderTests.swift",
+    "apps/ios/VaultTests/VaultViewModelTests.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "161ad7b8-d690-4da2-af9b-7340e5062b81",
+  "checkpoint_transcript_start": 544,
+  "transcript_lines_at_start": 544,
+  "token_usage": {
+    "input_tokens": 72,
+    "cache_creation_tokens": 68509,
+    "cache_read_tokens": 8948862,
+    "output_tokens": 2432,
+    "api_call_count": 66
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-22T03:32:31.659681Z",
+    "agent_lines": 154,
+    "human_added": 3210,
+    "human_modified": 30,
+    "human_removed": 0,
+    "total_committed": 3394,
+    "agent_percentage": 4.537418974661167
+  }
+}

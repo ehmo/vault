@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "b0cf0fbcf752",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Features/Onboarding/PatternSetupView.swift",
+    "apps/ios/Vault/Features/Onboarding/PermissionsView.swift",
+    "apps/ios/Vault/Features/Onboarding/WelcomeView.swift",
+    "apps/ios/Vault/Features/Settings/ChangePatternView.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift",
+    "apps/ios/Vault/Features/Sharing/JoinVaultView.swift",
+    "apps/ios/Vault/Features/Sharing/ShareVaultView.swift",
+    "apps/ios/Vault/Features/Sharing/SharedVaultInviteView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Grid.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Toolbar.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift",
+    "apps/ios/Vault/UI/Components/FileOperationProgressCard.swift",
+    "apps/ios/Vault/UI/Components/PatternValidationFeedbackView.swift",
+    "apps/ios/Vault/UI/Components/PendingImportBanner.swift",
+    "apps/ios/VaultTests/DynamicTypeTruncationTests.swift",
+    "apps/ios/VaultTests/FileOperationProgressCardTests.swift",
+    "apps/ios/VaultTests/ShareLinkEncoderTests.swift",
+    "apps/ios/VaultTests/VaultViewModelTests.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b0/cf0fbcf752/0/metadata.json",
+      "transcript": "/b0/cf0fbcf752/0/full.jsonl",
+      "context": "/b0/cf0fbcf752/0/context.md",
+      "content_hash": "/b0/cf0fbcf752/0/content_hash.txt",
+      "prompt": "/b0/cf0fbcf752/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 72,
+    "cache_creation_tokens": 68509,
+    "cache_read_tokens": 8948862,
+    "output_tokens": 2432,
+    "api_call_count": 66
+  }
+}
