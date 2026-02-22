@@ -1,0 +1,396 @@
+Implement the following plan:
+
+# Shared Vault "Update Now" UX — Button Placement, Progress Modal, and Resilience
+
+## Context
+
+When a shared vault has new files, two UI elements appear: the "Shared Vault" header row with the "Update Now" button, and a separate "New files available" strip below it. The button should be **on** the "New files available" strip, not above it. Additionally, tapping "Update Now" currently shows only a tiny spinner on the button — it should show the same full-screen progress modal used for file imports, with idle timer prevention and background task resilience.
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `apps/ios/Vault/Features/VaultViewer/VaultView+SharedVault.swift` | Move button to "New files available" strip; rewrite `downloadUpdate()` with progress, idle timer, background task; add per-file progress to `importSVDFDelta` and `importLegacyFull` |
+| `apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift` | Add `sharedVaultUpdateProgress` property; update `activeOperationProgress` to include it |
+
+No changes needed to: `VaultView.swift` (overlay already works), `FileOperationProgressCard.swift` (already generic), `CloudKitSharingManager.swift` (`onProgress` already supported), `IdleTimerManager.swift` (already reference-counted).
+
+## Changes
+
+### 1. VaultViewModel.swift — Add shared vault update progress
+
+**a) New property** (in "Shared Vault State" section, ~line 70):
+```swift
+var sharedVaultUpdateProgress: (completed: Int, total: Int, message: String)?
+```
+
+**b) Update `activeOperationProgress`** (~line 39) — add third source after existing `importProgress` and `transferManager.status`:
+```swift
+if let p = sharedVaultUpdateProgress {
+    return p
+}
+```
+
+This makes the existing overlay in `VaultView.swift:183-196` automatically display `FileOperationProgressCard` during shared vault updates.
+
+### 2. VaultView+SharedVault.swift — Move button
+
+**a) Remove** the "Update Now" button from the "Shared Vault" header HStack (Section A, lines 22-35).
+
+**b) Add** it into the "New files available" HStack (Section C, lines 44-55):
+```swift
+if viewModel.updateAvailable {
+    HStack {
+        Image(systemName: "arrow.down.circle.fill")
+            .foregroundStyle(.tint)
+        Text("New files available")
+            .font(.caption)
+        Spacer()
+        Button(action: { Task { await downloadUpdate() } }) {
+            // same button content as before (spinner or "Update Now")
+        }
+        .vaultProminentButtonStyle()
+        .controlSize(.mini)
+        .disabled(viewModel.isUpdating)
+    }
+    .padding(.horizontal)
+    .padding(.vertical, 4)
+    .background(Color.accentColor.opacity(0.1))
+}
+```
+
+### 3. VaultView+SharedVault.swift — Rewrite `downloadUpdate()` with full resilience
+
+Add three capabilities:
+- **IdleTimerManager**: `disable()` before, `enable()` in defer
+- **Background task**: `beginBackgroundTask` with expiration handler that cleans up progress state
+- **Two-phase progress**: Download chunks = 0→70%, Import files = 70→100%
+
+Use `onProgress` callback on `downloadUpdatedVault` for chunk-level progress. A `bgTaskCleaned` flag prevents double-cleanup between expiration handler and defer.
+
+On error, show toast via `viewModel.toastMessage`. On success, set `updateAvailable = false` and refresh files.
+
+### 4. VaultView+SharedVault.swift — Add per-file progress to import functions
+
+**`importSVDFDelta`**: Add counter in the `for entry in manifest where newIds.contains(entry.id)` loop. After each file stored, update `viewModel.sharedVaultUpdateProgress` mapping to 70→100 range with message "Importing X of Y..."
+
+**`importLegacyFull`**: Same pattern in the `for file in sharedVault.files` loop.
+
+## Progress Flow
+
+```
+Tap "Update Now" on "New files available" strip
+  → isUpdating=true (button spinner)
+  → sharedVaultUpdateProgress = (0, 100, "Downloading update...")
+  → Overlay appears with FileOperationProgressCard
+  → Download chunks: progress 0%→70%, "Downloading update..."
+  → Import files: progress 70%→100%, "Importing X of Y..."
+  → sharedVaultUpdateProgress = nil (overlay disappears)
+  → updateAvailable = false (strip disappears)
+  → loadFiles() (grid refreshes)
+```
+
+## Verification
+
+1. Build: `xcodebuild build -scheme Vault -destination 'id=<device>'`
+2. Deploy: `./scripts/deploy-phone.sh --launch`
+3. Manual test:
+   - Open shared vault with pending update → "New files available" strip shows with "Update Now" button
+   - Tap "Update Now" → full-screen progress modal appears
+   - Progress advances through download (0→70%) and import (70→100%)
+   - On completion: modal disappears, "New files available" strip disappears, new files visible in grid
+   - Screen stays on during entire operation (idle timer disabled)
+4. Verify no regression: imports, deletes, initial share import still show progress correctly
+5. Verify `SharedVaultBannerTests.swift` still passes (tests only cover policy details, not the button placement)
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases.
+
+---
+
+Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases.
+
+---
+
+I want to redo the onboarding workflow. Can you extract the screens into a html version we can work on it more easily?
+
+---
+
+Extract all design assets from both web and ios app and put them in structured folders under ./design so they can be accessed in the future
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **First Task: Shared Vault "Update Now" UX Implementation**
+   - User provided a detailed implementation plan for moving the "Update Now" button, adding progress modal, and resilience features
+   - I read both target files (VaultView+SharedVault.swift and VaultViewModel.swift)
+   - I checked the `downloadUpdatedVault` method signature (has `onProgress` callback), `IdleTimerManager` (reference-counted), and `beginBackgroundTask` patterns used elsewhere in the codebase
+   - Created 4 tasks (#51-#54) to track the work
+   - Made all the changes as specified in the plan
+   - Added `import UIKit` to VaultView+SharedVault.swift for UIApplication/UIBackgroundTaskIdentifier
+   - Built successfully, ran SharedVaultBannerTests (12 tests, 0 failures)
+
+2. **First Code Review (user request: "Review all code you just written for bugs")**
+   - Found Bug 1: `handleVaultKeyChange` doesn't reset `sharedVaultUpdateProgress` or `isUpdating` — could leave overlay stuck
+   - Found Bug 2: Double `IdleTimerManager.enable()` when background task expires (expiration handler + defer both call enable())
+   - Fixed both bugs
+   - Built successfully, re-ran tests (12 tests, 0 failures)
+
+3. **Second Code Review (user request: "Review all code you just written for bugs" again)**
+   - Did thorough second-pass review tracing all scenarios
+   - No new bugs found beyond what was already fixed
+   - Noted cosmetic non-issue: stale onProgress Tasks could briefly flicker progress
+
+4. **User requested: "When you are done, write thorough tests, then send the new version to the phone and bundle all changes and send to testflight"**
+   - Wrote 7 new tests in VaultViewModelTests.swift for sharedVaultUpdateProgress
+   - All 21 tests passed (14 existing + 7 new)
+   - Deployed to phone via `deploy-phone.sh --launch`
+   - Deployed to TestFlight via `deploy-testflight.sh --bump` (build 130)
+   - Committed with descriptive message, synced beads, pushed to remote
+
+5. **User requested: "I want to redo the onboarding workflow. Can you extract the screens into a html version"**
+   - Read all 8 onboarding SwiftUI files
+   - Read VaultTheme.swift for color tokens and button styles
+   - Read color asset catalogs for exact color values
+   - Created `apps/ios/onboarding-prototype.html` with all 8 screens in iPhone frame
+   - Opened in browser
+
+6. **User requested: "Extract all design assets from both web and ios app and put them in structured folders under ./design"**
+   - Found all iOS assets: images (VaultLogo, ProtectedByDesignSeal, AppIcon), color sets (6 colors), screenshots (raw + framed)
+   - Found all web assets: logos, favicons, social share image, mockup thumbnails, competitor icons, CSS files
+   - Read all 6 color set Contents.json files for exact color values
+   - Created directory structure: `design/{colors,icons,images,screenshots/{raw,framed},web/{logos,favicons,social,mockups,competitor-icons,css},prototypes,theme}`
+   - Was about to start copying files when the summary was requested
+
+Let me catalog the exact files modified and code changes:
+
+**VaultViewModel.swift changes:**
+1. Added `sharedVaultUpdateProgress` property after `isUpdating`
+2. Added `if let p = sharedVaultUpdateProgress { return p }` to `activeOperationProgress`
+3. Added cleanup in `handleVaultKeyChange`: `if sharedVaultUpdateProgress != nil { sharedVaultUpdateProgress = nil; isUpdating = false }`
+
+**VaultView+SharedVault.swift changes:**
+1. Added `import UIKit`
+2. Removed "Update Now" button from header HStack (lines 22-35)
+3. Added button into "New files available" HStack (lines 44-55)
+4. Rewrote `downloadUpdate()` with IdleTimerManager, beginBackgroundTask, onProgress callback, two-phase progress
+5. Changed `importSVDFDelta` to use `newEntries` array with enumerated loop and per-file progress
+6. Changed `importLegacyFull` to use enumerated loop with per-file progress
+
+**VaultViewModelTests.swift changes:**
+Added 7 new tests for sharedVaultUpdateProgress
+
+**Created file:**
+`apps/ios/onboarding-prototype.html` — full HTML prototype of 8 onboarding screens
+
+The design asset extraction was in progress — directory structure was created but files hadn't been copied yet.
+
+Summary:
+1. Primary Request and Intent:
+   - **Task 1**: Implement "Update Now" UX improvements for shared vaults — move button from header to "New files available" strip, add full-screen progress modal with IdleTimerManager and background task resilience, two-phase progress (download 0→70%, import 70→100%)
+   - **Task 2**: Review all written code for bugs twice (two separate review passes requested)
+   - **Task 3**: Write thorough tests, deploy to phone, and upload to TestFlight
+   - **Task 4**: Extract onboarding screens into HTML prototype for redesign iteration
+   - **Task 5**: Extract ALL design assets from both iOS and web apps into structured `./design` folders
+
+2. Key Technical Concepts:
+   - SwiftUI `@Observable` view model with computed `activeOperationProgress` property serving as unified progress source for overlay
+   - `IdleTimerManager` — reference-counted singleton; `disable()` increments count, `enable()` decrements with guard against going below 0
+   - `UIApplication.shared.beginBackgroundTask` with expiration handler pattern (same as used in ShareSyncManager, iCloudBackupManager)
+   - `CloudKitSharingManager.shared.downloadUpdatedVault` has `onProgress: ((Int, Int) -> Void)?` callback for chunk-level download progress
+   - Two-phase progress mapping: download chunks → 0-70% range, per-file import → 70-100% range
+   - `bgTaskCleaned` flag to prevent double-cleanup between expiration handler and defer block
+   - Xcode asset catalog color sets with light/dark/high-contrast variants
+   - VaultTheme.swift view modifiers: `vaultProminentButtonStyle()`, `vaultGlassBackground()`, `vaultSecondaryButtonStyle()`
+   - Beads issue tracker (`bd`) for multi-session work tracking
+
+3. Files and Code Sections:
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift`**
+     - Core view model with unified progress overlay. Three changes made:
+     - Added `sharedVaultUpdateProgress` property (line 74):
+       ```swift
+       var sharedVaultUpdateProgress: (completed: Int, total: Int, message: String)?
+       ```
+     - Wired into `activeOperationProgress` (after transferManager check):
+       ```swift
+       if let p = sharedVaultUpdateProgress {
+           return p
+       }
+       ```
+     - Added cleanup in `handleVaultKeyChange` (after `isDeleteInProgress = false`):
+       ```swift
+       if sharedVaultUpdateProgress != nil {
+           sharedVaultUpdateProgress = nil
+           isUpdating = false
+       }
+       ```
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView+SharedVault.swift`**
+     - Contains shared vault banner view and download/import logic. Major changes:
+     - Added `import UIKit` for UIApplication/UIBackgroundTaskIdentifier
+     - Removed "Update Now" button from header HStack, moved into "New files available" strip:
+       ```swift
+       if viewModel.updateAvailable {
+           HStack {
+               Image(systemName: "arrow.down.circle.fill").foregroundStyle(.tint)
+               Text("New files available").font(.caption)
+               Spacer()
+               Button(action: { Task { await downloadUpdate() } }) {
+                   if viewModel.isUpdating { ProgressView().scaleEffect(0.7) }
+                   else { Text("Update Now").font(.caption).fontWeight(.medium) }
+               }
+               .vaultProminentButtonStyle().controlSize(.mini)
+               .disabled(viewModel.isUpdating)
+               .accessibilityLabel(viewModel.isUpdating ? "Updating shared vault" : "Update shared vault")
+           }
+           .padding(.horizontal).padding(.vertical, 4)
+           .background(Color.accentColor.opacity(0.1))
+       }
+       ```
+     - Rewrote `downloadUpdate()` with full resilience — IdleTimerManager, beginBackgroundTask with expiration handler, onProgress callback for download phase (0→70%), error toast:
+       ```swift
+       func downloadUpdate() async {
+           guard let key = appState.currentVaultKey,
+                 let vaultId = viewModel.sharedVaultId else { return }
+           viewModel.isUpdating = true
+           viewModel.sharedVaultUpdateProgress = (completed: 0, total: 100, message: "Downloading update...")
+           IdleTimerManager.shared.disable()
+           var bgTaskCleaned = false
+           var bgTaskId: UIBackgroundTaskIdentifier = .invalid
+           bgTaskId = UIApplication.shared.beginBackgroundTask(withName: "SharedVaultUpdate") {
+               bgTaskCleaned = true
+               Task { @MainActor [weak viewModel] in
+                   viewModel?.sharedVaultUpdateProgress = nil
+                   viewModel?.isUpdating = false
+                   IdleTimerManager.shared.enable()
+               }
+               UIApplication.shared.endBackgroundTask(bgTaskId)
+               bgTaskId = .invalid
+           }
+           defer {
+               viewModel.isUpdating = false
+               viewModel.sharedVaultUpdateProgress = nil
+               if !bgTaskCleaned {
+                   IdleTimerManager.shared.enable()
+                   if bgTaskId != .invalid { UIApplication.shared.endBackgroundTask(bgTaskId) }
+               }
+           }
+           // ... download with onProgress, import, version update, error handling
+       }
+       ```
+     - Added per-file progress to `importSVDFDelta` (70→100% range):
+       ```swift
+       let newEntries = manifest.filter { newIds.contains($0.id) && !$0.deleted }
+       for (idx, entry) in newEntries.enumerated() {
+           // ... decrypt, store ...
+           let pct = newEntries.count > 0 ? 70 + Int(Double(idx + 1) / Double(newEntries.count) * 30) : 100
+           viewModel.sharedVaultUpdateProgress = (completed: pct, total: 100, message: "Importing \(idx + 1) of \(newEntries.count)...")
+       }
+       ```
+     - Same pattern added to `importLegacyFull`
+
+   - **`apps/ios/VaultTests/VaultViewModelTests.swift`**
+     - Added 7 new tests (total 21, all passing):
+       - `testSharedVaultUpdateProgress_NilByDefault`
+       - `testActiveOperationProgress_ShowsSharedVaultUpdateProgress`
+       - `testActiveOperationProgress_ImportTakesPriorityOverSharedVaultUpdate`
+       - `testActiveOperationProgress_SharedVaultUpdateDisappearsWhenCleared`
+       - `testActiveOperationProgress_SharedVaultUpdateProgressMessages`
+       - `testHandleVaultKeyChange_ClearsSharedVaultUpdateProgress`
+       - `testHandleVaultKeyChange_NoOpWhenNoUpdateInProgress`
+
+   - **`apps/ios/onboarding-prototype.html`** (created)
+     - Full HTML prototype with all 8 onboarding screens in iPhone frame
+     - Screens: Welcome, Permissions (interactive Allow buttons), Analytics Consent, Paywall (with Skip), Thank You, Rating (with auto-rotating review carousel), Pattern Create/Confirm (interactive 5x5 grid), Recovery Phrase (auto/custom mode toggle)
+     - Uses exact color tokens from VaultTheme.swift with light/dark mode support
+
+   - **`apps/ios/Vault/UI/Theme/VaultTheme.swift`** (read only)
+     - Design tokens documented in comments and view modifier implementations
+
+   - **Color asset catalogs** (read only, 6 files — exact sRGB values extracted):
+     - AccentColor: Light `rgb(0.122, 0.051, 0.467)` → `#1f0d77`, Dark `rgb(0.800, 0.765, 0.973)` → `#ccc3f8`
+     - VaultBackground: Light `rgb(0.820, 0.820, 0.914)` → `#d1d1e9`, Dark `rgb(0.125, 0.137, 0.235)` → `#20233c`
+     - VaultSurface: Light `rgb(1.0, 1.0, 0.996)` → `#fffffe`, Dark `rgb(0.196, 0.204, 0.267)` → `#323444`
+     - VaultText: Light `rgb(0.169, 0.173, 0.204)` → `#2b2c34`, Dark `rgb(0.910, 0.910, 0.941)` → `#e8e8f0`
+     - VaultSecondaryText: Light `rgba(0.169, 0.173, 0.204, 0.70)`, Dark `rgba(0.910, 0.910, 0.941, 0.78)`
+     - VaultHighlight: Light `rgb(0.894, 0.345, 0.345)` → `#e45858`, Dark `rgb(1.0, 0.435, 0.435)` → `#ff6f6f`
+
+   - **Onboarding SwiftUI files** (all read for HTML extraction):
+     - `OnboardingView.swift` — Flow coordinator, 6 steps enum, progress bar, navigation
+     - `WelcomeView.swift` — Logo, 4 feature rows, "Protect Your First Vault" CTA
+     - `PermissionsView.swift` — 3 permission rows (notifications, camera, photos) with Allow buttons
+     - `AnalyticsConsentView.swift` — Enable/decline analytics
+     - `PaywallStepView.swift` — Wraps VaultairePaywallView
+     - `ThankYouView.swift` — "Protected by Design" seal + 4 feature rows
+     - `RatingView.swift` — "1M+ vaults created" stat, avatar stack, review carousel, Rate/Not Now
+     - `PatternSetupView.swift` — 3-step: create pattern → confirm → recovery phrase
+     - `PatternSetupCoordinator.swift` — Key derivation, vault creation, recovery phrase saving
+
+4. Errors and fixes:
+   - **Build destination error**: Initial xcodebuild used wrong device ID `00008120-000E75A63CC8401E`. Fixed by discovering the correct device ID `00008140-001A00141163001C` from available destinations listing.
+   - **No Xcode project at root**: `xcodebuild` failed because it looked at repo root. Fixed by specifying `-project /Users/nan/Work/ai/vault/apps/ios/Vault.xcodeproj`.
+   - **Simulator name collision**: Two "iPhone 17 Pro" simulators existed. Fixed by using specific simulator UUID `1E2BEFBC-2FBC-49D2-84B5-5DE55338CF79`.
+   - **Bug 1 found in review**: `handleVaultKeyChange` didn't reset `sharedVaultUpdateProgress`/`isUpdating`, leaving progress overlay stuck on vault key change. Fixed by adding conditional cleanup block.
+   - **Bug 2 found in review**: Double `IdleTimerManager.enable()` — expiration handler enqueued enable() via Task AND defer block also called enable(). Fixed by guarding the defer's enable/endBackgroundTask with `if !bgTaskCleaned`.
+   - **Git pull --rebase with unstaged changes**: Couldn't pull because of unrelated unstaged changes. Fixed with `git stash && git pull --rebase && git stash pop && git push`.
+   - **SourceKit false positive**: `No such module 'UIKit'` diagnostic from SourceKit — not a real error since the actual build succeeded (iOS target).
+   - **Rate limit errors**: Explore subagents hit rate limits when searching for design assets. Worked around by using direct Glob calls instead.
+
+5. Problem Solving:
+   - Successfully implemented the full "Update Now" UX plan with resilience features
+   - Identified and fixed 2 bugs through code review (handleVaultKeyChange cleanup, double-enable)
+   - Created interactive HTML prototype for onboarding redesign work
+   - Design asset extraction in progress — directory structure created, file copying was next step
+
+6. All user messages:
+   - "Implement the following plan: [detailed plan for Shared Vault Update Now UX]"
+   - "Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases."
+   - "When you are done, write thorough tests, then send the new version to the phone and bundle all changes and send to testflight" (sent during the first review)
+   - "Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases." (second review request)
+   - "I want to redo the onboarding workflow. Can you extract the screens into a html version we can work on it more easily?"
+   - "Extract all design assets from both web and ios app and put them in structured folders under ./design so they can be accessed in the future"
+
+7. Pending Tasks:
+   - **Design asset extraction (in progress)**: Directory structure created at `./design/` with subdirectories. Need to copy all discovered assets into the structured folders. All asset paths have been discovered via Glob:
+     - iOS: AppIcon.png, vault-logo.png, protected-by-design-seal (1x/2x/3x), 6 color set JSON files, 5 raw screenshots, 5 framed screenshots
+     - Web: vault-logo.png, vault-logo-light.png, favicon.{svg,png,ico}, apple-touch-icon.png, social-share.png, compare-fallback-icon.svg, 10 competitor icons, 18 mockup thumbs, 7 CSS files (non-node_modules)
+     - Also need to create a design tokens reference file from the color values
+   - Session close protocol not yet run (no git add/commit/push for design work)
+
+8. Current Work:
+   I was in the middle of extracting design assets. The directory structure has been created:
+   ```
+   design/
+   ├── colors/
+   ├── icons/
+   ├── images/
+   ├── screenshots/
+   │   ├── raw/
+   │   └── framed/
+   ├── web/
+   │   ├── logos/
+   │   ├── favicons/
+   │   ├── social/
+   │   ├── mockups/
+   │   ├── competitor-icons/
+   │   └── css/
+   ├── prototypes/
+   └── theme/
+   ```
+   
+   I had just created the directories with `mkdir -p` and was about to start copying files when the summary was requested. All asset file paths have been discovered via Glob searches. The 6 color asset catalog JSON files have been read and their exact sRGB values extracted.
+
+9. Optional Next Step:
+   Copy all discovered design assets into the `./design/` directory structure. The user's most recent request was: "Extract all design assets from both web and ios app and put them in structured folders under ./design so they can be accessed in the future". The directory structure is created, all asset paths are known — next step is the actual file copying (cp commands) and creating a design tokens reference document from the extracted color values, then running the session close protocol (git add, bd sync, commit, push).
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
