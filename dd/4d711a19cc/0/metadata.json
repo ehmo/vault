@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "dd4d711a19cc",
+  "session_id": "ca9778f4-add6-4ca0-bf67-3325d7f73387",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-22T03:15:05.716935Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Features/Sharing/ShareVaultView.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "3bcf7f7e-0e48-444b-b0c7-af33d0085084",
+  "checkpoint_transcript_start": 449,
+  "transcript_lines_at_start": 449,
+  "token_usage": {
+    "input_tokens": 15,
+    "cache_creation_tokens": 10852,
+    "cache_read_tokens": 1191620,
+    "output_tokens": 647,
+    "api_call_count": 13
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-22T03:15:05.486658Z",
+    "agent_lines": 1,
+    "human_added": 2851,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2852,
+    "agent_percentage": 0.03506311360448808
+  }
+}

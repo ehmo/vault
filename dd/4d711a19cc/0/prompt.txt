@@ -1,0 +1,176 @@
+Implement the following plan:
+
+# Unified File Operation Progress Overlay
+
+## Context
+Two separate progress UIs exist for file operations — one glass card in the empty state (shared vault downloads), one plain overlay (local imports/deletes). The user wants a single unified glass-card modal for ALL file operations, shown as an overlay with a dimmed background so files populating behind it are visible.
+
+## Current State
+
+| Operation | Data Source | UI | Location |
+|-----------|-----------|-----|----------|
+| Photo/file import | `viewModel.importProgress: (Int, Int)?` | Plain text + progress bar (no glass) | Full-screen overlay in `VaultView.swift:183-192` |
+| Batch delete | `viewModel.importProgress` + `isDeleteInProgress` | Same plain overlay | Same overlay |
+| Pending imports (share ext) | `viewModel.importProgress` | Same plain overlay | Same overlay |
+| Shared vault download | `transferManager.displayProgress` (0-100) + `.currentMessage` | Glass card with PixelAnimation | **Inside empty state** only (`VaultView+Grid.swift:130-133`) |
+| Camera capture | None | No progress (single file, toast only) | N/A |
+
+**Problems:**
+1. Local import overlay has no glass card — inconsistent with shared vault download
+2. Shared vault download progress only visible when vault is empty — invisible if vault has files
+3. Two separate view builders, duplicated layout logic
+
+## Plan
+
+### Step 1: Create `FileOperationProgressCard` component
+
+**New file**: `Vault/UI/Components/FileOperationProgressCard.swift`
+
+A single reusable glass card view:
+
+```swift
+struct FileOperationProgressCard: View {
+    let completed: Int
+    let total: Int
+    let message: String
+
+    private var percentage: Int {
+        total > 0 ? Int(Double(completed) / Double(total) * 100) : 0
+    }
+
+    var body: some View {
+        VStack(spacing: 20) {
+            PixelAnimation.loading(size: 80)
+
+            VStack(spacing: 8) {
+                ProgressView(value: Double(completed), total: Double(total))
+                    .tint(.accentColor)
+
+                Text("\(percentage)%")
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(.vaultSecondaryText)
+            }
+
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.vaultSecondaryText)
+                .multilineTextAlignment(.center)
+        }
+        .padding(24)
+        .frame(maxWidth: 360)
+        .vaultGlassBackground(cornerRadius: 16)
+    }
+}
+```
+
+### Step 2: Add unified progress computed property to `VaultViewModel`
+
+**File**: `VaultViewModel.swift`
+
+Add a single computed property that merges all progress sources:
+
+```swift
+var activeOperationProgress: FileOperationProgressCard.Model? {
+    if let p = importProgress {
+        let msg = isDeleteInProgress
+            ? "Deleting \(p.completed) of \(p.total)..."
+            : "Importing \(p.completed) of \(p.total)..."
+        return .init(completed: p.completed, total: p.total, message: msg)
+    }
+    if case .importing = transferManager.status {
+        let p = max(0, min(transferManager.displayProgress, 100))
+        return .init(completed: p, total: 100, message: transferManager.currentMessage)
+    }
+    return nil
+}
+```
+
+Alternatively, keep it simpler — no nested model, just return a tuple or use the card directly in VaultView by checking both sources.
+
+### Step 3: Single overlay in `VaultView.swift`
+
+**File**: `VaultView.swift` — Replace the existing `importProgress` overlay (lines 183-192).
+
+Merge both progress sources into one overlay:
+
+```swift
+.overlay {
+    if let progress = viewModel.activeOperationProgress {
+        ZStack {
+            Color.black.opacity(0.4).ignoresSafeArea()
+            FileOperationProgressCard(
+                completed: progress.completed,
+                total: progress.total,
+                message: progress.message
+            )
+        }
+        .accessibilityIdentifier("vault_operation_progress")
+    }
+}
+```
+
+### Step 4: Remove old progress views from `VaultView+Grid.swift`
+
+**File**: `VaultView+Grid.swift`
+
+- **Delete** `importingProgressContent` (lines 219-244) — replaced by unified overlay
+- **Delete** `localImportProgressContent` (lines 246-267) — replaced by unified overlay
+- **Remove** the `importingProgressContent` usage from `emptyStateContent` (lines 130-133) — progress now shows as overlay, not inside empty state
+
+The empty state will just show "Waiting for files" for shared vaults regardless of download status. The progress overlay sits on top and is visible in all states.
+
+### Step 5: Add to Xcode target
+
+Add `FileOperationProgressCard.swift` to the Vault target in `project.pbxproj`.
+
+## Files Modified
+
+| File | Action |
+|------|--------|
+| `Vault/UI/Components/FileOperationProgressCard.swift` | **New**: unified glass card component |
+| `Vault/Features/VaultViewer/VaultViewModel.swift` | Add `activeOperationProgress` computed property |
+| `Vault/Features/VaultViewer/VaultView.swift` | Replace import overlay with unified overlay |
+| `Vault/Features/VaultViewer/VaultView+Grid.swift` | Delete `importingProgressContent`, `localImportProgressContent`; remove from `emptyStateContent` |
+| `Vault.xcodeproj/project.pbxproj` | Add new file to target |
+
+## Verification
+
+1. Build: `xcodebuild -project apps/ios/Vault.xcodeproj -scheme Vault -destination 'platform=iOS Simulator,id=1E2BEFBC-2FBC-49D2-84B5-5DE55338CF79' build`
+2. Deploy to phone: `./scripts/deploy-phone.sh`
+3. Test scenarios:
+   - Import photos from library → glass card overlay with "Importing X of Y..."
+   - Import documents → same glass card
+   - Batch delete → glass card with "Deleting X of Y..."
+   - Shared vault download (if testable) → glass card with transfer manager message
+4. Verify files appear behind the dimmed overlay during import
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases.
+
+---
+
+Push to git and then send it to the device for testing
+
+---
+
+When sharing a vault it's a link that is being shared. But in the selector there is no browser. Any reason for that? Can we somehow influence which apps are available?
+
+---
+
+[Image: source: /Users/nan/Downloads/IMG_2202.PNG]
+
+---
+
+On larger screens the first screen of onboarding is all smushed together (see image). Make it proportional with smaller screens than the default iphone 16 needing to scroll
+
+---
+
+Share vault's link still doesn't surface messages or safari (see image)
+
+---
+
+[Image: source: /Users/nan/Downloads/IMG_0016.PNG]
