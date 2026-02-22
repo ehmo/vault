@@ -1,0 +1,17 @@
+# Entire session files
+.entire/
+
+# Node modules
+node_modules/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Xcode
+build/
+DerivedData/
+*.ipa
+*.xcarchive
