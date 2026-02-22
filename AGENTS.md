@@ -28,10 +28,14 @@ bd sync && git push              # Complete
 # Upload to TestFlight (Release archive)
 ./scripts/deploy-testflight.sh          # archive + export + upload (current build number)
 ./scripts/deploy-testflight.sh --bump   # bump build number first, then archive + upload
+
+# Deploy website to Cloudflare Pages
+./scripts/deploy-web.sh                 # build CSS + deploy to production
+./scripts/deploy-web.sh --preview       # build CSS + deploy to preview URL
 ```
 
-**NEVER** run xcodebuild archive/export or asc builds upload manually. Always use the scripts.
-When asked to "deploy", "push to phone", "upload to TestFlight", or "push to devices" — use these scripts.
+**NEVER** run xcodebuild archive/export, asc builds upload, or wrangler pages deploy manually. Always use the scripts.
+When asked to "deploy", "push to phone", "upload to TestFlight", "push to devices", or "deploy the website" — use these scripts.
 
 ## Critical Rules
 
