@@ -18,6 +18,21 @@ bd sync && git push              # Complete
 | `apps/ios/` | SwiftUI, CloudKit, CryptoKit | `apps/ios/AGENTS.md` |
 | `apps/web/` | Cloudflare Pages, Tailwind v4 | `apps/web/AGENTS.md` |
 
+## Deployment (MANDATORY — use scripts, never ad-hoc)
+
+```bash
+# Install to physical iPhone (Debug build)
+./scripts/deploy-phone.sh          # build + install
+./scripts/deploy-phone.sh --launch # build + install + launch
+
+# Upload to TestFlight (Release archive)
+./scripts/deploy-testflight.sh          # archive + export + upload (current build number)
+./scripts/deploy-testflight.sh --bump   # bump build number first, then archive + upload
+```
+
+**NEVER** run xcodebuild archive/export or asc builds upload manually. Always use the scripts.
+When asked to "deploy", "push to phone", "upload to TestFlight", or "push to devices" — use these scripts.
+
 ## Critical Rules
 
 1. **Never**: Commit secrets, force push, delete issues without permission

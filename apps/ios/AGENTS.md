@@ -21,23 +21,13 @@ xcrun devicectl manage pair --device 00008140-001A00141163001C
 
 ### Build → Install → Launch (device)
 
+**ALWAYS use the deploy script** (from repo root):
 ```bash
-xcodebuild \
-  -workspace apps/ios/Vault.xcodeproj/project.xcworkspace \
-  -scheme Vault \
-  -configuration Debug \
-  -destination "id=00008140-001A00141163001C" \
-  -derivedDataPath /tmp/VaultDevice \
-  build
-
-xcrun devicectl device install app \
-  --device 00008140-001A00141163001C \
-  /tmp/VaultDevice/Build/Products/Debug-iphoneos/Vault.app
-
-xcrun devicectl device process launch \
-  --device 00008140-001A00141163001C \
-  app.vaultaire.ios
+./scripts/deploy-phone.sh          # build + install
+./scripts/deploy-phone.sh --launch # build + install + launch
 ```
+
+Never run xcodebuild/devicectl manually for device deployment.
 
 ### Build & Test (simulator)
 
@@ -101,11 +91,14 @@ Always use `-destination 'id=<UUID>'`, never `-destination 'name=...'` (duplicat
 - After build, run `simctl install` before Maestro — Maestro tests the installed app, not the build output
 
 ### Build & Deploy
-- **Physical device**: Use `xcrun devicectl` commands above — no TestFlight needed for dev
-- **TestFlight**: Check `asc builds list` BEFORE uploading (avoid "Redundant Binary Upload")
-- **Upload limit reached?**: Bump `MARKETING_VERSION` (e.g., 1.0.1 → 1.0.2)
-- **ASC API key**: `-authenticationKeyPath ~/.private_keys/AuthKey_GGJ9L8Y97B.p8 -authenticationKeyID GGJ9L8Y97B -authenticationKeyIssuerID 3c53a69e-b7d6-4d46-a26b-2f2d02c69ccb`
-- **Signing**: Debug = Automatic (team UFV835UGV6); Release = Manual + "Vault App Store" provisioning profile
+- **ALWAYS use deploy scripts** — never ad-hoc xcodebuild archive/export:
+  ```bash
+  ./scripts/deploy-phone.sh          # Debug build → install on iPhone
+  ./scripts/deploy-testflight.sh --bump  # Bump build number → archive → upload
+  ```
+- **Upload limit reached?**: Bump `MARKETING_VERSION` (e.g., 1.0.2 → 1.0.3)
+- **Signing**: Team `UFV835UGV6`, automatic signing style for export
+- **ASC App ID**: `6758529311`
 - **Sentry dSYM script**: Must be LAST build phase (after Embed Foundation Extensions) to avoid dependency cycle
 
 ## Pattern Consistency (MANDATORY)
