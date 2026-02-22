@@ -16,7 +16,6 @@ struct PhotosGridView: View {
     @State private var cellFrames: [UUID: CGRect] = [:]
     @State private var isDragSelecting = true
     @State private var isDragging = false
-    @State private var isDragVertical = false
     @State private var dragStartIndex: Int?
     @State private var currentDragTargetIds: Set<UUID> = []
     @State private var dragToggledIds: Set<UUID> = []
@@ -29,7 +28,6 @@ struct PhotosGridView: View {
                 if !editing {
                     cellFrames.removeAll()
                     isDragging = false
-                    isDragVertical = false
                     dragStartIndex = nil
                     currentDragTargetIds.removeAll()
                     dragToggledIds.removeAll()
@@ -119,16 +117,13 @@ struct PhotosGridView: View {
     // MARK: - Drag-to-Select
 
     private var dragSelectGesture: some Gesture {
-        DragGesture(minimumDistance: 30, coordinateSpace: .named("photosGrid"))
+        DragGesture(minimumDistance: 20, coordinateSpace: .named("photosGrid"))
             .onChanged { value in
                 guard isEditing else { return }
 
-                // Determine direction and starting item on first callback
+                // Setup on first callback
                 if !isDragging {
                     isDragging = true
-                    let dx = abs(value.translation.width)
-                    let dy = abs(value.translation.height)
-                    isDragVertical = dy > dx
                     dragStartIndex = nearestItemIndex(to: value.startLocation)
 
                     if let startIdx = dragStartIndex {
@@ -137,27 +132,16 @@ struct PhotosGridView: View {
                 }
 
                 guard let startIdx = dragStartIndex, startIdx < files.count else { return }
+                guard let currentIdx = nearestItemIndex(to: value.location) else { return }
 
-                let newTargetIds: Set<UUID>
-
-                if isDragVertical {
-                    // Row-span selection: select ALL items in rows from start to current
-                    guard let currentIdx = nearestItemIndex(to: value.location) else { return }
-                    let indices = DragRowSelector.indicesInRowSpan(
-                        itemCount: files.count,
-                        columns: columns.count,
-                        startIndex: startIdx,
-                        endIndex: currentIdx
-                    )
-                    newTargetIds = Set(indices.map { files[$0].id })
-                } else {
-                    // Horizontal: accumulate individual cells under the finger
-                    var ids = currentDragTargetIds
-                    if let id = cellId(at: value.location) {
-                        ids.insert(id)
-                    }
-                    newTargetIds = ids
-                }
+                // Always use row-span selection (Photos-app style)
+                let indices = DragRowSelector.indicesInRowSpan(
+                    itemCount: files.count,
+                    columns: columns.count,
+                    startIndex: startIdx,
+                    endIndex: currentIdx
+                )
+                let newTargetIds = Set(indices.map { files[$0].id })
 
                 var changed = false
 
@@ -188,15 +172,10 @@ struct PhotosGridView: View {
             }
             .onEnded { _ in
                 isDragging = false
-                isDragVertical = false
                 dragStartIndex = nil
                 currentDragTargetIds.removeAll()
                 dragToggledIds.removeAll()
             }
-    }
-
-    private func cellId(at point: CGPoint) -> UUID? {
-        cellFrames.first(where: { $0.value.contains(point) })?.key
     }
 
     /// Finds the index in `files` of the cell nearest to `point` by distance to frame center.
