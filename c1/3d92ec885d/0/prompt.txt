@@ -1,0 +1,449 @@
+Implement the following plan:
+
+# Unified File Operation Progress Overlay
+
+## Context
+Two separate progress UIs exist for file operations — one glass card in the empty state (shared vault downloads), one plain overlay (local imports/deletes). The user wants a single unified glass-card modal for ALL file operations, shown as an overlay with a dimmed background so files populating behind it are visible.
+
+## Current State
+
+| Operation | Data Source | UI | Location |
+|-----------|-----------|-----|----------|
+| Photo/file import | `viewModel.importProgress: (Int, Int)?` | Plain text + progress bar (no glass) | Full-screen overlay in `VaultView.swift:183-192` |
+| Batch delete | `viewModel.importProgress` + `isDeleteInProgress` | Same plain overlay | Same overlay |
+| Pending imports (share ext) | `viewModel.importProgress` | Same plain overlay | Same overlay |
+| Shared vault download | `transferManager.displayProgress` (0-100) + `.currentMessage` | Glass card with PixelAnimation | **Inside empty state** only (`VaultView+Grid.swift:130-133`) |
+| Camera capture | None | No progress (single file, toast only) | N/A |
+
+**Problems:**
+1. Local import overlay has no glass card — inconsistent with shared vault download
+2. Shared vault download progress only visible when vault is empty — invisible if vault has files
+3. Two separate view builders, duplicated layout logic
+
+## Plan
+
+### Step 1: Create `FileOperationProgressCard` component
+
+**New file**: `Vault/UI/Components/FileOperationProgressCard.swift`
+
+A single reusable glass card view:
+
+```swift
+struct FileOperationProgressCard: View {
+    let completed: Int
+    let total: Int
+    let message: String
+
+    private var percentage: Int {
+        total > 0 ? Int(Double(completed) / Double(total) * 100) : 0
+    }
+
+    var body: some View {
+        VStack(spacing: 20) {
+            PixelAnimation.loading(size: 80)
+
+            VStack(spacing: 8) {
+                ProgressView(value: Double(completed), total: Double(total))
+                    .tint(.accentColor)
+
+                Text("\(percentage)%")
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(.vaultSecondaryText)
+            }
+
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.vaultSecondaryText)
+                .multilineTextAlignment(.center)
+        }
+        .padding(24)
+        .frame(maxWidth: 360)
+        .vaultGlassBackground(cornerRadius: 16)
+    }
+}
+```
+
+### Step 2: Add unified progress computed property to `VaultViewModel`
+
+**File**: `VaultViewModel.swift`
+
+Add a single computed property that merges all progress sources:
+
+```swift
+var activeOperationProgress: FileOperationProgressCard.Model? {
+    if let p = importProgress {
+        let msg = isDeleteInProgress
+            ? "Deleting \(p.completed) of \(p.total)..."
+            : "Importing \(p.completed) of \(p.total)..."
+        return .init(completed: p.completed, total: p.total, message: msg)
+    }
+    if case .importing = transferManager.status {
+        let p = max(0, min(transferManager.displayProgress, 100))
+        return .init(completed: p, total: 100, message: transferManager.currentMessage)
+    }
+    return nil
+}
+```
+
+Alternatively, keep it simpler — no nested model, just return a tuple or use the card directly in VaultView by checking both sources.
+
+### Step 3: Single overlay in `VaultView.swift`
+
+**File**: `VaultView.swift` — Replace the existing `importProgress` overlay (lines 183-192).
+
+Merge both progress sources into one overlay:
+
+```swift
+.overlay {
+    if let progress = viewModel.activeOperationProgress {
+        ZStack {
+            Color.black.opacity(0.4).ignoresSafeArea()
+            FileOperationProgressCard(
+                completed: progress.completed,
+                total: progress.total,
+                message: progress.message
+            )
+        }
+        .accessibilityIdentifier("vault_operation_progress")
+    }
+}
+```
+
+### Step 4: Remove old progress views from `VaultView+Grid.swift`
+
+**File**: `VaultView+Grid.swift`
+
+- **Delete** `importingProgressContent` (lines 219-244) — replaced by unified overlay
+- **Delete** `localImportProgressContent` (lines 246-267) — replaced by unified overlay
+- **Remove** the `importingProgressContent` usage from `emptyStateContent` (lines 130-133) — progress now shows as overlay, not inside empty state
+
+The empty state will just show "Waiting for files" for shared vaults regardless of download status. The progress overlay sits on top and is visible in all states.
+
+### Step 5: Add to Xcode target
+
+Add `FileOperationProgressCard.swift` to the Vault target in `project.pbxproj`.
+
+## Files Modified
+
+| File | Action |
+|------|--------|
+| `Vault/UI/Components/FileOperationProgressCard.swift` | **New**: unified glass card component |
+| `Vault/Features/VaultViewer/VaultViewModel.swift` | Add `activeOperationProgress` computed property |
+| `Vault/Features/VaultViewer/VaultView.swift` | Replace import overlay with unified overlay |
+| `Vault/Features/VaultViewer/VaultView+Grid.swift` | Delete `importingProgressContent`, `localImportProgressContent`; remove from `emptyStateContent` |
+| `Vault.xcodeproj/project.pbxproj` | Add new file to target |
+
+## Verification
+
+1. Build: `xcodebuild -project apps/ios/Vault.xcodeproj -scheme Vault -destination 'platform=iOS Simulator,id=1E2BEFBC-2FBC-49D2-84B5-5DE55338CF79' build`
+2. Deploy to phone: `./scripts/deploy-phone.sh`
+3. Test scenarios:
+   - Import photos from library → glass card overlay with "Importing X of Y..."
+   - Import documents → same glass card
+   - Batch delete → glass card with "Deleting X of Y..."
+   - Shared vault download (if testable) → glass card with transfer manager message
+4. Verify files appear behind the dimmed overlay during import
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases.
+
+---
+
+Push to git and then send it to the device for testing
+
+---
+
+When sharing a vault it's a link that is being shared. But in the selector there is no browser. Any reason for that? Can we somehow influence which apps are available?
+
+---
+
+[Image: source: /Users/nan/Downloads/IMG_2202.PNG]
+
+---
+
+On larger screens the first screen of onboarding is all smushed together (see image). Make it proportional with smaller screens than the default iphone 16 needing to scroll
+
+---
+
+Share vault's link still doesn't surface messages or safari (see image)
+
+---
+
+[Image: source: /Users/nan/Downloads/IMG_0016.PNG]
+
+---
+
+There is a usability bug. If user clicks in the search the keyboard pops up but there is no way to dismiss it (see image). We need a way to do so. Clicking out of the focus of the search should do that.
+
+---
+
+[Image source: /Users/nan/Downloads/IMG_0256.jpeg]
+
+---
+
+The vault names have no limits. I guess we should truncate them at some point. See images for examples. Also I got a request to allow custom name for the vaults. We can add this functionality I assume. The name should carry through shared vaults too, regardless of the combination. Fix the name length and then plan the feature. Remember to add comprehensive test coverage for it before pushing to git and deploying to the phone.
+
+---
+
+[Image source: /Users/nan/Downloads/IMG_0257.jpeg]
+
+[Image source: /Users/nan/Downloads/IMG_0255.jpeg]
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me go through the conversation chronologically:
+
+1. **Unified File Operation Progress Overlay** - User provided a detailed plan to unify two separate progress UIs into one glass card modal. I:
+   - Created `FileOperationProgressCard.swift` - new reusable glass card component
+   - Added `activeOperationProgress` computed property to `VaultViewModel.swift`
+   - Updated `VaultView.swift` overlay to use the unified component
+   - Removed old `importingProgressContent` and `localImportProgressContent` from `VaultView+Grid.swift`
+   - Updated `project.pbxproj` to add the new file
+   - Built successfully, reviewed for bugs, committed and pushed
+
+2. **Share Sheet URL Bug** - User reported share sheet didn't show browsers. I:
+   - Found `ShareSheetHelper.present(items: [url.absoluteString])` was passing a String
+   - Changed to `[url]` (URL object) to show URL-compatible apps
+   - Built, committed, pushed, deployed
+
+3. **Welcome Screen Proportional Layout** - User showed screenshot of smushed onboarding on larger screens. I:
+   - Rewrote `WelcomeView.swift` body to use proportional spacing (`h * 0.08`, etc.)
+   - Wrapped content in ScrollView with `.scrollBounceBehavior(.basedOnSize)`
+   - Pinned CTA button outside scroll area
+   - Built, committed, pushed, deployed
+
+4. **Share Sheet URL Revert** - User reported share sheet STILL didn't show Messages or Safari. I:
+   - Discovered that sharing a URL object matching the app's Universal Links (Associated Domains for `vaultaire.app`) causes iOS to suppress messaging apps
+   - Reverted back to `url.absoluteString` (String) - this shows all messaging apps
+   - Explained Safari is never a share target on iOS
+   - Built, committed, pushed, deployed
+
+5. **Keyboard Dismiss on Scroll** - User reported no way to dismiss keyboard from search field. I:
+   - Added `.scrollDismissesKeyboard(.interactively)` to the file grid ScrollView in `VaultView+Grid.swift`
+   - Built, committed, pushed, deployed
+
+6. **Regression Tests** - User asked for deep tests for all bugs. I:
+   - Added 7 tests to `VaultViewModelTests.swift` for `activeOperationProgress`
+   - Added 3 tests to `ShareLinkEncoderTests.swift` for URL string safety
+   - Created `FileOperationProgressCardTests.swift` with 8 tests for percentage calculation
+   - All 49 tests passed, committed and pushed
+
+7. **Dynamic Type Truncation Fixes** - User showed 4 screenshots of truncated text at large Dynamic Type. I:
+   - Used Explore agents to audit ALL view files
+   - Found truncation in 11 files caused by `.frame(height: X)` and missing `.fixedSize`
+   - Fixed: PermissionsView, PatternSetupView, JoinVaultView, SharedVaultInviteView, ChangePatternView, SettingsView, PatternValidationFeedbackView, PendingImportBanner, VaultView+Toolbar
+   - Pattern: `frame(height:)` → `frame(minHeight:)` + `.fixedSize(horizontal: false, vertical: true)`
+   - Created `DynamicTypeTruncationTests.swift` with 8 tests
+   - Had compile error with `Int(Double(0)/Double(0)*100)` NaN - removed that test (already covered elsewhere)
+   - All tests passed, committed, pushed, deployed
+
+8. **Current Request** - User shows vault names are too long (no truncation), wants:
+   - Fix vault name length (truncate long auto-generated names)
+   - Plan custom vault naming feature (persists through shared vaults)
+   - Comprehensive tests
+   - Push to git and deploy
+
+Key files modified this session:
+- `FileOperationProgressCard.swift` (new)
+- `VaultViewModel.swift` (activeOperationProgress)
+- `VaultView.swift` (unified overlay)
+- `VaultView+Grid.swift` (removed old progress, added scrollDismissesKeyboard)
+- `ShareVaultView.swift` (URL→String→URL→String for share sheet)
+- `WelcomeView.swift` (proportional layout)
+- `PermissionsView.swift` (fixedSize on descriptions)
+- `PatternSetupView.swift` (minHeight, fixedSize)
+- `JoinVaultView.swift` (minHeight, fixedSize)
+- `SharedVaultInviteView.swift` (minHeight, fixedSize)
+- `ChangePatternView.swift` (minHeight, fixedSize)
+- `SettingsView.swift` (minHeight, fixedSize)
+- `PatternValidationFeedbackView.swift` (fixedSize on messages)
+- `PendingImportBanner.swift` (fixedSize on text)
+- `VaultView+Toolbar.swift` (lineLimit 1→2)
+- Test files: `FileOperationProgressCardTests.swift`, `DynamicTypeTruncationTests.swift`
+
+Important code patterns:
+- `GridLetterManager.shared.vaultName(for: pattern)` generates vault names from patterns
+- `appState.updateVaultName()` sets the vault name
+- `appState.vaultName` is displayed in toolbar
+- Vault names are like "Vault DKVSCVCDFZ" - derived from pattern grid letters
+
+Summary:
+1. Primary Request and Intent:
+   The user has been working through multiple iOS app (Vaultaire) UI/UX bugs and features this session:
+   - **Unified progress overlay**: Merge two separate file operation progress UIs into one glass card modal
+   - **Share sheet fix**: Fix which apps appear when sharing vault links
+   - **Welcome screen layout**: Fix proportional spacing on larger screens
+   - **Keyboard dismiss**: Add way to dismiss keyboard from search field
+   - **Dynamic Type truncation**: Fix all text truncation across all screens when large text settings are enabled
+   - **Regression tests**: Write comprehensive tests for all bugs fixed
+   - **CURRENT**: Fix vault name length (too long, overflows toolbar) and plan/implement custom vault naming feature that persists through shared vaults, with tests, then push and deploy
+
+2. Key Technical Concepts:
+   - SwiftUI `@Observable` macro for state management
+   - `.fixedSize(horizontal: false, vertical: true)` to prevent text truncation
+   - `.frame(minHeight:)` vs `.frame(height:)` for Dynamic Type support
+   - `.scrollDismissesKeyboard(.interactively)` for keyboard dismissal
+   - `UIActivityViewController` item types: `String` vs `URL` affects which apps appear in share sheet
+   - Universal Links / Associated Domains suppress messaging apps when sharing matching URLs
+   - `.scrollBounceBehavior(.basedOnSize)` for conditional scrolling
+   - Xcode `project.pbxproj` manual editing for adding files (PBXBuildFile, PBXFileReference, PBXGroup children, Sources build phase)
+   - `vaultGlassBackground(cornerRadius:)` custom modifier using iOS 26 `.glassEffect`
+   - `GridLetterManager.shared.vaultName(for: pattern)` generates vault names from pattern grid positions
+   - `appState.updateVaultName()` / `appState.vaultName` for vault naming
+
+3. Files and Code Sections:
+
+   - **`apps/ios/Vault/UI/Components/FileOperationProgressCard.swift`** (NEW)
+     - Unified glass card component for all file operations
+     ```swift
+     struct FileOperationProgressCard: View {
+         let completed: Int
+         let total: Int
+         let message: String
+         private var percentage: Int {
+             total > 0 ? Int(Double(completed) / Double(total) * 100) : 0
+         }
+         var body: some View {
+             VStack(spacing: 20) {
+                 PixelAnimation.loading(size: 80)
+                 VStack(spacing: 8) {
+                     ProgressView(value: Double(completed), total: Double(total))
+                         .tint(.accentColor)
+                     Text("\(percentage)%")
+                         .font(.subheadline.monospacedDigit())
+                         .foregroundStyle(.vaultSecondaryText)
+                 }
+                 Text(message)
+                     .font(.subheadline)
+                     .foregroundStyle(.vaultSecondaryText)
+                     .multilineTextAlignment(.center)
+             }
+             .padding(24)
+             .frame(maxWidth: 360)
+             .vaultGlassBackground(cornerRadius: 16)
+         }
+     }
+     ```
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift`**
+     - Added `activeOperationProgress` computed property that unifies import, delete, and shared vault download progress:
+     ```swift
+     var activeOperationProgress: (completed: Int, total: Int, message: String)? {
+         if let p = importProgress {
+             let msg = isDeleteInProgress
+                 ? "Deleting \(p.completed) of \(p.total)..."
+                 : "Importing \(p.completed) of \(p.total)..."
+             return (completed: p.completed, total: p.total, message: msg)
+         }
+         if case .importing = transferManager.status {
+             let p = max(0, min(transferManager.displayProgress, 100))
+             return (completed: p, total: 100, message: transferManager.currentMessage)
+         }
+         return nil
+     }
+     ```
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView.swift`**
+     - Lines 183-196: Replaced old `importProgress` overlay with unified overlay using `FileOperationProgressCard`
+     - Toolbar header at line 15 displays `appState.vaultName` (relevant to current task)
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView+Grid.swift`**
+     - Removed `importingProgressContent` and `localImportProgressContent` view builders
+     - Removed shared vault download progress from `emptyStateContent`
+     - Added `.scrollDismissesKeyboard(.interactively)` to file grid ScrollView
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView+Toolbar.swift`**
+     - Line 15: `Text(appState.vaultName)` displays the vault name in header (RELEVANT TO CURRENT TASK)
+     - Line 112: Changed `.lineLimit(1)` to `.lineLimit(2)` on "Select All" button
+
+   - **`apps/ios/Vault/Features/Sharing/ShareVaultView.swift`**
+     - Line 633: Share sheet items changed URL→String→URL→String (final: `url.absoluteString`)
+
+   - **`apps/ios/Vault/Features/Onboarding/WelcomeView.swift`**
+     - Rewrote body to use proportional height-based spacing, ScrollView with `.scrollBounceBehavior(.basedOnSize)`, pinned button at bottom
+
+   - **`apps/ios/Vault/Features/Onboarding/PermissionsView.swift`**
+     - Added `.fixedSize(horizontal: false, vertical: true)` to permission description texts (line ~104)
+
+   - **`apps/ios/Vault/Features/Onboarding/PatternSetupView.swift`**
+     - Line 54: `frame(height: 44)` → `frame(minHeight: 44)` + `.fixedSize(horizontal: false, vertical: true)` on subtitle
+     - Line 85: `frame(height: 80)` → `frame(minHeight: 80)` on validation container
+     - Line 233: `frame(height: 20)` → `frame(minHeight: 20)` on custom phrase validation
+     - Line 239: `frame(height: 190)` → `frame(minHeight: 190)` on phrase area
+     - Added `.fixedSize(horizontal: false, vertical: true)` on validation message text
+     - **Line 388**: `appState.updateVaultName(letters.isEmpty ? "Vault" : "Vault \(letters)")` — THIS IS WHERE VAULT NAME IS SET (relevant to current task)
+
+   - **`apps/ios/Vault/Features/Sharing/JoinVaultView.swift`**, **`SharedVaultInviteView.swift`**, **`ChangePatternView.swift`**, **`SettingsView.swift`**
+     - All: `frame(height: 44)` → `frame(minHeight: 44)` + `.fixedSize` on subtitle texts
+     - All: `frame(height: 80)` → `frame(minHeight: 80)` on validation containers
+
+   - **`apps/ios/Vault/UI/Components/PatternValidationFeedbackView.swift`**
+     - Added `.fixedSize(horizontal: false, vertical: true)` to error and warning text in HStacks
+
+   - **`apps/ios/Vault/UI/Components/PendingImportBanner.swift`**
+     - Added `.fixedSize(horizontal: false, vertical: true)` to banner text labels
+
+   - **Test files created/modified:**
+     - `VaultTests/FileOperationProgressCardTests.swift` (NEW, 8 tests)
+     - `VaultTests/DynamicTypeTruncationTests.swift` (NEW, 8 tests)
+     - `VaultTests/VaultViewModelTests.swift` (added 7 tests for activeOperationProgress)
+     - `VaultTests/ShareLinkEncoderTests.swift` (added 3 tests for URL string safety)
+
+4. Errors and Fixes:
+   - **Share sheet URL vs String**: Sharing `URL` object matching app's Universal Links domain suppressed Messages. Fix: reverted to sharing `url.absoluteString` as String.
+   - **NaN compile error in test**: `Int(Double(0)/Double(0)*100)` caused compile-time "Invalid conversion: 'NaN' overflows 'Int'" even inside a ternary that wouldn't execute. Fix: removed the test entirely since it was already covered in `FileOperationProgressCardTests`.
+   - **SourceKit diagnostics**: Throughout the session, SourceKit showed false-positive errors (e.g., "Cannot find 'PixelAnimation' in scope") that are transient cross-file resolution issues — builds always succeeded.
+
+5. Problem Solving:
+   - Unified two separate progress UIs by creating a computed property that merges both data sources with correct priority ordering
+   - Discovered that iOS share sheet behavior differs based on URL vs String items and Universal Links registration
+   - Systematic audit of all view files for Dynamic Type truncation using Explore agents
+   - Consistent pattern fix: `frame(height:)` → `frame(minHeight:)` + `.fixedSize(horizontal: false, vertical: true)`
+
+6. All User Messages:
+   - "Implement the following plan: # Unified File Operation Progress Overlay..." (detailed plan)
+   - "Review all code you just written for bugs..."
+   - "Push to git and then send it to the device for testing"
+   - "When sharing a vault it's a link that is being shared. But in the selector there is no browser..."
+   - "Share vault's link still doesn't surface messages or safari (see image)"
+   - "On larger screens the first screen of onboarding is all smushed together..."
+   - "There is a usability bug. If user clicks in the search the keyboard pops up but there is no way to dismiss it..."
+   - "Write deep tests for all of these bugs so we don't repeat them again"
+   - "When user has the larger text settings, many of the support texts are broken. See images. We need to fix them all..."
+   - "You review all other screens and make sure truncation doesn't occur when large settings is present."
+   - "Write comprehensive test coverage to catch this every time!"
+   - "The vault names have no limits. I guess we should truncate them at some point. See images for examples. Also I got a request to allow custom name for the vaults. We can add this functionality I assume. The name should carry through shared vaults too, regardless of the combination. Fix the name length and then plan the feature. Remember to add comprehensive test coverage for it before pushing to git and deploying to the phone."
+
+7. Pending Tasks:
+   - **Fix vault name length** — truncate long auto-generated vault names in the toolbar header
+   - **Plan custom vault naming feature** — allow users to set custom vault names that persist through shared vaults
+   - **Write comprehensive tests** for vault naming
+   - **Push to git and deploy to phone**
+
+8. Current Work:
+   The user's most recent request: "The vault names have no limits. I guess we should truncate them at some point. See images for examples. Also I got a request to allow custom name for the vaults. We can add this functionality I assume. The name should carry through shared vaults too, regardless of the combination. Fix the name length and then plan the feature. Remember to add comprehensive test coverage for it before pushing to git and deploying to the phone."
+   
+   The screenshots show vault names like "Vault DFUUCSVKHHZDQIZAQQVB..." overflowing the toolbar, and "Vault DKVSCVCDFZ" taking too much space. The vault name is displayed at `VaultView+Toolbar.swift:15` as `Text(appState.vaultName)` and generated at `PatternSetupView.swift:388` via `GridLetterManager.shared.vaultName(for: pattern)`.
+   
+   I need to:
+   1. First fix the immediate issue: truncate/limit the auto-generated vault name length
+   2. Then plan the custom vault naming feature (user can set a custom name, persists through shared vaults)
+   3. Write tests
+   4. Push and deploy
+
+9. Optional Next Step:
+   Start by exploring `GridLetterManager`, `AppState.vaultName`, and `AppState.updateVaultName` to understand how vault names are generated and stored, then fix the name length, then enter plan mode for the custom naming feature. Per user: "Fix the name length and then plan the feature."
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+[Request interrupted by user for tool use]
