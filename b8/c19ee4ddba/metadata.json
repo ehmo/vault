@@ -9,6 +9,8 @@
     "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift",
     "apps/ios/VaultTests/VaultViewModelTests.swift",
     "apps/ios/onboarding-prototype.html",
+    "design/logos/Gemini_Generated_Image_nj5u7cnj5u7cnj5u.png",
+    "design/logos/Gemini_Generated_Image_sfg24vsfg24vsfg2.png",
     "design/theme/design-tokens.json"
   ],
   "sessions": [
@@ -18,13 +20,20 @@
       "context": "/b8/c19ee4ddba/0/context.md",
       "content_hash": "/b8/c19ee4ddba/0/content_hash.txt",
       "prompt": "/b8/c19ee4ddba/0/prompt.txt"
+    },
+    {
+      "metadata": "/b8/c19ee4ddba/1/metadata.json",
+      "transcript": "/b8/c19ee4ddba/1/full.jsonl",
+      "context": "/b8/c19ee4ddba/1/context.md",
+      "content_hash": "/b8/c19ee4ddba/1/content_hash.txt",
+      "prompt": "/b8/c19ee4ddba/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 42,
-    "cache_creation_tokens": 368582,
-    "cache_read_tokens": 3366877,
-    "output_tokens": 4947,
-    "api_call_count": 36
+    "input_tokens": 54,
+    "cache_creation_tokens": 405500,
+    "cache_read_tokens": 3755607,
+    "output_tokens": 6597,
+    "api_call_count": 46
   }
 }

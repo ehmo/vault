@@ -1,0 +1,65 @@
+I want to expand the feature pages on the web (https://vaultaire.app/#features).
+
+  I want to explain each feature deeply with detailed information on it's own page.
+
+  I want to work on these:
+  1. pattern encryption
+  - how it works
+  - how the math works and why nobody can break through
+  - what's the enthropy of the encryption
+  - why users should feel safe
+  - what's the best pattern that is not going to be very predictable
+  2. secret phrase
+  - again, how it works
+  - how can user use it
+  - what a good phrase looks like
+  - how to utilize them
+  3. true plausible deniability
+  - how it works
+  - why it works
+  - explain different alternative situation (e.g. border patrol, police search, etc)
+  - why should user not worry
+  4. hidden vaults
+  - again how it works
+  - why it works
+  - how we implemented it such that nobody can find out
+  - why is this important (describe various attack scenarios and how this protects from them)
+  5. duress mode
+  - what it is
+  - how it works
+  - why it's impossible to tell (describe exactly the step by step how user sets it up and why nobody can ever tell)
+  - how they can use icloud backup to restore the vault after the event
+  - that we reset the backup clock when the duress is triggered (give you 24 hours to restore data from icloud) [need to implement this, make a bead for it]
+  6. encrypted icloud backup
+  - why it works and how it works
+  - how we implemented it that nobody can tell what's going on with it
+  - how the background backup works
+  7. secure sharing
+  - how it works and what it is
+  - how we implemented it and how can user use it
+  - what options do they have with it (secret phrase, link, etc)
+  - how we implemented updates to vaults
+  - why is this working well and why is it superior to other forms of sharing
+  - that they got options to limit the sharing like expiration date, number of opens, no export
+  8. security features
+  - no screenshots, no recording
+  - no exports (if blocked)
+  - encryption
+  - anything else that makes sense for this section
+  - talk about no security by obscurity
+  9. features that make it easier to use
+  - search
+  - sorting
+  - selecting all
+  - anything else that fits here
+
+  I want to update the features section with these 9 instead of 6. Then for each I want to make a subpage that explains these in detail with rich infographics
+  and detailed explanations. I want you to use /humanizer skill for the copy and structure it well.
+
+  I want you to use AskUserQuestion tool to ask me as many questions as needed to understand my desired goal and figure out the implementation and what
+  information should each page contain. Then I want to work on the design of single subpage before we move on. I want you to plan this in steps instead of
+  dumping everything at once.
+
+---
+
+[Request interrupted by user for tool use]

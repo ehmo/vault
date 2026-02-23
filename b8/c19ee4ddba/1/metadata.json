@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "b8c19ee4ddba",
+  "session_id": "6acd9246-65b4-4fe1-8844-750aca5e25f5",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-23T01:19:34.639204Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "design/logos/Gemini_Generated_Image_nj5u7cnj5u7cnj5u.png",
+    "design/logos/Gemini_Generated_Image_sfg24vsfg24vsfg2.png"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 36918,
+    "cache_read_tokens": 388730,
+    "output_tokens": 1650,
+    "api_call_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-23T01:19:34.548576Z",
+    "agent_lines": 0,
+    "human_added": 2049,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2049,
+    "agent_percentage": 0
+  }
+}
