@@ -97,6 +97,7 @@ struct ChangePatternView: View {
     @State private var patternState = PatternState()
     @State private var flow = ChangePatternFlowState()
     @State private var showSaveConfirmation = false
+    @State private var showDoneConfirmation = false
     @AppStorage("showPatternFeedback") private var showPatternFeedback = true
 
     var body: some View {
@@ -226,6 +227,14 @@ struct ChangePatternView: View {
                     Text("Your current pattern will no longer work. Make sure you've written down your new recovery phrase.")
                 }
             }
+            .alert("Are you sure?", isPresented: $showDoneConfirmation) {
+                Button("Cancel", role: .cancel) {
+                    // No-op: dismiss handled by SwiftUI
+                }
+                Button("Yes, I've saved it") { dismiss() }
+            } message: {
+                Text("This recovery phrase will NEVER be shown again. Make sure you've written it down and stored it safely. It's the only way to recover your vault if you forget your pattern.")
+            }
             .onAppear {
                 if skipVerification {
                     changePatternLogger.debug("Recovery unlock detected — skipping pattern verification")
@@ -289,7 +298,7 @@ struct ChangePatternView: View {
         Group {
             if step == .complete {
                 Button("Done") {
-                    dismiss()
+                    showDoneConfirmation = true
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)

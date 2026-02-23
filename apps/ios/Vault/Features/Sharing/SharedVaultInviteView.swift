@@ -87,18 +87,45 @@ struct SharedVaultInviteView: View {
             // Early check: is the phrase still available?
             let trimmed = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else {
-                mode = .error("Invalid invitation link")
+                mode = .error("Invalid invitation link - no phrase found. Please try copying the link again.")
                 return
             }
             
-            let result = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: trimmed)
-            switch result {
-            case .success:
-                // Phrase is valid, show the invite screen
-                mode = .invite
-            case .failure(let error):
-                // Phrase is not available (claimed, revoked, or doesn't exist)
+            // Retry phrase availability check up to 3 times (CloudKit public DB has eventual consistency)
+            var lastError: CloudKitSharingError?
+            for attempt in 1...3 {
+                let result = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: trimmed)
+                switch result {
+                case .success:
+                    mode = .invite
+                    return
+                case .failure(let error):
+                    lastError = error
+                    // Check if we should retry (network errors or vault not found could be temporary)
+                    let shouldRetry: Bool
+                    switch error {
+                    case .networkError, .vaultNotFound:
+                        shouldRetry = attempt < 3
+                    default:
+                        shouldRetry = false
+                    }
+                    
+                    if shouldRetry {
+                        // Wait before retry (1s, 2s, 3s)
+                        try? await Task.sleep(for: .seconds(Double(attempt)))
+                        continue
+                    } else {
+                        mode = .error(error.localizedDescription)
+                        return
+                    }
+                }
+            }
+            
+            // If we get here, all retries failed
+            if let error = lastError {
                 mode = .error(error.localizedDescription)
+            } else {
+                mode = .error("Could not verify share availability. Please check your connection and try again.")
             }
         }
         .premiumPaywall(isPresented: $showingPaywall)

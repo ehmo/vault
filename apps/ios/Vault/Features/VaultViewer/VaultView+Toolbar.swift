@@ -63,12 +63,15 @@ extension VaultView {
 
     func topSafeAreaContent(visible: VisibleFiles) -> some View {
         VStack(spacing: 8) {
-            if !showingSettings {
-                toolbarHeaderView
-            }
+            // Always render toolbar header with fixed height to prevent layout jumps
+            // when showingSettings changes. Use opacity instead of conditional rendering.
+            toolbarHeaderView
+                .opacity(showingSettings ? 0 : 1)
+                .allowsHitTesting(!showingSettings)
 
             VStack(spacing: 8) {
-                if !viewModel.files.isEmpty && !showingSettings {
+                if !viewModel.files.isEmpty {
+                    // Always render with fixed height, use opacity to hide
                     HStack(spacing: 8) {
                         if viewModel.isEditing {
                             editModeControls(visible: visible)
@@ -77,6 +80,9 @@ extension VaultView {
                         }
                     }
                     .padding(.horizontal)
+                    .frame(height: 50) // Fixed height to prevent layout jumps
+                    .opacity(showingSettings ? 0 : 1)
+                    .allowsHitTesting(!showingSettings)
                 }
                 if viewModel.isSharedVault {
                     sharedVaultBannerView
@@ -93,7 +99,7 @@ extension VaultView {
                 }
             }
         }
-        .padding(.bottom, (!viewModel.files.isEmpty && !showingSettings) ? 6 : 0)
+        .padding(.bottom, !viewModel.files.isEmpty ? 6 : 0) // Keep padding constant based on files, not settings
         .background(Color.vaultBackground)
     }
 

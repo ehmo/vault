@@ -119,18 +119,29 @@ final class CloudKitSharingManager {
     func checkPhraseAvailability(phrase: String) async -> Result<Void, CloudKitSharingError> {
         let phraseVaultId = Self.vaultId(from: phrase)
         let recordId = CKRecord.ID(recordName: phraseVaultId)
+        
+        Self.logger.info("[checkPhrase] phraseVaultId: \(phraseVaultId, privacy: .private)")
+        Self.logger.info("[checkPhrase] Looking for record: \(recordId.recordName, privacy: .private)")
+        
         do {
             let manifest = try await publicDatabase.record(for: recordId)
+            Self.logger.info("[checkPhrase] Found manifest record")
+            
             if let claimed = manifest["claimed"] as? Bool, claimed {
+                Self.logger.info("[checkPhrase] Share already claimed")
                 return .failure(.alreadyClaimed)
             }
             if let revoked = manifest["revoked"] as? Bool, revoked {
+                Self.logger.info("[checkPhrase] Share revoked")
                 return .failure(.revoked)
             }
+            Self.logger.info("[checkPhrase] Share available")
             return .success(())
         } catch let error as CKError where error.code == .unknownItem {
+            Self.logger.warning("[checkPhrase] Record not found in CloudKit: \(error.localizedDescription, privacy: .private)")
             return .failure(.vaultNotFound)
         } catch {
+            Self.logger.error("[checkPhrase] Error checking phrase: \(error.localizedDescription, privacy: .private)")
             // Network error — surface it so user knows verification failed
             return .failure(.networkError)
         }

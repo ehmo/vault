@@ -21,6 +21,7 @@ struct VaultSettingsView: View {
     @State private var isDuressVault = false
     @State private var pendingDuressValue = false
     @State private var hasLoadedDuressState = false
+    @State private var duressAlreadyEnabled = false
     @State private var activeUploadCount = 0
     @State private var fileCount = 0
     @State private var storageUsed: Int64 = 0
@@ -254,6 +255,7 @@ struct VaultSettingsView: View {
         .alert("Enable Duress Vault?", isPresented: $showingDuressConfirmation) {
             Button("Cancel", role: .cancel) {
                 isDuressVault = !pendingDuressValue
+                duressAlreadyEnabled = false  // Reset so confirmation shows if they try again
             }
             Button("Enable", role: .destructive) {
                 setAsDuressVault()
@@ -276,10 +278,14 @@ struct VaultSettingsView: View {
             if newValue != oldValue {
                 pendingDuressValue = newValue
                 if newValue {
-                    // Trying to enable - show confirmation
-                    showingDuressConfirmation = true
+                    // Trying to enable - show confirmation only if duress wasn't already enabled
+                    // (prevents showing confirmation when reopening settings on an already-enabled duress vault)
+                    if !duressAlreadyEnabled {
+                        showingDuressConfirmation = true
+                    }
                 } else {
                     // Trying to disable - allow without confirmation
+                    duressAlreadyEnabled = false
                     removeDuressVault()
                 }
             }
@@ -299,6 +305,9 @@ struct VaultSettingsView: View {
         Task {
             do {
                 try await DuressHandler.shared.setAsDuressVault(key: key.rawBytes)
+                await MainActor.run {
+                    duressAlreadyEnabled = true
+                }
             } catch {
                 EmbraceManager.shared.captureError(error)
             }
@@ -474,6 +483,7 @@ struct VaultSettingsView: View {
                 await MainActor.run {
                     fileCount = files.count
                     storageUsed = totalSize
+                    duressAlreadyEnabled = isDuress
                     isDuressVault = isDuress
                     isSharedVault = shared
                     activeShareCount = shareCount

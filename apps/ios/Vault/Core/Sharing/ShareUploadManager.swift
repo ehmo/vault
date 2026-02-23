@@ -584,6 +584,24 @@ final class ShareUploadManager {
                 job.errorMessage = nil
             }
 
+            // Save manifest FIRST so the phrase is immediately valid
+            // The manifest is saved before chunks so recipients can verify the share exists
+            Self.logger.info("[upload-\(jobId)] Saving manifest before chunk upload for phraseVaultId: \(prepared.phraseVaultId)")
+            do {
+                try await cloudKit.saveManifest(
+                    shareVaultId: shareVaultId,
+                    phraseVaultId: prepared.phraseVaultId,
+                    shareKey: prepared.shareKey,
+                    policy: policy,
+                    ownerFingerprint: ownerFingerprint,
+                    totalChunks: prepared.totalChunks
+                )
+                Self.logger.info("[upload-\(jobId)] Manifest saved successfully - phrase is now valid")
+            } catch {
+                Self.logger.error("[upload-\(jobId)] Failed to save manifest: \(error.localizedDescription)")
+                throw error
+            }
+
             try await cloudKit.uploadChunksFromFile(
                 shareVaultId: shareVaultId,
                 fileURL: svdfURL,
