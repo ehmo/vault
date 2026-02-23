@@ -32,7 +32,7 @@ test('mobile nav opens/closes and keeps UX state sane', async ({ browser }) => {
   await expect(panel).toHaveClass(/open/);
   await expect(page.locator('body')).toHaveClass(/mobile-nav-open/);
 
-  await panel.locator('a[href="index.html#features"]').first().click();
+  await panel.locator('a[href="features/"]').first().click();
   await expect(page.locator('body')).not.toHaveClass(/mobile-nav-open/);
 
   await context.close();

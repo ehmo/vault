@@ -10,6 +10,11 @@
 - [Privacy Policy](https://vaultaire.app/privacy/): Data handling and third-party service policies.
 - [Terms of Use](https://vaultaire.app/terms/): Terms and legal agreements.
 
+## Features
+
+- [Features Hub](https://vaultaire.app/features/): All security and privacy features.
+- [Pattern Encryption](https://vaultaire.app/features/pattern-encryption/): How pattern-based encryption works.
+
 ## Product Navigation
 
 - [Compare Hub](https://vaultaire.app/compare/): Directory of app-to-app comparisons.

@@ -1,8 +1,10 @@
-.page-privacy main {
+.page-privacy main,
+.page-terms main {
   padding: 118px 0 64px;
 }
 
-.page-privacy .legal-card {
+.page-privacy .legal-card,
+.page-terms .legal-card {
   background: color-mix(in srgb, var(--surface) 94%, transparent 6%);
   border: 1px solid color-mix(in srgb, var(--text) 10%, transparent 90%);
   border-radius: 24px;
@@ -11,7 +13,8 @@
   margin: 0 auto;
 }
 
-.page-privacy h1 {
+.page-privacy h1,
+.page-terms h1 {
   margin: 0;
   font-family: var(--font-display);
   font-size: clamp(2rem, 4.2vw, 2.8rem);
@@ -19,17 +22,20 @@
   letter-spacing: 0.02em;
 }
 
-.page-privacy .updated {
+.page-privacy .updated,
+.page-terms .updated {
   color: var(--text-secondary);
   margin: 10px 0 28px;
   font-weight: 500;
 }
 
-.page-privacy section {
+.page-privacy section,
+.page-terms section {
   margin-bottom: 28px;
 }
 
-.page-privacy h2 {
+.page-privacy h2,
+.page-terms h2 {
   margin: 0 0 10px;
   font-size: 1.12rem;
   font-weight: 700;
@@ -38,14 +44,17 @@
 }
 
 .page-privacy p,
-.page-privacy li {
+.page-privacy li,
+.page-terms p,
+.page-terms li {
   color: var(--text-secondary);
   margin: 0;
   font-size: 1rem;
   line-height: 1.62;
 }
 
-.page-privacy ul {
+.page-privacy ul,
+.page-terms ul {
   margin: 0;
   padding-left: 20px;
   display: grid;
@@ -56,17 +65,20 @@
   margin-top: 10px;
 }
 
-.page-privacy .legal-section-last {
+.page-privacy .legal-section-last,
+.page-terms .legal-section-last {
   margin-bottom: 0;
 }
 
-.page-privacy a {
+.page-privacy a,
+.page-terms a {
   color: var(--accent);
   text-underline-offset: 3px;
 }
 
 @media (max-width: 768px) {
-  .page-privacy .legal-card {
+  .page-privacy .legal-card,
+  .page-terms .legal-card {
     padding: 24px 18px;
     border-radius: 18px;
   }

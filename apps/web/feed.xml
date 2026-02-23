@@ -9,6 +9,14 @@
     <atom:link href="https://vaultaire.app/feed.xml" rel="self" type="application/rss+xml" />
 
     <item>
+      <title>Vaultaire Features Hub</title>
+      <link>https://vaultaire.app/features/</link>
+      <guid>https://vaultaire.app/features/</guid>
+      <pubDate>Sun, 22 Feb 2026 00:00:00 GMT</pubDate>
+      <description>Explore every security and privacy feature in Vaultaire: pattern encryption, plausible deniability, duress mode, and more.</description>
+    </item>
+
+    <item>
       <title>Vaultaire Compare Hub</title>
       <link>https://vaultaire.app/compare/</link>
       <guid>https://vaultaire.app/compare/</guid>

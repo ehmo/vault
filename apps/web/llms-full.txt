@@ -11,6 +11,11 @@
 - [Invite Fallback](https://vaultaire.app/s/): Share-link fallback page.
 - [Compare Hub](https://vaultaire.app/compare/): Compare directory.
 
+## Feature Pages
+
+- [Features Hub](https://vaultaire.app/features/): Feature directory.
+- [Pattern Encryption](https://vaultaire.app/features/pattern-encryption/): How pattern-based encryption works.
+
 ## Compare Pages
 
 - [Vaultaire vs Calculator#](https://vaultaire.app/compare/vaultaire-vs-calculator-hide-photos/): Feature-by-feature comparison.

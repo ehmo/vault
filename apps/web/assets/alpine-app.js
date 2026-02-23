@@ -203,6 +203,7 @@
         btn.type = "button";
         btn.setAttribute("aria-label", "Toggle navigation");
         btn.setAttribute("aria-expanded", "false");
+        btn.setAttribute("aria-controls", "mobileNavExpand");
         btn.innerHTML =
           '<svg class="icon-menu" viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="17" x2="20" y2="17"/></svg>' +
           '<svg class="icon-close" viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>';
@@ -211,13 +212,15 @@
         const panel = document.createElement("div");
         panel.className = "mobile-nav-expand";
         panel.id = "mobileNavExpand";
+        panel.setAttribute("role", "navigation");
+        panel.setAttribute("aria-label", "Mobile");
+        panel.setAttribute("aria-hidden", "true");
 
         const items = [
-          { href: `${prefix}index.html#features`, icon: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>', color: "var(--accent, #CCC3F8)", title: "Features", desc: "Encryption, duress, privacy." },
+          { href: `${prefix}features/`, icon: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>', color: "var(--accent, #CCC3F8)", title: "Features", desc: "Encryption, duress, privacy." },
           { href: `${prefix}index.html#how-it-works`, icon: '<circle cx="8" cy="8" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="8" cy="16" r="2"/><circle cx="16" cy="16" r="2"/><line x1="10" y1="8" x2="14" y2="8"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="10" x2="16" y2="14"/>', color: "#2FA14A", title: "How it Works", desc: "Pattern-based security." },
           { href: `${prefix}index.html#security`, icon: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>', color: "#D55454", title: "Security", desc: "Zero-knowledge architecture." },
           { href: `${prefix}manifesto/index.html`, icon: '<path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>', color: "#467CE6", title: "Manifesto", desc: "Why we built Vaultaire." },
-          { href: `${prefix}index.html#faq`, icon: '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3"/><circle cx="12" cy="17" r="0.5" fill="#C98700"/>', color: "#C98700", title: "FAQ", desc: "Common questions." },
           { href: `${prefix}compare/`, icon: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>', color: "#1DA694", title: "Compare", desc: "Vaultaire vs competitors." }
         ];
 
@@ -246,6 +249,7 @@
           btn.classList.remove("open");
           btn.setAttribute("aria-expanded", "false");
           panel.classList.remove("open");
+          panel.setAttribute("aria-hidden", "true");
           document.body.classList.remove("mobile-nav-open");
           setNavHeight();
         };
@@ -254,6 +258,7 @@
           btn.classList.toggle("open", isOpen);
           btn.setAttribute("aria-expanded", String(isOpen));
           panel.classList.toggle("open", isOpen);
+          panel.setAttribute("aria-hidden", String(!isOpen));
           document.body.classList.toggle("mobile-nav-open", isOpen);
           setNavHeight();
         };

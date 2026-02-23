@@ -438,7 +438,7 @@
   flex-shrink: 0;
 }
 
-.compare-card-content h3 {
+.compare-card-content h2 {
   font-size: 1rem;
   margin-bottom: 4px;
   text-transform: none;

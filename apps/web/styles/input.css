@@ -3,9 +3,9 @@
 @import "../compare/styles.css";
 @import "./pages/home.css";
 @import "./pages/manifesto.css";
-@import "./pages/privacy.css";
-@import "./pages/terms.css";
+@import "./pages/legal.css";
 @import "./pages/invite.css";
+@import "./pages/features.css";
 
 @theme {
   /* Vaultaire design tokens (matching iOS app) */
