@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "a7a2db82ee99",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Crypto/CryptoEngine.swift",
+    "apps/ios/Vault/Core/Crypto/CryptoEngineProtocol.swift",
+    "apps/ios/Vault/Core/Crypto/KeyTypes.swift",
+    "apps/ios/Vault/Core/Security/DuressHandler.swift",
+    "apps/ios/Vault/Core/Security/DuressHandlerProtocol.swift",
+    "apps/ios/Vault/Core/Security/SecureEnclaveProtocol.swift",
+    "apps/ios/Vault/Core/Sharing/CKDatabase+Retry.swift",
+    "apps/ios/Vault/Core/Sharing/CloudKitSharingManager.swift",
+    "apps/ios/Vault/Core/Sharing/ShareSyncManager.swift",
+    "apps/ios/Vault/Core/Sharing/ShareUploadManager.swift",
+    "apps/ios/Vault/Core/Storage/VaultIndexManager.swift",
+    "apps/ios/Vault/Core/Storage/VaultStorage.swift",
+    "apps/ios/Vault/Core/Storage/VaultStorageProtocol.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/Vault/Features/Sharing/JoinVaultView.swift",
+    "apps/ios/Vault/Features/Sharing/SharedVaultInviteView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift",
+    "apps/ios/VaultTests/CKRetryTests.swift",
+    "apps/ios/VaultTests/CryptoStreamingTests.swift",
+    "apps/ios/VaultTests/DuressVaultSharingTests.swift",
+    "apps/ios/VaultTests/Mocks/MockCryptoEngine.swift",
+    "apps/ios/VaultTests/Mocks/MockDuressHandler.swift",
+    "apps/ios/VaultTests/Mocks/MockSecureEnclave.swift",
+    "apps/ios/VaultTests/ShareRoundTripTests.swift",
+    "apps/ios/VaultTests/ShareSyncManagerTests.swift",
+    "apps/ios/VaultTests/ShareUploadManagerTests.swift",
+    "apps/ios/VaultTests/VaultIndexManagerTests.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a7/a2db82ee99/0/metadata.json",
+      "transcript": "/a7/a2db82ee99/0/full.jsonl",
+      "context": "/a7/a2db82ee99/0/context.md",
+      "content_hash": "/a7/a2db82ee99/0/content_hash.txt",
+      "prompt": "/a7/a2db82ee99/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 244,
+    "cache_creation_tokens": 276714,
+    "cache_read_tokens": 26253830,
+    "output_tokens": 11071,
+    "api_call_count": 240
+  }
+}

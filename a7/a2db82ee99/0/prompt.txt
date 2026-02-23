@@ -1,0 +1,287 @@
+Look through all outstanding beads and implement each suggestion one by one. Every time you are done, I want you to carefully review all the code, run all the tests related to the task you have finished. Then review all impacted areas and again verify the code is compiling and that it works. Then deploy to the device and commit to the git before moving on on the next one
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **User's initial request**: "Look through all outstanding beads and implement each suggestion one by one. Every time you are done, I want you to carefully review all the code, run all the tests related to the task you have finished. Then review all impacted areas and again verify the code is compiling and that it works. Then deploy to the device and commit to the git before moving on on the next one"
+
+2. **Discovery phase**: Ran `bd ready` to find 10 outstanding issues, read `.scratch-pad.md` for context, then `bd show` on all 10 issues to get details.
+
+3. **Created task list** (tasks #235-#244) to track progress.
+
+4. **VAULT-t4a (P0) - Fix duress share revocation**: 
+   - Read DuressHandler.swift and VaultStorage.swift
+   - Found `loadAllIndexes()` tries JSONDecoder on AES-256-GCM encrypted files → always fails
+   - Fix: Changed `revokeAllActiveShares(except:)` to `revokeActiveShares(from:)` that takes already-decrypted duress index
+   - Removed broken `loadAllIndexes()` from VaultStorage
+   - Updated test file DuressVaultSharingTests.swift
+   - Build succeeded, tests passed, deployed, committed
+
+5. **VAULT-60w (P1) - Reset iCloud backup clock on duress trigger**:
+   - Read iCloudBackupManager.swift
+   - Added `resetBackupClock()` method to DuressHandler that: stamps lastBackupTimestamp to now, clears staging directory, cancels BGTaskScheduler
+   - Added `import BackgroundTasks` to DuressHandler
+   - Renumbered steps in triggerDuress
+   - Build, test, deploy, commit all succeeded
+
+6. **VAULT-nix (P1) - Remove DEBUG log messages**:
+   - Found 9 [DEBUG] log lines in VaultStorage.swift and VaultIndexManager.swift
+   - Deleted all lines entirely
+   - Verified with grep no [DEBUG] strings remain
+   - Build, test, deploy, commit
+
+7. **VAULT-mvg (P1) - Create CKRetryTests**:
+   - Read CKDatabase+Retry.swift
+   - Made `isCKRetryable` and `ckRetryDelay` internal (removed `private`)
+   - Created CKRetryTests.swift with 5 tests
+   - Error: `CKError.retryAfterKey` doesn't exist → fixed to `CKErrorRetryAfterKey`
+   - Added to Xcode project via ruby script
+   - All 5 tests passed, deployed, committed
+
+8. **VAULT-34m (P1) - Add streaming encryption tamper tests**:
+   - Read CryptoEngine.swift and existing CryptoStreamingTests.swift
+   - Found most requested tests already exist, added 3 missing ones:
+     - testReorderedChunksThrowsOrderingViolation
+     - testTruncatedLastChunkThrows
+     - testXorNonceWithMaxIndex
+   - Error: File sizes too small for streaming (needed > 1MB threshold) → fixed sizes
+   - All tests passed, deployed, committed
+
+9. **VAULT-0w6 (P2) - Protocol-based DI**:
+   - Read VaultStorageProtocol.swift as pattern
+   - Created CryptoEngineProtocol.swift with DefaultCryptoEngine wrapper
+   - Created SecureEnclaveProtocol.swift with extension conformance
+   - Created DuressHandlerProtocol.swift - initially failed because DuressHandler is actor
+   - Fixed by making protocol require `: Actor`
+   - Created MockCryptoEngine, MockSecureEnclave, MockDuressHandler in test target
+   - Xcode project path issue (double path) → fixed ruby script
+   - Build, test, deploy, commit
+
+10. **VAULT-33f (P2) - Extract shared post-unlock setup**:
+    - Read VaultApp.swift lines 218-385
+    - Identified ~35 duplicated lines between unlockWithPattern and unlockWithKey
+    - Extracted `performPostUnlockSetup(key:transaction:)` method
+    - Error: Used wrong type `EmbraceTransaction` → fixed to `SpanHandle`
+    - Build, test, deploy, commit
+
+11. **VAULT-4ce (P2) - Convert VaultIndexManager to actor**:
+    - Assessed blast radius: 25+ synchronous call sites using indexManager.indexLock
+    - Issue itself notes "RISK: async propagation through 30+ call sites"
+    - Decision: Too risky for batch session, skipped with note
+    - Returned to open status
+
+12. **Was about to move to VAULT-c0h** when user requested summary.
+
+Key errors and fixes:
+- SourceKit false positives (cross-file resolution) - noted in scratch pad
+- `CKError.retryAfterKey` → `CKErrorRetryAfterKey`  
+- Streaming test file sizes too small → increased beyond 1MB threshold
+- DuressHandlerProtocol needed `: Actor` constraint
+- Xcode Mocks group had doubled path → fixed ruby script
+- `EmbraceTransaction` type doesn't exist → `SpanHandle`
+
+Simulator: iPhone 17 Pro (id: 1E2BEFBC-2FBC-49D2-84B5-5DE55338CF79)
+Deploy script: ./scripts/deploy-phone.sh
+
+Commits made:
+1. ba1610c - Fix duress share revocation
+2. ea61010 - Reset iCloud backup clock on duress trigger
+3. 787285f - Remove all [DEBUG] log messages
+4. 7be6e45 - Create CKRetryTests for CloudKit retry layer
+5. fb915e9 - Add streaming encryption tamper tests
+6. 0d2be38 - Add protocol-based DI
+7. 7f849b0 - Extract shared post-unlock setup
+
+Remaining issues:
+- VAULT-4ce (P2) - skipped (too risky)
+- VAULT-c0h (P2) - SymmetricKeyData protocol (pending, task #243)
+- VAULT-n32 (P2) - Network monitoring data race (pending, task #244)
+
+Important: git push has NOT been done yet. The session close protocol requires bd sync and git push.
+
+Summary:
+1. Primary Request and Intent:
+   The user requested: "Look through all outstanding beads and implement each suggestion one by one. Every time you are done, I want you to carefully review all the code, run all the tests related to the task you have finished. Then review all impacted areas and again verify the code is compiling and that it works. Then deploy to the device and commit to the git before moving on on the next one."
+
+   This is a batch implementation session working through 10 beads issues (VAULT-*) in priority order (P0→P1→P2), with a strict workflow per issue: implement → review → test → build → deploy to phone → git commit → close bead → next issue.
+
+2. Key Technical Concepts:
+   - **Beads (`bd`)**: Issue tracking system used for multi-session work tracking
+   - **iOS/SwiftUI app**: Vaultaire - encrypted vault app with CloudKit sharing, duress mode, iCloud backup
+   - **AES-256-GCM encryption**: Vault indexes are encrypted; `loadAllIndexes()` was broken because it tried JSON decode on encrypted data
+   - **VCSE streaming format**: Chunked encryption with nonce XOR ordering for anti-tamper
+   - **Swift actor model**: DuressHandler is an actor; VaultIndexManager conversion to actor was deferred due to 30+ async propagation sites
+   - **Protocol-based DI**: Following VaultStorageProtocol pattern for testability
+   - **CloudKit retry layer**: CKDatabase+Retry.swift with exponential backoff and retryAfterSeconds
+   - **Deploy scripts**: `./scripts/deploy-phone.sh` for device deployment (NEVER manual xcodebuild)
+   - **Simulator**: iPhone 17 Pro (id: `1E2BEFBC-2FBC-49D2-84B5-5DE55338CF79`, OS 26.2)
+   - **Physical device**: Test device 1 (id: `00008140-001A00141163001C`)
+   - **EmbraceManager/SpanHandle**: Telemetry system for transactions and spans
+
+3. Files and Code Sections:
+
+   - **apps/ios/Vault/Core/Security/DuressHandler.swift**
+     - Central to VAULT-t4a (P0) and VAULT-60w (P1)
+     - Changed `revokeAllActiveShares(except:)` → `revokeActiveShares(from:)` to accept already-decrypted duress index directly instead of broken loadAllIndexes()
+     - Added `resetBackupClock()` method for iCloud backup protection during duress
+     - Added `import BackgroundTasks`
+     - Key new method:
+     ```swift
+     private func revokeActiveShares(from index: VaultStorage.VaultIndex) async {
+         guard let activeShares = index.activeShares, !activeShares.isEmpty else {
+             Self.logger.debug("No active shares to revoke")
+             return
+         }
+         for share in activeShares {
+             do {
+                 try await CloudKitSharingManager.shared.revokeShare(shareVaultId: share.id)
+                 Self.logger.info("Revoked share \(share.id) during duress")
+             } catch {
+                 Self.logger.error("Failed to revoke share \(share.id) during duress: \(error.localizedDescription)")
+             }
+         }
+     }
+     ```
+     - Backup clock reset method:
+     ```swift
+     private func resetBackupClock() {
+         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastBackupTimestamp")
+         iCloudBackupManager.shared.clearStagingDirectory()
+         BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: iCloudBackupManager.backgroundBackupTaskIdentifier)
+         Self.logger.info("iCloud backup clock reset — 24h restore window active")
+     }
+     ```
+
+   - **apps/ios/Vault/Core/Storage/VaultStorage.swift**
+     - Removed broken `loadAllIndexes()` method (lines 1017-1043) that tried JSONDecoder on encrypted data
+     - Removed 5 `[DEBUG]` log lines from `storeFileFromURL` method
+
+   - **apps/ios/Vault/Core/Storage/VaultIndexManager.swift**
+     - Removed 4 `[DEBUG]` log lines from `getMasterKey` method
+     - Assessed for actor conversion (VAULT-4ce) but deferred due to 25+ synchronous lock/unlock call sites
+
+   - **apps/ios/VaultTests/DuressVaultSharingTests.swift**
+     - Updated test comments to reflect new `revokeActiveShares(from:)` API
+     - Changed `testDuressVaultShare_NotRevoked` → `testDuressVaultShare_AlsoRevoked`
+
+   - **apps/ios/Vault/Core/Sharing/CKDatabase+Retry.swift**
+     - Changed `isCKRetryable` and `ckRetryDelay` from `private` to `internal` for testability
+     - Source unchanged otherwise
+
+   - **apps/ios/VaultTests/CKRetryTests.swift** (NEW)
+     - 5 tests: retryable/non-retryable error classification, exponential backoff, retryAfterSeconds precedence, serverRecordChanged handling
+     ```swift
+     final class CKRetryTests: XCTestCase {
+         func testRetryableErrors() { ... }
+         func testNonRetryableErrors() { ... }
+         func testExponentialBackoffWithoutRetryAfter() { ... }
+         func testRetryAfterHeaderTakesPrecedence() { ... }
+         func testServerRecordChangedIsNotClassifiedAsRetryable() { ... }
+     }
+     ```
+
+   - **apps/ios/VaultTests/CryptoStreamingTests.swift**
+     - Added 3 new tests: `testReorderedChunksThrowsOrderingViolation`, `testTruncatedLastChunkThrows`, `testXorNonceWithMaxIndex`
+     - Chunk reorder test builds tampered VCSE data by swapping chunk 0 and chunk 1, verifying `CryptoError.chunkOrderingViolation`
+     - File sizes must be > `VaultCoreConstants.streamingThreshold` (1MB) to trigger streaming format
+
+   - **apps/ios/Vault/Core/Crypto/CryptoEngineProtocol.swift** (NEW)
+     - Protocol mirroring CryptoEngine's static methods as instance methods
+     - `DefaultCryptoEngine` struct delegates to CryptoEngine static methods
+
+   - **apps/ios/Vault/Core/Security/SecureEnclaveProtocol.swift** (NEW)
+     - Protocol with `extension SecureEnclaveManager: SecureEnclaveProtocol {}`
+
+   - **apps/ios/Vault/Core/Security/DuressHandlerProtocol.swift** (NEW)
+     - Protocol with `: Actor` constraint (required since DuressHandler is an actor)
+     - `extension DuressHandler: DuressHandlerProtocol {}`
+
+   - **apps/ios/VaultTests/Mocks/MockCryptoEngine.swift** (NEW)
+   - **apps/ios/VaultTests/Mocks/MockSecureEnclave.swift** (NEW)
+   - **apps/ios/VaultTests/Mocks/MockDuressHandler.swift** (NEW)
+
+   - **apps/ios/Vault/App/VaultApp.swift**
+     - Extracted `performPostUnlockSetup(key:transaction:)` from duplicated code in `unlockWithPattern` and `unlockWithKey`
+     ```swift
+     private func performPostUnlockSetup(key: Data, transaction: SpanHandle) {
+         let indexSpan = EmbraceManager.shared.startSpan(parent: transaction, operation: "storage.index_load", description: "Load vault index")
+         if let index = try? VaultStorage.shared.loadIndex(with: VaultKey(key)) {
+             isSharedVault = index.isSharedVault ?? false
+             if let custom = index.customName, !custom.isEmpty { vaultName = custom }
+             let fileCount = index.files.filter { !$0.isDeleted }.count
+             transaction.setTag(value: "\(fileCount)", key: "fileCount")
+         }
+         indexSpan.finish()
+         StagedImportManager.cleanupExpiredBatches()
+         StagedImportManager.cleanupOrphans()
+         let fingerprint = KeyDerivation.keyFingerprint(from: key)
+         let pending = StagedImportManager.pendingBatches(for: fingerprint)
+         if !pending.isEmpty {
+             pendingImportCount = pending.reduce(0) { $0 + $1.files.count }
+             hasPendingImports = true
+         }
+         ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "vault_unlocked")
+         transaction.finish(status: .ok)
+     }
+     ```
+
+4. Errors and fixes:
+   - **SourceKit false positives**: "Cannot find 'VaultKey' in scope" etc. — cross-file SourceKit resolution issues common in this project per scratch pad. Ignored; trusted xcodebuild results.
+   - **Simulator not found**: `iPhone 16 Pro` doesn't exist. Fixed by using UUID `1E2BEFBC-2FBC-49D2-84B5-5DE55338CF79` (iPhone 17 Pro).
+   - **`CKError.retryAfterKey` doesn't exist**: In CKRetryTests, used `CKError.retryAfterKey` which doesn't exist. Fixed to `CKErrorRetryAfterKey` (the global string constant).
+   - **Streaming test file sizes too small**: Test files for chunk reorder/truncation used `chunkSize * 2 + 100` (512KB) which is below the 1MB streaming threshold, so files were encrypted single-shot not streaming. Fixed to `VaultCoreConstants.streamingThreshold + VaultCoreConstants.streamingChunkSize + 100`.
+   - **DuressHandlerProtocol actor isolation**: DuressHandler is an actor, so non-async protocol methods can't be satisfied. Fixed by adding `: Actor` constraint to protocol: `protocol DuressHandlerProtocol: Actor`.
+   - **Xcode Mocks group path duplication**: Ruby xcodeproj script set `SOURCE_ROOT` path that doubled to `apps/ios/apps/ios/VaultTests/Mocks/...`. Fixed by removing and recreating the group with relative paths.
+   - **`EmbraceTransaction` type doesn't exist**: Used in `performPostUnlockSetup` parameter type. The actual type is `SpanHandle`. Fixed parameter type.
+
+5. Problem Solving:
+   - Solved the critical P0 security bug where duress share revocation was completely broken (silently returned empty because encrypted indexes couldn't be JSON-decoded)
+   - Solved iCloud backup data leakage vector during duress by resetting backup clock
+   - Removed cryptographic metadata leaking via DEBUG logs in production
+   - Added test coverage for CloudKit retry layer and VCSE anti-tamper checks
+   - Established protocol-based DI foundation for future testability
+   - Eliminated DRY violation in unlock flow
+
+   **Deferred**: VAULT-4ce (VaultIndexManager to actor) — too risky for batch; 30+ call sites need async propagation.
+
+6. All user messages:
+   - "Look through all outstanding beads and implement each suggestion one by one. Every time you are done, I want you to carefully review all the code, run all the tests related to the task you have finished. Then review all impacted areas and again verify the code is compiling and that it works. Then deploy to the device and commit to the git before moving on on the next one"
+
+7. Pending Tasks:
+   - **VAULT-c0h (P2)**: Create SymmetricKeyData protocol for type-safe key passing (task #243, pending)
+   - **VAULT-n32 (P2)**: Move network monitoring into CloudKitSharingManager as actor-isolated property (task #244, pending)
+   - **VAULT-4ce (P2)**: Convert VaultIndexManager to Swift actor — deferred/skipped (task #242, returned to pending)
+   - **Session close protocol**: `bd sync` and `git push` have NOT been run yet. Must be done before session end.
+
+8. Current Work:
+   Was working through the 10 beads issues sequentially. Completed 7 issues (VAULT-t4a, VAULT-60w, VAULT-nix, VAULT-mvg, VAULT-34m, VAULT-0w6, VAULT-33f). Skipped VAULT-4ce due to risk. Was about to start VAULT-c0h (SymmetricKeyData protocol) when the summary was requested.
+
+   Git commits made (7 total, all on main branch, NOT pushed yet):
+   1. `ba1610c` - Fix duress share revocation
+   2. `ea61010` - Reset iCloud backup clock on duress trigger
+   3. `787285f` - Remove all [DEBUG] log messages
+   4. `7be6e45` - Create CKRetryTests for CloudKit retry layer
+   5. `fb915e9` - Add streaming encryption tamper tests
+   6. `0d2be38` - Add protocol-based DI
+   7. `7f849b0` - Extract shared post-unlock setup
+
+9. Optional Next Step:
+   Continue implementing remaining beads per the user's request: "Look through all outstanding beads and implement each suggestion one by one."
+   
+   Next issue is **VAULT-c0h (P2)**: Create SymmetricKeyData protocol for type-safe key passing. The issue describes:
+   - Create protocol `SymmetricKeyData` with `rawBytes: Data` requirement
+   - Conform VaultKey, MasterKey, ShareKey to it
+   - Change CryptoEngine.encrypt/decrypt to accept `some SymmetricKeyData`
+   - Change VaultIndexManager.getMasterKey to return MasterKey instead of Data
+   - Files: KeyTypes.swift, CryptoEngine.swift, VaultIndexManager.swift, DuressHandler.swift, KeyDerivation.swift
+   
+   After VAULT-c0h, implement **VAULT-n32** (network monitoring data race fix).
+   
+   After all issues are done (or skipped), run the session close protocol: `bd sync`, `git push`.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
