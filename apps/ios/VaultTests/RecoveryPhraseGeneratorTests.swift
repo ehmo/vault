@@ -30,11 +30,13 @@ final class RecoveryPhraseGeneratorTests: XCTestCase {
         XCTAssertFalse(phrase.isEmpty, "Generated phrase must not be empty")
     }
 
-    func testGeneratePhraseProducesMultipleWords() {
-        let phrase = generator.generatePhrase()
-        let words = phrase.components(separatedBy: " ").filter { !$0.isEmpty }
-
-        XCTAssertGreaterThanOrEqual(words.count, 8, "Generated phrase should have at least 8 words")
+    func testGeneratePhraseProducesNineWords() {
+        // All templates produce exactly 9 words
+        for _ in 0..<20 {
+            let phrase = generator.generatePhrase()
+            let words = phrase.components(separatedBy: " ").filter { !$0.isEmpty }
+            XCTAssertEqual(words.count, 9, "Generated phrase should have exactly 9 words. Got: \(phrase)")
+        }
     }
 
     func testGeneratePhraseContainsOnlyValidWords() {
@@ -50,6 +52,18 @@ final class RecoveryPhraseGeneratorTests: XCTestCase {
                     "Word '\(word)' in generated phrase is not in any word list. Phrase: \(phrase)"
                 )
             }
+        }
+    }
+
+    func testGeneratedPhraseAlwaysPassesValidation() {
+        // Every generated phrase must be at least "acceptable" (50+ bits entropy)
+        for i in 0..<50 {
+            let phrase = generator.generatePhrase()
+            let validation = generator.validatePhrase(phrase)
+            XCTAssertTrue(
+                validation.isAcceptable,
+                "Generated phrase #\(i) failed validation: \(validation.message). Phrase: \(phrase)"
+            )
         }
     }
 
@@ -110,6 +124,16 @@ final class RecoveryPhraseGeneratorTests: XCTestCase {
         let entropy = generator.estimateEntropy(of: phrase)
 
         XCTAssertGreaterThan(entropy, 0, "Generated phrase should have positive entropy")
+    }
+
+    func testEstimateEntropyWithPluralNouns() {
+        // "elephants" is in pluralNouns (pool 82), "tigers" is in pluralNouns (pool 82)
+        // Each contributes log2(82) ~= 6.36
+        // Total = int(12.71) = 12
+        let entropy = generator.estimateEntropy(of: "elephants tigers castles rivers gardens bridges")
+
+        // 6 plural nouns: int(6 * log2(82)) = int(38.15) = 38
+        XCTAssertEqual(entropy, 38, "Plural nouns should use pluralNouns pool size")
     }
 
     // MARK: - Phrase Validation: tooShort

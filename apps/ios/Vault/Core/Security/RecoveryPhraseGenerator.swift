@@ -11,10 +11,17 @@ final class RecoveryPhraseGenerator {
 
     // MARK: - Phrase Generation
 
-    /// Generates a memorable sentence with ~80-90 bits of entropy.
+    /// Generates a memorable sentence that always passes entropy validation.
     func generatePhrase() -> String {
-        let template = selectTemplate()
-        return fillTemplate(template)
+        // Retry to guarantee the phrase meets minimum acceptable entropy
+        for _ in 0..<10 {
+            let phrase = fillTemplate(selectTemplate())
+            if validatePhrase(phrase).isAcceptable {
+                return phrase
+            }
+        }
+        // Final attempt (all templates should produce acceptable entropy)
+        return fillTemplate(selectTemplate())
     }
 
     // MARK: - Templates
@@ -74,14 +81,15 @@ final class RecoveryPhraseGenerator {
 
         case .articleNounVerbedPrepositionArticleNoun:
             let article1 = WordLists.articles.randomElement()!
+            let adj1 = WordLists.adjectives.randomElement()!
             let noun1 = WordLists.nouns.randomElement()!
             let verb = WordLists.pastVerbs.randomElement()!
             let adverb = WordLists.adverbs.randomElement()!
             let prep = WordLists.prepositions.randomElement()!
             let article2 = WordLists.articles.randomElement()!
-            let adj = WordLists.adjectives.randomElement()!
+            let adj2 = WordLists.adjectives.randomElement()!
             let noun2 = WordLists.nouns.randomElement()!
-            return "\(article1) \(noun1) \(verb) \(adverb) \(prep) \(article2) \(adj) \(noun2)"
+            return "\(article1) \(adj1) \(noun1) \(verb) \(adverb) \(prep) \(article2) \(adj2) \(noun2)"
         }
     }
 
@@ -104,6 +112,8 @@ final class RecoveryPhraseGenerator {
                 poolSize = Double(WordLists.adjectives.count)
             } else if WordLists.nouns.contains(word) {
                 poolSize = Double(WordLists.nouns.count)
+            } else if WordLists.pluralNouns.contains(word) {
+                poolSize = Double(WordLists.pluralNouns.count)
             } else if WordLists.verbs.contains(word) || WordLists.pastVerbs.contains(word) {
                 poolSize = Double(WordLists.verbs.count + WordLists.pastVerbs.count)
             } else if WordLists.adverbs.contains(word) {

@@ -198,9 +198,6 @@ struct PatternSetupView: View {
             // Fixed-height phrase area — prevents layout shift between modes
             VStack(spacing: 12) {
                 if useCustomPhrase {
-                    Text("Enter Your Custom Recovery Phrase")
-                        .font(.headline)
-
                     ZStack(alignment: .topLeading) {
                         TextEditor(text: $customPhrase)
                             .scrollContentBackground(.hidden)
@@ -227,24 +224,18 @@ struct PatternSetupView: View {
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 12))
 
-                    // Validation feedback — fixed height so layout doesn't shift
-                    // Height accommodates up to 3 lines of error message
-                    Group {
-                        if let validation = customPhraseValidation {
-                            HStack(spacing: 8) {
-                                Image(systemName: validation.isAcceptable ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundStyle(validation.isAcceptable ? .green : .orange)
-                                Text(validation.message)
-                                    .font(.caption)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .lineLimit(nil)
-                            }
-                            .padding(.horizontal)
-                        } else {
-                            Color.clear
+                    if let validation = customPhraseValidation {
+                        HStack(spacing: 8) {
+                            Image(systemName: validation.isAcceptable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundStyle(validation.isAcceptable ? .green : .orange)
+                            Text(validation.message)
+                                .font(.caption)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .lineLimit(nil)
                         }
+                        .padding(.horizontal)
+                        .padding(.vertical, 4)
                     }
-                    .frame(height: 70)
                 } else {
                     PhraseDisplayCard(phrase: generatedPhrase)
                         .frame(minHeight: 148)
