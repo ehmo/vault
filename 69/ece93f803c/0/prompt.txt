@@ -1,0 +1,89 @@
+Implement the following plan:
+
+# Plan: Retain Original File Dates + "File Date" Sort
+
+## Context
+Imported files lose their original creation dates — `createdAt` is always set to `Date()` (import time). User wants to preserve original dates and add a "File Date" sort option, while keeping the default sort by "date added to vault."
+
+## Data Model (4 files)
+
+### `VaultIndexTypes.swift` — `VaultFileEntry`
+- Add `originalDate: Date?` field (Codable, nil for old entries = backward compatible)
+- Update both initializers
+
+### `VaultStorage.swift`
+- `LightweightFileEntry`: add `originalDate: Date?`
+- `storeFileFromURL()`: add `originalDate: Date?` param, pass to `VaultFileEntry`
+- `listFilesLightweight()`: map `originalDate` through
+
+### `VaultStorageProtocol.swift`
+- Add `originalDate: Date?` to protocol method signature + default-param overload
+
+### `VaultView.swift` — `VaultFileItem`
+- Add `originalDate: Date?` field + update init
+
+## Original Date Extraction (2 files)
+
+### `FileUtilities.swift` — new utility
+- Add `extractImageCreationDate(from: URL) -> Date?` using existing `ImageIO` import
+- Uses `CGImageSourceCopyPropertiesAtIndex` → `kCGImagePropertyExifDictionary` → `kCGImagePropertyExifDateTimeOriginal`
+
+### `ParallelImporter.swift` — 3 import paths
+
+**`importImage`**: Refactor to use `loadFileRepresentation` (like videos already do)
+- Add `loadImageURL(from:)` helper (copy pattern from existing `loadVideoURL`)
+- Extract EXIF date via `FileUtilities.extractImageCreationDate(from:)`
+- Load `UIImage(contentsOfFile:)` from temp URL, continue existing JPEG conversion flow
+- Pass `originalDate` to `storeFileFromURL` and `VaultFileItem`
+
+**`importVideo`**: Extend `generateVideoMetadata` return type
+- Add `AVAsset.load(.commonMetadata)` → filter for `AVMetadataKey.commonKeyCreationDate`
+- Return `creationDate: Date?` alongside existing `thumbnail` and `duration`
+- Pass through to `storeFileFromURL` and `VaultFileItem`
+
+**`importFileFromURL`**: Extract from URL resource values
+- `url.resourceValues(forKeys: [.creationDateKey])` → `.creationDate`
+- Both video and non-video branches pass `originalDate` through
+
+## Sort + UI (3 files)
+
+### `VaultView.swift` — `SortOrder`
+- Add `case fileDate = "File Date"` (single option, newest first)
+
+### `VaultViewModel.swift`
+- `useDateGrouping`: add `|| sortOrder == .fileDate`
+- `computeVisibleFiles()`: sort by `originalDate` for `.fileDate` (fallback to `createdAt`)
+
+### `VaultView.swift` — `groupFilesByDate`
+- Add `dateKeyPath: KeyPath<VaultFileItem, Date?> = \.createdAt` parameter
+- Use keypath to extract date for bucketing
+
+### `VaultView+Grid.swift`
+- Pass `\.originalDate` keypath when `sortOrder == .fileDate`
+
+## Mapping Site: `VaultViewModel.loadVault()`
+- Map `originalDate` from `LightweightFileEntry` to `VaultFileItem`
+
+## Files Changed
+1. `apps/ios/Vault/Core/Storage/VaultIndexTypes.swift`
+2. `apps/ios/Vault/Core/Storage/VaultStorage.swift`
+3. `apps/ios/Vault/Core/Storage/VaultStorageProtocol.swift`
+4. `apps/ios/Vault/Core/Storage/FileUtilities.swift`
+5. `apps/ios/Vault/Features/VaultViewer/ParallelImporter.swift`
+6. `apps/ios/Vault/Features/VaultViewer/VaultView.swift`
+7. `apps/ios/Vault/Features/VaultViewer/VaultView+Grid.swift`
+8. `apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift`
+
+## Verification
+1. Build succeeds
+2. Run existing tests (ParallelImporter, VaultFileItem, SubscriptionManager)
+3. Deploy to phone
+4. Import a mix of photos + videos from camera roll → verify "File Date" sort groups by original capture date, "Newest First" groups by import date
+5. Commit + push
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Fix the failing tests
