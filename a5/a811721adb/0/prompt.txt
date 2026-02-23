@@ -1,0 +1,13 @@
+Update all features cards on the main page to match the features cards on the features pages
+
+---
+
+yes create all the missing feature sub-pages
+
+---
+
+Commit and deploy to cloudflare
+
+---
+
+What's not being tracked in git? Clean up the project and push everythig so it's all retained
