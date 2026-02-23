@@ -267,9 +267,12 @@ struct ChangePatternView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
 
-            // Recovery phrase display
+            // Recovery phrase display with actions
             if !flow.newRecoveryPhrase.isEmpty {
                 PhraseDisplayCard(phrase: flow.newRecoveryPhrase)
+                    .padding(.horizontal)
+                
+                PhraseActionButtons(phrase: flow.newRecoveryPhrase)
                     .padding(.horizontal)
             }
 
