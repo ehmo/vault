@@ -40,7 +40,7 @@ final class SonarQubeRulesTests: XCTestCase {
 
     /// Verifies no empty closure/function bodies exist without a // comment.
     /// SonarQube requires at least a line comment explaining why the body is empty.
-    func testS1186_NoEmptyClosureBodiesWithoutComment() throws {
+    func testS1186NoEmptyClosureBodiesWithoutComment() throws {
         let files = swiftFiles(in: sourceRoot) + swiftFiles(in: testRoot)
         var violations: [(file: String, line: Int, code: String)] = []
 
@@ -89,7 +89,7 @@ final class SonarQubeRulesTests: XCTestCase {
     // MARK: - S3358: Nested Ternary Operations
 
     /// Verifies no nested ternary expressions exist in production code.
-    func testS3358_NoNestedTernaryOperations() throws {
+    func testS3358NoNestedTernaryOperations() throws {
         let files = swiftFiles(in: sourceRoot)
         var violations: [(file: String, line: Int, code: String)] = []
 
@@ -129,7 +129,7 @@ final class SonarQubeRulesTests: XCTestCase {
     // MARK: - S3661: No try! in Tests
 
     /// Verifies test files don't use `try!` (should use `try` with throwing test functions).
-    func testS3661_NoForceTriesInTests() throws {
+    func testS3661NoForceTriesInTests() throws {
         let files = swiftFiles(in: testRoot)
         var violations: [(file: String, line: Int, code: String)] = []
 
@@ -162,7 +162,7 @@ final class SonarQubeRulesTests: XCTestCase {
     // MARK: - S100/S117: Naming Conventions
 
     /// Verifies no underscore-prefixed function or property names in production code.
-    func testS100_S117_NoUnderscorePrefixedNames() throws {
+    func testS100S117NoUnderscorePrefixedNames() throws {
         let files = swiftFiles(in: sourceRoot)
         var violations: [(file: String, line: Int, code: String)] = []
 
@@ -207,7 +207,7 @@ final class SonarQubeRulesTests: XCTestCase {
     // MARK: - S1172: Unused Parameters
 
     /// Verifies no `_paramName` pattern in function signatures (should use bare `_`).
-    func testS1172_NoUnderscorePrefixedParameters() throws {
+    func testS1172NoUnderscorePrefixedParameters() throws {
         let files = swiftFiles(in: sourceRoot)
         var violations: [(file: String, line: Int, code: String)] = []
 
@@ -246,7 +246,7 @@ final class SonarQubeRulesTests: XCTestCase {
     // MARK: - S1659: Multiple Variables Per Declaration
 
     /// Verifies no multiple variable declarations on a single line.
-    func testS1659_OneVariablePerDeclaration() throws {
+    func testS1659OneVariablePerDeclaration() throws {
         let files = swiftFiles(in: sourceRoot)
         var violations: [(file: String, line: Int, code: String)] = []
 

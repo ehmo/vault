@@ -36,7 +36,7 @@ final class VaultViewModelTests: XCTestCase {
 
     // MARK: - File Operations
 
-    func testLoadFiles_PopulatesFilesArray() async throws {
+    func testLoadFilesPopulatesFilesArray() async throws {
         // Create vault with test files
         let index = try storage.loadIndex(with: testKey)
         try storage.saveIndex(index, with: testKey)
@@ -51,7 +51,7 @@ final class VaultViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.files.count, 2, "Should load 2 files")
     }
 
-    func testToggleSelection_AddsAndRemoves() async throws {
+    func testToggleSelectionAddsAndRemoves() async throws {
         // Setup
         let index = try storage.loadIndex(with: testKey)
         try storage.saveIndex(index, with: testKey)
@@ -72,14 +72,14 @@ final class VaultViewModelTests: XCTestCase {
 
     // MARK: - Filter
 
-    func testSetFileFilter_UpdatesFilter() {
+    func testSetFileFilterUpdatesFilter() {
         viewModel.setFileFilter(.all)
         // Verify filter was set (indirectly via computeVisibleFiles)
         let visible = viewModel.computeVisibleFiles()
         XCTAssertNotNil(visible)
     }
 
-    func testSetFileFilter_Media() async throws {
+    func testSetFileFilterMedia() async throws {
         // Setup with media file
         let index = try storage.loadIndex(with: testKey)
         try storage.saveIndex(index, with: testKey)
@@ -96,7 +96,7 @@ final class VaultViewModelTests: XCTestCase {
 
     // MARK: - Import Progress
 
-    func testImportProgress_TracksCorrectly() {
+    func testImportProgressTracksCorrectly() {
         XCTAssertNil(viewModel.importProgress)
         XCTAssertFalse(viewModel.isImporting)
 
@@ -111,14 +111,14 @@ final class VaultViewModelTests: XCTestCase {
 
     // MARK: - Unified Progress Overlay (activeOperationProgress)
 
-    func testActiveOperationProgress_NilWhenIdle() {
+    func testActiveOperationProgressNilWhenIdle() {
         // No import, no delete, no transfer → should be nil
         viewModel.importProgress = nil
         viewModel.isDeleteInProgress = false
         XCTAssertNil(viewModel.activeOperationProgress, "Should be nil when no operation is active")
     }
 
-    func testActiveOperationProgress_ShowsImportProgress() {
+    func testActiveOperationProgressShowsImportProgress() {
         viewModel.importProgress = (completed: 3, total: 10)
         viewModel.isDeleteInProgress = false
 
@@ -132,7 +132,7 @@ final class VaultViewModelTests: XCTestCase {
         XCTAssertTrue(progress?.message.contains("10") == true)
     }
 
-    func testActiveOperationProgress_ShowsDeleteProgress() {
+    func testActiveOperationProgressShowsDeleteProgress() {
         viewModel.importProgress = (completed: 5, total: 8)
         viewModel.isDeleteInProgress = true
 
@@ -144,7 +144,7 @@ final class VaultViewModelTests: XCTestCase {
                        "Message should say 'Deleting' when isDeleteInProgress is true")
     }
 
-    func testActiveOperationProgress_ImportTakesPriorityOverTransfer() {
+    func testActiveOperationProgressImportTakesPriorityOverTransfer() {
         // Both import and transfer active → import should win
         viewModel.importProgress = (completed: 1, total: 5)
         viewModel.isDeleteInProgress = false
@@ -155,7 +155,7 @@ final class VaultViewModelTests: XCTestCase {
         XCTAssertTrue(progress?.message.contains("Importing") == true)
     }
 
-    func testActiveOperationProgress_ZeroProgress() {
+    func testActiveOperationProgressZeroProgress() {
         viewModel.importProgress = (completed: 0, total: 10)
         viewModel.isDeleteInProgress = false
 
@@ -165,7 +165,7 @@ final class VaultViewModelTests: XCTestCase {
         XCTAssertEqual(progress?.total, 10)
     }
 
-    func testActiveOperationProgress_CompletedEqualsTotal() {
+    func testActiveOperationProgressCompletedEqualsTotal() {
         viewModel.importProgress = (completed: 10, total: 10)
         viewModel.isDeleteInProgress = false
 
@@ -174,7 +174,7 @@ final class VaultViewModelTests: XCTestCase {
         XCTAssertEqual(progress?.completed, 10)
     }
 
-    func testActiveOperationProgress_DisappearsWhenImportCleared() {
+    func testActiveOperationProgressDisappearsWhenImportCleared() {
         viewModel.importProgress = (completed: 3, total: 5)
         XCTAssertNotNil(viewModel.activeOperationProgress)
 
@@ -185,11 +185,11 @@ final class VaultViewModelTests: XCTestCase {
 
     // MARK: - Shared Vault Update Progress
 
-    func testSharedVaultUpdateProgress_NilByDefault() {
+    func testSharedVaultUpdateProgressNilByDefault() {
         XCTAssertNil(viewModel.sharedVaultUpdateProgress, "Should be nil when no update is running")
     }
 
-    func testActiveOperationProgress_ShowsSharedVaultUpdateProgress() {
+    func testActiveOperationProgressShowsSharedVaultUpdateProgress() {
         viewModel.sharedVaultUpdateProgress = (completed: 42, total: 100, message: "Downloading update...")
 
         let progress = viewModel.activeOperationProgress
@@ -199,7 +199,7 @@ final class VaultViewModelTests: XCTestCase {
         XCTAssertEqual(progress?.message, "Downloading update...")
     }
 
-    func testActiveOperationProgress_ImportTakesPriorityOverSharedVaultUpdate() {
+    func testActiveOperationProgressImportTakesPriorityOverSharedVaultUpdate() {
         // Both import and shared vault update active → import should win
         viewModel.importProgress = (completed: 2, total: 5)
         viewModel.isDeleteInProgress = false
@@ -212,7 +212,7 @@ final class VaultViewModelTests: XCTestCase {
         XCTAssertTrue(progress?.message.contains("Importing") == true)
     }
 
-    func testActiveOperationProgress_SharedVaultUpdateDisappearsWhenCleared() {
+    func testActiveOperationProgressSharedVaultUpdateDisappearsWhenCleared() {
         viewModel.sharedVaultUpdateProgress = (completed: 70, total: 100, message: "Importing 3 of 5...")
         XCTAssertNotNil(viewModel.activeOperationProgress)
 
@@ -220,7 +220,7 @@ final class VaultViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.activeOperationProgress, "Should be nil after shared vault update cleared")
     }
 
-    func testActiveOperationProgress_SharedVaultUpdateProgressMessages() {
+    func testActiveOperationProgressSharedVaultUpdateProgressMessages() {
         // Download phase: 0→70%
         viewModel.sharedVaultUpdateProgress = (completed: 35, total: 100, message: "Downloading update...")
         let downloadProgress = viewModel.activeOperationProgress
@@ -234,7 +234,7 @@ final class VaultViewModelTests: XCTestCase {
         XCTAssertEqual(importProgress?.completed, 85)
     }
 
-    func testHandleVaultKeyChange_ClearsSharedVaultUpdateProgress() {
+    func testHandleVaultKeyChangeClearsSharedVaultUpdateProgress() {
         viewModel.sharedVaultUpdateProgress = (completed: 50, total: 100, message: "Downloading update...")
         viewModel.isUpdating = true
 
@@ -246,7 +246,7 @@ final class VaultViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.activeOperationProgress, "Overlay should disappear after key change")
     }
 
-    func testHandleVaultKeyChange_NoOpWhenNoUpdateInProgress() {
+    func testHandleVaultKeyChangeNoOpWhenNoUpdateInProgress() {
         // isUpdating should not be touched when no update is in progress
         viewModel.isUpdating = false
         viewModel.sharedVaultUpdateProgress = nil
@@ -259,7 +259,7 @@ final class VaultViewModelTests: XCTestCase {
 
     // MARK: - Free Tier Limits
 
-    func testCanAddFile_FreeTierLimit() {
+    func testCanAddFileFreeTierLimit() {
         // Test free tier file limit logic
         // When not premium and at limit
         if !subscriptionManager.isPremium {
@@ -273,7 +273,7 @@ final class VaultViewModelTests: XCTestCase {
 
     // MARK: - Vault Key Change
 
-    func testHandleVaultKeyChange_ClearsFiles() async throws {
+    func testHandleVaultKeyChangeClearsFiles() async throws {
         // Setup with files
         let index = try storage.loadIndex(with: testKey)
         try storage.saveIndex(index, with: testKey)

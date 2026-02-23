@@ -24,7 +24,7 @@ final class ParallelImporterTests: XCTestCase {
 
     /// The key regression test: verifies that workers actually run in parallel.
     /// If ParallelImporter silently regresses to serial, peak would be 1 and elapsed ~900ms.
-    func testRunWorkers_ExecutesConcurrently() async {
+    func testRunWorkersExecutesConcurrently() async {
         let monitor = ConcurrencyMonitor()
         let items = Array(0..<9)
         let queue = ParallelImporter.Queue(items)
@@ -71,7 +71,7 @@ final class ParallelImporterTests: XCTestCase {
     // MARK: - testRunWorkers_AllItemsProcessed
 
     /// Verifies that every work item is processed exactly once.
-    func testRunWorkers_AllItemsProcessed() async {
+    func testRunWorkersAllItemsProcessed() async {
         let items = Array(0..<12)
         let queue = ParallelImporter.Queue(items)
         let workerCount = 3
@@ -107,7 +107,7 @@ final class ParallelImporterTests: XCTestCase {
     // MARK: - testRunWorkers_CancellationStopsProcessing
 
     /// Verifies that cancelling the parent task stops workers from processing remaining items.
-    func testRunWorkers_CancellationStopsProcessing() async {
+    func testRunWorkersCancellationStopsProcessing() async {
         let items = Array(0..<50)
         let queue = ParallelImporter.Queue(items)
         let workerCount = 2
@@ -145,7 +145,7 @@ final class ParallelImporterTests: XCTestCase {
 
     /// Verifies that Queue actor safely distributes items across many concurrent consumers
     /// with no duplicates and no missed items.
-    func testQueue_ThreadSafety() async {
+    func testQueueThreadSafety() async {
         let totalItems = 100
         let consumerCount = 10
         let items = Array(0..<totalItems)

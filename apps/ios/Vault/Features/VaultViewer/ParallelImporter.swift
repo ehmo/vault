@@ -21,6 +21,15 @@ enum ParallelImporter {
         let url: URL
     }
 
+    // MARK: - Config
+
+    /// Groups common import parameters to reduce function parameter count.
+    struct ImportConfig: Sendable {
+        let key: VaultKey
+        let encryptionKey: Data
+        let optimizationMode: MediaOptimizer.Mode
+    }
+
     // MARK: - Events
 
     enum ImportEvent: Sendable {
@@ -80,9 +89,7 @@ enum ParallelImporter {
         imageWork: [PickerWorkItem],
         videoWorkerCount: Int,
         imageWorkerCount: Int,
-        key: VaultKey,
-        encryptionKey: Data,
-        optimizationMode: MediaOptimizer.Mode,
+        config: ImportConfig,
         continuation: AsyncStream<ImportEvent>.Continuation
     ) async {
         let videoQueue = Queue(videoWork)
@@ -94,10 +101,9 @@ enum ParallelImporter {
                     while let item = await videoQueue.next() {
                         guard !Task.isCancelled else { return }
                         do {
-                            if let file = try await importVideo(item: item, key: key, encryptionKey: encryptionKey, optimizationMode: optimizationMode) {
+                            if let file = try await importVideo(item: item, key: config.key, encryptionKey: config.encryptionKey, optimizationMode: config.optimizationMode) {
                                 continuation.yield(.imported(file))
                             }
-                            // nil return means Task was cancelled — don't count as failure
                         } catch {
                             continuation.yield(.failed(reason: error.localizedDescription))
                         }
@@ -110,10 +116,9 @@ enum ParallelImporter {
                     while let item = await imageQueue.next() {
                         guard !Task.isCancelled else { return }
                         do {
-                            if let file = try await importImage(item: item, key: key, encryptionKey: encryptionKey, optimizationMode: optimizationMode) {
+                            if let file = try await importImage(item: item, key: config.key, encryptionKey: config.encryptionKey, optimizationMode: config.optimizationMode) {
                                 continuation.yield(.imported(file))
                             }
-                            // nil return means Task was cancelled — don't count as failure
                         } catch {
                             continuation.yield(.failed(reason: error.localizedDescription))
                         }
@@ -130,9 +135,7 @@ enum ParallelImporter {
         otherWork: [URLWorkItem],
         videoWorkerCount: Int,
         otherWorkerCount: Int,
-        key: VaultKey,
-        encryptionKey: Data,
-        optimizationMode: MediaOptimizer.Mode,
+        config: ImportConfig,
         continuation: AsyncStream<ImportEvent>.Continuation
     ) async {
         let videoQueue = Queue(videoWork)
@@ -144,7 +147,7 @@ enum ParallelImporter {
                     while let item = await videoQueue.next() {
                         guard !Task.isCancelled else { return }
                         do {
-                            if let file = try await importFileFromURL(url: item.url, key: key, encryptionKey: encryptionKey, optimizationMode: optimizationMode) {
+                            if let file = try await importFileFromURL(url: item.url, key: config.key, encryptionKey: config.encryptionKey, optimizationMode: config.optimizationMode) {
                                 continuation.yield(.imported(file))
                             }
                         } catch {
@@ -159,7 +162,7 @@ enum ParallelImporter {
                     while let item = await otherQueue.next() {
                         guard !Task.isCancelled else { return }
                         do {
-                            if let file = try await importFileFromURL(url: item.url, key: key, encryptionKey: encryptionKey, optimizationMode: optimizationMode) {
+                            if let file = try await importFileFromURL(url: item.url, key: config.key, encryptionKey: config.encryptionKey, optimizationMode: config.optimizationMode) {
                                 continuation.yield(.imported(file))
                             }
                         } catch {

@@ -13,7 +13,7 @@ final class SharedVaultBannerTests: XCTestCase {
     // MARK: - Policy Detail Visibility
 
     /// Banner hides policy details when no restrictions are set.
-    func testNoPolicyDetails_WhenNoRestrictions() {
+    func testNoPolicyDetailsWhenNoRestrictions() {
         let policy = VaultStorage.SharePolicy(
             expiresAt: nil,
             maxOpens: nil,
@@ -26,7 +26,7 @@ final class SharedVaultBannerTests: XCTestCase {
     }
 
     /// Banner shows policy details when expiration is set.
-    func testShowsPolicyDetails_WhenExpirationSet() {
+    func testShowsPolicyDetailsWhenExpirationSet() {
         let policy = VaultStorage.SharePolicy(
             expiresAt: Date().addingTimeInterval(86400),
             maxOpens: nil,
@@ -39,7 +39,7 @@ final class SharedVaultBannerTests: XCTestCase {
     }
 
     /// Banner shows policy details when max opens is set.
-    func testShowsPolicyDetails_WhenMaxOpensSet() {
+    func testShowsPolicyDetailsWhenMaxOpensSet() {
         let policy = VaultStorage.SharePolicy(
             expiresAt: nil,
             maxOpens: 5,
@@ -52,7 +52,7 @@ final class SharedVaultBannerTests: XCTestCase {
     }
 
     /// Banner shows policy details when downloads are disabled.
-    func testShowsPolicyDetails_WhenDownloadsDisabled() {
+    func testShowsPolicyDetailsWhenDownloadsDisabled() {
         let policy = VaultStorage.SharePolicy(
             expiresAt: nil,
             maxOpens: nil,
@@ -65,7 +65,7 @@ final class SharedVaultBannerTests: XCTestCase {
     }
 
     /// Banner shows policy details when all restrictions are set.
-    func testShowsPolicyDetails_WhenAllRestrictionsSet() {
+    func testShowsPolicyDetailsWhenAllRestrictionsSet() {
         let policy = VaultStorage.SharePolicy(
             expiresAt: Date().addingTimeInterval(86400),
             maxOpens: 3,
@@ -80,7 +80,7 @@ final class SharedVaultBannerTests: XCTestCase {
     // MARK: - Opens Remaining
 
     /// Remaining opens = maxOpens - openCount.
-    func testOpensRemaining_BasicCalculation() {
+    func testOpensRemainingBasicCalculation() {
         let maxOpens = 5
         let openCount = 2
         let remaining = max(maxOpens - openCount, 0)
@@ -89,7 +89,7 @@ final class SharedVaultBannerTests: XCTestCase {
     }
 
     /// Remaining opens never goes below zero.
-    func testOpensRemaining_NeverNegative() {
+    func testOpensRemainingNeverNegative() {
         let maxOpens = 3
         let openCount = 5
         let remaining = max(maxOpens - openCount, 0)
@@ -99,7 +99,7 @@ final class SharedVaultBannerTests: XCTestCase {
     }
 
     /// Zero opens used shows full count remaining.
-    func testOpensRemaining_ZeroUsed() {
+    func testOpensRemainingZeroUsed() {
         let maxOpens = 10
         let openCount = 0
         let remaining = max(maxOpens - openCount, 0)
@@ -118,7 +118,7 @@ final class SharedVaultBannerTests: XCTestCase {
     }
 
     /// Explicitly disabled downloads detected.
-    func testExportsDisabled_WhenAllowDownloadsFalse() {
+    func testExportsDisabledWhenAllowDownloadsFalse() {
         let policy = VaultStorage.SharePolicy(allowDownloads: false)
 
         XCTAssertFalse(policy.allowDownloads)

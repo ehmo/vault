@@ -183,9 +183,9 @@ final class ConcurrentAccessTests: XCTestCase {
         }
 
         // Verify consistency after concurrent operations
-        let final_ = try manager.loadIndex(with: key)
-        XCTAssertEqual(final_.version, 3)
-        XCTAssertNotNil(final_.encryptedMasterKey)
+        let finalIndex = try manager.loadIndex(with: key)
+        XCTAssertEqual(finalIndex.version, 3)
+        XCTAssertNotNil(finalIndex.encryptedMasterKey)
     }
 
     /// Concurrent access with different keys should not interfere.

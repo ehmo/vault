@@ -298,7 +298,6 @@ final class iCloudBackupManager: @unchecked Sendable {
 
         // Upload missing chunks from disk files
         if !missingIndices.isEmpty {
-            let totalToUpload = missingIndices.count
             try await withThrowingTaskGroup(of: Void.self) { group in
                 var completed = 0
                 var inFlight = 0
@@ -358,8 +357,7 @@ final class iCloudBackupManager: @unchecked Sendable {
             formatVersion: 2,
             chunkCount: state.totalChunks,
             backupId: state.backupId,
-            fileCount: state.fileCount,
-            vaultTotalSize: state.vaultTotalSize
+            vaultStats: (state.fileCount, state.vaultTotalSize)
         )
         let metadataJson = try JSONEncoder().encode(metadata)
 
@@ -1081,8 +1079,7 @@ final class iCloudBackupManager: @unchecked Sendable {
                 formatVersion: 2,
                 chunkCount: pendingState.totalChunks,
                 backupId: pendingState.backupId,
-                fileCount: pendingState.fileCount,
-                vaultTotalSize: pendingState.vaultTotalSize
+                vaultStats: (pendingState.fileCount, pendingState.vaultTotalSize)
             )
             return .found(metadata, isStale: true)
         }
@@ -1274,17 +1271,16 @@ final class iCloudBackupManager: @unchecked Sendable {
         let fileCount: Int?       // Number of files in vault at backup time
         let vaultTotalSize: Int?  // Total vault size at backup time
 
-        init(timestamp: Date, size: Int, checksum: Data,
-             formatVersion: Int? = nil, chunkCount: Int? = nil, backupId: String? = nil,
-             fileCount: Int? = nil, vaultTotalSize: Int? = nil) {
+        init(timestamp: Date, size: Int, checksum: Data, formatVersion: Int? = nil,
+             chunkCount: Int? = nil, backupId: String? = nil, vaultStats: (fileCount: Int?, totalSize: Int?) = (nil, nil)) {
             self.timestamp = timestamp
             self.size = size
             self.checksum = checksum
             self.formatVersion = formatVersion
             self.chunkCount = chunkCount
             self.backupId = backupId
-            self.fileCount = fileCount
-            self.vaultTotalSize = vaultTotalSize
+            self.fileCount = vaultStats.fileCount
+            self.vaultTotalSize = vaultStats.totalSize
         }
 
         var formattedDate: String {

@@ -119,31 +119,37 @@ private struct ReviewItem: Identifiable {
 }
 
 private enum ReviewData {
+    private static let avatarBaseURL = "https://i.pravatar.cc/96"
+
+    private static func avatarURL(imageId: Int) -> URL? {
+        URL(string: "\(avatarBaseURL)?img=\(imageId)")
+    }
+
     static let allReviews: [ReviewItem] = [
         ReviewItem(
             text: "I have photos on my phone I'd literally die if anyone saw. Knowing they're behind real encryption and not just a hidden album with a passcode? I can finally breathe.",
             authorName: "jessicam_26",
-            avatarURL: URL(string: "https://i.pravatar.cc/96?img=32")
+            avatarURL: avatarURL(imageId: 32)
         ),
         ReviewItem(
             text: "My husband and I keep our private photos in a shared vault. No cloud, no accounts, no one at some tech company reviewing our moments. As it should be.",
             authorName: "brooke.h",
-            avatarURL: URL(string: "https://i.pravatar.cc/96?img=26")
+            avatarURL: avatarURL(imageId: 26)
         ),
         ReviewItem(
             text: "After my divorce I needed somewhere truly private. Not behind a paywall. Not on someone's cloud. Not accessible by lawyers or exes. Actually encrypted. This is it.",
             authorName: "Michelle_R",
-            avatarURL: URL(string: "https://i.pravatar.cc/96?img=23")
+            avatarURL: avatarURL(imageId: 23)
         ),
         ReviewItem(
             text: "Girls would lose it over photos in my Hidden Album. Vaultaire doesn't even show up as a vault on my phone. No more drama in that department.",
             authorName: "tk_dev",
-            avatarURL: URL(string: "https://i.pravatar.cc/96?img=33")
+            avatarURL: avatarURL(imageId: 33)
         ),
         ReviewItem(
             text: "I travel through 15+ countries a year. Border agents have asked to see my phone twice. The duress vault saved me both times. Nothing else on the App Store has this.",
             authorName: "marcusj_",
-            avatarURL: URL(string: "https://i.pravatar.cc/96?img=12")
+            avatarURL: avatarURL(imageId: 12)
         ),
     ]
 }

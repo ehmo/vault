@@ -22,7 +22,7 @@ final class InactivityLockManagerTests: XCTestCase {
 
     // MARK: - Monitoring Lifecycle
 
-    func testStartMonitoring_enablesAutoLock() {
+    func testStartMonitoringEnablesAutoLock() {
         XCTAssertFalse(manager.shouldAutoLock)
 
         manager.startMonitoring { [weak self] in self?.lockCallCount += 1 }
@@ -30,7 +30,7 @@ final class InactivityLockManagerTests: XCTestCase {
         XCTAssertTrue(manager.shouldAutoLock)
     }
 
-    func testStopMonitoring_disablesAutoLock() {
+    func testStopMonitoringDisablesAutoLock() {
         manager.startMonitoring { [weak self] in self?.lockCallCount += 1 }
         XCTAssertTrue(manager.shouldAutoLock)
 
@@ -41,7 +41,7 @@ final class InactivityLockManagerTests: XCTestCase {
 
     // MARK: - Inactivity Check Logic
 
-    func testCheckInactivity_doesNotLockBeforeTimeout() {
+    func testCheckInactivityDoesNotLockBeforeTimeout() {
         manager.startMonitoring { [weak self] in self?.lockCallCount += 1 }
         // lastActivityTime is set to now during startMonitoring
         manager.checkInactivity()
@@ -49,7 +49,7 @@ final class InactivityLockManagerTests: XCTestCase {
         XCTAssertEqual(lockCallCount, 0, "Should not lock before timeout")
     }
 
-    func testCheckInactivity_locksAfterTimeout() {
+    func testCheckInactivityLocksAfterTimeout() {
         manager.startMonitoring { [weak self] in self?.lockCallCount += 1 }
         // Simulate inactivity by setting lastActivityTime in the past
         manager.lastActivityTime = Date().addingTimeInterval(-3.0) // 3s > 2s timeout
@@ -59,7 +59,7 @@ final class InactivityLockManagerTests: XCTestCase {
         XCTAssertEqual(lockCallCount, 1, "Should lock after timeout")
     }
 
-    func testCheckInactivity_stopsMonitoringAfterLock() {
+    func testCheckInactivityStopsMonitoringAfterLock() {
         manager.startMonitoring { [weak self] in self?.lockCallCount += 1 }
         manager.lastActivityTime = Date().addingTimeInterval(-3.0)
 
@@ -70,7 +70,7 @@ final class InactivityLockManagerTests: XCTestCase {
 
     // MARK: - Activity Resets Timer
 
-    func testUserDidInteract_resetsTimer() {
+    func testUserDidInteractResetsTimer() {
         manager.startMonitoring { [weak self] in self?.lockCallCount += 1 }
         manager.lastActivityTime = Date().addingTimeInterval(-10.0) // Way past timeout
 
@@ -81,7 +81,7 @@ final class InactivityLockManagerTests: XCTestCase {
         XCTAssertEqual(lockCallCount, 0, "Should not lock after activity reset")
     }
 
-    func testUserDidInteract_ignoredWhenNotMonitoring() {
+    func testUserDidInteractIgnoredWhenNotMonitoring() {
         // Don't start monitoring
         let beforeDate = manager.lastActivityTime
 
@@ -98,7 +98,7 @@ final class InactivityLockManagerTests: XCTestCase {
 
     // MARK: - Video Playback Suppression
 
-    func testVideoPlayback_suppressesLock() {
+    func testVideoPlaybackSuppressesLock() {
         manager.startMonitoring { [weak self] in self?.lockCallCount += 1 }
         manager.lastActivityTime = Date().addingTimeInterval(-10.0) // Past timeout
 
@@ -109,7 +109,7 @@ final class InactivityLockManagerTests: XCTestCase {
         XCTAssertEqual(lockCallCount, 0, "Should not lock during video playback")
     }
 
-    func testVideoPlaybackStopped_resumesTimer() {
+    func testVideoPlaybackStoppedResumesTimer() {
         manager.startMonitoring { [weak self] in self?.lockCallCount += 1 }
         manager.videoPlaybackStarted()
 
@@ -121,7 +121,7 @@ final class InactivityLockManagerTests: XCTestCase {
         XCTAssertLessThan(elapsed, 1.0, "lastActivityTime should be reset to now")
     }
 
-    func testVideoPlaybackStopped_allowsLockAfterTimeout() {
+    func testVideoPlaybackStoppedAllowsLockAfterTimeout() {
         manager.startMonitoring { [weak self] in self?.lockCallCount += 1 }
         manager.videoPlaybackStarted()
         manager.videoPlaybackStopped()
@@ -135,7 +135,7 @@ final class InactivityLockManagerTests: XCTestCase {
 
     // MARK: - Multiple Interactions
 
-    func testMultipleRapidInteractions_dontAccumulate() {
+    func testMultipleRapidInteractionsDontAccumulate() {
         manager.startMonitoring { [weak self] in self?.lockCallCount += 1 }
 
         // Simulate many rapid interactions
@@ -154,13 +154,13 @@ final class InactivityLockManagerTests: XCTestCase {
 
     // MARK: - Lock Timeout Configuration
 
-    func testDefaultTimeout_is300Seconds() {
+    func testDefaultTimeoutIs300Seconds() {
         let defaultManager = InactivityLockManager()
         XCTAssertEqual(defaultManager.lockTimeout, 300)
         defaultManager.stopMonitoring()
     }
 
-    func testCustomTimeout_isUsed() {
+    func testCustomTimeoutIsUsed() {
         let customManager = InactivityLockManager(lockTimeout: 60)
         XCTAssertEqual(customManager.lockTimeout, 60)
 
@@ -182,7 +182,7 @@ final class InactivityLockManagerTests: XCTestCase {
 
     // MARK: - Edge Cases
 
-    func testCheckInactivity_ignoredWhenNotMonitoring() {
+    func testCheckInactivityIgnoredWhenNotMonitoring() {
         // Don't start monitoring
         manager.lastActivityTime = Date().addingTimeInterval(-999)
         manager.checkInactivity()
@@ -190,14 +190,14 @@ final class InactivityLockManagerTests: XCTestCase {
         XCTAssertEqual(lockCallCount, 0, "Should not lock when not monitoring")
     }
 
-    func testDoubleStop_isSafe() {
+    func testDoubleStopIsSafe() {
         manager.startMonitoring { [weak self] in self?.lockCallCount += 1 }
         manager.stopMonitoring()
         manager.stopMonitoring() // Should not crash
         XCTAssertFalse(manager.shouldAutoLock)
     }
 
-    func testStartMonitoring_resetsLastActivity() {
+    func testStartMonitoringResetsLastActivity() {
         // Set old activity time
         manager.lastActivityTime = Date().addingTimeInterval(-999)
 

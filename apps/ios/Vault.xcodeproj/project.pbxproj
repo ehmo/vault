@@ -12,16 +12,12 @@
 		001000005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 001000004 /* Assets.xcassets */; };
 		001000007 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 001000006 /* PrivacyInfo.xcprivacy */; };
 		002000001 /* CryptoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000000 /* CryptoEngine.swift */; };
-		SB0000001 /* SecureBytes.swift in Sources */ = {isa = PBXBuildFile; fileRef = SB0000000 /* SecureBytes.swift */; };
-		KT0000001 /* KeyTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = KT0000000 /* KeyTypes.swift */; };
 		002000003 /* KeyDerivation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000002 /* KeyDerivation.swift */; };
 		002000005 /* PatternSerializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000004 /* PatternSerializer.swift */; };
 		003000001 /* VaultStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003000000 /* VaultStorage.swift */; };
 		003000003 /* EncryptedBlob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003000002 /* EncryptedBlob.swift */; };
 		003000005 /* SecureDelete.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003000004 /* SecureDelete.swift */; };
 		003000007 /* FileUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003000006 /* FileUtilities.swift */; };
-		UT0000001 /* IdleTimerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = UT0000000 /* IdleTimerManager.swift */; };
-		UT0000003 /* InactivityLockManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = UT0000002 /* InactivityLockManager.swift */; };
 		004000001 /* SecureEnclaveManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004000000 /* SecureEnclaveManager.swift */; };
 		004000005 /* DuressHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004000004 /* DuressHandler.swift */; };
 		005000001 /* PatternLockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005000000 /* PatternLockView.swift */; };
@@ -34,16 +30,13 @@
 		006000009 /* FileImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006000008 /* FileImporter.swift */; };
 		007000001 /* SecureCameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007000000 /* SecureCameraView.swift */; };
 		007000003 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007000002 /* CameraManager.swift */; };
-		CPV000001 /* ChangePatternView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CPV000000 /* ChangePatternView.swift */; };
-		CRP000001 /* CustomRecoveryPhraseInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CRP000000 /* CustomRecoveryPhraseInputView.swift */; };
 		008000001 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008000000 /* SettingsView.swift */; };
-		ASV000001 /* AppearanceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ASV000000 /* AppearanceSettingsView.swift */; };
-		DPV000001 /* DuressPatternSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DPV000000 /* DuressPatternSettingsView.swift */; };
 		008000003 /* VaultSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008000002 /* VaultSettingsView.swift */; };
 		008000005 /* RecoveryPhraseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008000004 /* RecoveryPhraseView.swift */; };
 		009000001 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009000000 /* OnboardingView.swift */; };
 		009000003 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009000002 /* WelcomeView.swift */; };
 		009000005 /* PatternSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009000004 /* PatternSetupView.swift */; };
+		00DB687C5CE41DD99336A74B /* PixelLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B3287CCF2A1DE71141BCF8 /* PixelLoader.swift */; };
 		010000001 /* LoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000 /* LoadingView.swift */; };
 		010000003 /* SecureTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000002 /* SecureTextField.swift */; };
 		0100000044 /* VaultTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0100000043 /* VaultTheme.swift */; };
@@ -60,7 +53,6 @@
 		015000001 /* ShareVaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 015000000 /* ShareVaultView.swift */; };
 		015000003 /* JoinVaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 015000002 /* JoinVaultView.swift */; };
 		016000001 /* LocalNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016000000 /* LocalNotificationManager.swift */; };
-		SIM000001 /* ShareImportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = SIM000000 /* ShareImportManager.swift */; };
 		017000001 /* EmbraceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017000000 /* EmbraceManager.swift */; };
 		018000001 /* TelemetryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018000000 /* TelemetryManager.swift */; };
 		018000003 /* AnalyticsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018000002 /* AnalyticsManager.swift */; };
@@ -68,6 +60,7 @@
 		019000003 /* PermissionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000002 /* PermissionsView.swift */; };
 		019000005 /* PaywallStepView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000004 /* PaywallStepView.swift */; };
 		019000007 /* ThankYouView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000006 /* ThankYouView.swift */; };
+		019000009 /* PatternSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000008 /* PatternSetupCoordinator.swift */; };
 		01900000B /* RatingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01900000A /* RatingView.swift */; };
 		020000001 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000 /* SubscriptionManager.swift */; };
 		020000003 /* PaywallTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000002 /* PaywallTrigger.swift */; };
@@ -77,12 +70,10 @@
 		021000005 /* PhotosGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000004 /* PhotosGridView.swift */; };
 		021000007 /* FilesGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000006 /* FilesGridView.swift */; };
 		021000009 /* FullScreenPhotoViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021000008 /* FullScreenPhotoViewer.swift */; };
-		UX0000021 /* ZoomableImageContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000020 /* ZoomableImageContainer.swift */; };
-		UX0000033 /* MilestoneTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000032 /* MilestoneTracker.swift */; };
-
 		022000001 /* PixelAnimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000000 /* PixelAnimation.swift */; };
 		022000003 /* VaultSyncIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000002 /* VaultSyncIndicator.swift */; };
 		022000005 /* PhraseActionButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000004 /* PhraseActionButtons.swift */; };
+		246D2B74B1DF98A2FBC89F4E /* PixelLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CE72BFB1F9DC0A608226E67 /* PixelLoader.swift */; };
 		39EACF9D2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACF9C2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md */; };
 		39EACF9F2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACF9E2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md */; };
 		39EACFA12F29B36D00FA7EC2 /* RecoveryPhraseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39EACFA02F29B36D00FA7EC2 /* RecoveryPhraseManager.swift */; };
@@ -94,11 +85,43 @@
 		39EACFAD2F2AC5C500FA7EC2 /* GridLetterManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39EACFAC2F2AC5C500FA7EC2 /* GridLetterManager.swift */; };
 		6D5554047A7544D7954CEF9B /* EmbraceIO in Frameworks */ = {isa = PBXBuildFile; productRef = E8320F0CD52C4885B07B350E /* EmbraceIO */; };
 		A1B2C3D4E5F64789A1B2C3D4 /* TelemetryDeck in Frameworks */ = {isa = PBXBuildFile; productRef = F1E2D3C4B5A647890123ABCD /* TelemetryDeck */; };
+		ASV000001 /* AppearanceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ASV000000 /* AppearanceSettingsView.swift */; };
+		BT0000001 /* BackgroundTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BT0000000 /* BackgroundTaskTests.swift */; };
+		CAT00001 /* ConcurrentAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAT00000 /* ConcurrentAccessTests.swift */; };
+		CKC0000001 /* CloudKitSharingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = CKC0000000 /* CloudKitSharingClient.swift */; };
+		CKR0000001 /* CKDatabase+Retry.swift in Sources */ = {isa = PBXBuildFile; fileRef = CKR0000000 /* CKDatabase+Retry.swift */; };
+		CPF00001 /* ChangePatternFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CPF00000 /* ChangePatternFlowTests.swift */; };
+		CPV000001 /* ChangePatternView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CPV000000 /* ChangePatternView.swift */; };
+		CRP000001 /* CustomRecoveryPhraseInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CRP000000 /* CustomRecoveryPhraseInputView.swift */; };
+		DH0000001 /* DuressHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DH0000000 /* DuressHandlerTests.swift */; };
+		DLH00001 /* DeepLinkHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DLH00000 /* DeepLinkHandlerTests.swift */; };
+		DPV000001 /* DuressPatternSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DPV000000 /* DuressPatternSettingsView.swift */; };
+		DRS000001 /* DragRowSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = DRS000000 /* DragRowSelector.swift */; };
+		DRST00001 /* DragRowSelectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DRST00000 /* DragRowSelectorTests.swift */; };
+		DTT00001 /* DynamicTypeTruncationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DTT00000 /* DynamicTypeTruncationTests.swift */; };
+		EB0000001 /* EncryptedBlobTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB0000000 /* EncryptedBlobTests.swift */; };
+		FC0000001 /* VaultFullChainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0000000 /* VaultFullChainTests.swift */; };
+		FOP00000 /* FileOperationProgressCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = FOP00001 /* FileOperationProgressCard.swift */; };
+		FOPT0001 /* FileOperationProgressCardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FOPT0000 /* FileOperationProgressCardTests.swift */; };
+		FUE00001 /* FileUtilitiesExtensionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FUE00000 /* FileUtilitiesExtensionTests.swift */; };
+		ICB000001 /* iCloudBackupBackgroundTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ICB000000 /* iCloudBackupBackgroundTests.swift */; };
+		ILM00001 /* InactivityLockManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ILM00000 /* InactivityLockManagerTests.swift */; };
+		KT0000001 /* KeyTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = KT0000000 /* KeyTypes.swift */; };
+		KT0000002 /* KeyTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = KT0000000 /* KeyTypes.swift */; };
+		MO0000001 /* MediaOptimizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = MO0000000 /* MediaOptimizer.swift */; };
+		MO0000003 /* MediaOptimizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = MO0000002 /* MediaOptimizerTests.swift */; };
+		NC0000001 /* NonceChunkSwapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NC0000000 /* NonceChunkSwapTests.swift */; };
+		PBT00001 /* PerformanceBenchmarkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PBT00000 /* PerformanceBenchmarkTests.swift */; };
+		PI0000001 /* ParallelImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = PI0000000 /* ParallelImporter.swift */; };
+		PIT000001 /* ParallelImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PIT000000 /* ParallelImporterTests.swift */; };
+		PV0000001 /* PatternValidationStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PV0000000 /* PatternValidationStateTests.swift */; };
+		SB0000001 /* SecureBytes.swift in Sources */ = {isa = PBXBuildFile; fileRef = SB0000000 /* SecureBytes.swift */; };
+		SB0000002 /* SecureBytes.swift in Sources */ = {isa = PBXBuildFile; fileRef = SB0000000 /* SecureBytes.swift */; };
+		SBT00001 /* SecureBytesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SBT00000 /* SecureBytesTests.swift */; };
+		SD0000001 /* SecureDeleteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SD0000000 /* SecureDeleteTests.swift */; };
 		SE0000001 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE0000000 /* ShareViewController.swift */; };
 		SE0000003 /* PatternInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE0000002 /* PatternInputView.swift */; };
 		SE0000005 /* CryptoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000000 /* CryptoEngine.swift */; };
-		SB0000002 /* SecureBytes.swift in Sources */ = {isa = PBXBuildFile; fileRef = SB0000000 /* SecureBytes.swift */; };
-		KT0000002 /* KeyTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = KT0000000 /* KeyTypes.swift */; };
 		SE0000007 /* KeyDerivation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000002 /* KeyDerivation.swift */; };
 		SE0000009 /* PatternSerializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000004 /* PatternSerializer.swift */; };
 		SE000000B /* SecureEnclaveManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004000000 /* SecureEnclaveManager.swift */; };
@@ -108,11 +131,19 @@
 		SE0000013 /* VaultCoreConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE000000C /* VaultCoreConstants.swift */; };
 		SE0000015 /* StagedImportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE000000E /* StagedImportManager.swift */; };
 		SE0000017 /* ImportIngestor.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE0000016 /* ImportIngestor.swift */; };
-		MO0000001 /* MediaOptimizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = MO0000000 /* MediaOptimizer.swift */; };
 		SE0000019 /* PendingImportBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = SE0000018 /* PendingImportBanner.swift */; };
+		SEM00001 /* SecureEnclaveManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SEM00000 /* SecureEnclaveManagerTests.swift */; };
+		SIM000001 /* ShareImportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = SIM000000 /* ShareImportManager.swift */; };
 		SL0000001 /* ShareLinkEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = SL0000000 /* ShareLinkEncoder.swift */; };
 		SL0000003 /* DeepLinkHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = SL0000002 /* DeepLinkHandler.swift */; };
 		SL0000005 /* SharedVaultInviteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SL0000004 /* SharedVaultInviteView.swift */; };
+		SMT00001 /* SubscriptionManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SMT00000 /* SubscriptionManagerTests.swift */; };
+		SQ0000001 /* SonarQubeRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SQ0000000 /* SonarQubeRulesTests.swift */; };
+		SRT00001 /* ShareRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SRT00000 /* ShareRoundTripTests.swift */; };
+		SST00001 /* ScreenshotShieldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SST00000 /* ScreenshotShieldTests.swift */; };
+		SUB0000001 /* SubscriptionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = SUB0000000 /* SubscriptionClient.swift */; };
+		SUT00001 /* ShareUploadManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SUT00000 /* ShareUploadManagerTests.swift */; };
+		SVB00001 /* SharedVaultBannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SVB00000 /* SharedVaultBannerTests.swift */; };
 		TS0000001 /* CryptoEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000000 /* CryptoEngineTests.swift */; };
 		TS0000003 /* SVDFSerializerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000002 /* SVDFSerializerTests.swift */; };
 		TS0000005 /* ShareSyncCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000004 /* ShareSyncCacheTests.swift */; };
@@ -132,52 +163,6 @@
 		TS0000035 /* ShareExtensionIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000034 /* ShareExtensionIntegrationTests.swift */; };
 		TS0000037 /* ImportIngestorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000036 /* ImportIngestorTests.swift */; };
 		TS0000039 /* ShareVaultViewModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS0000038 /* ShareVaultViewModeTests.swift */; };
-		MO0000003 /* MediaOptimizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = MO0000002 /* MediaOptimizerTests.swift */; };
-		ZI0000001 /* ZoomableImageContainerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ZI0000000 /* ZoomableImageContainerTests.swift */; };
-		DH0000001 /* DuressHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DH0000000 /* DuressHandlerTests.swift */; };
-		SD0000001 /* SecureDeleteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SD0000000 /* SecureDeleteTests.swift */; };
-		SBT00001 /* SecureBytesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SBT00000 /* SecureBytesTests.swift */; };
-		EB0000001 /* EncryptedBlobTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB0000000 /* EncryptedBlobTests.swift */; };
-		FC0000001 /* VaultFullChainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0000000 /* VaultFullChainTests.swift */; };
-		NC0000001 /* NonceChunkSwapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NC0000000 /* NonceChunkSwapTests.swift */; };
-		SST00001 /* ShareSyncManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SST00000 /* ShareSyncManagerTests.swift */; };
-		SUT00001 /* ShareUploadManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SUT00000 /* ShareUploadManagerTests.swift */; };
-		SRT00001 /* ShareRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SRT00000 /* ShareRoundTripTests.swift */; };
-		VIM0000003 /* VaultIndexManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = VIM0000002 /* VaultIndexManagerTests.swift */; };
-		VVM000003 /* VaultViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = VVM000002 /* VaultViewModelTests.swift */; };
-		PIT000001 /* ParallelImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PIT000000 /* ParallelImporterTests.swift */; };
-		DRST00001 /* DragRowSelectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DRST00000 /* DragRowSelectorTests.swift */; };
-		BT0000001 /* BackgroundTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BT0000000 /* BackgroundTaskTests.swift */; };
-		SQ0000001 /* SonarQubeRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SQ0000000 /* SonarQubeRulesTests.swift */; };
-		PV0000001 /* PatternValidationStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PV0000000 /* PatternValidationStateTests.swift */; };
-		CPF00001 /* ChangePatternFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CPF00000 /* ChangePatternFlowTests.swift */; };
-		ICB000001 /* iCloudBackupBackgroundTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ICB000000 /* iCloudBackupBackgroundTests.swift */; };
-		SMT00001 /* SubscriptionManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SMT00000 /* SubscriptionManagerTests.swift */; };
-		ILM00001 /* InactivityLockManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ILM00000 /* InactivityLockManagerTests.swift */; };
-		SST00001 /* ScreenshotShieldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SST00000 /* ScreenshotShieldTests.swift */; };
-		FUE00001 /* FileUtilitiesExtensionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FUE00000 /* FileUtilitiesExtensionTests.swift */; };
-		SEM00001 /* SecureEnclaveManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SEM00000 /* SecureEnclaveManagerTests.swift */; };
-		DLH00001 /* DeepLinkHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DLH00000 /* DeepLinkHandlerTests.swift */; };
-		PBT00001 /* PerformanceBenchmarkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PBT00000 /* PerformanceBenchmarkTests.swift */; };
-		FOPT0001 /* FileOperationProgressCardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FOPT0000 /* FileOperationProgressCardTests.swift */; };
-		DTT00001 /* DynamicTypeTruncationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DTT00000 /* DynamicTypeTruncationTests.swift */; };
-		VNT00001 /* VaultNameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = VNT00000 /* VaultNameTests.swift */; };
-		SVB00001 /* SharedVaultBannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SVB00000 /* SharedVaultBannerTests.swift */; };
-		CAT00001 /* ConcurrentAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAT00000 /* ConcurrentAccessTests.swift */; };
-		019000009 /* PatternSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019000008 /* PatternSetupCoordinator.swift */; };
-		FOP00000 /* FileOperationProgressCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = FOP00001 /* FileOperationProgressCard.swift */; };
-		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
-		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
-
-		UX0000007 /* PatternValidationFeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000006 /* PatternValidationFeedbackView.swift */; };
-		VV0000001 /* VaultView+Grid.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000000 /* VaultView+Grid.swift */; };
-		VV0000003 /* VaultView+Toolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000002 /* VaultView+Toolbar.swift */; };
-		VV0000005 /* VaultView+FanMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000004 /* VaultView+FanMenu.swift */; };
-		VV0000007 /* VaultView+SharedVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000006 /* VaultView+SharedVault.swift */; };
-		VV0000009 /* VaultView+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000008 /* VaultView+Actions.swift */; };
-		VVM000001 /* VaultViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = VVM000000 /* VaultViewModel.swift */; };
-		PI0000001 /* ParallelImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = PI0000000 /* ParallelImporter.swift */; };
-		DRS000001 /* DragRowSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = DRS000000 /* DragRowSelector.swift */; };
 		UI0000001 /* BaseUITest.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000000 /* BaseUITest.swift */; };
 		UI0000003 /* XCUIElement+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000002 /* XCUIElement+Helpers.swift */; };
 		UI0000005 /* AccessibilityIDs.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000004 /* AccessibilityIDs.swift */; };
@@ -192,12 +177,26 @@
 		UI0000017 /* VaultViewerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000016 /* VaultViewerUITests.swift */; };
 		UI0000019 /* SettingsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI0000018 /* SettingsUITests.swift */; };
 		UI000001B /* AppearanceUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI000001A /* AppearanceUITests.swift */; };
-		VIT0000001 /* VaultIndexTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = VIT0000000 /* VaultIndexTypes.swift */; };
+		UT0000001 /* IdleTimerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = UT0000000 /* IdleTimerManager.swift */; };
+		UT0000003 /* InactivityLockManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = UT0000002 /* InactivityLockManager.swift */; };
+		UX0000001 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000000 /* ToastView.swift */; };
+		UX0000003 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000002 /* StorageRingView.swift */; };
+		UX0000007 /* PatternValidationFeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000006 /* PatternValidationFeedbackView.swift */; };
+		UX0000021 /* ZoomableImageContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000020 /* ZoomableImageContainer.swift */; };
+		UX0000033 /* MilestoneTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = UX0000032 /* MilestoneTracker.swift */; };
 		VIM0000001 /* VaultIndexManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = VIM0000000 /* VaultIndexManager.swift */; };
+		VIM0000003 /* VaultIndexManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = VIM0000002 /* VaultIndexManagerTests.swift */; };
+		VIT0000001 /* VaultIndexTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = VIT0000000 /* VaultIndexTypes.swift */; };
+		VNT00001 /* VaultNameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = VNT00000 /* VaultNameTests.swift */; };
 		VSP0000001 /* VaultStorageProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = VSP0000000 /* VaultStorageProtocol.swift */; };
-		CKC0000001 /* CloudKitSharingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = CKC0000000 /* CloudKitSharingClient.swift */; };
-		CKR0000001 /* CKDatabase+Retry.swift in Sources */ = {isa = PBXBuildFile; fileRef = CKR0000000 /* CKDatabase+Retry.swift */; };
-		SUB0000001 /* SubscriptionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = SUB0000000 /* SubscriptionClient.swift */; };
+		VV0000001 /* VaultView+Grid.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000000 /* VaultView+Grid.swift */; };
+		VV0000003 /* VaultView+Toolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000002 /* VaultView+Toolbar.swift */; };
+		VV0000005 /* VaultView+FanMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000004 /* VaultView+FanMenu.swift */; };
+		VV0000007 /* VaultView+SharedVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000006 /* VaultView+SharedVault.swift */; };
+		VV0000009 /* VaultView+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = VV0000008 /* VaultView+Actions.swift */; };
+		VVM000001 /* VaultViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = VVM000000 /* VaultViewModel.swift */; };
+		VVM000003 /* VaultViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = VVM000002 /* VaultViewModelTests.swift */; };
+		ZI0000001 /* ZoomableImageContainerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ZI0000000 /* ZoomableImageContainerTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -244,17 +243,12 @@
 		001000004 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		001000006 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		002000000 /* CryptoEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoEngine.swift; sourceTree = "<group>"; };
-		SB0000000 /* SecureBytes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureBytes.swift; sourceTree = "<group>"; };
-		KT0000000 /* KeyTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyTypes.swift; sourceTree = "<group>"; };
 		002000002 /* KeyDerivation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyDerivation.swift; sourceTree = "<group>"; };
 		002000004 /* PatternSerializer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSerializer.swift; sourceTree = "<group>"; };
 		003000000 /* VaultStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultStorage.swift; sourceTree = "<group>"; };
 		003000002 /* EncryptedBlob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedBlob.swift; sourceTree = "<group>"; };
-		VBM000000 /* VaultBlobManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultBlobManager.swift; sourceTree = "<group>"; };
 		003000004 /* SecureDelete.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureDelete.swift; sourceTree = "<group>"; };
 		003000006 /* FileUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUtilities.swift; sourceTree = "<group>"; };
-		UT0000000 /* IdleTimerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleTimerManager.swift; sourceTree = "<group>"; };
-		UT0000002 /* InactivityLockManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InactivityLockManager.swift; sourceTree = "<group>"; };
 		004000000 /* SecureEnclaveManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureEnclaveManager.swift; sourceTree = "<group>"; };
 		004000004 /* DuressHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuressHandler.swift; sourceTree = "<group>"; };
 		005000000 /* PatternLockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternLockView.swift; sourceTree = "<group>"; };
@@ -267,11 +261,7 @@
 		006000008 /* FileImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileImporter.swift; sourceTree = "<group>"; };
 		007000000 /* SecureCameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureCameraView.swift; sourceTree = "<group>"; };
 		007000002 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
-		CPV000000 /* ChangePatternView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangePatternView.swift; sourceTree = "<group>"; };
-		CRP000000 /* CustomRecoveryPhraseInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomRecoveryPhraseInputView.swift; sourceTree = "<group>"; };
 		008000000 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		ASV000000 /* AppearanceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsView.swift; sourceTree = "<group>"; };
-		DPV000000 /* DuressPatternSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuressPatternSettingsView.swift; sourceTree = "<group>"; };
 		008000002 /* VaultSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultSettingsView.swift; sourceTree = "<group>"; };
 		008000004 /* RecoveryPhraseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryPhraseView.swift; sourceTree = "<group>"; };
 		009000000 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
@@ -293,7 +283,6 @@
 		015000000 /* ShareVaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareVaultView.swift; sourceTree = "<group>"; };
 		015000002 /* JoinVaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinVaultView.swift; sourceTree = "<group>"; };
 		016000000 /* LocalNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNotificationManager.swift; sourceTree = "<group>"; };
-		SIM000000 /* ShareImportManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareImportManager.swift; sourceTree = "<group>"; };
 		017000000 /* EmbraceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbraceManager.swift; sourceTree = "<group>"; };
 		018000000 /* TelemetryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryManager.swift; sourceTree = "<group>"; };
 		018000002 /* AnalyticsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsManager.swift; sourceTree = "<group>"; };
@@ -301,6 +290,7 @@
 		019000002 /* PermissionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsView.swift; sourceTree = "<group>"; };
 		019000004 /* PaywallStepView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallStepView.swift; sourceTree = "<group>"; };
 		019000006 /* ThankYouView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThankYouView.swift; sourceTree = "<group>"; };
+		019000008 /* PatternSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinator.swift; sourceTree = "<group>"; };
 		01900000A /* RatingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RatingView.swift; sourceTree = "<group>"; };
 		020000000 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
 		020000002 /* PaywallTrigger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallTrigger.swift; sourceTree = "<group>"; };
@@ -310,12 +300,11 @@
 		021000004 /* PhotosGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosGridView.swift; sourceTree = "<group>"; };
 		021000006 /* FilesGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesGridView.swift; sourceTree = "<group>"; };
 		021000008 /* FullScreenPhotoViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullScreenPhotoViewer.swift; sourceTree = "<group>"; };
-		UX0000020 /* ZoomableImageContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableImageContainer.swift; sourceTree = "<group>"; };
-		UX0000032 /* MilestoneTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneTracker.swift; sourceTree = "<group>"; };
 		022000000 /* PixelAnimation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelAnimation.swift; sourceTree = "<group>"; };
 		022000002 /* VaultSyncIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultSyncIndicator.swift; sourceTree = "<group>"; };
 		022000004 /* PhraseActionButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseActionButtons.swift; sourceTree = "<group>"; };
 		088000000000 /* Vault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Vault.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0CE72BFB1F9DC0A608226E67 /* PixelLoader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PixelLoader.swift; path = Vault/UI/Components/PixelLoader.swift; sourceTree = "<group>"; };
 		392ACAC62F3FB9140059878A /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Products.storekit; sourceTree = "<group>"; };
 		39EACF9C2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = NAVIGATION_REDESIGN.md; sourceTree = "<group>"; };
 		39EACF9E2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEBUG_RESET_FEATURE.md; sourceTree = "<group>"; };
@@ -326,19 +315,60 @@
 		39EACFA82F29E64000FA7EC2 /* VAULT_COLLISION_PROTECTION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = VAULT_COLLISION_PROTECTION.md; sourceTree = "<group>"; };
 		39EACFAA2F29EDB600FA7EC2 /* DURESS_VAULT_IMPROVEMENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DURESS_VAULT_IMPROVEMENTS.md; sourceTree = "<group>"; };
 		39EACFAC2F2AC5C500FA7EC2 /* GridLetterManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridLetterManager.swift; sourceTree = "<group>"; };
+		A5B3287CCF2A1DE71141BCF8 /* PixelLoader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PixelLoader.swift; sourceTree = "<group>"; };
+		ASV000000 /* AppearanceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsView.swift; sourceTree = "<group>"; };
+		BT0000000 /* BackgroundTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTaskTests.swift; sourceTree = "<group>"; };
+		CAT00000 /* ConcurrentAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConcurrentAccessTests.swift; sourceTree = "<group>"; };
+		CKC0000000 /* CloudKitSharingClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitSharingClient.swift; sourceTree = "<group>"; };
+		CKR0000000 /* CKDatabase+Retry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CKDatabase+Retry.swift"; sourceTree = "<group>"; };
+		CPF00000 /* ChangePatternFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangePatternFlowTests.swift; sourceTree = "<group>"; };
+		CPV000000 /* ChangePatternView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangePatternView.swift; sourceTree = "<group>"; };
+		CRP000000 /* CustomRecoveryPhraseInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomRecoveryPhraseInputView.swift; sourceTree = "<group>"; };
+		DH0000000 /* DuressHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuressHandlerTests.swift; sourceTree = "<group>"; };
+		DLH00000 /* DeepLinkHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkHandlerTests.swift; sourceTree = "<group>"; };
+		DPV000000 /* DuressPatternSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuressPatternSettingsView.swift; sourceTree = "<group>"; };
+		DRS000000 /* DragRowSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragRowSelector.swift; sourceTree = "<group>"; };
+		DRST00000 /* DragRowSelectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragRowSelectorTests.swift; sourceTree = "<group>"; };
+		DTT00000 /* DynamicTypeTruncationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicTypeTruncationTests.swift; sourceTree = "<group>"; };
+		EB0000000 /* EncryptedBlobTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedBlobTests.swift; sourceTree = "<group>"; };
+		FC0000000 /* VaultFullChainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFullChainTests.swift; sourceTree = "<group>"; };
+		FOP00001 /* FileOperationProgressCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationProgressCard.swift; sourceTree = "<group>"; };
+		FOPT0000 /* FileOperationProgressCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationProgressCardTests.swift; sourceTree = "<group>"; };
+		FUE00000 /* FileUtilitiesExtensionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUtilitiesExtensionTests.swift; sourceTree = "<group>"; };
+		ICB000000 /* iCloudBackupBackgroundTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iCloudBackupBackgroundTests.swift; sourceTree = "<group>"; };
+		ILM00000 /* InactivityLockManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InactivityLockManagerTests.swift; sourceTree = "<group>"; };
+		KT0000000 /* KeyTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyTypes.swift; sourceTree = "<group>"; };
+		MO0000000 /* MediaOptimizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaOptimizer.swift; sourceTree = "<group>"; };
+		MO0000002 /* MediaOptimizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaOptimizerTests.swift; sourceTree = "<group>"; };
+		NC0000000 /* NonceChunkSwapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NonceChunkSwapTests.swift; sourceTree = "<group>"; };
+		PBT00000 /* PerformanceBenchmarkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceBenchmarkTests.swift; sourceTree = "<group>"; };
+		PI0000000 /* ParallelImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParallelImporter.swift; sourceTree = "<group>"; };
+		PIT000000 /* ParallelImporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParallelImporterTests.swift; sourceTree = "<group>"; };
+		PV0000000 /* PatternValidationStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidationStateTests.swift; sourceTree = "<group>"; };
+		SB0000000 /* SecureBytes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureBytes.swift; sourceTree = "<group>"; };
+		SBT00000 /* SecureBytesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureBytesTests.swift; sourceTree = "<group>"; };
+		SD0000000 /* SecureDeleteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureDeleteTests.swift; sourceTree = "<group>"; };
 		SE0000000 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		SE0000002 /* PatternInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternInputView.swift; sourceTree = "<group>"; };
 		SE000000C /* VaultCoreConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultCoreConstants.swift; sourceTree = "<group>"; };
 		SE000000E /* StagedImportManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StagedImportManager.swift; sourceTree = "<group>"; };
 		SE0000010 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		SE0000016 /* ImportIngestor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportIngestor.swift; sourceTree = "<group>"; };
-		MO0000000 /* MediaOptimizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaOptimizer.swift; sourceTree = "<group>"; };
 		SE0000018 /* PendingImportBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingImportBanner.swift; sourceTree = "<group>"; };
 		SE000001A /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
 		SE000001C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		SEM00000 /* SecureEnclaveManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureEnclaveManagerTests.swift; sourceTree = "<group>"; };
+		SIM000000 /* ShareImportManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareImportManager.swift; sourceTree = "<group>"; };
 		SL0000000 /* ShareLinkEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareLinkEncoder.swift; sourceTree = "<group>"; };
 		SL0000002 /* DeepLinkHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkHandler.swift; sourceTree = "<group>"; };
 		SL0000004 /* SharedVaultInviteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedVaultInviteView.swift; sourceTree = "<group>"; };
+		SMT00000 /* SubscriptionManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManagerTests.swift; sourceTree = "<group>"; };
+		SQ0000000 /* SonarQubeRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonarQubeRulesTests.swift; sourceTree = "<group>"; };
+		SRT00000 /* ShareRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareRoundTripTests.swift; sourceTree = "<group>"; };
+		SST00000 /* ScreenshotShieldTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotShieldTests.swift; sourceTree = "<group>"; };
+		SUB0000000 /* SubscriptionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionClient.swift; sourceTree = "<group>"; };
+		SUT00000 /* ShareUploadManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareUploadManagerTests.swift; sourceTree = "<group>"; };
+		SVB00000 /* SharedVaultBannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedVaultBannerTests.swift; sourceTree = "<group>"; };
 		TS0000000 /* CryptoEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoEngineTests.swift; sourceTree = "<group>"; };
 		TS0000002 /* SVDFSerializerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SVDFSerializerTests.swift; sourceTree = "<group>"; };
 		TS0000004 /* ShareSyncCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSyncCacheTests.swift; sourceTree = "<group>"; };
@@ -359,53 +389,6 @@
 		TS0000034 /* ShareExtensionIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareExtensionIntegrationTests.swift; sourceTree = "<group>"; };
 		TS0000036 /* ImportIngestorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportIngestorTests.swift; sourceTree = "<group>"; };
 		TS0000038 /* ShareVaultViewModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareVaultViewModeTests.swift; sourceTree = "<group>"; };
-		MO0000002 /* MediaOptimizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaOptimizerTests.swift; sourceTree = "<group>"; };
-		ZI0000000 /* ZoomableImageContainerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableImageContainerTests.swift; sourceTree = "<group>"; };
-		DH0000000 /* DuressHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuressHandlerTests.swift; sourceTree = "<group>"; };
-		SD0000000 /* SecureDeleteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureDeleteTests.swift; sourceTree = "<group>"; };
-		SBT00000 /* SecureBytesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureBytesTests.swift; sourceTree = "<group>"; };
-		EB0000000 /* EncryptedBlobTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedBlobTests.swift; sourceTree = "<group>"; };
-		FC0000000 /* VaultFullChainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFullChainTests.swift; sourceTree = "<group>"; };
-		NC0000000 /* NonceChunkSwapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NonceChunkSwapTests.swift; sourceTree = "<group>"; };
-		SST00000 /* ShareSyncManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSyncManagerTests.swift; sourceTree = "<group>"; };
-		SUT00000 /* ShareUploadManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareUploadManagerTests.swift; sourceTree = "<group>"; };
-		SRT00000 /* ShareRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareRoundTripTests.swift; sourceTree = "<group>"; };
-		VIM0000002 /* VaultIndexManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultIndexManagerTests.swift; sourceTree = "<group>"; };
-		VVM000002 /* VaultViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultViewModelTests.swift; sourceTree = "<group>"; };
-		PIT000000 /* ParallelImporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParallelImporterTests.swift; sourceTree = "<group>"; };
-		DRST00000 /* DragRowSelectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragRowSelectorTests.swift; sourceTree = "<group>"; };
-		BT0000000 /* BackgroundTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTaskTests.swift; sourceTree = "<group>"; };
-		SQ0000000 /* SonarQubeRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonarQubeRulesTests.swift; sourceTree = "<group>"; };
-		PV0000000 /* PatternValidationStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidationStateTests.swift; sourceTree = "<group>"; };
-		CPF00000 /* ChangePatternFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangePatternFlowTests.swift; sourceTree = "<group>"; };
-		ICB000000 /* iCloudBackupBackgroundTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iCloudBackupBackgroundTests.swift; sourceTree = "<group>"; };
-		SMT00000 /* SubscriptionManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManagerTests.swift; sourceTree = "<group>"; };
-		ILM00000 /* InactivityLockManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InactivityLockManagerTests.swift; sourceTree = "<group>"; };
-		SST00000 /* ScreenshotShieldTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotShieldTests.swift; sourceTree = "<group>"; };
-		FUE00000 /* FileUtilitiesExtensionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUtilitiesExtensionTests.swift; sourceTree = "<group>"; };
-		SEM00000 /* SecureEnclaveManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureEnclaveManagerTests.swift; sourceTree = "<group>"; };
-		DLH00000 /* DeepLinkHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkHandlerTests.swift; sourceTree = "<group>"; };
-		PBT00000 /* PerformanceBenchmarkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceBenchmarkTests.swift; sourceTree = "<group>"; };
-		FOPT0000 /* FileOperationProgressCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationProgressCardTests.swift; sourceTree = "<group>"; };
-		DTT00000 /* DynamicTypeTruncationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicTypeTruncationTests.swift; sourceTree = "<group>"; };
-		VNT00000 /* VaultNameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultNameTests.swift; sourceTree = "<group>"; };
-		SVB00000 /* SharedVaultBannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedVaultBannerTests.swift; sourceTree = "<group>"; };
-		CAT00000 /* ConcurrentAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConcurrentAccessTests.swift; sourceTree = "<group>"; };
-		019000008 /* PatternSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternSetupCoordinator.swift; sourceTree = "<group>"; };
-		FOP00001 /* FileOperationProgressCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationProgressCard.swift; sourceTree = "<group>"; };
-		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
-		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
-
-		UX0000006 /* PatternValidationFeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidationFeedbackView.swift; sourceTree = "<group>"; };
-		VV0000000 /* VaultView+Grid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Grid.swift"; sourceTree = "<group>"; };
-		VV0000002 /* VaultView+Toolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Toolbar.swift"; sourceTree = "<group>"; };
-		VV0000004 /* VaultView+FanMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+FanMenu.swift"; sourceTree = "<group>"; };
-		VV0000006 /* VaultView+SharedVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+SharedVault.swift"; sourceTree = "<group>"; };
-		VV0000008 /* VaultView+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Actions.swift"; sourceTree = "<group>"; };
-		VVM000000 /* VaultViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultViewModel.swift; sourceTree = "<group>"; };
-		PI0000000 /* ParallelImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParallelImporter.swift; sourceTree = "<group>"; };
-		DRS000000 /* DragRowSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragRowSelector.swift; sourceTree = "<group>"; };
-		UI0000020 /* VaultUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VaultUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		UI0000000 /* BaseUITest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaseUITest.swift; sourceTree = "<group>"; };
 		UI0000002 /* XCUIElement+Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCUIElement+Helpers.swift"; sourceTree = "<group>"; };
 		UI0000004 /* AccessibilityIDs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityIDs.swift; sourceTree = "<group>"; };
@@ -420,12 +403,27 @@
 		UI0000016 /* VaultViewerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultViewerUITests.swift; sourceTree = "<group>"; };
 		UI0000018 /* SettingsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsUITests.swift; sourceTree = "<group>"; };
 		UI000001A /* AppearanceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceUITests.swift; sourceTree = "<group>"; };
-		VIT0000000 /* VaultIndexTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultIndexTypes.swift; sourceTree = "<group>"; };
+		UI0000020 /* VaultUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VaultUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		UT0000000 /* IdleTimerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleTimerManager.swift; sourceTree = "<group>"; };
+		UT0000002 /* InactivityLockManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InactivityLockManager.swift; sourceTree = "<group>"; };
+		UX0000000 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
+		UX0000002 /* StorageRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageRingView.swift; sourceTree = "<group>"; };
+		UX0000006 /* PatternValidationFeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidationFeedbackView.swift; sourceTree = "<group>"; };
+		UX0000020 /* ZoomableImageContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableImageContainer.swift; sourceTree = "<group>"; };
+		UX0000032 /* MilestoneTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneTracker.swift; sourceTree = "<group>"; };
 		VIM0000000 /* VaultIndexManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultIndexManager.swift; sourceTree = "<group>"; };
+		VIM0000002 /* VaultIndexManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultIndexManagerTests.swift; sourceTree = "<group>"; };
+		VIT0000000 /* VaultIndexTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultIndexTypes.swift; sourceTree = "<group>"; };
+		VNT00000 /* VaultNameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultNameTests.swift; sourceTree = "<group>"; };
 		VSP0000000 /* VaultStorageProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultStorageProtocol.swift; sourceTree = "<group>"; };
-		CKC0000000 /* CloudKitSharingClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitSharingClient.swift; sourceTree = "<group>"; };
-		CKR0000000 /* CKDatabase+Retry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CKDatabase+Retry.swift"; sourceTree = "<group>"; };
-		SUB0000000 /* SubscriptionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionClient.swift; sourceTree = "<group>"; };
+		VV0000000 /* VaultView+Grid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Grid.swift"; sourceTree = "<group>"; };
+		VV0000002 /* VaultView+Toolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Toolbar.swift"; sourceTree = "<group>"; };
+		VV0000004 /* VaultView+FanMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+FanMenu.swift"; sourceTree = "<group>"; };
+		VV0000006 /* VaultView+SharedVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+SharedVault.swift"; sourceTree = "<group>"; };
+		VV0000008 /* VaultView+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Actions.swift"; sourceTree = "<group>"; };
+		VVM000000 /* VaultViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultViewModel.swift; sourceTree = "<group>"; };
+		VVM000002 /* VaultViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultViewModelTests.swift; sourceTree = "<group>"; };
+		ZI0000000 /* ZoomableImageContainerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableImageContainerTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -477,12 +475,12 @@
 		};
 		0100000002 /* Products */ = {
 			isa = PBXGroup;
-				children = (
-					088000000000 /* Vault.app */,
-					SE0000010 /* ShareExtension.appex */,
-					TS0000010 /* VaultTests.xctest */,
-					UI0000020 /* VaultUITests.xctest */,
-				);
+			children = (
+				088000000000 /* Vault.app */,
+				SE0000010 /* ShareExtension.appex */,
+				TS0000010 /* VaultTests.xctest */,
+				UI0000020 /* VaultUITests.xctest */,
+			);
 			name = Products;
 			sourceTree = "<group>";
 		};
@@ -507,11 +505,11 @@
 				0100000024 /* Sharing */,
 				0100000025 /* Notifications */,
 				0100000026 /* Telemetry */,
-			SE000000C /* VaultCoreConstants.swift */,
-			UT0000000 /* IdleTimerManager.swift */,
-			UT0000002 /* InactivityLockManager.swift */,
-		);
-		path = Core;
+				SE000000C /* VaultCoreConstants.swift */,
+				UT0000000 /* IdleTimerManager.swift */,
+				UT0000002 /* InactivityLockManager.swift */,
+			);
+			path = Core;
 			sourceTree = "<group>";
 		};
 		0100000021 /* Crypto */ = {
@@ -737,6 +735,7 @@
 				UX0000000 /* ToastView.swift */,
 				UX0000002 /* StorageRingView.swift */,
 				UX0000006 /* PatternValidationFeedbackView.swift */,
+				A5B3287CCF2A1DE71141BCF8 /* PixelLoader.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -772,14 +771,14 @@
 			children = (
 				392ACAC62F3FB9140059878A /* Products.storekit */,
 				0100000001 /* Vault */,
-				SE0000070 /* Vault/Extensions/ShareExtension */,
+				SE0000070 /* ShareExtension */,
 				TS0000070 /* VaultTests */,
 				UI0000070 /* VaultUITests */,
 				0100000002 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		SE0000070 /* Vault/Extensions/ShareExtension */ = {
+		SE0000070 /* ShareExtension */ = {
 			isa = PBXGroup;
 			children = (
 				SE0000000 /* ShareViewController.swift */,
@@ -820,7 +819,6 @@
 				EB0000000 /* EncryptedBlobTests.swift */,
 				FC0000000 /* VaultFullChainTests.swift */,
 				NC0000000 /* NonceChunkSwapTests.swift */,
-				SST00000 /* ShareSyncManagerTests.swift */,
 				SUT00000 /* ShareUploadManagerTests.swift */,
 				SRT00000 /* ShareRoundTripTests.swift */,
 				VIM0000002 /* VaultIndexManagerTests.swift */,
@@ -1032,12 +1030,12 @@
 			productRefGroup = 0100000002 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-				targets = (
-					0110000000 /* Vault */,
-					SE0000030 /* ShareExtension */,
-					TS0000040 /* VaultTests */,
-					UI0000040 /* VaultUITests */,
-				);
+			targets = (
+				0110000000 /* Vault */,
+				SE0000030 /* ShareExtension */,
+				TS0000040 /* VaultTests */,
+				UI0000040 /* VaultUITests */,
+			);
 		};
 /* End PBXProject section */
 
@@ -1146,7 +1144,6 @@
 				FOP00000 /* FileOperationProgressCard.swift in Sources */,
 				UX0000001 /* ToastView.swift in Sources */,
 				UX0000003 /* StorageRingView.swift in Sources */,
-
 				UX0000007 /* PatternValidationFeedbackView.swift in Sources */,
 				021000005 /* PhotosGridView.swift in Sources */,
 				021000007 /* FilesGridView.swift in Sources */,
@@ -1208,6 +1205,8 @@
 				SE0000017 /* ImportIngestor.swift in Sources */,
 				MO0000001 /* MediaOptimizer.swift in Sources */,
 				SE0000019 /* PendingImportBanner.swift in Sources */,
+				246D2B74B1DF98A2FBC89F4E /* PixelLoader.swift in Sources */,
+				00DB687C5CE41DD99336A74B /* PixelLoader.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1259,7 +1258,7 @@
 				EB0000001 /* EncryptedBlobTests.swift in Sources */,
 				FC0000001 /* VaultFullChainTests.swift in Sources */,
 				NC0000001 /* NonceChunkSwapTests.swift in Sources */,
-				SST00001 /* ShareSyncManagerTests.swift in Sources */,
+				SST00001 /* ScreenshotShieldTests.swift in Sources */,
 				SUT00001 /* ShareUploadManagerTests.swift in Sources */,
 				SRT00001 /* ShareRoundTripTests.swift in Sources */,
 				VIM0000003 /* VaultIndexManagerTests.swift in Sources */,
@@ -1459,7 +1458,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 132;
+				CURRENT_PROJECT_VERSION = 133;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = UFV835UGV6;
@@ -1480,7 +1479,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.2;
-					PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios;
+				PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1501,7 +1500,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 132;
+				CURRENT_PROJECT_VERSION = 133;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = UFV835UGV6;
@@ -1522,7 +1521,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.2;
-					PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios;
+				PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Vault App Store";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1540,7 +1539,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 132;
+				CURRENT_PROJECT_VERSION = 133;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
@@ -1572,7 +1571,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 132;
+				CURRENT_PROJECT_VERSION = 133;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
@@ -1604,7 +1603,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 132;
+				CURRENT_PROJECT_VERSION = 133;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1621,7 +1620,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 132;
+				CURRENT_PROJECT_VERSION = 133;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1637,7 +1636,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 132;
+				CURRENT_PROJECT_VERSION = 133;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1653,7 +1652,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 132;
+				CURRENT_PROJECT_VERSION = 133;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;

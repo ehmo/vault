@@ -479,9 +479,7 @@ final class VaultViewModel {
                     imageWork: imageWork,
                     videoWorkerCount: videoWorkerCount,
                     imageWorkerCount: imageWorkerCount,
-                    key: key,
-                    encryptionKey: encryptionKey,
-                    optimizationMode: optimizationMode,
+                    config: .init(key: key, encryptionKey: encryptionKey, optimizationMode: optimizationMode),
                     continuation: continuation
                 )
                 continuation.finish()
@@ -600,9 +598,7 @@ final class VaultViewModel {
                     otherWork: otherWork,
                     videoWorkerCount: videoWorkerCount,
                     otherWorkerCount: otherWorkerCount,
-                    key: key,
-                    encryptionKey: encryptionKey,
-                    optimizationMode: optimizationMode,
+                    config: .init(key: key, encryptionKey: encryptionKey, optimizationMode: optimizationMode),
                     continuation: continuation
                 )
                 continuation.finish()

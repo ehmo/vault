@@ -56,56 +56,56 @@ final class SubscriptionManagerTests: XCTestCase {
 
     // MARK: - Free Tier Vault Limits
 
-    func testFreeUser_canCreateVault_underLimit() {
+    func testFreeUserCanCreateVaultUnderLimit() {
         let client = MockSubscriptionClient(isPremium: false)
         XCTAssertTrue(client.canCreateVault(currentCount: 0))
         XCTAssertTrue(client.canCreateVault(currentCount: 4))
     }
 
-    func testFreeUser_canCreateVault_atLimit() {
+    func testFreeUserCanCreateVaultAtLimit() {
         let client = MockSubscriptionClient(isPremium: false)
         XCTAssertFalse(client.canCreateVault(currentCount: 5))
     }
 
-    func testFreeUser_canCreateVault_overLimit() {
+    func testFreeUserCanCreateVaultOverLimit() {
         let client = MockSubscriptionClient(isPremium: false)
         XCTAssertFalse(client.canCreateVault(currentCount: 10))
     }
 
     // MARK: - Free Tier File Limits
 
-    func testFreeUser_canAddFile_underLimit() {
+    func testFreeUserCanAddFileUnderLimit() {
         let client = MockSubscriptionClient(isPremium: false)
         XCTAssertTrue(client.canAddFile(currentFileCount: 0))
         XCTAssertTrue(client.canAddFile(currentFileCount: 99))
     }
 
-    func testFreeUser_canAddFile_atLimit() {
+    func testFreeUserCanAddFileAtLimit() {
         let client = MockSubscriptionClient(isPremium: false)
         XCTAssertFalse(client.canAddFile(currentFileCount: 100))
     }
 
-    func testFreeUser_canAddFile_overLimit() {
+    func testFreeUserCanAddFileOverLimit() {
         let client = MockSubscriptionClient(isPremium: false)
         XCTAssertFalse(client.canAddFile(currentFileCount: 500))
     }
 
     // MARK: - Free Tier Shared Vault Limits
 
-    func testFreeUser_canJoinSharedVault_underLimit() {
+    func testFreeUserCanJoinSharedVaultUnderLimit() {
         let client = MockSubscriptionClient(isPremium: false)
         XCTAssertTrue(client.canJoinSharedVault(currentCount: 0))
         XCTAssertTrue(client.canJoinSharedVault(currentCount: 9))
     }
 
-    func testFreeUser_canJoinSharedVault_atLimit() {
+    func testFreeUserCanJoinSharedVaultAtLimit() {
         let client = MockSubscriptionClient(isPremium: false)
         XCTAssertFalse(client.canJoinSharedVault(currentCount: 10))
     }
 
     // MARK: - Premium-Only Features (Free User)
 
-    func testFreeUser_premiumOnlyFeatures_denied() {
+    func testFreeUserPremiumOnlyFeaturesDenied() {
         let client = MockSubscriptionClient(isPremium: false)
         XCTAssertFalse(client.canCreateSharedVault())
         XCTAssertFalse(client.canCreateDuressVault())
@@ -115,27 +115,27 @@ final class SubscriptionManagerTests: XCTestCase {
 
     // MARK: - Premium Unlocks All
 
-    func testPremiumUser_canCreateVault_noLimit() {
+    func testPremiumUserCanCreateVaultNoLimit() {
         let client = MockSubscriptionClient(isPremium: true)
         XCTAssertTrue(client.canCreateVault(currentCount: 0))
         XCTAssertTrue(client.canCreateVault(currentCount: 100))
         XCTAssertTrue(client.canCreateVault(currentCount: 999))
     }
 
-    func testPremiumUser_canAddFile_noLimit() {
+    func testPremiumUserCanAddFileNoLimit() {
         let client = MockSubscriptionClient(isPremium: true)
         XCTAssertTrue(client.canAddFile(currentFileCount: 0))
         XCTAssertTrue(client.canAddFile(currentFileCount: 1000))
         XCTAssertTrue(client.canAddFile(currentFileCount: 99999))
     }
 
-    func testPremiumUser_canJoinSharedVault_noLimit() {
+    func testPremiumUserCanJoinSharedVaultNoLimit() {
         let client = MockSubscriptionClient(isPremium: true)
         XCTAssertTrue(client.canJoinSharedVault(currentCount: 0))
         XCTAssertTrue(client.canJoinSharedVault(currentCount: 100))
     }
 
-    func testPremiumUser_premiumOnlyFeatures_granted() {
+    func testPremiumUserPremiumOnlyFeaturesGranted() {
         let client = MockSubscriptionClient(isPremium: true)
         XCTAssertTrue(client.canCreateSharedVault())
         XCTAssertTrue(client.canCreateDuressVault())
@@ -145,7 +145,7 @@ final class SubscriptionManagerTests: XCTestCase {
 
     // MARK: - State Transitions
 
-    func testUpgradeToFreeToPremium_unlocksFeatures() {
+    func testUpgradeToFreeToPremiumUnlocksFeatures() {
         let client = MockSubscriptionClient(isPremium: false)
 
         // Free tier — limited
@@ -160,7 +160,7 @@ final class SubscriptionManagerTests: XCTestCase {
         XCTAssertTrue(client.canCreateSharedVault())
     }
 
-    func testDowngradePremiumToFree_reinstatesLimits() {
+    func testDowngradePremiumToFreeReinstatesLimits() {
         let client = MockSubscriptionClient(isPremium: true)
 
         // Premium — unlimited
@@ -177,21 +177,21 @@ final class SubscriptionManagerTests: XCTestCase {
 
     // MARK: - Boundary Conditions
 
-    func testFreeUser_vaultLimit_boundaryExact() {
+    func testFreeUserVaultLimitBoundaryExact() {
         let client = MockSubscriptionClient(isPremium: false)
         // maxFreeVaults = 5, so count < 5 is OK, count >= 5 is blocked
         XCTAssertTrue(client.canCreateVault(currentCount: 4))
         XCTAssertFalse(client.canCreateVault(currentCount: 5))
     }
 
-    func testFreeUser_fileLimit_boundaryExact() {
+    func testFreeUserFileLimitBoundaryExact() {
         let client = MockSubscriptionClient(isPremium: false)
         // maxFreeFilesPerVault = 100, so count < 100 is OK, count >= 100 is blocked
         XCTAssertTrue(client.canAddFile(currentFileCount: 99))
         XCTAssertFalse(client.canAddFile(currentFileCount: 100))
     }
 
-    func testFreeUser_sharedVaultLimit_boundaryExact() {
+    func testFreeUserSharedVaultLimitBoundaryExact() {
         let client = MockSubscriptionClient(isPremium: false)
         // maxFreeSharedVaults = 10, so count < 10 is OK, count >= 10 is blocked
         XCTAssertTrue(client.canJoinSharedVault(currentCount: 9))
@@ -200,7 +200,7 @@ final class SubscriptionManagerTests: XCTestCase {
 
     // MARK: - Premium Override (Singleton)
 
-    func testPremiumOverride_setsIsPremium() {
+    func testPremiumOverrideSetsIsPremium() {
         let manager = SubscriptionManager.shared
         let originalValue = manager.hasPremiumOverride
 
@@ -222,7 +222,7 @@ final class SubscriptionManagerTests: XCTestCase {
 
     // MARK: - Brute Force Delay (PatternLockView)
 
-    func testBruteForceDelay_progressiveSchedule() {
+    func testBruteForceDelayProgressiveSchedule() {
         // 0-3 attempts: no delay
         XCTAssertEqual(PatternLockView.bruteForceDelay(forAttempts: 0), 0)
         XCTAssertEqual(PatternLockView.bruteForceDelay(forAttempts: 3), 0)

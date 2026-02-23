@@ -15,7 +15,7 @@ final class VaultNameTests: XCTestCase {
     /// Auto-generated names must use at most `maxNameLetters` characters.
     /// Regression: Long patterns (20+ dots) produced names like "Vault DFUUCSVKHHZDQIZAQQVB"
     /// that overflowed the toolbar header.
-    func testVaultName_LimitedToMaxLetters() {
+    func testVaultNameLimitedToMaxLetters() {
         let maxLetters = GridLetterManager.maxNameLetters
         // A long pattern touching all 25 nodes
         let longPattern = Array(0..<25)
@@ -26,7 +26,7 @@ final class VaultNameTests: XCTestCase {
     }
 
     /// Patterns with exactly 6 dots (minimum valid) should produce at most maxNameLetters.
-    func testMinimumValidPattern_RespectsLimit() {
+    func testMinimumValidPatternRespectsLimit() {
         let pattern = [0, 1, 2, 3, 4, 5]
         let name = GridLetterManager.shared.vaultName(for: pattern)
 
@@ -35,7 +35,7 @@ final class VaultNameTests: XCTestCase {
     }
 
     /// A pattern with fewer nodes than maxNameLetters uses all available nodes.
-    func testShortPattern_UsesAllNodes() {
+    func testShortPatternUsesAllNodes() {
         let pattern = [0, 1]
         let name = GridLetterManager.shared.vaultName(for: pattern)
 
@@ -46,19 +46,19 @@ final class VaultNameTests: XCTestCase {
     // MARK: - Edge Cases
 
     /// Empty pattern produces empty name string.
-    func testEmptyPattern_ProducesEmptyName() {
+    func testEmptyPatternProducesEmptyName() {
         let name = GridLetterManager.shared.vaultName(for: [])
         XCTAssertTrue(name.isEmpty, "Empty pattern should produce empty name")
     }
 
     /// Single-node pattern produces single-letter name.
-    func testSingleNodePattern_ProducesSingleLetter() {
+    func testSingleNodePatternProducesSingleLetter() {
         let name = GridLetterManager.shared.vaultName(for: [12])
         XCTAssertEqual(name.count, 1)
     }
 
     /// Out-of-bounds node indices are skipped safely.
-    func testOutOfBoundsNodes_AreSkipped() {
+    func testOutOfBoundsNodesAreSkipped() {
         let name = GridLetterManager.shared.vaultName(for: [99, -1, 50])
         XCTAssertTrue(name.isEmpty, "Out-of-bounds nodes should be skipped")
     }
@@ -73,7 +73,7 @@ final class VaultNameTests: XCTestCase {
     // MARK: - Name Format
 
     /// All generated letters are uppercase ASCII.
-    func testGeneratedLetters_AreUppercaseASCII() {
+    func testGeneratedLettersAreUppercaseASCII() {
         let pattern = Array(0..<25)
         let name = GridLetterManager.shared.vaultName(for: pattern)
 
@@ -84,7 +84,7 @@ final class VaultNameTests: XCTestCase {
     }
 
     /// The full vault display name follows "Vault XXXX" format.
-    func testFullDisplayName_Format() {
+    func testFullDisplayNameFormat() {
         let pattern = [0, 1, 2, 3, 4, 5]
         let letters = GridLetterManager.shared.vaultName(for: pattern)
         let displayName = letters.isEmpty ? "Vault" : "Vault \(letters)"
@@ -96,7 +96,7 @@ final class VaultNameTests: XCTestCase {
     }
 
     /// The maxNameLetters constant is a reasonable value (3-6).
-    func testMaxNameLetters_IsReasonable() {
+    func testMaxNameLettersIsReasonable() {
         XCTAssertGreaterThanOrEqual(GridLetterManager.maxNameLetters, 3,
             "Need at least 3 letters for differentiation")
         XCTAssertLessThanOrEqual(GridLetterManager.maxNameLetters, 6,
@@ -106,7 +106,7 @@ final class VaultNameTests: XCTestCase {
     // MARK: - Deterministic Output
 
     /// Same pattern always produces the same name (letters persist in keychain).
-    func testSamePattern_ProducesSameName() {
+    func testSamePatternProducesSameName() {
         let pattern = [0, 5, 10, 15, 20, 24]
         let name1 = GridLetterManager.shared.vaultName(for: pattern)
         let name2 = GridLetterManager.shared.vaultName(for: pattern)
@@ -115,7 +115,7 @@ final class VaultNameTests: XCTestCase {
     }
 
     /// Different patterns produce different names (with high probability).
-    func testDifferentPatterns_ProduceDifferentNames() {
+    func testDifferentPatternsProduceDifferentNames() {
         let name1 = GridLetterManager.shared.vaultName(for: [0, 1, 2, 3, 4, 5])
         let name2 = GridLetterManager.shared.vaultName(for: [24, 23, 22, 21, 20, 19])
 
@@ -128,7 +128,7 @@ final class VaultNameTests: XCTestCase {
     // MARK: - Custom Name Validation
 
     /// Custom names are capped at 30 characters.
-    func testCustomName_MaxLength30() {
+    func testCustomNameMaxLength30() {
         let longName = String(repeating: "A", count: 50)
         let trimmed = String(longName.prefix(30))
 
@@ -137,7 +137,7 @@ final class VaultNameTests: XCTestCase {
     }
 
     /// Empty custom name resets to auto-generated (customName = nil).
-    func testCustomName_EmptyResetsToAuto() {
+    func testCustomNameEmptyResetsToAuto() {
         let input = ""
         let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -146,7 +146,7 @@ final class VaultNameTests: XCTestCase {
     }
 
     /// Whitespace-only custom name resets to auto-generated.
-    func testCustomName_WhitespaceOnly_ResetsToAuto() {
+    func testCustomNameWhitespaceOnlyResetsToAuto() {
         let input = "   \t\n  "
         let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -155,7 +155,7 @@ final class VaultNameTests: XCTestCase {
     }
 
     /// Custom names have leading/trailing whitespace trimmed.
-    func testCustomName_TrimmedOfWhitespace() {
+    func testCustomNameTrimmedOfWhitespace() {
         let input = "  My Vault  "
         let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -164,7 +164,7 @@ final class VaultNameTests: XCTestCase {
     }
 
     /// Auto-generated display name "Vault XXXX" is at most 10 chars; custom names at most 30.
-    func testDisplayName_MaxTotalLength() {
+    func testDisplayNameMaxTotalLength() {
         // Auto-generated: "Vault " (6) + maxNameLetters (4) = 10
         let maxAutoLength = 6 + GridLetterManager.maxNameLetters
         XCTAssertLessThanOrEqual(maxAutoLength, 10,

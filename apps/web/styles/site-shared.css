@@ -206,6 +206,7 @@ header {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   position: relative;
+  z-index: 1;
   clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
   transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   border: none;
@@ -220,11 +221,6 @@ header {
 .btn-nav {
   padding: 12px 24px;
   font-size: 0.9rem;
-}
-
-.btn {
-  position: relative;
-  z-index: 1;
 }
 
 .btn-primary::before {
@@ -295,6 +291,7 @@ footer {
   padding: 60px 0;
   font-size: 0.9rem;
   border-top: 1px solid color-mix(in srgb, var(--text) 14%, transparent 86%);
+  transition: transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .footer-content {
@@ -329,9 +326,6 @@ footer {
 
 .footer-links a {
   position: relative;
-}
-
-.footer-links a {
   margin: 0;
   color: var(--accent);
   text-decoration: none;
@@ -572,10 +566,6 @@ body.mobile-nav-open main {
 
 body.mobile-nav-open footer {
   transform: translateY(var(--mobile-nav-h, 0px));
-}
-
-footer {
-  transition: transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @media (max-width: 768px) {

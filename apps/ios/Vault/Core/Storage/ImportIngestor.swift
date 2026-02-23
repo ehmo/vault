@@ -174,27 +174,11 @@ enum ImportIngestor {
                                 : file.filename
 
                             // Process thumbnail and store
-                            try autoreleasepool {
-                                var thumbnailData: Data?
-                                if file.hasThumbnail,
-                                   let encThumb = StagedImportManager.readEncryptedThumbnail(
-                                       batchId: batch.batchId, fileId: file.fileId
-                                   ) {
-                                    thumbnailData = try? CryptoEngine.decrypt(encThumb, with: vaultKey.rawBytes)
-                                }
-
-                                if thumbnailData == nil {
-                                    thumbnailData = generateThumbnailSync(for: optimizedURL, mimeType: optimizedMimeType)
-                                }
-
-                                _ = try VaultStorage.shared.storeFileFromURL(
-                                    optimizedURL,
-                                    filename: storedFilename,
-                                    mimeType: optimizedMimeType,
-                                    with: vaultKey,
-                                    thumbnailData: thumbnailData
-                                )
-                            }
+                            try storeWithThumbnail(
+                                batch: batch, file: file, optimizedURL: optimizedURL,
+                                storedFilename: storedFilename, optimizedMimeType: optimizedMimeType,
+                                vaultKey: vaultKey
+                            )
 
                             if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
                             try? FileManager.default.removeItem(at: tempURL)
@@ -242,6 +226,36 @@ enum ImportIngestor {
         }
 
         return (await state.imported, await state.failed, await state.processed, await state.failureReason)
+    }
+
+    /// Resolves thumbnail data and stores the file inside an autoreleasepool.
+    private static func storeWithThumbnail(
+        batch: StagedImportManifest,
+        file: StagedFileMetadata,
+        optimizedURL: URL,
+        storedFilename: String,
+        optimizedMimeType: String,
+        vaultKey: VaultKey
+    ) throws {
+        try autoreleasepool {
+            var thumbnailData: Data?
+            if file.hasThumbnail,
+               let encThumb = StagedImportManager.readEncryptedThumbnail(
+                   batchId: batch.batchId, fileId: file.fileId
+               ) {
+                thumbnailData = try? CryptoEngine.decrypt(encThumb, with: vaultKey.rawBytes)
+            }
+            if thumbnailData == nil {
+                thumbnailData = generateThumbnailSync(for: optimizedURL, mimeType: optimizedMimeType)
+            }
+            _ = try VaultStorage.shared.storeFileFromURL(
+                optimizedURL,
+                filename: storedFilename,
+                mimeType: optimizedMimeType,
+                with: vaultKey,
+                thumbnailData: thumbnailData
+            )
+        }
     }
 
     // MARK: - Thumbnail Generation

@@ -13,9 +13,9 @@
       return `rgba(204, 195, 248, ${alpha})`;
     }
 
-    const r = parseInt(fullHex.slice(0, 2), 16);
-    const g = parseInt(fullHex.slice(2, 4), 16);
-    const b = parseInt(fullHex.slice(4, 6), 16);
+    const r = Number.parseInt(fullHex.slice(0, 2), 16);
+    const g = Number.parseInt(fullHex.slice(2, 4), 16);
+    const b = Number.parseInt(fullHex.slice(4, 6), 16);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 
@@ -34,7 +34,7 @@
 
   function shouldHandleCompetitorImage(img) {
     return img instanceof HTMLImageElement
-      && (img.hasAttribute("data-competitor-icon")
+      && (("competitorIcon" in img.dataset)
         || APP_STORE_ICON_HOST.test(img.currentSrc || img.src || ""));
   }
 
@@ -97,8 +97,8 @@
           this.destroy();
         };
 
-        window.addEventListener("pagehide", onPageHide);
-        this._pushCleanup(() => window.removeEventListener("pagehide", onPageHide));
+        globalThis.addEventListener("pagehide", onPageHide);
+        this._pushCleanup(() => globalThis.removeEventListener("pagehide", onPageHide));
       },
 
       _initTheme() {
@@ -106,12 +106,13 @@
         const toggle = document.getElementById("theme-toggle");
         const icon = document.getElementById("theme-icon");
         const label = document.getElementById("theme-label");
-        const preferred = window.matchMedia("(prefers-color-scheme: dark)");
+        const preferred = globalThis.matchMedia("(prefers-color-scheme: dark)");
         const key = "vaultaire-theme";
         const readTheme = () => {
           try {
             return localStorage.getItem(key);
           } catch (_) {
+            // localStorage unavailable (private mode / blocked storage)
             return null;
           }
         };
@@ -138,14 +139,20 @@
           setThemeIcon(icon, isDark ? "sun" : "moon");
           setElementText(label, this.themeLabel);
 
-          window.dispatchEvent(new CustomEvent("vaultaire-themechange", {
+          globalThis.dispatchEvent(new CustomEvent("vaultaire-themechange", {
             detail: { theme: this.theme, isDark }
           }));
         };
 
         const saved = readTheme();
         const hasOverride = saved === "dark" || saved === "light";
-        applyTheme(hasOverride ? saved : (preferred.matches ? "dark" : "light"), false);
+        let initialTheme;
+        if (hasOverride) {
+          initialTheme = saved;
+        } else {
+          initialTheme = preferred.matches ? "dark" : "light";
+        }
+        applyTheme(initialTheme, false);
 
         const onToggleClick = () => {
           applyTheme(this.isDark ? "light" : "dark", true);
@@ -162,13 +169,8 @@
           this._pushCleanup(() => toggle.removeEventListener("click", onToggleClick));
         }
 
-        if (typeof preferred.addEventListener === "function") {
-          preferred.addEventListener("change", onPreferredChange);
-          this._pushCleanup(() => preferred.removeEventListener("change", onPreferredChange));
-        } else if (typeof preferred.addListener === "function") {
-          preferred.addListener(onPreferredChange);
-          this._pushCleanup(() => preferred.removeListener(onPreferredChange));
-        }
+        preferred.addEventListener("change", onPreferredChange);
+        this._pushCleanup(() => preferred.removeEventListener("change", onPreferredChange));
       },
 
       _initCompareIconFallback() {
@@ -186,7 +188,7 @@
 
       _initMobileNav() {
         const header = document.querySelector("header");
-        const navCta = header && header.querySelector(".nav-cta");
+        const navCta = header?.querySelector(".nav-cta");
         if (!header || !navCta || header.querySelector("#mobileMenuBtn")) return;
 
         const homeLink = header.querySelector('.nav-links a[href*="index.html"]');
@@ -309,7 +311,7 @@
         };
 
         const onThemeChange = (event) => {
-          syncHeroLogo(Boolean(event.detail && event.detail.isDark));
+          syncHeroLogo(Boolean(event.detail?.isDark));
         };
 
         openInAppButton.href = buildCustomSchemeInviteUrl();
@@ -320,30 +322,30 @@
 
           const onVisibilityChange = () => {
             if (document.visibilityState === "hidden") {
-              window.clearTimeout(fallbackTimer);
+              globalThis.clearTimeout(fallbackTimer);
               document.removeEventListener("visibilitychange", onVisibilityChange);
             }
           };
 
           document.addEventListener("visibilitychange", onVisibilityChange);
-          const fallbackTimer = window.setTimeout(() => {
+          const fallbackTimer = globalThis.setTimeout(() => {
             document.removeEventListener("visibilitychange", onVisibilityChange);
             if (document.visibilityState === "visible") {
               window.location.assign(fallbackUrl);
             }
           }, 900);
-          this._pushCleanup(() => window.clearTimeout(fallbackTimer));
+          this._pushCleanup(() => globalThis.clearTimeout(fallbackTimer));
 
           window.location.assign(schemeUrl);
         };
 
         syncHeroLogo(this.isDark);
         openInAppButton.addEventListener("click", onOpenClick);
-        window.addEventListener("vaultaire-themechange", onThemeChange);
+        globalThis.addEventListener("vaultaire-themechange", onThemeChange);
 
         this._pushCleanup(() => {
           openInAppButton.removeEventListener("click", onOpenClick);
-          window.removeEventListener("vaultaire-themechange", onThemeChange);
+          globalThis.removeEventListener("vaultaire-themechange", onThemeChange);
         });
       },
 
@@ -387,7 +389,7 @@
         let resizeRafId = 0;
 
         const scheduleTimeout = (fn, ms) => {
-          const id = window.setTimeout(() => {
+          const id = globalThis.setTimeout(() => {
             runtime.timeoutIds.delete(id);
             if (!runtime.disposed) fn();
           }, ms);
@@ -397,12 +399,12 @@
 
         const clearScheduledTimeout = (id) => {
           if (!id) return;
-          window.clearTimeout(id);
+          globalThis.clearTimeout(id);
           runtime.timeoutIds.delete(id);
         };
 
         const clearAllTimeouts = () => {
-          runtime.timeoutIds.forEach((id) => window.clearTimeout(id));
+          runtime.timeoutIds.forEach((id) => globalThis.clearTimeout(id));
           runtime.timeoutIds.clear();
           runtime.drawingResetTimerId = 0;
           runtime.minuteTimerId = 0;
@@ -438,7 +440,7 @@
 
         const scheduleResize = () => {
           if (runtime.disposed || resizeRafId) return;
-          resizeRafId = window.requestAnimationFrame(() => {
+          resizeRafId = globalThis.requestAnimationFrame(() => {
             resizeRafId = 0;
             if (!runtime.disposed) {
               resize();
@@ -492,17 +494,17 @@
           });
 
           if (Math.random() > 0.95) drawRandomPattern();
-          runtime.drawRafId = window.requestAnimationFrame(draw);
+          runtime.drawRafId = globalThis.requestAnimationFrame(draw);
         };
 
         const startDrawLoop = () => {
           if (runtime.disposed || document.hidden || !runtime.heroVisible || runtime.drawRafId) return;
-          runtime.drawRafId = window.requestAnimationFrame(draw);
+          runtime.drawRafId = globalThis.requestAnimationFrame(draw);
         };
 
         const stopDrawLoop = () => {
           if (!runtime.drawRafId) return;
-          window.cancelAnimationFrame(runtime.drawRafId);
+          globalThis.cancelAnimationFrame(runtime.drawRafId);
           runtime.drawRafId = 0;
         };
 
@@ -569,12 +571,12 @@
             const y = fromPoint.y + ((toPoint.y - fromPoint.y) * progress);
             setPath([...stablePoints, { x, y }]);
             if (progress < 1) {
-              window.requestAnimationFrame(tick);
+              globalThis.requestAnimationFrame(tick);
             } else {
               resolve(true);
             }
           };
-          window.requestAnimationFrame(tick);
+          globalThis.requestAnimationFrame(tick);
         });
 
         const runSequence = async (sequence, ticket) => {
@@ -641,8 +643,7 @@
           runtime.patternLoopRunning = false;
           dots.forEach((dot) => dot.classList.remove("active"));
           setPath([]);
-          phoneScreen.classList.remove("mockup-unlocking");
-          phoneScreen.classList.remove("mockup-vault");
+          phoneScreen.classList.remove("mockup-unlocking", "mockup-vault");
         };
 
         const pause = () => {
@@ -689,7 +690,7 @@
         if (heroSection && typeof IntersectionObserver !== "undefined") {
           heroObserver = new IntersectionObserver((entries) => {
             const entry = entries[0];
-            runtime.heroVisible = Boolean(entry && entry.isIntersecting);
+            runtime.heroVisible = Boolean(entry?.isIntersecting);
             if (runtime.heroVisible && !document.hidden) {
               resume();
             } else {
@@ -702,17 +703,17 @@
         }
 
         document.addEventListener("visibilitychange", onVisibility);
-        window.addEventListener("pageshow", resume);
-        window.addEventListener("vaultaire-themechange", onThemeChange);
-        window.addEventListener("resize", scheduleResize);
+        globalThis.addEventListener("pageshow", resume);
+        globalThis.addEventListener("vaultaire-themechange", onThemeChange);
+        globalThis.addEventListener("resize", scheduleResize);
 
         this._pushCleanup(() => {
           document.removeEventListener("visibilitychange", onVisibility);
-          window.removeEventListener("pageshow", resume);
-          window.removeEventListener("vaultaire-themechange", onThemeChange);
-          window.removeEventListener("resize", scheduleResize);
+          globalThis.removeEventListener("pageshow", resume);
+          globalThis.removeEventListener("vaultaire-themechange", onThemeChange);
+          globalThis.removeEventListener("resize", scheduleResize);
           if (resizeRafId) {
-            window.cancelAnimationFrame(resizeRafId);
+            globalThis.cancelAnimationFrame(resizeRafId);
             resizeRafId = 0;
           }
           if (heroObserver) {

@@ -31,14 +31,14 @@ final class ScreenshotShieldTests: XCTestCase {
 
     // MARK: - Secure Text Field Setup
 
-    func test_secureField_hasSecureTextEntry() {
+    func testSecureFieldHasSecureTextEntry() {
         shield.activate(on: hostWindow)
 
         XCTAssertNotNil(shield.secureField)
         XCTAssertTrue(shield.secureField!.isSecureTextEntry)
     }
 
-    func test_secureField_isNotInteractive() {
+    func testSecureFieldIsNotInteractive() {
         shield.activate(on: hostWindow)
 
         XCTAssertFalse(shield.secureField!.isUserInteractionEnabled)
@@ -46,7 +46,7 @@ final class ScreenshotShieldTests: XCTestCase {
 
     // MARK: - Field Positioning (Critical — prevents content offset bug)
 
-    func test_secureField_remainsAtOrigin() {
+    func testSecureFieldRemainsAtOrigin() {
         shield.activate(on: hostWindow)
 
         // The field MUST stay at origin. Centering constraints caused a bug where
@@ -58,7 +58,7 @@ final class ScreenshotShieldTests: XCTestCase {
 
     // MARK: - Layer Reparenting
 
-    func test_windowLayer_isInsideSecureContainer() {
+    func testWindowLayerIsInsideSecureContainer() {
         shield.activate(on: hostWindow)
 
         guard let field = shield.secureField else {
@@ -79,7 +79,7 @@ final class ScreenshotShieldTests: XCTestCase {
                       "Window layer must be inside the secure container for screenshot blanking")
     }
 
-    func test_fieldLayer_isInWindowSuperlayer() {
+    func testFieldLayerIsInWindowSuperlayer() {
         let originalSuperlayer = hostWindow.layer.superlayer
         XCTAssertNotNil(originalSuperlayer, "Test window must have a superlayer")
 
@@ -97,14 +97,14 @@ final class ScreenshotShieldTests: XCTestCase {
 
     // MARK: - masksToBounds (prevents clipping)
 
-    func test_masksToBounds_disabledOnFieldLayer() {
+    func testMasksToBoundsDisabledOnFieldLayer() {
         shield.activate(on: hostWindow)
 
         XCTAssertFalse(shield.secureField!.layer.masksToBounds,
                        "Field layer must not clip — zero-sized layer hosts full-screen content")
     }
 
-    func test_masksToBounds_disabledOnSecureContainer() {
+    func testMasksToBoundsDisabledOnSecureContainer() {
         shield.activate(on: hostWindow)
 
         guard let field = shield.secureField else {
@@ -125,7 +125,7 @@ final class ScreenshotShieldTests: XCTestCase {
 
     // MARK: - Idempotency
 
-    func test_activate_isIdempotent() {
+    func testActivateIsIdempotent() {
         shield.activate(on: hostWindow)
         let firstField = shield.secureField
 
@@ -139,7 +139,7 @@ final class ScreenshotShieldTests: XCTestCase {
 
     // MARK: - Activation State
 
-    func test_activate_setsIsActive() {
+    func testActivateSetsIsActive() {
         XCTAssertFalse(shield.isActive)
 
         shield.activate(on: hostWindow)
@@ -147,14 +147,14 @@ final class ScreenshotShieldTests: XCTestCase {
         XCTAssertTrue(shield.isActive)
     }
 
-    func test_notActive_beforeActivation() {
+    func testNotActiveBeforeActivation() {
         XCTAssertNil(shield.secureField)
         XCTAssertFalse(shield.isActive)
     }
 
     // MARK: - Layer Hierarchy Integrity
 
-    func test_layerHierarchy_isCorrectOrder() {
+    func testLayerHierarchyIsCorrectOrder() {
         let originalSuperlayer = hostWindow.layer.superlayer!
 
         shield.activate(on: hostWindow)
@@ -170,7 +170,7 @@ final class ScreenshotShieldTests: XCTestCase {
 
     // MARK: - Deactivation
 
-    func test_deactivate_removesField() {
+    func testDeactivateRemovesField() {
         shield.activate(on: hostWindow)
         XCTAssertNotNil(shield.secureField)
 
@@ -180,7 +180,7 @@ final class ScreenshotShieldTests: XCTestCase {
         XCTAssertFalse(shield.isActive)
     }
 
-    func test_deactivate_idempotent() {
+    func testDeactivateIdempotent() {
         // Should not crash when called without prior activation
         shield.deactivate()
         XCTAssertFalse(shield.isActive)
@@ -188,7 +188,7 @@ final class ScreenshotShieldTests: XCTestCase {
 
     // MARK: - Reset
 
-    func test_reset_clearsState() {
+    func testResetClearsState() {
         shield.activate(on: hostWindow)
         XCTAssertTrue(shield.isActive)
 
@@ -200,14 +200,13 @@ final class ScreenshotShieldTests: XCTestCase {
 
     // MARK: - Reactivation After Window Destruction
 
-    func test_reactivateIfNeeded_afterWindowDestruction() {
+    func testReactivateIfNeededAfterWindowDestruction() {
         // Activate on original window
         shield.activate(on: hostWindow)
         XCTAssertTrue(shield.isActive)
 
         // Simulate window destruction (common in scene lifecycle changes)
         hostWindow.isHidden = true
-        let oldWindow = hostWindow
         hostWindow = nil
 
         // At this point protectedWindow is nil but isActive is still true
@@ -235,7 +234,7 @@ final class ScreenshotShieldTests: XCTestCase {
 
     // MARK: - Reactivation Idempotency
 
-    func test_reactivateIfNeeded_doesNothingWhenWindowExists() {
+    func testReactivateIfNeededDoesNothingWhenWindowExists() {
         shield.activate(on: hostWindow)
         XCTAssertTrue(shield.isActive)
 

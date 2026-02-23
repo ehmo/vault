@@ -44,7 +44,7 @@ final class VaultIndexManagerTests: XCTestCase {
 
     /// Tests that loadIndex creates a proper v3 index with master key for new vaults.
     /// Catches: Using bare VaultIndex() init without master key
-    func testLoadIndex_CreatesNewVaultWithMasterKey() throws {
+    func testLoadIndexCreatesNewVaultWithMasterKey() throws {
         let index = try manager.loadIndex(with: testKey)
 
         XCTAssertEqual(index.version, 3, "New vault should be v3")
@@ -54,7 +54,7 @@ final class VaultIndexManagerTests: XCTestCase {
     }
 
     /// Tests that the master key can be extracted and decrypted.
-    func testGetMasterKey_ExtractsSuccessfully() throws {
+    func testGetMasterKeyExtractsSuccessfully() throws {
         let index = try manager.loadIndex(with: testKey)
         let masterKey = try manager.getMasterKey(from: index, vaultKey: testKey)
 
@@ -63,7 +63,7 @@ final class VaultIndexManagerTests: XCTestCase {
 
     /// Tests that getMasterKey throws when encryptedMasterKey is nil.
     /// Catches: Creating v1 index without migration
-    func testGetMasterKey_ThrowsWhenNil() throws {
+    func testGetMasterKeyThrowsWhenNil() throws {
         // Create v1 index manually (without master key)
         let v1Index = VaultStorage.VaultIndex(files: [], nextOffset: 0, totalSize: 50 * 1024 * 1024)
 
@@ -75,7 +75,7 @@ final class VaultIndexManagerTests: XCTestCase {
     // MARK: - Caching
 
     /// Tests that cached index is returned for the same key.
-    func testLoadIndex_UsesCachedIndexForSameKey() throws {
+    func testLoadIndexUsesCachedIndexForSameKey() throws {
         let index1 = try manager.loadIndex(with: testKey)
         let index2 = try manager.loadIndex(with: testKey)
 
@@ -85,7 +85,7 @@ final class VaultIndexManagerTests: XCTestCase {
     }
 
     /// Tests that cache is updated after save.
-    func testSaveIndex_UpdatesCache() throws {
+    func testSaveIndexUpdatesCache() throws {
         let index = try manager.loadIndex(with: testKey)
 
         // Save
@@ -110,7 +110,7 @@ final class VaultIndexManagerTests: XCTestCase {
     // MARK: - Migration
 
     /// Tests v1 to v3 migration (through v2).
-    func testLoadIndex_MigrationV1ToV3() throws {
+    func testLoadIndexMigrationV1ToV3() throws {
         // Create v1 index manually
         let v1Index = VaultStorage.VaultIndex(files: [], nextOffset: 0, totalSize: 50 * 1024 * 1024)
         let encoded = try JSONEncoder().encode(v1Index)
@@ -126,7 +126,7 @@ final class VaultIndexManagerTests: XCTestCase {
     // MARK: - Error Handling
 
     /// Tests that corrupted data throws appropriate error.
-    func testLoadIndex_CorruptedDataThrows() throws {
+    func testLoadIndexCorruptedDataThrows() throws {
         // Write garbage data
         let garbage = Data("not a valid encrypted index".utf8)
         try garbage.write(to: manager.indexURL(for: testKey))
@@ -137,7 +137,7 @@ final class VaultIndexManagerTests: XCTestCase {
     }
 
     /// Tests that wrong key throws decryption error.
-    func testLoadIndex_WrongKeyThrows() throws {
+    func testLoadIndexWrongKeyThrows() throws {
         // Create and persist index with testKey
         let index = try manager.loadIndex(with: testKey)
         try manager.saveIndex(index, with: testKey)
@@ -158,7 +158,7 @@ final class VaultIndexManagerTests: XCTestCase {
 
     // MARK: - Key Fingerprint
 
-    func testKeyFingerprint_IsDeterministic() {
+    func testKeyFingerprintIsDeterministic() {
         let fp1 = manager.keyFingerprint(testKey)
         let fp2 = manager.keyFingerprint(testKey)
 
@@ -166,7 +166,7 @@ final class VaultIndexManagerTests: XCTestCase {
         XCTAssertEqual(fp1.count, 32, "Fingerprint should be 32 hex characters (16 bytes)")
     }
 
-    func testKeyFingerprint_DifferentKeys() {
+    func testKeyFingerprintDifferentKeys() {
         let key2 = VaultKey(CryptoEngine.generateRandomBytes(count: 32)!)
 
         let fp1 = manager.keyFingerprint(testKey)

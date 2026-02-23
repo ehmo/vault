@@ -18,13 +18,13 @@ final class ChangePatternFlowTests: XCTestCase {
 
     // MARK: - skipVerification
 
-    func testSkipVerification_transitionsToCreateNew() {
+    func testSkipVerificationTransitionsToCreateNew() {
         var flow = ChangePatternFlowState()
         flow.skipVerification()
         XCTAssertEqual(flow.step, .createNew)
     }
 
-    func testSkipVerification_clearsState() {
+    func testSkipVerificationClearsState() {
         var flow = ChangePatternFlowState()
         flow.currentPattern = [1, 2, 3]
         flow.newPattern = [4, 5, 6]
@@ -40,7 +40,7 @@ final class ChangePatternFlowTests: XCTestCase {
         XCTAssertFalse(flow.isProcessing)
     }
 
-    func testSkipVerification_afterPartialProgress_clearsState() {
+    func testSkipVerificationAfterPartialProgressClearsState() {
         var flow = ChangePatternFlowState()
         // Simulate partial progress: verified current, started creating new
         flow.transitionToCreate(currentPattern: [0, 1, 2, 7, 12, 17, 22])
@@ -56,7 +56,7 @@ final class ChangePatternFlowTests: XCTestCase {
 
     // MARK: - Transitions
 
-    func testTransitionToCreate_setsPattern() {
+    func testTransitionToCreateSetsPattern() {
         var flow = ChangePatternFlowState()
         let pattern = [0, 1, 2, 7, 12, 17, 22]
         flow.transitionToCreate(currentPattern: pattern)
@@ -67,7 +67,7 @@ final class ChangePatternFlowTests: XCTestCase {
         XCTAssertFalse(flow.isProcessing)
     }
 
-    func testTransitionToConfirm_setsNewPattern() {
+    func testTransitionToConfirmSetsNewPattern() {
         var flow = ChangePatternFlowState()
         let pattern = [5, 10, 15, 20, 21, 22]
         flow.transitionToConfirm(newPattern: pattern)
@@ -78,7 +78,7 @@ final class ChangePatternFlowTests: XCTestCase {
         XCTAssertFalse(flow.isProcessing)
     }
 
-    func testComplete_setsRecoveryPhrase() {
+    func testCompleteSetsRecoveryPhrase() {
         var flow = ChangePatternFlowState()
         let phrase = "alpha bravo charlie delta echo foxtrot"
         flow.complete(with: phrase)
@@ -91,7 +91,7 @@ final class ChangePatternFlowTests: XCTestCase {
 
     // MARK: - resetForStartOver
 
-    func testResetForStartOver_resetsToVerify() {
+    func testResetForStartOverResetsToVerify() {
         var flow = ChangePatternFlowState()
         flow.transitionToCreate(currentPattern: [0, 1, 2, 7, 12, 17, 22])
         flow.transitionToConfirm(newPattern: [5, 10, 15, 20, 21, 22])
@@ -104,7 +104,7 @@ final class ChangePatternFlowTests: XCTestCase {
         XCTAssertFalse(flow.isProcessing)
     }
 
-    func testResetForStartOver_afterSkipVerification_resetsToVerify() {
+    func testResetForStartOverAfterSkipVerificationResetsToVerify() {
         var flow = ChangePatternFlowState()
         flow.skipVerification()
         XCTAssertEqual(flow.step, .createNew)
@@ -118,14 +118,14 @@ final class ChangePatternFlowTests: XCTestCase {
 
     // MARK: - Processing Guards
 
-    func testBeginProcessingIfIdle_preventsDoubleProcessing() {
+    func testBeginProcessingIfIdlePreventsDoubleProcessing() {
         var flow = ChangePatternFlowState()
         XCTAssertTrue(flow.beginProcessingIfIdle())
         XCTAssertTrue(flow.isProcessing)
         XCTAssertFalse(flow.beginProcessingIfIdle()) // second call blocked
     }
 
-    func testEndProcessing_allowsNewProcessing() {
+    func testEndProcessingAllowsNewProcessing() {
         var flow = ChangePatternFlowState()
         XCTAssertTrue(flow.beginProcessingIfIdle())
         flow.endProcessing()
@@ -135,14 +135,14 @@ final class ChangePatternFlowTests: XCTestCase {
 
     // MARK: - Feedback
 
-    func testShowError_setsErrorAndClearsValidation() {
+    func testShowErrorSetsErrorAndClearsValidation() {
         var flow = ChangePatternFlowState()
         flow.showError("Something went wrong")
         XCTAssertEqual(flow.errorMessage, "Something went wrong")
         XCTAssertNil(flow.validationResult)
     }
 
-    func testClearFeedback_clearsErrorAndValidation() {
+    func testClearFeedbackClearsErrorAndValidation() {
         var flow = ChangePatternFlowState()
         flow.showError("err")
         flow.clearFeedback()
@@ -152,7 +152,7 @@ final class ChangePatternFlowTests: XCTestCase {
 
     // MARK: - Step Index (used by progress indicator)
 
-    func testStepIndex_withVerification() {
+    func testStepIndexWithVerification() {
         // In normal 3-step flow, stepIndex maps as:
         // verifyCurrent=0, createNew=0, confirmNew=1, complete=2
         var flow = ChangePatternFlowState()
@@ -168,7 +168,7 @@ final class ChangePatternFlowTests: XCTestCase {
         XCTAssertEqual(flow.step, .complete)
     }
 
-    func testStepIndex_withSkippedVerification() {
+    func testStepIndexWithSkippedVerification() {
         // In 2-step flow (skipped verification), createNew=0, confirmNew=1, complete=2
         var flow = ChangePatternFlowState()
         flow.skipVerification()

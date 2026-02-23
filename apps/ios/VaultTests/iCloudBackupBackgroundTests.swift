@@ -4,7 +4,7 @@ import XCTest
 /// Tests for iCloudBackupManager covering background backup handling,
 /// chunked uploads, and resume functionality.
 @MainActor
-final class iCloudBackupBackgroundTests: XCTestCase {
+final class ICloudBackupBackgroundTests: XCTestCase {
 
     private var manager: iCloudBackupManager!
     private let fm = FileManager.default
@@ -28,27 +28,29 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         documentsDir.appendingPathComponent("pending_backup", isDirectory: true)
     }
 
-    private func writePendingState(
-        backupId: String = "test-backup",
-        totalChunks: Int = 3,
-        createdAt: Date = Date(),
-        uploadFinished: Bool = false,
-        manifestSaved: Bool = false,
-        retryCount: Int = 0,
-        fileCount: Int = 10,
-        vaultTotalSize: Int = 102400
-    ) throws {
+    private struct PendingStateParams {
+        var backupId: String = "test-backup"
+        var totalChunks: Int = 3
+        var createdAt: Date = Date()
+        var uploadFinished: Bool = false
+        var manifestSaved: Bool = false
+        var retryCount: Int = 0
+        var fileCount: Int = 10
+        var vaultTotalSize: Int = 102400
+    }
+
+    private func writePendingState(_ params: PendingStateParams = PendingStateParams()) throws {
         let state = iCloudBackupManager.PendingBackupState(
-            backupId: backupId,
-            totalChunks: totalChunks,
+            backupId: params.backupId,
+            totalChunks: params.totalChunks,
             checksum: Data([0x01, 0x02]),
-            encryptedSize: 1024 * totalChunks,
-            createdAt: createdAt,
-            uploadFinished: uploadFinished,
-            manifestSaved: manifestSaved,
-            retryCount: retryCount,
-            fileCount: fileCount,
-            vaultTotalSize: vaultTotalSize
+            encryptedSize: 1024 * params.totalChunks,
+            createdAt: params.createdAt,
+            uploadFinished: params.uploadFinished,
+            manifestSaved: params.manifestSaved,
+            retryCount: params.retryCount,
+            fileCount: params.fileCount,
+            vaultTotalSize: params.vaultTotalSize
         )
         try fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
         let data = try JSONEncoder().encode(state)
@@ -65,7 +67,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
 
     // MARK: - Background Task Registration
 
-    func testRegisterBackgroundProcessingTask_DoesNotCrash() {
+    func testRegisterBackgroundProcessingTaskDoesNotCrash() {
         // Note: This may fail if already registered by app launch.
         // We just verify the method exists and the identifier is correct.
         XCTAssertEqual(
@@ -76,24 +78,24 @@ final class iCloudBackupBackgroundTests: XCTestCase {
 
     // MARK: - Notification Methods
 
-    func testSendBackupCompleteNotification_Success() {
+    func testSendBackupCompleteNotificationSuccess() {
         manager.sendBackupCompleteNotification(success: true)
     }
 
-    func testSendBackupCompleteNotification_Failure() {
+    func testSendBackupCompleteNotificationFailure() {
         manager.sendBackupCompleteNotification(
             success: false,
             errorMessage: "Network unavailable"
         )
     }
 
-    func testSendBackupCompleteNotification_FailureWithoutMessage() {
+    func testSendBackupCompleteNotificationFailureWithoutMessage() {
         manager.sendBackupCompleteNotification(success: false)
     }
 
     // MARK: - Backup Metadata
 
-    func testBackupMetadata_FormattedDate() {
+    func testBackupMetadataFormattedDate() {
         let metadata = iCloudBackupManager.BackupMetadata(
             timestamp: Date(timeIntervalSince1970: 1700000000),
             size: 1024 * 1024 * 5,
@@ -107,7 +109,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         XCTAssertEqual(metadata.formattedSize, "5.0 MB")
     }
 
-    func testBackupMetadata_FormattedSize() {
+    func testBackupMetadataFormattedSize() {
         let metadata1 = iCloudBackupManager.BackupMetadata(
             timestamp: Date(),
             size: 1024 * 1024,
@@ -123,7 +125,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         XCTAssertEqual(metadata2.formattedSize, "0.5 MB")
     }
 
-    func testBackupMetadata_FormattedSize_SmallValues() {
+    func testBackupMetadataFormattedSizeSmallValues() {
         let metadata = iCloudBackupManager.BackupMetadata(
             timestamp: Date(),
             size: 1024,
@@ -132,7 +134,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         XCTAssertEqual(metadata.formattedSize, "0.0 MB")
     }
 
-    func testBackupMetadata_FormattedSize_LargeValues() {
+    func testBackupMetadataFormattedSizeLargeValues() {
         let metadata = iCloudBackupManager.BackupMetadata(
             timestamp: Date(),
             size: 100 * 1024 * 1024,
@@ -141,7 +143,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         XCTAssertEqual(metadata.formattedSize, "100.0 MB")
     }
 
-    func testBackupMetadata_V1Defaults() {
+    func testBackupMetadataV1Defaults() {
         let metadata = iCloudBackupManager.BackupMetadata(
             timestamp: Date(),
             size: 1024,
@@ -152,7 +154,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         XCTAssertNil(metadata.backupId)
     }
 
-    func testBackupMetadata_V2Fields() {
+    func testBackupMetadataV2Fields() {
         let metadata = iCloudBackupManager.BackupMetadata(
             timestamp: Date(),
             size: 1024,
@@ -166,7 +168,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         XCTAssertEqual(metadata.backupId, "abc-123")
     }
 
-    func testBackupMetadata_CodableRoundTrip() throws {
+    func testBackupMetadataCodableRoundTrip() throws {
         let metadata = iCloudBackupManager.BackupMetadata(
             timestamp: Date(timeIntervalSince1970: 1700000000),
             size: 5_242_880,
@@ -188,7 +190,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
 
     // MARK: - Backup Stage
 
-    func testBackupStage_RawValues() {
+    func testBackupStageRawValues() {
         XCTAssertEqual(iCloudBackupManager.BackupStage.waitingForICloud.rawValue, "Connecting to iCloud...")
         XCTAssertEqual(iCloudBackupManager.BackupStage.readingVault.rawValue, "Reading vault data...")
         XCTAssertEqual(iCloudBackupManager.BackupStage.encrypting.rawValue, "Encrypting backup...")
@@ -196,7 +198,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         XCTAssertEqual(iCloudBackupManager.BackupStage.complete.rawValue, "Backup complete")
     }
 
-    func testBackupStage_AllCasesExist() {
+    func testBackupStageAllCasesExist() {
         let allStages: [iCloudBackupManager.BackupStage] = [
             .waitingForICloud, .readingVault, .encrypting, .uploading, .complete
         ]
@@ -209,14 +211,14 @@ final class iCloudBackupBackgroundTests: XCTestCase {
 
     // MARK: - Auto Backup Interval
 
-    func testAutoBackupInterval_Is24Hours() {
+    func testAutoBackupIntervalIs24Hours() {
         let expectedInterval: TimeInterval = 24 * 60 * 60
         XCTAssertEqual(expectedInterval, 86400)
     }
 
     // MARK: - PendingBackupState Codable
 
-    func testPendingBackupState_CodableRoundTrip() throws {
+    func testPendingBackupStateCodableRoundTrip() throws {
         let state = iCloudBackupManager.PendingBackupState(
             backupId: "test-backup-123",
             totalChunks: 5,
@@ -242,7 +244,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         XCTAssertEqual(decoded.retryCount, state.retryCount)
     }
 
-    func testPendingBackupState_CodableWithUploadFinished() throws {
+    func testPendingBackupStateCodableWithUploadFinished() throws {
         let state = iCloudBackupManager.PendingBackupState(
             backupId: "test-backup-456",
             totalChunks: 12,
@@ -264,7 +266,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         XCTAssertEqual(decoded.retryCount, 0)
     }
 
-    func testPendingBackupState_CodablePreservesCreatedAt() throws {
+    func testPendingBackupStateCodablePreservesCreatedAt() throws {
         let createdAt = Date(timeIntervalSince1970: 1700000000)
         let state = iCloudBackupManager.PendingBackupState(
             backupId: "time-test",
@@ -289,7 +291,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         )
     }
 
-    func testPendingBackupState_LargeChecksum() throws {
+    func testPendingBackupStateLargeChecksum() throws {
         let largeChecksum = Data(repeating: 0xAB, count: 64)
         let state = iCloudBackupManager.PendingBackupState(
             backupId: "checksum-test",
@@ -313,28 +315,28 @@ final class iCloudBackupBackgroundTests: XCTestCase {
 
     // MARK: - Staging Directory
 
-    func testLoadPendingBackupState_ReturnsNilWhenEmpty() {
+    func testLoadPendingBackupStateReturnsNilWhenEmpty() {
         manager.clearStagingDirectory()
         let state = manager.loadPendingBackupState()
         XCTAssertNil(state)
     }
 
-    func testHasPendingBackup_FalseWhenEmpty() {
+    func testHasPendingBackupFalseWhenEmpty() {
         manager.clearStagingDirectory()
         XCTAssertFalse(manager.hasPendingBackup)
     }
 
-    func testHasPendingBackup_TrueWhenStateExists() throws {
+    func testHasPendingBackupTrueWhenStateExists() throws {
         try writePendingState()
         XCTAssertTrue(manager.hasPendingBackup)
     }
 
-    func testHasPendingBackup_FalseWhenExpired() throws {
-        try writePendingState(createdAt: Date().addingTimeInterval(-49 * 60 * 60))
+    func testHasPendingBackupFalseWhenExpired() throws {
+        try writePendingState(.init(createdAt: Date().addingTimeInterval(-49 * 60 * 60)))
         XCTAssertFalse(manager.hasPendingBackup)
     }
 
-    func testClearStagingDirectory_RemovesAllFiles() {
+    func testClearStagingDirectoryRemovesAllFiles() {
         try? fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
         let dummyFile = stagingDir.appendingPathComponent("chunk_0.bin")
         try? Data([0x00]).write(to: dummyFile)
@@ -346,9 +348,9 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         XCTAssertFalse(fm.fileExists(atPath: dummyFile.path))
     }
 
-    func testClearStagingDirectory_RemovesMultipleChunks() throws {
+    func testClearStagingDirectoryRemovesMultipleChunks() throws {
         writeDummyChunks(count: 5)
-        try writePendingState(totalChunks: 5)
+        try writePendingState(.init(totalChunks: 5))
 
         // Verify files exist
         for i in 0..<5 {
@@ -361,14 +363,14 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         XCTAssertFalse(fm.fileExists(atPath: stagingDir.path))
     }
 
-    func testClearStagingDirectory_SafeWhenAlreadyClear() {
+    func testClearStagingDirectorySafeWhenAlreadyClear() {
         // Should not throw or crash when directory doesn't exist
         manager.clearStagingDirectory()
         manager.clearStagingDirectory()
     }
 
-    func testLoadPendingBackupState_ReturnsNilWhenExpired() throws {
-        try writePendingState(createdAt: Date().addingTimeInterval(-49 * 60 * 60))
+    func testLoadPendingBackupStateReturnsNilWhenExpired() throws {
+        try writePendingState(.init(createdAt: Date().addingTimeInterval(-49 * 60 * 60)))
 
         let loaded = manager.loadPendingBackupState()
         XCTAssertNil(loaded, "Expired staging state should return nil")
@@ -377,8 +379,8 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         XCTAssertFalse(fm.fileExists(atPath: stagingDir.path))
     }
 
-    func testLoadPendingBackupState_ReturnsStateWhenValid() throws {
-        try writePendingState(backupId: "valid-backup", totalChunks: 7)
+    func testLoadPendingBackupStateReturnsStateWhenValid() throws {
+        try writePendingState(.init(backupId: "valid-backup", totalChunks: 7))
 
         let loaded = manager.loadPendingBackupState()
         XCTAssertNotNil(loaded)
@@ -386,15 +388,15 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         XCTAssertEqual(loaded?.totalChunks, 7)
     }
 
-    func testLoadPendingBackupState_ReturnsStateJustBeforeTTL() throws {
+    func testLoadPendingBackupStateReturnsStateJustBeforeTTL() throws {
         // 47 hours old (< 48h TTL)
-        try writePendingState(createdAt: Date().addingTimeInterval(-47 * 60 * 60))
+        try writePendingState(.init(createdAt: Date().addingTimeInterval(-47 * 60 * 60)))
 
         let loaded = manager.loadPendingBackupState()
         XCTAssertNotNil(loaded, "State just before TTL should still be valid")
     }
 
-    func testLoadPendingBackupState_ReturnsNilForMalformedJSON() {
+    func testLoadPendingBackupStateReturnsNilForMalformedJSON() {
         try? fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
         let stateURL = stagingDir.appendingPathComponent("state.json")
         try? "not valid json".data(using: .utf8)?.write(to: stateURL)
@@ -403,7 +405,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         XCTAssertNil(loaded, "Malformed JSON should return nil")
     }
 
-    func testLoadPendingBackupState_ReturnsNilForEmptyFile() {
+    func testLoadPendingBackupStateReturnsNilForEmptyFile() {
         try? fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
         let stateURL = stagingDir.appendingPathComponent("state.json")
         try? Data().write(to: stateURL)
@@ -412,16 +414,16 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         XCTAssertNil(loaded, "Empty state file should return nil")
     }
 
-    func testLoadPendingBackupState_PreservesAllFields() throws {
+    func testLoadPendingBackupStatePreservesAllFields() throws {
         let now = Date()
-        try writePendingState(
+        try writePendingState(.init(
             backupId: "full-test",
             totalChunks: 10,
             createdAt: now,
             uploadFinished: true,
             manifestSaved: true,
             retryCount: 5
-        )
+        ))
 
         let loaded = manager.loadPendingBackupState()
         XCTAssertNotNil(loaded)
@@ -435,7 +437,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
 
     // MARK: - Vault Key Provider
 
-    func testSetVaultKeyProvider_CanBeSetAndCleared() {
+    func testSetVaultKeyProviderCanBeSetAndCleared() {
         // Should not crash
         manager.setVaultKeyProvider { Data(repeating: 0xAA, count: 32) }
         manager.setVaultKeyProvider { nil }
@@ -443,7 +445,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
 
     // MARK: - Resume Triggers
 
-    func testResumeBackupUploadIfNeeded_NoOpWhenBackupDisabled() throws {
+    func testResumeBackupUploadIfNeededNoOpWhenBackupDisabled() throws {
         UserDefaults.standard.set(false, forKey: "iCloudBackupEnabled")
         try writePendingState()
 
@@ -454,7 +456,7 @@ final class iCloudBackupBackgroundTests: XCTestCase {
         XCTAssertTrue(manager.hasPendingBackup)
     }
 
-    func testResumeBackupUploadIfNeeded_NoOpWhenNoPendingBackup() {
+    func testResumeBackupUploadIfNeededNoOpWhenNoPendingBackup() {
         UserDefaults.standard.set(true, forKey: "iCloudBackupEnabled")
         manager.clearStagingDirectory()
 
@@ -473,11 +475,11 @@ final class iCloudBackupBackgroundTests: XCTestCase {
 
     // MARK: - Schedule Background Resume
 
-    func testScheduleBackgroundResumeTask_DoesNotCrash() {
+    func testScheduleBackgroundResumeTaskDoesNotCrash() {
         manager.scheduleBackgroundResumeTask(earliestIn: 60)
     }
 
-    func testScheduleBackgroundResumeTask_DefaultInterval() {
+    func testScheduleBackgroundResumeTaskDefaultInterval() {
         manager.scheduleBackgroundResumeTask()
     }
 }

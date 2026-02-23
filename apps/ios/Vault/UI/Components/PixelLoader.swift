@@ -82,11 +82,10 @@ struct PixelLoader: View {
         return map
     }
 
-    /// Enhanced color for better visibility in dark mode.
+    /// Returns the color as-is. The app's accent color asset already has
+    /// proper light/dark mode variants defined in the asset catalog.
     private var effectiveColor: Color {
-        guard colorScheme == .dark else { return color }
-        // Lighten more aggressively for better visibility in dark mode
-        return Color(UIColor(color).lighter(by: 0.45))
+        return color
     }
 
     /// Start the animation timer.

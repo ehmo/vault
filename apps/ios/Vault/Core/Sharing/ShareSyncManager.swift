@@ -276,18 +276,7 @@ final class ShareSyncManager {
                         running += 1
 
                         group.addTask { [weak self, capturedCloudKit] in
-                            // Create a tracked upload task to prevent duplicate resume attempts
-                            let uploadTask = Task<Void, Never> { [weak self] in
-                                guard let self else { return }
-                                await self.uploadStagedSync(shareVaultId: shareVaultId, cloudKit: capturedCloudKit)
-                            }
-                            await MainActor.run { [weak self] in
-                                self?.resumeTasks[shareVaultId] = uploadTask
-                            }
-                            await uploadTask.value
-                            await MainActor.run { [weak self] in
-                                self?.resumeTasks.removeValue(forKey: shareVaultId)
-                            }
+                            await self?.trackAndUpload(shareVaultId: shareVaultId, cloudKit: capturedCloudKit)
                         }
                     }
                     if !group.isEmpty {
@@ -299,6 +288,22 @@ final class ShareSyncManager {
 
             shareSyncLogger.info("[bg-task] All pending sync uploads completed")
             task.setTaskCompleted(success: true)
+        }
+    }
+
+    /// Tracks an upload task in `resumeTasks` to prevent duplicate resume attempts,
+    /// then runs the upload and cleans up tracking state.
+    private func trackAndUpload(shareVaultId: String, cloudKit: CloudKitSharingClient) async {
+        let uploadTask = Task<Void, Never> { [weak self] in
+            guard let self else { return }
+            await self.uploadStagedSync(shareVaultId: shareVaultId, cloudKit: cloudKit)
+        }
+        await MainActor.run { [weak self] in
+            self?.resumeTasks[shareVaultId] = uploadTask
+        }
+        await uploadTask.value
+        await MainActor.run { [weak self] in
+            self?.resumeTasks.removeValue(forKey: shareVaultId)
         }
     }
 
@@ -521,19 +526,15 @@ final class ShareSyncManager {
             // All non-consumed shares are missing keys
             syncStatus = .error("Shares need to be re-created to enable sync")
             transaction.finish(status: .internalError)
-        } else if successCount == syncableCount {
-            syncStatus = .upToDate
-            lastSyncedAt = Date()
-            transaction.finish(status: .ok)
-        } else if successCount > 0 {
+        } else if successCount > 0 && successCount < syncableCount {
             syncStatus = .error("Synced \(successCount)/\(syncableCount) shares")
             lastSyncedAt = Date()
             transaction.finish(status: .ok)
-        } else if syncableCount > 0 {
+        } else if syncableCount > 0 && successCount == 0 {
             syncStatus = .error("Sync failed for all shares")
             transaction.finish(status: .internalError)
         } else {
-            // All shares were consumed, nothing to sync
+            // All synced successfully, or all shares were consumed
             syncStatus = .upToDate
             lastSyncedAt = Date()
             transaction.finish(status: .ok)

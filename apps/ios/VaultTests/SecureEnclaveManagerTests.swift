@@ -14,18 +14,18 @@ final class SecureEnclaveManagerTests: XCTestCase {
 
     // MARK: - Wipe Counter
 
-    func testWipeCounter_initiallyZero() {
+    func testWipeCounterInitiallyZero() {
         manager.resetWipeCounter()
         XCTAssertEqual(manager.getWipeCounter(), 0)
     }
 
-    func testWipeCounter_incrementOnce() {
+    func testWipeCounterIncrementOnce() {
         manager.resetWipeCounter()
         manager.incrementWipeCounter()
         XCTAssertEqual(manager.getWipeCounter(), 1)
     }
 
-    func testWipeCounter_incrementMultiple() {
+    func testWipeCounterIncrementMultiple() {
         manager.resetWipeCounter()
         manager.incrementWipeCounter()
         manager.incrementWipeCounter()
@@ -33,7 +33,7 @@ final class SecureEnclaveManagerTests: XCTestCase {
         XCTAssertEqual(manager.getWipeCounter(), 3)
     }
 
-    func testWipeCounter_reset() {
+    func testWipeCounterReset() {
         manager.resetWipeCounter()
         manager.incrementWipeCounter()
         manager.incrementWipeCounter()
@@ -43,13 +43,13 @@ final class SecureEnclaveManagerTests: XCTestCase {
         XCTAssertEqual(manager.getWipeCounter(), 0)
     }
 
-    func testWipeCounter_doubleResetIsSafe() {
+    func testWipeCounterDoubleResetIsSafe() {
         manager.resetWipeCounter()
         manager.resetWipeCounter()
         XCTAssertEqual(manager.getWipeCounter(), 0)
     }
 
-    func testWipeCounter_highValue() {
+    func testWipeCounterHighValue() {
         manager.resetWipeCounter()
         for _ in 0..<50 {
             manager.incrementWipeCounter()
@@ -59,24 +59,24 @@ final class SecureEnclaveManagerTests: XCTestCase {
 
     // MARK: - Duress Key Fingerprint
 
-    func testDuressFingerprint_initiallyNil() {
+    func testDuressFingerprintInitiallyNil() {
         manager.clearDuressKeyFingerprint()
         XCTAssertNil(manager.getDuressKeyFingerprint())
     }
 
-    func testDuressFingerprint_setAndGet() throws {
+    func testDuressFingerprintSetAndGet() throws {
         let fingerprint = "abc123def456"
         try manager.setDuressKeyFingerprint(fingerprint)
         XCTAssertEqual(manager.getDuressKeyFingerprint(), fingerprint)
     }
 
-    func testDuressFingerprint_overwrite() throws {
+    func testDuressFingerprintOverwrite() throws {
         try manager.setDuressKeyFingerprint("first")
         try manager.setDuressKeyFingerprint("second")
         XCTAssertEqual(manager.getDuressKeyFingerprint(), "second")
     }
 
-    func testDuressFingerprint_clear() throws {
+    func testDuressFingerprintClear() throws {
         try manager.setDuressKeyFingerprint("will-be-cleared")
         XCTAssertNotNil(manager.getDuressKeyFingerprint())
 
@@ -84,12 +84,12 @@ final class SecureEnclaveManagerTests: XCTestCase {
         XCTAssertNil(manager.getDuressKeyFingerprint())
     }
 
-    func testDuressFingerprint_emptyString() throws {
+    func testDuressFingerprintEmptyString() throws {
         try manager.setDuressKeyFingerprint("")
         XCTAssertEqual(manager.getDuressKeyFingerprint(), "")
     }
 
-    func testDuressFingerprint_longString() throws {
+    func testDuressFingerprintLongString() throws {
         let long = String(repeating: "a", count: 1000)
         try manager.setDuressKeyFingerprint(long)
         XCTAssertEqual(manager.getDuressKeyFingerprint(), long)
@@ -97,12 +97,12 @@ final class SecureEnclaveManagerTests: XCTestCase {
 
     // MARK: - Blob Cursor XOR Key
 
-    func testBlobCursorXORKey_returns16Bytes() {
+    func testBlobCursorXorKeyReturns16Bytes() {
         let key = manager.getBlobCursorXORKey()
         XCTAssertEqual(key.count, 16)
     }
 
-    func testBlobCursorXORKey_consistentOnRepeatedCalls() {
+    func testBlobCursorXorKeyConsistentOnRepeatedCalls() {
         let key1 = manager.getBlobCursorXORKey()
         let key2 = manager.getBlobCursorXORKey()
         XCTAssertEqual(key1, key2, "Should return same key on repeated calls")
@@ -110,12 +110,12 @@ final class SecureEnclaveManagerTests: XCTestCase {
 
     // MARK: - Device Salt
 
-    func testDeviceSalt_returns32Bytes() async throws {
+    func testDeviceSaltReturns32Bytes() async throws {
         let salt = try await manager.getDeviceSalt()
         XCTAssertEqual(salt.count, 32)
     }
 
-    func testDeviceSalt_consistentOnRepeatedCalls() async throws {
+    func testDeviceSaltConsistentOnRepeatedCalls() async throws {
         let salt1 = try await manager.getDeviceSalt()
         let salt2 = try await manager.getDeviceSalt()
         XCTAssertEqual(salt1, salt2, "Should return same salt on repeated calls")
@@ -123,7 +123,7 @@ final class SecureEnclaveManagerTests: XCTestCase {
 
     // MARK: - Nuclear Wipe
 
-    func testNuclearWipe_clearsWipeCounter() {
+    func testNuclearWipeClearsWipeCounter() {
         manager.incrementWipeCounter()
         manager.incrementWipeCounter()
         XCTAssertEqual(manager.getWipeCounter(), 2)
@@ -133,7 +133,7 @@ final class SecureEnclaveManagerTests: XCTestCase {
         XCTAssertEqual(manager.getWipeCounter(), 0)
     }
 
-    func testNuclearWipe_clearsDuressFingerprint() throws {
+    func testNuclearWipeClearsDuressFingerprint() throws {
         try manager.setDuressKeyFingerprint("test-fingerprint")
         XCTAssertNotNil(manager.getDuressKeyFingerprint())
 
@@ -142,7 +142,7 @@ final class SecureEnclaveManagerTests: XCTestCase {
         XCTAssertNil(manager.getDuressKeyFingerprint())
     }
 
-    func testNuclearWipe_doubleWipeIsSafe() {
+    func testNuclearWipeDoubleWipeIsSafe() {
         manager.performNuclearWipe()
         manager.performNuclearWipe() // Should not crash
         XCTAssertEqual(manager.getWipeCounter(), 0)
@@ -150,7 +150,7 @@ final class SecureEnclaveManagerTests: XCTestCase {
 
     // MARK: - Secure Enclave Availability
 
-    func testSecureEnclaveAvailability_returnsBoolean() {
+    func testSecureEnclaveAvailabilityReturnsBoolean() {
         // On simulator, Secure Enclave is typically not available
         // but the check itself should not crash
         _ = manager.isSecureEnclaveAvailable

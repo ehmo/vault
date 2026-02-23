@@ -325,7 +325,7 @@ final class AppState {
 
     /// Unlocks vault with a pre-derived key, showing the same loading ceremony as pattern unlock.
     /// Used for recovery phrase flow to ensure consistent user experience.
-    func unlockWithKey(_ key: Data, isRecovery: Bool = false) async {
+    func unlockWithKey(_ key: Data, isRecovery _: Bool = false) async {
         let transaction = EmbraceManager.shared.startTransaction(name: "vault.unlock", operation: "vault.unlock")
         transaction.setTag(value: "recovery", key: "unlockType")
         

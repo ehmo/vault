@@ -169,14 +169,14 @@ struct ScreenshotPreventionModifier: ViewModifier {
 
 /// Activates the screenshot shield once the view enters the window hierarchy.
 private struct ScreenshotShieldActivator: UIViewRepresentable {
-    func makeUIView(context: Context) -> UIView {
+    func makeUIView(context _: Context) -> UIView {
         let view = ShieldTriggerView()
         view.backgroundColor = .clear
         view.isUserInteractionEnabled = false
         return view
     }
 
-    func updateUIView(_ uiView: UIView, context: Context) {
+    func updateUIView(_ _: UIView, context _: Context) {
         // No update needed
     }
 }

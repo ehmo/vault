@@ -20,7 +20,7 @@ final class PatternValidationStateTests: XCTestCase {
 
     /// Tests that validationResult and errorMessage are mutually exclusive.
     /// Catches: Stale pattern feedback state
-    func testValidationResult_AndErrorMessage_AreMutuallyExclusive() {
+    func testValidationResultAndErrorMessageAreMutuallyExclusive() {
         // Set validation result (valid pattern)
         let validResult = PatternValidator.shared.validate([1, 2, 3, 4, 5, 6, 7, 8], gridSize: 5)
         viewModel.validationResult = validResult
@@ -38,7 +38,7 @@ final class PatternValidationStateTests: XCTestCase {
     }
 
     /// Tests that invalid pattern shows feedback and stays on screen.
-    func testInvalidPattern_ShowsFeedback() {
+    func testInvalidPatternShowsFeedback() {
         let invalidPattern = [1, 2] // Too short
 
         let result = PatternValidator.shared.validate(invalidPattern, gridSize: 5)
@@ -55,7 +55,7 @@ final class PatternValidationStateTests: XCTestCase {
 
     /// Tests that valid pattern transitions without flash.
     /// Catches: UI flash on valid pattern
-    func testValidPattern_TransitionsImmediately() {
+    func testValidPatternTransitionsImmediately() {
         let validPattern = [1, 2, 3, 4, 5, 6] // 6+ dots
 
         let result = PatternValidator.shared.validate(validPattern, gridSize: 5)
@@ -70,7 +70,7 @@ final class PatternValidationStateTests: XCTestCase {
     }
 
     /// Tests that error message auto-clears after delay in confirm step.
-    func testErrorMessage_AutoClears() async {
+    func testErrorMessageAutoClears() async {
         viewModel.errorMessage = "Patterns don't match"
 
         XCTAssertNotNil(viewModel.errorMessage)
@@ -85,7 +85,7 @@ final class PatternValidationStateTests: XCTestCase {
 
     // MARK: - Pattern Validation Errors
 
-    func testPatternValidation_TooFewNodes() {
+    func testPatternValidationTooFewNodes() {
         let shortPattern = [1, 2, 3, 4, 5] // Only 5 nodes
 
         let result = PatternValidator.shared.validate(shortPattern, gridSize: 5)
@@ -97,7 +97,7 @@ final class PatternValidationStateTests: XCTestCase {
         }, "Should have tooFewNodes error")
     }
 
-    func testPatternValidation_TooFewDirectionChanges() {
+    func testPatternValidationTooFewDirectionChanges() {
         let straightPattern = [0, 1, 2, 3, 4, 9] // Right×4 then down = 1 direction change
 
         let result = PatternValidator.shared.validate(straightPattern, gridSize: 5)
@@ -109,7 +109,7 @@ final class PatternValidationStateTests: XCTestCase {
         }, "Should have tooFewDirectionChanges error")
     }
 
-    func testPatternValidation_ValidPattern() {
+    func testPatternValidationValidPattern() {
         let validPattern = [1, 7, 13, 9, 5, 3] // Multiple direction changes
 
         let result = PatternValidator.shared.validate(validPattern, gridSize: 5)
@@ -120,7 +120,7 @@ final class PatternValidationStateTests: XCTestCase {
 
     // MARK: - Pattern Metrics
 
-    func testPatternMetrics_Calculated() {
+    func testPatternMetricsCalculated() {
         let pattern = [1, 2, 3, 8, 13]
 
         let result = PatternValidator.shared.validate(pattern, gridSize: 5)
@@ -132,14 +132,14 @@ final class PatternValidationStateTests: XCTestCase {
 
     // MARK: - Pattern Matching
 
-    func testPatternMatching_SamePatternsMatch() {
+    func testPatternMatchingSamePatternsMatch() {
         let pattern1 = [1, 2, 3, 4, 5, 6]
         let pattern2 = [1, 2, 3, 4, 5, 6]
 
         XCTAssertEqual(pattern1, pattern2)
     }
 
-    func testPatternMatching_DifferentPatternsDontMatch() {
+    func testPatternMatchingDifferentPatternsDontMatch() {
         let pattern1 = [1, 2, 3, 4, 5, 6]
         let pattern2 = [1, 2, 3, 4, 5, 7]
 
@@ -148,7 +148,7 @@ final class PatternValidationStateTests: XCTestCase {
 
     // MARK: - State Reset
 
-    func testReset_ClearsAllState() {
+    func testResetClearsAllState() {
         let validResult = PatternValidator.shared.validate([1, 2, 3, 4, 5, 6, 7, 8], gridSize: 5)
         viewModel.validationResult = validResult
         viewModel.errorMessage = "Some error"

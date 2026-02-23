@@ -20,7 +20,7 @@ final class BackgroundTaskTests: XCTestCase {
     // MARK: - Background Task Lifecycle
 
     /// Tests that beginBackgroundTask creates a valid task ID.
-    func testBeginBackgroundTask_CreatesValidTask() {
+    func testBeginBackgroundTaskCreatesValidTask() {
         let expectation = XCTestExpectation(description: "Background task created")
 
         bgTaskId = UIApplication.shared.beginBackgroundTask(withName: "TestTask") {
@@ -36,7 +36,7 @@ final class BackgroundTaskTests: XCTestCase {
     }
 
     /// Tests that endBackgroundTask properly ends the task.
-    func testEndBackgroundTask_EndsTask() {
+    func testEndBackgroundTaskEndsTask() {
         bgTaskId = UIApplication.shared.beginBackgroundTask(withName: "TestTask") {
             // No-op: expiration handler not tested
         }
@@ -52,7 +52,7 @@ final class BackgroundTaskTests: XCTestCase {
 
     /// Tests that orphaned tasks are prevented by ending previous task.
     /// Catches: Orphaned background task IDs
-    func testBeginBackgroundTask_EndsPreviousTask() {
+    func testBeginBackgroundTaskEndsPreviousTask() {
         // Start first task
         let firstTaskId = UIApplication.shared.beginBackgroundTask(withName: "FirstTask") {
             // No-op: expiration handler not tested
@@ -75,7 +75,7 @@ final class BackgroundTaskTests: XCTestCase {
 
     /// Tests that ShareSyncManager.scheduleSync requires await from Task.
     /// Catches: @MainActor await omission
-    func testShareSyncManager_RequiresAwaitFromTask() async {
+    func testShareSyncManagerRequiresAwaitFromTask() async {
         let expectation = XCTestExpectation(description: "Schedule sync called")
 
         // This should compile and work with await
@@ -89,7 +89,7 @@ final class BackgroundTaskTests: XCTestCase {
 
     /// Tests that @MainActor singletons require await from Task.detached.
     /// Catches: @MainActor await omission in detached tasks
-    func testBackgroundTransferManager_RequiresAwaitFromDetached() async {
+    func testBackgroundTransferManagerRequiresAwaitFromDetached() async {
         let expectation = XCTestExpectation(description: "Detached task completed")
 
         Task.detached {
@@ -102,9 +102,9 @@ final class BackgroundTaskTests: XCTestCase {
     }
 
     /// Tests that DeepLinkHandler requires await from non-main context.
-    func testDeepLinkHandler_RequiresAwait() async {
+    func testDeepLinkHandlerRequiresAwait() async {
         let handler = DeepLinkHandler()
-        let testURL = URL(string: "vaultaire://s/test")!
+        let testURL = URL(string: "vaultaire://s/test")! // S1075: hardcoded URI acceptable in tests
 
         // From main actor - no await needed for sync method
         let result = handler.handle(testURL)
@@ -120,19 +120,7 @@ final class BackgroundTaskTests: XCTestCase {
 
         for i in 0..<5 {
             Task.detached {
-                let taskId = await MainActor.run {
-                    UIApplication.shared.beginBackgroundTask(withName: "ConcurrentTask\(i)") {
-                        // No-op: expiration handler not tested
-                    }
-                }
-
-                // Simulate work
-                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
-
-                await MainActor.run {
-                    UIApplication.shared.endBackgroundTask(taskId)
-                }
-
+                await self.runConcurrentBackgroundTask(named: "ConcurrentTask\(i)")
                 expectation.fulfill()
             }
         }
@@ -140,10 +128,24 @@ final class BackgroundTaskTests: XCTestCase {
         await fulfillment(of: [expectation], timeout: 10.0)
     }
 
+    // MARK: - Helpers
+
+    private func runConcurrentBackgroundTask(named name: String) async {
+        let taskId = await MainActor.run {
+            UIApplication.shared.beginBackgroundTask(withName: name) {
+                // No-op: expiration handler not tested
+            }
+        }
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        await MainActor.run {
+            UIApplication.shared.endBackgroundTask(taskId)
+        }
+    }
+
     // MARK: - Error Handling
 
     /// Tests that background task works correctly even when operation fails.
-    func testBackgroundTask_EndsOnError() async {
+    func testBackgroundTaskEndsOnError() async {
         let taskId = UIApplication.shared.beginBackgroundTask(withName: "ErrorTask") {
             // No-op: expiration handler not tested
         }

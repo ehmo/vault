@@ -29,7 +29,7 @@ xcodebuild build \
 
 APP_PATH="$DERIVED_DATA/Build/Products/Debug-iphoneos/Vault.app"
 if [[ ! -d "$APP_PATH" ]]; then
-  echo "ERROR: Build output not found at $APP_PATH"
+  echo "ERROR: Build output not found at $APP_PATH" >&2
   exit 1
 fi
 

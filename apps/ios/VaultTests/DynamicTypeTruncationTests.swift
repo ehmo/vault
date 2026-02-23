@@ -21,7 +21,7 @@ final class DynamicTypeTruncationTests: XCTestCase {
     /// All pattern instruction strings must fit in 2+ lines at large Dynamic Type.
     /// Regression: `.frame(height: 44)` clipped these to ~2 lines of .subheadline,
     /// which was insufficient at AX1+ sizes.
-    func testPatternSubtitles_AreNotTooLong_ForMultilineDisplay() {
+    func testPatternSubtitlesAreNotTooLongForMultilineDisplay() {
         let subtitles = [
             "Connect at least 6 dots on the 5×5 grid with 2+ direction changes",
             "Draw the same pattern to confirm",
@@ -44,7 +44,7 @@ final class DynamicTypeTruncationTests: XCTestCase {
     /// Permission descriptions must wrap instead of truncating.
     /// Regression: No `.fixedSize(horizontal: false, vertical: true)` on description Text
     /// in PermissionsView caused single-line truncation in compressed HStack layout.
-    func testPermissionDescriptions_AreReasonableLength() {
+    func testPermissionDescriptionsAreReasonableLength() {
         let descriptions = [
             "Know when backups and imports finish",
             "Capture photos directly into your vault",
@@ -64,7 +64,7 @@ final class DynamicTypeTruncationTests: XCTestCase {
 
     /// Pattern validation error messages must not be clipped by fixed-height containers.
     /// Regression: `.frame(height: 80)` and `.frame(height: 20)` clipped validation messages.
-    func testValidationErrorMessages_CanWrap() {
+    func testValidationErrorMessagesCanWrap() {
         // Test that PatternValidationResult error messages are not too long for wrapping
         let errorMessages = [
             "Pattern must connect at least 6 dots",
@@ -81,7 +81,7 @@ final class DynamicTypeTruncationTests: XCTestCase {
 
     /// Custom phrase validation messages must wrap within their container.
     /// Regression: `.frame(height: 20)` clipped "Acceptable phrase strength (52 bits)."
-    func testCustomPhraseValidation_MessagesAreNotClipped() {
+    func testCustomPhraseValidationMessagesAreNotClipped() {
         // Simulate validation — these are the actual message patterns
         let messages = [
             "Acceptable phrase strength (52 bits).",
@@ -99,7 +99,7 @@ final class DynamicTypeTruncationTests: XCTestCase {
 
     // MARK: - Pattern Complexity Description
 
-    func testPatternComplexityDescriptions_AreShort() {
+    func testPatternComplexityDescriptionsAreShort() {
         let descriptions = ["Weak", "Fair", "Good", "Strong", "Very Strong"]
         for desc in descriptions {
             // "Strength: Very Strong" = 22 chars — should fit in one line.
@@ -113,7 +113,7 @@ final class DynamicTypeTruncationTests: XCTestCase {
 
     /// Ensures the share URL absoluteString contains no characters that would
     /// prevent it from being a clickable link in Messages.
-    func testShareURL_StringIsClean() {
+    func testShareUrlStringIsClean() {
         let phrase = "the purple elephant dances quietly"
         guard let url = ShareLinkEncoder.shareURL(for: phrase) else {
             XCTFail("Should produce a valid URL")
@@ -129,7 +129,7 @@ final class DynamicTypeTruncationTests: XCTestCase {
 
     /// Toast messages should be concise enough to display, but the view must
     /// allow wrapping for error messages which can include file counts and reasons.
-    func testToastMessages_AreReasonableLength() {
+    func testToastMessagesAreReasonableLength() {
         // Common toast patterns
         let toasts = [
             "1 file encrypted",
@@ -150,7 +150,7 @@ final class DynamicTypeTruncationTests: XCTestCase {
 
     /// PendingImportBanner text must wrap, not truncate.
     /// Regression: Text in HStack without fixedSize caused single-line truncation.
-    func testBannerMessages_AreReasonableLength() {
+    func testBannerMessagesAreReasonableLength() {
         let bannerTexts = [
             "1 file ready to import",
             "12 files ready to import",

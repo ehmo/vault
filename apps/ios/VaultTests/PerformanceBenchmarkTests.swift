@@ -5,7 +5,7 @@ final class PerformanceBenchmarkTests: XCTestCase {
 
     // MARK: - PBKDF2 Key Derivation
 
-    func testPBKDF2_600KIterations() async throws {
+    func testPbkdf2600kIterations() async throws {
         let pattern = [0, 1, 2, 5, 8, 7, 6, 3]
         measure {
             let exp = expectation(description: "derive")
@@ -19,7 +19,7 @@ final class PerformanceBenchmarkTests: XCTestCase {
 
     // MARK: - Symmetric Encryption/Decryption
 
-    func testEncrypt_1MB() throws {
+    func testEncrypt1mb() throws {
         let key = CryptoEngine.generateRandomBytes(count: 32)!
         let data = CryptoEngine.generateRandomBytes(count: 1_000_000)!
         measure {
@@ -27,7 +27,7 @@ final class PerformanceBenchmarkTests: XCTestCase {
         }
     }
 
-    func testEncrypt_10MB() throws {
+    func testEncrypt10mb() throws {
         let key = CryptoEngine.generateRandomBytes(count: 32)!
         let data = CryptoEngine.generateRandomBytes(count: 10_000_000)!
         measure {
@@ -35,7 +35,7 @@ final class PerformanceBenchmarkTests: XCTestCase {
         }
     }
 
-    func testDecrypt_1MB() throws {
+    func testDecrypt1mb() throws {
         let key = CryptoEngine.generateRandomBytes(count: 32)!
         let plaintext = CryptoEngine.generateRandomBytes(count: 1_000_000)!
         let encrypted = try CryptoEngine.encrypt(plaintext, with: key)
@@ -44,7 +44,7 @@ final class PerformanceBenchmarkTests: XCTestCase {
         }
     }
 
-    func testDecrypt_10MB() throws {
+    func testDecrypt10mb() throws {
         let key = CryptoEngine.generateRandomBytes(count: 32)!
         let plaintext = CryptoEngine.generateRandomBytes(count: 10_000_000)!
         let encrypted = try CryptoEngine.encrypt(plaintext, with: key)
@@ -55,7 +55,7 @@ final class PerformanceBenchmarkTests: XCTestCase {
 
     // MARK: - SecureDelete
 
-    func testSecureDelete_1MB() throws {
+    func testSecureDelete1mb() throws {
         measure {
             let tempURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent(UUID().uuidString)
@@ -65,7 +65,7 @@ final class PerformanceBenchmarkTests: XCTestCase {
         }
     }
 
-    func testSecureDelete_10MB() throws {
+    func testSecureDelete10mb() throws {
         measure {
             let tempURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent(UUID().uuidString)
@@ -77,7 +77,7 @@ final class PerformanceBenchmarkTests: XCTestCase {
 
     // MARK: - HMAC
 
-    func testHMAC_1MB() throws {
+    func testHmac1mb() throws {
         let key = CryptoEngine.generateRandomBytes(count: 32)!
         let data = CryptoEngine.generateRandomBytes(count: 1_000_000)!
         measure {
@@ -85,7 +85,7 @@ final class PerformanceBenchmarkTests: XCTestCase {
         }
     }
 
-    func testHMACVerify_1MB() throws {
+    func testHmacVerify1mb() throws {
         let key = CryptoEngine.generateRandomBytes(count: 32)!
         let data = CryptoEngine.generateRandomBytes(count: 1_000_000)!
         let hmac = CryptoEngine.computeHMAC(for: data, with: key)

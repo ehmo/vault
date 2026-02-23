@@ -69,7 +69,7 @@ xcodebuild -exportArchive \
 
 IPA_PATH="$EXPORT_PATH/Vault.ipa"
 if [[ ! -f "$IPA_PATH" ]]; then
-  echo "ERROR: IPA not found at $IPA_PATH"
+  echo "ERROR: IPA not found at $IPA_PATH" >&2
   exit 1
 fi
 
