@@ -127,69 +127,75 @@ extension VaultView {
     // MARK: - Empty State
 
     var emptyStateContent: some View {
-        VStack(spacing: 0) {
-            if viewModel.isSharedVault {
-                // Shared vault: center everything
-                Spacer()
-                VStack(spacing: 20) {
-                    Image(systemName: "person.2.fill")
-                        .font(.system(size: 48))
-                        .foregroundStyle(.vaultSecondaryText)
-                        .accessibilityHidden(true)
+        GeometryReader { geometry in
+            let totalHeight = geometry.size.height
+            
+            ZStack {
+                if viewModel.isSharedVault {
+                    // Shared vault: center everything
+                    VStack(spacing: 20) {
+                        Spacer()
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 48))
+                            .foregroundStyle(.vaultSecondaryText)
+                            .accessibilityHidden(true)
 
-                    Text("Waiting for files")
-                        .font(.title2)
-                        .fontWeight(.medium)
+                        Text("Waiting for files")
+                            .font(.title2)
+                            .fontWeight(.medium)
 
-                    Text("The vault owner hasn't added any files yet")
-                        .font(.subheadline)
-                        .foregroundStyle(.vaultSecondaryText)
-                        .multilineTextAlignment(.center)
-                }
-                .padding()
-                Spacer()
-            } else {
-                // Regular empty vault: cards at top, button at bottom
-                VStack(spacing: 12) {
-                    walkthroughCard(
-                        icon: "plus.circle.fill",
-                        title: "Add your files",
-                        description: "Photos, videos, documents — anything you want to protect"
-                    )
-                    walkthroughCard(
-                        icon: "lock.shield.fill",
-                        title: "Encrypted instantly",
-                        description: "Your files are scrambled with military-grade encryption"
-                    )
-                    walkthroughCard(
-                        icon: "eye.slash.fill",
-                        title: "Only you can access",
-                        description: "Your pattern is the only key. Not even us."
-                    )
-                }
-                .frame(height: 240)
-                .padding(.top, 60)
-                .padding(.horizontal)
-                
-                Spacer()
-                
-                Button(action: {
-                    if subscriptionManager.canAddFile(currentFileCount: viewModel.files.count) {
-                        showingImportOptions = true
-                    } else {
-                        showingPaywall = true
+                        Text("The vault owner hasn't added any files yet")
+                            .font(.subheadline)
+                            .foregroundStyle(.vaultSecondaryText)
+                            .multilineTextAlignment(.center)
+                        Spacer()
                     }
-                }) {
-                    Label("Protect Your First Files", systemImage: "plus.circle.fill")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4)
+                    .padding()
+                } else {
+                    // Regular empty vault: cards in true center, button at bottom
+                    // Cards centered in the screen
+                    VStack(spacing: 12) {
+                        walkthroughCard(
+                            icon: "plus.circle.fill",
+                            title: "Add your files",
+                            description: "Photos, videos, documents — anything you want to protect"
+                        )
+                        walkthroughCard(
+                            icon: "lock.shield.fill",
+                            title: "Encrypted instantly",
+                            description: "Your files are scrambled with military-grade encryption"
+                        )
+                        walkthroughCard(
+                            icon: "eye.slash.fill",
+                            title: "Only you can access",
+                            description: "Your pattern is the only key. Not even us."
+                        )
+                    }
+                    .padding(.horizontal)
+                    .position(x: geometry.size.width / 2, y: totalHeight / 2)
+                    
+                    // Button overlay at bottom
+                    VStack {
+                        Spacer()
+                        Button(action: {
+                            if subscriptionManager.canAddFile(currentFileCount: viewModel.files.count) {
+                                showingImportOptions = true
+                            } else {
+                                showingPaywall = true
+                            }
+                        }) {
+                            Label("Protect Your First Files", systemImage: "plus.circle.fill")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 4)
+                        }
+                        .vaultProminentButtonStyle()
+                        .accessibilityIdentifier("vault_first_files")
+                        .accessibilityHint("Import photos, videos, or files into the vault")
+                        .padding(.horizontal)
+                        .padding(.bottom, 40)
+                    }
                 }
-                .vaultProminentButtonStyle()
-                .accessibilityIdentifier("vault_first_files")
-                .accessibilityHint("Import photos, videos, or files into the vault")
-                .padding(.horizontal)
-                .padding(.bottom, 40)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
