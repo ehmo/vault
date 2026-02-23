@@ -89,53 +89,50 @@ struct PatternLockView: View {
 
             Spacer()
 
-            // Fixed height container to prevent layout shift when error appears
-            ZStack {
-                // Pattern Grid centered
-                PatternGridView(
-                    state: patternState,
-                    showFeedback: $showFeedback,
-                    onPatternComplete: handlePatternComplete
-                )
-                .frame(width: 280, height: 280)
-                .disabled(isProcessing || isLockedOut)
-                .opacity(isLockedOut ? 0.3 : patternGridOpacity)
-                .accessibilityIdentifier("unlock_pattern_grid")
-                
-                // Error / lockout message overlay at bottom
-                VStack {
-                    Spacer()
-                    if isLockedOut {
-                        VStack(spacing: 4) {
-                            Text("Too many attempts")
-                                .font(.subheadline.weight(.medium))
-                            Text(formatCountdown(lockoutRemaining))
-                                .font(.title2.monospacedDigit().weight(.semibold))
-                        }
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
-                        .background(Color.vaultHighlight.opacity(0.9))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .transition(.scale.combined(with: .opacity))
-                        .accessibilityIdentifier("unlock_lockout_countdown")
-                    } else if showError, let message = errorMessage {
-                        HStack(spacing: 8) {
-                            Image(systemName: "exclamationmark.circle.fill")
-                            Text(message)
-                                .font(.subheadline)
-                        }
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(Color.vaultHighlight.opacity(0.9))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .transition(.scale.combined(with: .opacity))
+            // Pattern Grid - fixed position, never moves
+            PatternGridView(
+                state: patternState,
+                showFeedback: $showFeedback,
+                onPatternComplete: handlePatternComplete
+            )
+            .frame(width: 280, height: 280)
+            .disabled(isProcessing || isLockedOut)
+            .opacity(isLockedOut ? 0.3 : patternGridOpacity)
+            .accessibilityIdentifier("unlock_pattern_grid")
+
+            // Error / lockout message - BELOW the pattern, fixed height prevents layout shift
+            Group {
+                if isLockedOut {
+                    VStack(spacing: 4) {
+                        Text("Too many attempts")
+                            .font(.subheadline.weight(.medium))
+                        Text(formatCountdown(lockoutRemaining))
+                            .font(.title2.monospacedDigit().weight(.semibold))
                     }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(Color.vaultHighlight.opacity(0.9))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .transition(.scale.combined(with: .opacity))
+                    .accessibilityIdentifier("unlock_lockout_countdown")
+                } else if showError, let message = errorMessage {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                        Text(message)
+                            .font(.subheadline)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color.vaultHighlight.opacity(0.9))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .transition(.scale.combined(with: .opacity))
+                } else {
+                    Color.clear
                 }
-                .frame(minHeight: 100, maxHeight: 100)
             }
-            .frame(height: 380) // Fixed total height for grid + error area
+            .frame(minHeight: 80, maxHeight: 80)
 
             // Fixed spacer instead of flexible
             Color.clear

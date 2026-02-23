@@ -60,39 +60,34 @@ struct PatternSetupView: View {
             // Content based on step
             switch step {
             case .create, .confirm:
-                // Fixed height container to prevent layout shift when feedback appears
-                ZStack {
-                    // Pattern board centered in available space
-                    patternInputSection
-                        .frame(maxHeight: .infinity, alignment: .center)
-                    
-                    // Feedback overlay at bottom of the content area
-                    VStack {
-                        Spacer()
-                        Group {
-                            if let result = validationResult, step == .create {
-                                PatternValidationFeedbackView(result: result)
-                            } else if let error = errorMessage {
-                                HStack {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(.vaultHighlight)
-                                    Text(error)
-                                        .font(.caption)
-                                }
-                                .padding()
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .vaultGlassBackground(cornerRadius: 12)
-                                .transition(.scale.combined(with: .opacity))
-                                .accessibilityIdentifier("pattern_error_message")
-                            } else {
-                                Color.clear
-                            }
+                Spacer()
+                
+                // Pattern board - fixed position, never moves
+                patternInputSection
+
+                // Validation feedback - BELOW the pattern, fixed height prevents layout shift
+                Group {
+                    if let result = validationResult, step == .create {
+                        PatternValidationFeedbackView(result: result)
+                    } else if let error = errorMessage {
+                        HStack {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.vaultHighlight)
+                            Text(error)
+                                .font(.caption)
                         }
-                        .frame(minHeight: 80, maxHeight: 80)
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .vaultGlassBackground(cornerRadius: 12)
+                        .transition(.scale.combined(with: .opacity))
+                        .accessibilityIdentifier("pattern_error_message")
+                    } else {
+                        Color.clear
                     }
-                    .frame(maxHeight: .infinity, alignment: .bottom)
                 }
-                .frame(maxHeight: .infinity)
+                .frame(minHeight: 80, maxHeight: 80)
+                
+                Spacer()
 
             case .recovery:
                 recoveryScrollSection
