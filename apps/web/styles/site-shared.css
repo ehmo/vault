@@ -2,7 +2,7 @@
   --bg: #20233C;
   --surface: #323444;
   --text: #E8E8F0;
-  --text-secondary: #D1D2DC;
+  --text-secondary: rgba(232, 232, 240, 0.65);
   --accent: #CCC3F8;
   --highlight: #FF6F6F;
   --accent-contrast: #20233C;
@@ -18,7 +18,7 @@
   --bg: #D1D1E9;
   --surface: #FFFFFE;
   --text: #252631;
-  --text-secondary: #555770;
+  --text-secondary: rgba(37, 38, 49, 0.65);
   --accent: #1F0D77;
   --highlight: #E45858;
   --accent-contrast: #F8F8FF;

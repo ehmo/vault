@@ -152,7 +152,6 @@
   width: 24px;
   height: 24px;
   background: linear-gradient(to bottom left, var(--highlight) 50%, transparent 50%);
-  opacity: 0.4;
 }
 
 .info-box-label {
@@ -225,7 +224,6 @@
   width: 32px;
   height: 32px;
   background: linear-gradient(to bottom right, var(--highlight) 50%, transparent 50%);
-  opacity: 0.2;
 }
 
 .diagram-label {
