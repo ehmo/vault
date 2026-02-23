@@ -43,3 +43,7 @@ Let me chronologically analyze the conversation:
 
 1. **Context from previous session**: The user originally asked to "Review everything in sonarqube. Then plan changes accordingly, one by one. Make sure after each fix that you test it and produce deep not shallow tests to prevent it happening in the future." In the previous session, 11...
 
+### Prompt 8
+
+take me through the remaining issues and ask me for the decisions
+

@@ -3,7 +3,7 @@
   "checkpoint_id": "8a5d220c9ef3",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 0,
   "files_touched": [
     "apps/ios/Vault/App/VaultApp.swift",
     "apps/ios/Vault/Core/Billing/VaultairePaywallView.swift",
@@ -74,10 +74,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 146,
-    "cache_creation_tokens": 176523,
-    "cache_read_tokens": 15196231,
-    "output_tokens": 5123,
-    "api_call_count": 132
+    "input_tokens": 11,
+    "cache_creation_tokens": 55734,
+    "cache_read_tokens": 307723,
+    "output_tokens": 1017,
+    "api_call_count": 7
   }
 }
