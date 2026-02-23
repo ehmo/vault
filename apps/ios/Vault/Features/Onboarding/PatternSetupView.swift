@@ -62,13 +62,15 @@ struct PatternSetupView: View {
             case .create, .confirm:
                 // Main content area - centered with pattern + feedback
                 VStack(spacing: 0) {
-                    // Pattern board at top
-                    patternInputSection
-                    
-                    // Push validation feedback lower
                     Spacer()
+                    
+                    // Pattern board - CENTERED, NEVER MOVES
+                    patternInputSection
 
-                    // Validation feedback - positioned near bottom, fixed height prevents layout shift
+                    // Space between pattern and error (pushes error lower)
+                    Spacer().frame(height: 40)
+
+                    // Validation feedback - BELOW the pattern, fixed height prevents layout shift
                     Group {
                         if let result = validationResult, step == .create {
                             PatternValidationFeedbackView(result: result)
@@ -90,8 +92,7 @@ struct PatternSetupView: View {
                     }
                     .frame(height: 80)
                     
-                    // Small spacer at very bottom
-                    Spacer().frame(height: 20)
+                    Spacer()
                 }
                 .frame(maxHeight: .infinity)
 
