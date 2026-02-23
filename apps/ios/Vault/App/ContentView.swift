@@ -76,6 +76,7 @@ struct ContentView: View {
                 .environment(SubscriptionManager.shared)
         }
         .ignoresSafeArea(.keyboard)
+        .preventScreenshots()
         .onChange(of: appState.isUnlocked) { _, isUnlocked in
             guard isUnlocked else {
                 // Safety: ensure unlock overlay is dismissed when vault locks,

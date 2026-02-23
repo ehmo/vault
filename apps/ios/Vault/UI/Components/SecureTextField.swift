@@ -1,105 +1,112 @@
 import SwiftUI
 import UIKit
+import os.log
 
-/// A text field that prevents screenshots and screen recording
-struct SecureTextField: View {
-    let placeholder: String
-    @Binding var text: String
-    var isSecure: Bool = false
+// MARK: - Screenshot Shield
 
-    var body: some View {
-        ZStack {
-            if isSecure {
-                SecureField(placeholder, text: $text)
-            } else {
-                TextField(placeholder, text: $text)
-            }
+/// Applies screenshot protection at the window level using the secure UITextField layer technique.
+/// When active, iOS screenshots and screen recordings capture a blank screen.
+///
+/// How it works: A `UITextField` with `isSecureTextEntry = true` creates an internal secure
+/// container sublayer. By reparenting the window's layer into this container, iOS treats all
+/// window content as "secure" and blanks it during screenshots and recordings.
+@MainActor
+final class ScreenshotShield {
+    static let shared = ScreenshotShield()
+
+    private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "ScreenshotShield")
+
+    private(set) var secureField: UITextField?
+    private(set) var isActive = false
+
+    init() {}
+
+    /// Activates screenshot protection on the key window.
+    /// Safe to call multiple times — only activates once.
+    func activate() {
+        guard !isActive else { return }
+        guard let window = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow) else {
+            Self.logger.warning("No key window found, screenshot shield not activated")
+            return
         }
-        .textFieldStyle(.roundedBorder)
-        .overlay {
-            // This overlay helps prevent screenshots on some systems
-            SecureOverlay()
-        }
-    }
-}
 
-/// Overlay that uses secure text field technique to prevent screenshots
-struct SecureOverlay: UIViewRepresentable {
-    func makeUIView(context _: Context) -> UIView {
-        let view = UIView()
-        view.backgroundColor = .clear
-        view.isUserInteractionEnabled = false
-
-        // Add a secure text field as a subview
-        // This makes the parent view "secure" in the system's eyes
-        let secureField = UITextField()
-        secureField.isSecureTextEntry = true
-        secureField.isUserInteractionEnabled = false
-        secureField.alpha = 0.01
-        view.addSubview(secureField)
-
-        return view
+        activate(on: window)
     }
 
-    func updateUIView(_ _: UIView, context _: Context) { /* No update needed */ }
-}
+    /// Activates screenshot protection on the given window.
+    /// Exposed as internal for testing; production code should use `activate()`.
+    func activate(on window: UIWindow) {
+        guard !isActive else { return }
 
-#Preview {
-    SecureTextField(placeholder: "Enter text", text: .constant(""))
-        .padding()
+        let field = UITextField()
+        field.isSecureTextEntry = true
+        field.isUserInteractionEnabled = false
+        window.addSubview(field)
+        // Keep field at frame .zero (origin) — do NOT add centering constraints.
+        // After layer reparenting, field.layer becomes the rendering root in
+        // windowSuperlayer. Any offset on field.layer shifts ALL window content.
+
+        // Reparent: move the window's layer inside the text field's secure container.
+        // The secure container is the first sublayer of the text field's layer.
+        guard let secureContainer = field.layer.sublayers?.first,
+              let windowSuperlayer = window.layer.superlayer else {
+            Self.logger.error("Could not find secure container or window superlayer — screenshot protection unavailable")
+            field.removeFromSuperview()
+            return
+        }
+
+        // Prevent clipping — the zero-sized field/container must not clip the full-screen window layer.
+        field.layer.masksToBounds = false
+        secureContainer.masksToBounds = false
+
+        windowSuperlayer.addSublayer(field.layer)
+        secureContainer.addSublayer(window.layer)
+
+        secureField = field
+        isActive = true
+        Self.logger.info("Screenshot shield activated")
+    }
 }
 
 // MARK: - Screenshot Prevention Modifier
 
-/// A view modifier that prevents screenshots by using the secure text field technique.
-/// When applied to a view, it makes that view "secure" in iOS's eyes, preventing screenshots.
+/// View modifier that activates the window-level screenshot shield.
+/// Uses the secure UITextField layer technique to make screenshots capture a blank screen.
 struct ScreenshotPreventionModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .overlay(
-                SecureFieldOverlay()
-                    .allowsHitTesting(false)
-                    .opacity(0.01) // Nearly invisible but still effective
-            )
+            .background(ScreenshotShieldActivator())
     }
 }
 
-/// UIViewRepresentable that adds a secure text field to prevent screenshots
-private struct SecureFieldOverlay: UIViewRepresentable {
+/// Activates the screenshot shield once the view enters the window hierarchy.
+private struct ScreenshotShieldActivator: UIViewRepresentable {
     func makeUIView(context: Context) -> UIView {
-        let containerView = UIView()
-        containerView.backgroundColor = .clear
-        containerView.isUserInteractionEnabled = false
-
-        // Add a secure text field as a subview
-        // This makes the parent view "secure" in the system's eyes
-        let secureField = UITextField()
-        secureField.isSecureTextEntry = true
-        secureField.isUserInteractionEnabled = false
-        secureField.alpha = 0.01 // Nearly invisible
-
-        containerView.addSubview(secureField)
-
-        // Pin secure field to edges
-        secureField.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            secureField.topAnchor.constraint(equalTo: containerView.topAnchor),
-            secureField.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
-            secureField.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-            secureField.trailingAnchor.constraint(equalTo: containerView.trailingAnchor)
-        ])
-
-        return containerView
+        let view = ShieldTriggerView()
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false
+        return view
     }
 
-    func updateUIView(_ uiView: UIView, context: Context) {
-        // No updates needed
+    func updateUIView(_ uiView: UIView, context: Context) {}
+}
+
+/// UIView that activates the shield when it enters a window.
+private class ShieldTriggerView: UIView {
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        guard window != nil else { return }
+        ScreenshotShield.shared.activate()
     }
 }
 
 extension View {
-    /// Prevents screenshots by applying a secure overlay to this view.
-    /// The overlay uses the secure text field technique to mark the view as sensitive.
+    /// Prevents screenshots by activating the window-level screenshot shield.
+    /// The shield uses the secure UITextField layer technique so that iOS renders
+    /// a blank screen in screenshots and screen recordings.
     func preventScreenshots() -> some View {
         modifier(ScreenshotPreventionModifier())
     }
