@@ -356,46 +356,37 @@ footer {
   background: var(--accent);
 }
 
+/* Footer sub-link sections - features and compare */
+.footer-features,
 .footer-compare {
-  width: 100%;
-  padding-top: 20px;
-  margin-top: 6px;
-  border-top: 1px solid color-mix(in srgb, var(--text) 8%, transparent 92%);
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px 14px;
-  font-size: 0.82rem;
-}
-
-.footer-compare a {
-  color: var(--text-secondary);
-  transition: color 0.2s;
-  text-align: left;
-}
-
-.footer-compare a:hover {
-  color: var(--accent);
-}
-
-/* Footer feature sub-links */
-.footer-features {
   width: 100%;
   padding-top: 16px;
   margin-top: 6px;
   border-top: 1px solid color-mix(in srgb, var(--text) 8%, transparent 92%);
+  font-size: 0.82rem;
+}
+
+.footer-features {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px 14px;
-  font-size: 0.78rem;
 }
 
-.footer-features a {
+.footer-compare {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px 14px;
+}
+
+.footer-features a,
+.footer-compare a {
   color: var(--text-secondary);
-  transition: color 0.2s;
+  transition: color 0.2s ease;
   text-align: left;
 }
 
-.footer-features a:hover {
+.footer-features a:hover,
+.footer-compare a:hover {
   color: var(--accent);
 }
 
@@ -405,7 +396,8 @@ footer {
 }
 
 @media (max-width: 768px) {
-  .footer-features {
+  .footer-features,
+  .footer-compare {
     grid-template-columns: 1fr;
     gap: 6px;
   }
