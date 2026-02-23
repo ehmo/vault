@@ -70,8 +70,8 @@
   margin-bottom: 0;
 }
 
-.page-privacy a,
-.page-terms a {
+.page-privacy a:not(.btn),
+.page-terms a:not(.btn) {
   color: var(--accent);
   text-underline-offset: 3px;
 }
