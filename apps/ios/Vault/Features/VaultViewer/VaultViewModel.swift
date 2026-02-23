@@ -323,6 +323,34 @@ final class VaultViewModel {
         exportURLs = []
     }
 
+    // MARK: - Cancel Operation
+
+    /// Cancels the currently running operation (import, delete, or shared vault download).
+    func cancelCurrentOperation() {
+        vmLogger.info("User requested cancellation of current operation")
+
+        // Cancel active import/delete task
+        if activeImportTask != nil {
+            activeImportTask?.cancel()
+            activeImportTask = nil
+            importProgress = nil
+            isDeleteInProgress = false
+            IdleTimerManager.shared.enable()
+        }
+
+        // Cancel shared vault import
+        if case .importing = transferManager.status {
+            transferManager.cancel()
+        }
+
+        // Cancel shared vault update
+        if sharedVaultUpdateProgress != nil {
+            // The shared vault update will check isUpdating flag and cancel itself
+            isUpdating = false
+            sharedVaultUpdateProgress = nil
+        }
+    }
+
     func deleteFileById(_ id: UUID) {
         guard let key = appState?.currentVaultKey else { return }
         Task.detached(priority: .userInitiated) {

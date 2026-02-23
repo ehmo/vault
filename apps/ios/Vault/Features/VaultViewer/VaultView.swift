@@ -188,7 +188,10 @@ struct VaultView: View {
                         FileOperationProgressCard(
                             completed: progress.completed,
                             total: progress.total,
-                            message: progress.message
+                            message: progress.message,
+                            onCancel: {
+                                viewModel.cancelCurrentOperation()
+                            }
                         )
                     }
                     .accessibilityIdentifier("vault_operation_progress")

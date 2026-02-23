@@ -4,6 +4,7 @@ struct FileOperationProgressCard: View {
     let completed: Int
     let total: Int
     let message: String
+    var onCancel: (() -> Void)?
 
     private var percentage: Int {
         total > 0 ? Int(Double(completed) / Double(total) * 100) : 0
@@ -26,6 +27,19 @@ struct FileOperationProgressCard: View {
                 .font(.subheadline)
                 .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
+
+            if let onCancel {
+                Button(action: onCancel) {
+                    Text("Cancel")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.vaultHighlight)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                }
+                .background(Color.vaultHighlight.opacity(0.1))
+                .clipShape(Capsule())
+                .accessibilityIdentifier("operation_cancel_button")
+            }
         }
         .padding(24)
         .frame(maxWidth: 360)
