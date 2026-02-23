@@ -164,17 +164,23 @@ struct FullScreenPhotoViewer: View {
             if onDelete != nil {
                 Button("Delete", role: .destructive) { showingDeleteConfirmation = true }
             }
-            Button("Cancel", role: .cancel) { /* No-op */ }
+            Button("Cancel", role: .cancel) {
+                // No-op: dismiss handled by SwiftUI
+            }
         }
         .alert("Export File?", isPresented: $showingExportConfirmation) {
             Button("Export") { exportFile() }
-            Button("Cancel", role: .cancel) { /* No-op */ }
+            Button("Cancel", role: .cancel) {
+                // No-op: dismiss handled by SwiftUI
+            }
         } message: {
             Text("This will save the file outside the vault. It will no longer be protected.")
         }
         .alert("Delete File?", isPresented: $showingDeleteConfirmation) {
             Button("Delete", role: .destructive) { deleteFile() }
-            Button("Cancel", role: .cancel) { /* No-op */ }
+            Button("Cancel", role: .cancel) {
+                // No-op: dismiss handled by SwiftUI
+            }
         } message: {
             Text("This file will be permanently deleted from the vault.")
         }

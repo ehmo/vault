@@ -75,10 +75,18 @@ final class ZoomableImageContainerTests: XCTestCase {
         let container = ZoomableImageContainer(
             image: image,
             containerSize: CGSize(width: 400, height: 800),
-            onSingleTap: { /* unused in test */ },
-            onVerticalDrag: { _ in /* unused in test */ },
-            onVerticalDragEnd: { _, _ in /* unused in test */ },
-            onZoomChange: { _ in /* unused in test */ }
+            onSingleTap: {
+                // No-op: unused in test
+            },
+            onVerticalDrag: { _ in
+                // No-op: unused in test
+            },
+            onVerticalDragEnd: { _, _ in
+                // No-op: unused in test
+            },
+            onZoomChange: { _ in
+                // No-op: unused in test
+            }
         )
 
         let coordinator = container.makeCoordinator()
@@ -97,9 +105,15 @@ final class ZoomableImageContainerTests: XCTestCase {
         let container = ZoomableImageContainer(
             image: image,
             containerSize: CGSize(width: 400, height: 800),
-            onSingleTap: { /* unused in test */ },
-            onVerticalDrag: { _ in /* unused in test */ },
-            onVerticalDragEnd: { _, _ in /* unused in test */ },
+            onSingleTap: {
+                // No-op: unused in test
+            },
+            onVerticalDrag: { _ in
+                // No-op: unused in test
+            },
+            onVerticalDragEnd: { _, _ in
+                // No-op: unused in test
+            },
             onZoomChange: { scale in reportedScale = scale }
         )
 
@@ -119,10 +133,18 @@ final class ZoomableImageContainerTests: XCTestCase {
         let container = ZoomableImageContainer(
             image: image,
             containerSize: CGSize(width: 400, height: 800),
-            onSingleTap: { /* unused in test */ },
-            onVerticalDrag: { _ in /* unused in test */ },
-            onVerticalDragEnd: { _, _ in /* unused in test */ },
-            onZoomChange: { _ in /* unused in test */ }
+            onSingleTap: {
+                // No-op: unused in test
+            },
+            onVerticalDrag: { _ in
+                // No-op: unused in test
+            },
+            onVerticalDragEnd: { _, _ in
+                // No-op: unused in test
+            },
+            onZoomChange: { _ in
+                // No-op: unused in test
+            }
         )
 
         let coordinator = container.makeCoordinator()
@@ -142,10 +164,18 @@ final class ZoomableImageContainerTests: XCTestCase {
         let container = ZoomableImageContainer(
             image: image,
             containerSize: CGSize(width: 400, height: 800),
-            onSingleTap: { /* unused in test */ },
-            onVerticalDrag: { _ in /* unused in test */ },
-            onVerticalDragEnd: { _, _ in /* unused in test */ },
-            onZoomChange: { _ in /* unused in test */ }
+            onSingleTap: {
+                // No-op: unused in test
+            },
+            onVerticalDrag: { _ in
+                // No-op: unused in test
+            },
+            onVerticalDragEnd: { _, _ in
+                // No-op: unused in test
+            },
+            onZoomChange: { _ in
+                // No-op: unused in test
+            }
         )
 
         let coordinator = container.makeCoordinator()

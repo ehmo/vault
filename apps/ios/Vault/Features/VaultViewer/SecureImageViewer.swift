@@ -55,13 +55,17 @@ struct SecureImageViewer: View {
         .onDisappear(perform: cleanup)
         .alert("Export File?", isPresented: $showingExportConfirmation) {
             Button("Export", role: .destructive) { exportFile() }
-            Button("Cancel", role: .cancel) { /* No-op */ }
+            Button("Cancel", role: .cancel) {
+                // No-op: dismiss handled by SwiftUI
+            }
         } message: {
             Text("This will save the file outside the vault. It will no longer be protected.")
         }
         .alert("Delete File?", isPresented: $showingDeleteConfirmation) {
             Button("Delete", role: .destructive) { deleteFile() }
-            Button("Cancel", role: .cancel) { /* No-op */ }
+            Button("Cancel", role: .cancel) {
+                // No-op: dismiss handled by SwiftUI
+            }
         } message: {
             Text("This file will be permanently deleted from the vault.")
         }
@@ -72,7 +76,9 @@ struct SecureImageViewer: View {
             if onDelete != nil {
                 Button("Delete", role: .destructive) { showingDeleteConfirmation = true }
             }
-            Button("Cancel", role: .cancel) { /* No-op */ }
+            Button("Cancel", role: .cancel) {
+                // No-op: dismiss handled by SwiftUI
+            }
         }
         .onChange(of: shareURL) { _, url in
             guard let url else { return }
@@ -227,7 +233,9 @@ struct QuickLookPreview: UIViewControllerRepresentable {
         return controller
     }
 
-    func updateUIViewController(_ _: QLPreviewController, context _: Context) { /* No update needed */ }
+    func updateUIViewController(_ _: QLPreviewController, context _: Context) {
+        // No update needed
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(url: url)
@@ -258,7 +266,9 @@ struct QuickLookPreview: UIViewControllerRepresentable {
             filename: "preview.jpg"
         ),
         vaultKey: nil,
-        onDelete: { _ in }
+        onDelete: { _ in
+            // No-op: preview stub
+        }
     )
 }
 

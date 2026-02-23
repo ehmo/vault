@@ -2,7 +2,9 @@ import Foundation
 
 final class AnalyticsManager {
     static let shared = AnalyticsManager()
-    private init() { /* No-op */ }
+    private init() {
+        // No-op: singleton
+    }
 
     private static let key = "analyticsEnabled"
 

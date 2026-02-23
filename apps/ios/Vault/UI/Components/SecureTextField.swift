@@ -18,9 +18,11 @@ final class ScreenshotShield {
 
     private(set) var secureField: UITextField?
     private(set) var isActive = false
-    private weak var protectedWindow: UIWindow?
+    private(set) weak var protectedWindow: UIWindow?
 
-    init() {}
+    init() {
+        // No-op: default initializer
+    }
 
     /// Activates screenshot protection on the key window.
     /// Safe to call multiple times — only activates once.
@@ -174,7 +176,9 @@ private struct ScreenshotShieldActivator: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ uiView: UIView, context: Context) {}
+    func updateUIView(_ uiView: UIView, context: Context) {
+        // No update needed
+    }
 }
 
 /// UIView that activates the shield when it enters a window.

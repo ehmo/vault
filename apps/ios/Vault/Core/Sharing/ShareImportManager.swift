@@ -114,7 +114,9 @@ final class ShareImportManager {
     private(set) var currentMessage: String = ""
     private var progressTask: Task<Void, Never>?
 
-    private init() {}
+    private init() {
+        // No-op: singleton
+    }
 
     // MARK: - Background Download + Import
 
@@ -556,13 +558,10 @@ final class ShareImportManager {
     private func finishImport(_ newStatus: ImportStatus) {
         stopProgressTimer()
         status = newStatus
-        switch newStatus {
-        case .importComplete:
+        if case .importComplete = newStatus {
             LocalNotificationManager.shared.sendImportComplete()
-        case .importFailed:
+        } else if case .importFailed = newStatus {
             LocalNotificationManager.shared.sendImportFailed()
-        default:
-            break
         }
     }
 

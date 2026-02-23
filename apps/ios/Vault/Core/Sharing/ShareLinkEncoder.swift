@@ -87,13 +87,12 @@ enum ShareLinkEncoder {
         let version = payload[0]
         let data = Array(payload.dropFirst())
 
-        switch version {
-        case versionRaw:
+        if version == versionRaw {
             return String(bytes: data, encoding: .utf8)
-        case versionDeflate:
+        } else if version == versionDeflate {
             guard let decompressed = deflateDecompress(Data(data)) else { return nil }
             return String(data: decompressed, encoding: .utf8)
-        default:
+        } else {
             return nil
         }
     }

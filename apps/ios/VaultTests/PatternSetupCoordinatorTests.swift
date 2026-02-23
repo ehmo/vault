@@ -192,7 +192,9 @@ final class PatternSetupCoordinatorTests: XCTestCase {
         let coordinator = makeCoordinator(
             deriveKey: { _, _ in self.dummyKey },
             vaultExists: { _ in false },
-            saveIndex: { _, _ in },
+            saveIndex: { _, _ in
+                // No-op: test stub
+            },
             saveRecoveryPhrase: { phrase, _, _, _ in
                 savedPhrases.append(phrase)
             }

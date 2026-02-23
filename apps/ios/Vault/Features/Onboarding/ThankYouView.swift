@@ -72,5 +72,7 @@ struct ThankYouView: View {
 }
 
 #Preview {
-    ThankYouView(onContinue: {})
+    ThankYouView(onContinue: {
+        // No-op: preview stub
+    })
 }

@@ -104,7 +104,7 @@ struct PhotosGridView: View {
                 }
             }
             .accessibilityLabel(file.filename ?? "Photo")
-            .accessibilityHint(isEditing ? "Double tap to \(selectedIds.contains(file.id) ? "deselect" : "select")" : "Double tap to view full screen")
+            .accessibilityHint(accessibilityHint(for: file))
             .contextMenu {
                 if let onDelete, !isEditing {
                     Button(role: .destructive, action: { onDelete(file.id) }) {
@@ -112,6 +112,13 @@ struct PhotosGridView: View {
                     }
                 }
             }
+    }
+
+    private func accessibilityHint(for file: VaultFileItem) -> String {
+        if isEditing {
+            return selectedIds.contains(file.id) ? "Double tap to deselect" : "Double tap to select"
+        }
+        return "Double tap to view full screen"
     }
 
     // MARK: - Drag-to-Select

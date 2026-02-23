@@ -914,12 +914,9 @@ struct ShareVaultView: View {
     }
 
     static func shouldDisplayUploadJob(_ job: ShareUploadManager.UploadJob) -> Bool {
-        switch job.status {
-        case .complete, .cancelled:
-            return false
-        default:
-            return true
-        }
+        if case .complete = job.status { return false }
+        if case .cancelled = job.status { return false }
+        return true
     }
 
     static func shouldDisableIdleTimer(

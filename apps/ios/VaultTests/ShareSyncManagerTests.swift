@@ -450,9 +450,9 @@ final class ShareSyncManagerTests: XCTestCase {
         shareVaultId: String,
         createdAt: Date = Date(),
         includeSvdf: Bool = true
-    ) {
+    ) throws {
         let dir = syncStagingRootDir.appendingPathComponent(shareVaultId, isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
         let state = ShareSyncManager.PendingSyncState(
             shareVaultId: shareVaultId,
@@ -467,11 +467,11 @@ final class ShareSyncManagerTests: XCTestCase {
             syncedFileIds: nil,
             syncSequence: nil
         )
-        let data = try! JSONEncoder().encode(state)
-        try! data.write(to: dir.appendingPathComponent("state.json"))
+        let data = try JSONEncoder().encode(state)
+        try data.write(to: dir.appendingPathComponent("state.json"))
 
         if includeSvdf {
-            try! Data(repeating: 0x00, count: 1024).write(
+            try Data(repeating: 0x00, count: 1024).write(
                 to: dir.appendingPathComponent("svdf_data.bin")
             )
         }
@@ -487,9 +487,9 @@ final class ShareSyncManagerTests: XCTestCase {
         XCTAssertNil(state)
     }
 
-    func testLoadPendingSyncState_ReturnsStateWhenValid() {
+    func testLoadPendingSyncState_ReturnsStateWhenValid() throws {
         cleanupSyncStaging()
-        writePendingSyncState(shareVaultId: "valid-share")
+        try writePendingSyncState(shareVaultId: "valid-share")
 
         let state = sut.loadPendingSyncState(for: "valid-share")
         XCTAssertNotNil(state)
@@ -500,9 +500,9 @@ final class ShareSyncManagerTests: XCTestCase {
         cleanupSyncStaging()
     }
 
-    func testLoadPendingSyncState_ReturnsNilWhenExpired() {
+    func testLoadPendingSyncState_ReturnsNilWhenExpired() throws {
         cleanupSyncStaging()
-        writePendingSyncState(
+        try writePendingSyncState(
             shareVaultId: "expired-share",
             createdAt: Date().addingTimeInterval(-49 * 60 * 60)
         )
@@ -518,9 +518,9 @@ final class ShareSyncManagerTests: XCTestCase {
         cleanupSyncStaging()
     }
 
-    func testLoadPendingSyncState_ReturnsNilWhenSvdfMissing() {
+    func testLoadPendingSyncState_ReturnsNilWhenSvdfMissing() throws {
         cleanupSyncStaging()
-        writePendingSyncState(shareVaultId: "no-svdf", includeSvdf: false)
+        try writePendingSyncState(shareVaultId: "no-svdf", includeSvdf: false)
 
         let state = sut.loadPendingSyncState(for: "no-svdf")
         XCTAssertNil(state, "State without SVDF file should return nil")
@@ -528,9 +528,9 @@ final class ShareSyncManagerTests: XCTestCase {
         cleanupSyncStaging()
     }
 
-    func testLoadPendingSyncState_JustBeforeTTL() {
+    func testLoadPendingSyncState_JustBeforeTTL() throws {
         cleanupSyncStaging()
-        writePendingSyncState(
+        try writePendingSyncState(
             shareVaultId: "almost-expired",
             createdAt: Date().addingTimeInterval(-47 * 60 * 60)
         )
@@ -547,10 +547,10 @@ final class ShareSyncManagerTests: XCTestCase {
         XCTAssertTrue(ids.isEmpty)
     }
 
-    func testPendingSyncShareVaultIds_ReturnsValidIds() {
+    func testPendingSyncShareVaultIds_ReturnsValidIds() throws {
         cleanupSyncStaging()
-        writePendingSyncState(shareVaultId: "share-a")
-        writePendingSyncState(shareVaultId: "share-b")
+        try writePendingSyncState(shareVaultId: "share-a")
+        try writePendingSyncState(shareVaultId: "share-b")
 
         let ids = sut.pendingSyncShareVaultIds()
         XCTAssertEqual(Set(ids), Set(["share-a", "share-b"]))
@@ -558,10 +558,10 @@ final class ShareSyncManagerTests: XCTestCase {
         cleanupSyncStaging()
     }
 
-    func testPendingSyncShareVaultIds_ExcludesExpired() {
+    func testPendingSyncShareVaultIds_ExcludesExpired() throws {
         cleanupSyncStaging()
-        writePendingSyncState(shareVaultId: "valid-share")
-        writePendingSyncState(
+        try writePendingSyncState(shareVaultId: "valid-share")
+        try writePendingSyncState(
             shareVaultId: "expired-share",
             createdAt: Date().addingTimeInterval(-49 * 60 * 60)
         )
@@ -572,10 +572,10 @@ final class ShareSyncManagerTests: XCTestCase {
         cleanupSyncStaging()
     }
 
-    func testPendingSyncShareVaultIds_ExcludesMissingSvdf() {
+    func testPendingSyncShareVaultIds_ExcludesMissingSvdf() throws {
         cleanupSyncStaging()
-        writePendingSyncState(shareVaultId: "with-svdf")
-        writePendingSyncState(shareVaultId: "without-svdf", includeSvdf: false)
+        try writePendingSyncState(shareVaultId: "with-svdf")
+        try writePendingSyncState(shareVaultId: "without-svdf", includeSvdf: false)
 
         let ids = sut.pendingSyncShareVaultIds()
         XCTAssertEqual(ids, ["with-svdf"])
@@ -588,9 +588,9 @@ final class ShareSyncManagerTests: XCTestCase {
         XCTAssertFalse(sut.hasPendingSyncs)
     }
 
-    func testHasPendingSyncs_TrueWhenStateExists() {
+    func testHasPendingSyncs_TrueWhenStateExists() throws {
         cleanupSyncStaging()
-        writePendingSyncState(shareVaultId: "pending-share")
+        try writePendingSyncState(shareVaultId: "pending-share")
 
         XCTAssertTrue(sut.hasPendingSyncs)
 
@@ -605,9 +605,9 @@ final class ShareSyncManagerTests: XCTestCase {
         sut.resumePendingSyncsIfNeeded(trigger: "test")
     }
 
-    func testResumePendingSyncsIfNeeded_StartsUploadForPendingSync() async {
+    func testResumePendingSyncsIfNeeded_StartsUploadForPendingSync() async throws {
         cleanupSyncStaging()
-        writePendingSyncState(shareVaultId: "resume-test")
+        try writePendingSyncState(shareVaultId: "resume-test")
 
         sut.resumePendingSyncsIfNeeded(trigger: "test")
 
@@ -623,9 +623,9 @@ final class ShareSyncManagerTests: XCTestCase {
         cleanupSyncStaging()
     }
 
-    func testResumePendingSyncsIfNeeded_ClearsOnSuccess() async {
+    func testResumePendingSyncsIfNeeded_ClearsOnSuccess() async throws {
         cleanupSyncStaging()
-        writePendingSyncState(shareVaultId: "success-test")
+        try writePendingSyncState(shareVaultId: "success-test")
 
         sut.resumePendingSyncsIfNeeded(trigger: "test")
 
@@ -639,9 +639,9 @@ final class ShareSyncManagerTests: XCTestCase {
         cleanupSyncStaging()
     }
 
-    func testResumePendingSyncsIfNeeded_PreservesStagingOnFailure() async {
+    func testResumePendingSyncsIfNeeded_PreservesStagingOnFailure() async throws {
         cleanupSyncStaging()
-        writePendingSyncState(shareVaultId: "fail-test")
+        try writePendingSyncState(shareVaultId: "fail-test")
         mockCloudKit.syncFromFileError = NSError(domain: "test", code: -1)
 
         sut.resumePendingSyncsIfNeeded(trigger: "test")
@@ -656,9 +656,9 @@ final class ShareSyncManagerTests: XCTestCase {
         cleanupSyncStaging()
     }
 
-    func testResumePendingSyncsIfNeeded_DoesNotDuplicateResumeTasks() async {
+    func testResumePendingSyncsIfNeeded_DoesNotDuplicateResumeTasks() async throws {
         cleanupSyncStaging()
-        writePendingSyncState(shareVaultId: "dedup-test")
+        try writePendingSyncState(shareVaultId: "dedup-test")
 
         // Call resume twice rapidly
         sut.resumePendingSyncsIfNeeded(trigger: "test1")
@@ -768,10 +768,10 @@ final class ShareSyncManagerTests: XCTestCase {
 
     // MARK: - Resume Multiple Shares
 
-    func testResumePendingSyncsIfNeeded_ResumesMultipleShares() async {
+    func testResumePendingSyncsIfNeeded_ResumesMultipleShares() async throws {
         cleanupSyncStaging()
-        writePendingSyncState(shareVaultId: "share-alpha")
-        writePendingSyncState(shareVaultId: "share-beta")
+        try writePendingSyncState(shareVaultId: "share-alpha")
+        try writePendingSyncState(shareVaultId: "share-beta")
 
         sut.resumePendingSyncsIfNeeded(trigger: "test")
 
@@ -787,7 +787,7 @@ final class ShareSyncManagerTests: XCTestCase {
 
     // MARK: - Upload Passes Correct Hashes
 
-    func testResumePendingSyncsIfNeeded_PassesCorrectHashes() async {
+    func testResumePendingSyncsIfNeeded_PassesCorrectHashes() async throws {
         cleanupSyncStaging()
 
         // Write state with specific hashes
@@ -808,9 +808,9 @@ final class ShareSyncManagerTests: XCTestCase {
             syncedFileIds: nil,
             syncSequence: nil
         )
-        let data = try! JSONEncoder().encode(state)
-        try! data.write(to: dir.appendingPathComponent("state.json"))
-        try! Data(repeating: 0x00, count: 512).write(to: dir.appendingPathComponent("svdf_data.bin"))
+        let data = try JSONEncoder().encode(state)
+        try data.write(to: dir.appendingPathComponent("state.json"))
+        try Data(repeating: 0x00, count: 512).write(to: dir.appendingPathComponent("svdf_data.bin"))
 
         sut.resumePendingSyncsIfNeeded(trigger: "test")
         try? await Task.sleep(nanoseconds: 300_000_000)
@@ -825,10 +825,10 @@ final class ShareSyncManagerTests: XCTestCase {
 
     // MARK: - Staging Dir Cleanup
 
-    func testClearSyncStaging_OnlyAffectsTargetShare() {
+    func testClearSyncStaging_OnlyAffectsTargetShare() throws {
         cleanupSyncStaging()
-        writePendingSyncState(shareVaultId: "keep-me")
-        writePendingSyncState(shareVaultId: "delete-me")
+        try writePendingSyncState(shareVaultId: "keep-me")
+        try writePendingSyncState(shareVaultId: "delete-me")
 
         // Simulate clearing one share's staging dir (what clearSyncStaging does)
         let deleteDir = syncStagingRootDir.appendingPathComponent("delete-me", isDirectory: true)
@@ -844,9 +844,9 @@ final class ShareSyncManagerTests: XCTestCase {
 
     // MARK: - Network Error Preserves Staging
 
-    func testResumePreservesStagingOnNetworkError() async {
+    func testResumePreservesStagingOnNetworkError() async throws {
         cleanupSyncStaging()
-        writePendingSyncState(shareVaultId: "net-fail")
+        try writePendingSyncState(shareVaultId: "net-fail")
 
         let networkError = NSError(
             domain: NSURLErrorDomain,
@@ -865,9 +865,9 @@ final class ShareSyncManagerTests: XCTestCase {
         cleanupSyncStaging()
     }
 
-    func testResumePreservesStagingOnCKError() async {
+    func testResumePreservesStagingOnCKError() async throws {
         cleanupSyncStaging()
-        writePendingSyncState(shareVaultId: "ck-fail")
+        try writePendingSyncState(shareVaultId: "ck-fail")
 
         let ckError = CKError(.networkUnavailable)
         mockCloudKit.syncFromFileError = ckError
@@ -883,17 +883,17 @@ final class ShareSyncManagerTests: XCTestCase {
 
     // MARK: - Edge Cases
 
-    func testLoadPendingSyncState_CorruptedJSON() {
+    func testLoadPendingSyncState_CorruptedJSON() throws {
         cleanupSyncStaging()
         let shareId = "corrupt-json"
         let dir = syncStagingRootDir.appendingPathComponent(shareId, isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
         // Write invalid JSON
-        try! "not valid json {{{".data(using: .utf8)!.write(
+        try "not valid json {{{".data(using: .utf8)!.write(
             to: dir.appendingPathComponent("state.json")
         )
-        try! Data(repeating: 0x00, count: 100).write(
+        try Data(repeating: 0x00, count: 100).write(
             to: dir.appendingPathComponent("svdf_data.bin")
         )
 
@@ -903,15 +903,15 @@ final class ShareSyncManagerTests: XCTestCase {
         cleanupSyncStaging()
     }
 
-    func testLoadPendingSyncState_EmptyStateFile() {
+    func testLoadPendingSyncState_EmptyStateFile() throws {
         cleanupSyncStaging()
         let shareId = "empty-state"
         let dir = syncStagingRootDir.appendingPathComponent(shareId, isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
         // Write empty file
-        try! Data().write(to: dir.appendingPathComponent("state.json"))
-        try! Data(repeating: 0x00, count: 100).write(
+        try Data().write(to: dir.appendingPathComponent("state.json"))
+        try Data(repeating: 0x00, count: 100).write(
             to: dir.appendingPathComponent("svdf_data.bin")
         )
 
@@ -921,7 +921,7 @@ final class ShareSyncManagerTests: XCTestCase {
         cleanupSyncStaging()
     }
 
-    func testPendingSyncShareVaultIds_IgnoresNonDirectoryFiles() {
+    func testPendingSyncShareVaultIds_IgnoresNonDirectoryFiles() throws {
         cleanupSyncStaging()
 
         // Create a regular file in the staging root (not a directory)
@@ -932,7 +932,7 @@ final class ShareSyncManagerTests: XCTestCase {
         )
 
         // Also write a valid share
-        writePendingSyncState(shareVaultId: "valid-dir-share")
+        try writePendingSyncState(shareVaultId: "valid-dir-share")
 
         let ids = sut.pendingSyncShareVaultIds()
         XCTAssertEqual(ids, ["valid-dir-share"],
@@ -941,9 +941,9 @@ final class ShareSyncManagerTests: XCTestCase {
         cleanupSyncStaging()
     }
 
-    func testResumeAfterPartialUpload_RetainsState() async {
+    func testResumeAfterPartialUpload_RetainsState() async throws {
         cleanupSyncStaging()
-        writePendingSyncState(shareVaultId: "partial-upload")
+        try writePendingSyncState(shareVaultId: "partial-upload")
 
         // First attempt fails
         mockCloudKit.syncFromFileError = NSError(domain: "test", code: -1)
@@ -1015,12 +1015,12 @@ final class ShareSyncManagerTests: XCTestCase {
         UserDefaults.standard.removeObject(forKey: "networkPreference")
     }
 
-    func testWiFiOnlyResumeSkipsOnCellular() {
+    func testWiFiOnlyResumeSkipsOnCellular() throws {
         // This tests that resumePendingSyncsIfNeeded returns early when WiFi-only and not on WiFi.
         // Since we can't easily mock the network monitor in unit tests, we verify the
         // default preference (wifi) and that the code path doesn't crash.
         cleanupSyncStaging()
-        writePendingSyncState(shareVaultId: "wifi-test")
+        try writePendingSyncState(shareVaultId: "wifi-test")
 
         UserDefaults.standard.set("wifi", forKey: "networkPreference")
 
@@ -1078,7 +1078,9 @@ final class ShareSyncManagerTests: XCTestCase {
 
         XCTAssertEqual(progress.fractionCompleted, 0.5)
         XCTAssertEqual(progress.message, "Uploading 2/4 chunks")
-        if case .uploading = progress.status {} else {
+        if case .uploading = progress.status {
+            // Expected: uploading status matched
+        } else {
             XCTFail("Expected uploading status")
         }
     }

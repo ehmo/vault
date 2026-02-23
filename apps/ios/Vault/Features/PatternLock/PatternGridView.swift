@@ -149,7 +149,9 @@ struct PatternGridView: View {
     PatternGridView(
         state: PatternState(),
         showFeedback: .constant(true),
-        onPatternComplete: { _ in }
+        onPatternComplete: { _ in
+            // No-op: preview stub
+        }
     )
     .padding(40)
 }

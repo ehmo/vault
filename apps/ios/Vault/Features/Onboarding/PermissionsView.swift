@@ -210,5 +210,7 @@ struct PermissionsView: View {
 }
 
 #Preview {
-    PermissionsView(onContinue: {})
+    PermissionsView(onContinue: {
+        // No-op: preview stub
+    })
 }

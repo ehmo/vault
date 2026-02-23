@@ -31,11 +31,9 @@ enum iCloudError: Error, LocalizedError {
     case wifiRequired
 
     var errorDescription: String? {
-        switch self {
-        case .notAvailable: return "iCloud is not available"
-        case .wifiRequired: return "Wi-Fi required. Change in Settings → Network to allow cellular."
-        default: return nil
-        }
+        if case .notAvailable = self { return "iCloud is not available" }
+        if case .wifiRequired = self { return "Wi-Fi required. Change in Settings → Network to allow cellular." }
+        return nil
     }
 }
 
@@ -878,14 +876,11 @@ final class iCloudBackupManager: @unchecked Sendable {
 
                 try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                     operation.modifyRecordsResultBlock = { result in
-                        switch result {
-                        case .success:
-                            continuation.resume()
-                        case .failure(let error):
+                        if case .failure(let error) = result {
                             // Non-fatal — old chunks will be overwritten next time
                             Self.logger.warning("[backup] Failed to delete old chunks batch: \(error)")
-                            continuation.resume()
                         }
+                        continuation.resume()
                     }
                     self.privateDatabase.add(operation)
                 }
@@ -913,15 +908,12 @@ final class iCloudBackupManager: @unchecked Sendable {
             }
 
             operation.modifyRecordsResultBlock = { result in
-                switch result {
-                case .success:
-                    if let error = perRecordError {
-                        continuation.resume(throwing: error)
-                    } else {
-                        continuation.resume()
-                    }
-                case .failure(let error):
+                if case .failure(let error) = result {
                     continuation.resume(throwing: error)
+                } else if let error = perRecordError {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume()
                 }
             }
 

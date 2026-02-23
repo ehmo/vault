@@ -37,7 +37,9 @@ final class BackgroundTaskTests: XCTestCase {
 
     /// Tests that endBackgroundTask properly ends the task.
     func testEndBackgroundTask_EndsTask() {
-        bgTaskId = UIApplication.shared.beginBackgroundTask(withName: "TestTask") {}
+        bgTaskId = UIApplication.shared.beginBackgroundTask(withName: "TestTask") {
+            // No-op: expiration handler not tested
+        }
 
         XCTAssertNotEqual(bgTaskId, .invalid)
 
@@ -52,11 +54,15 @@ final class BackgroundTaskTests: XCTestCase {
     /// Catches: Orphaned background task IDs
     func testBeginBackgroundTask_EndsPreviousTask() {
         // Start first task
-        let firstTaskId = UIApplication.shared.beginBackgroundTask(withName: "FirstTask") {}
+        let firstTaskId = UIApplication.shared.beginBackgroundTask(withName: "FirstTask") {
+            // No-op: expiration handler not tested
+        }
         XCTAssertNotEqual(firstTaskId, .invalid)
 
         // Start second task without ending first (bad practice, but test shows the issue)
-        let secondTaskId = UIApplication.shared.beginBackgroundTask(withName: "SecondTask") {}
+        let secondTaskId = UIApplication.shared.beginBackgroundTask(withName: "SecondTask") {
+            // No-op: expiration handler not tested
+        }
         XCTAssertNotEqual(secondTaskId, .invalid)
         XCTAssertNotEqual(firstTaskId, secondTaskId, "Each task should have unique ID")
 
@@ -115,7 +121,9 @@ final class BackgroundTaskTests: XCTestCase {
         for i in 0..<5 {
             Task.detached {
                 let taskId = await MainActor.run {
-                    UIApplication.shared.beginBackgroundTask(withName: "ConcurrentTask\(i)") {}
+                    UIApplication.shared.beginBackgroundTask(withName: "ConcurrentTask\(i)") {
+                        // No-op: expiration handler not tested
+                    }
                 }
 
                 // Simulate work
@@ -136,7 +144,9 @@ final class BackgroundTaskTests: XCTestCase {
 
     /// Tests that background task works correctly even when operation fails.
     func testBackgroundTask_EndsOnError() async {
-        let taskId = UIApplication.shared.beginBackgroundTask(withName: "ErrorTask") {}
+        let taskId = UIApplication.shared.beginBackgroundTask(withName: "ErrorTask") {
+            // No-op: expiration handler not tested
+        }
 
         // Simulate error
         let shouldFail = true

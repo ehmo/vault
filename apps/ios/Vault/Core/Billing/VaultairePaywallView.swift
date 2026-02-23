@@ -390,6 +390,8 @@ struct VaultairePaywallView: View {
 }
 
 #Preview {
-    VaultairePaywallView(onDismiss: {})
+    VaultairePaywallView(onDismiss: {
+        // No-op: preview stub
+    })
         .environment(SubscriptionManager.shared)
 }

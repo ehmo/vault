@@ -22,7 +22,9 @@ final class SecureEnclaveManager {
     /// Keychain access group shared with extensions via app group entitlement
     private let keychainAccessGroup = "group.app.vaultaire.ios"
 
-    private init() { /* No-op */ }
+    private init() {
+        // No-op: singleton
+    }
 
     // MARK: - Device Salt (for key derivation)
 

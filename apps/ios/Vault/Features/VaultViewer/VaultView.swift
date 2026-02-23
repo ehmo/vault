@@ -217,7 +217,9 @@ struct VaultView: View {
                 Button("Take Secure Photo") { showingCamera = true }
                 Button("Import from Library") { showingPhotoPicker = true }
                 Button("Import Documents") { showingFilePicker = true }
-                Button("Cancel", role: .cancel) { /* No-op */ }
+                Button("Cancel", role: .cancel) {
+                    // No-op: dismiss handled by SwiftUI
+                }
             }
             .sheet(isPresented: $showingCamera) {
                 SecureCameraView(onCapture: { imageData in
@@ -312,7 +314,9 @@ struct VaultView: View {
             }
             .toast($viewModel.toastMessage)
             .alert("Delete \(viewModel.selectedIds.count) Files?", isPresented: $viewModel.showingBatchDeleteConfirmation) {
-                Button("Cancel", role: .cancel) { /* No-op */ }
+                Button("Cancel", role: .cancel) {
+                    // No-op: dismiss handled by SwiftUI
+                }
                 Button("Delete", role: .destructive) { viewModel.batchDelete() }
             } message: {
                 Text("These files will be permanently deleted from the vault.")
@@ -444,7 +448,9 @@ struct PhotoPicker: UIViewControllerRepresentable {
         return picker
     }
 
-    func updateUIViewController(_ _: PHPickerViewController, context _: Context) { /* No update needed */ }
+    func updateUIViewController(_ _: PHPickerViewController, context _: Context) {
+        // No update needed
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(onPhotosSelected: onPhotosSelected)

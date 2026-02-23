@@ -34,7 +34,9 @@ enum PatternValidationWarning: String {
 final class PatternValidator {
     static let shared = PatternValidator()
 
-    private init() { /* No-op */ }
+    private init() {
+        // No-op: singleton
+    }
 
     // MARK: - Minimum Requirements
 

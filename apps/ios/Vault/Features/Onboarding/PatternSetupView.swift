@@ -313,7 +313,9 @@ struct PatternSetupView: View {
                 .disabled(useCustomPhrase && !(customPhraseValidation?.isAcceptable ?? false))
                 .accessibilityIdentifier("recovery_saved")
                 .alert("Are you sure?", isPresented: $showSaveConfirmation) {
-                    Button("Cancel", role: .cancel) { /* No-op */ }
+                    Button("Cancel", role: .cancel) {
+                        // No-op: dismiss handled by SwiftUI
+                    }
                     Button("Yes, I've saved it") {
                         if useCustomPhrase {
                             // Validation already enforced by the disabled button guard;
@@ -482,6 +484,8 @@ struct PatternSetupView: View {
 
 
 #Preview {
-    PatternSetupView(onComplete: {})
+    PatternSetupView(onComplete: {
+        // No-op: preview stub
+    })
         .environment(AppState())
 }

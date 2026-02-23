@@ -59,6 +59,8 @@ struct AnalyticsConsentView: View {
 }
 
 #Preview {
-    AnalyticsConsentView(onContinue: {})
+    AnalyticsConsentView(onContinue: {
+        // No-op: preview stub
+    })
         .environment(SubscriptionManager.shared)
 }

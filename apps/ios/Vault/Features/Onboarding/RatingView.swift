@@ -95,12 +95,11 @@ private struct ReviewAvatar: View {
 
     var body: some View {
         AsyncImage(url: url) { phase in
-            switch phase {
-            case .success(let image):
+            if case .success(let image) = phase {
                 image
                     .resizable()
                     .scaledToFill()
-            default:
+            } else {
                 Circle()
                     .fill(Color.vaultSurface)
             }
@@ -218,5 +217,7 @@ private struct ReviewCard: View {
 }
 
 #Preview {
-    RatingView(onContinue: {})
+    RatingView(onContinue: {
+        // No-op: preview stub
+    })
 }

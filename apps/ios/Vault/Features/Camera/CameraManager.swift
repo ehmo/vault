@@ -470,10 +470,7 @@ final class CameraManager: NSObject, @unchecked Sendable {
     func capturePhotoData(flashMode: AVCaptureDevice.FlashMode = .auto) async throws -> Data {
         try await withCheckedThrowingContinuation { continuation in
             capturePhoto(flashMode: flashMode) { result in
-                switch result {
-                case .success(let data): continuation.resume(returning: data)
-                case .failure(let error): continuation.resume(throwing: error)
-                }
+                continuation.resume(with: result)
             }
         }
     }

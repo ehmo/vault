@@ -11,6 +11,12 @@ extension VaultView {
         let action: () -> Void
     }
 
+    private var addButtonBackground: Color {
+        if showingFanMenu { return Color(.systemGray) }
+        if viewModel.isImporting { return Color(.systemGray3) }
+        return Color.accentColor
+    }
+
     var fanMenuContent: some View {
         let items = [
             FanItem(icon: "camera.fill", label: "Camera", accessibilityId: "vault_add_camera") {
@@ -94,7 +100,7 @@ extension VaultView {
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(.white)
                 .frame(width: 52, height: 52)
-                .background(showingFanMenu ? Color(.systemGray) : (viewModel.isImporting ? Color(.systemGray3) : Color.accentColor))
+                .background(addButtonBackground)
                 .clipShape(Circle())
                 .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
                 .rotationEffect(.degrees(showingFanMenu ? 45 : 0))

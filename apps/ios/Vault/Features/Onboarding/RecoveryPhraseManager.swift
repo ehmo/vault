@@ -13,7 +13,9 @@ final class RecoveryPhraseManager {
     private let keychainService = "com.vault.recovery"
     private let keychainAccount = "recovery_data"
     
-    private init() { /* No-op */ }
+    private init() {
+        // No-op: singleton
+    }
 
     // MARK: - Data Structures
     

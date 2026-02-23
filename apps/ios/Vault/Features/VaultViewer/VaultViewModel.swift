@@ -495,11 +495,10 @@ final class VaultViewModel {
             for await event in stream {
                 guard !Task.isCancelled else { break }
 
-                switch event {
-                case .imported(let file):
+                if case .imported(let file) = event {
                     successCount += 1
                     self.files.append(file)
-                case .failed(let reason):
+                } else if case .failed(let reason) = event {
                     failedCount += 1
                     if let reason { lastErrorReason = reason }
                 }
@@ -616,11 +615,10 @@ final class VaultViewModel {
             for await event in stream {
                 guard !Task.isCancelled else { break }
 
-                switch event {
-                case .imported(let file):
+                if case .imported(let file) = event {
                     successCount += 1
                     self.files.append(file)
-                case .failed(let reason):
+                } else if case .failed(let reason) = event {
                     failedCount += 1
                     if let reason { lastErrorReason = reason }
                 }
@@ -722,10 +720,9 @@ final class VaultViewModel {
         let remaining = limitAlertRemaining
         pendingImport = nil
 
-        switch pending {
-        case .photos(let results):
+        if case .photos(let results) = pending {
             performPhotoImport(Array(results.prefix(remaining)))
-        case .files(let urls):
+        } else if case .files(let urls) = pending {
             performFileImport(Array(urls.prefix(remaining)))
         }
     }

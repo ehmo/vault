@@ -144,13 +144,11 @@ struct SecureCameraView: View {
 
     private func capturePhoto() {
         cameraManager.capturePhoto(flashMode: flashMode) { result in
-            switch result {
-            case .success(let imageData):
+            if case .success(let imageData) = result {
                 // Image captured to memory only - never written to disk unencrypted
                 capturedImageData = imageData
                 showingCaptureConfirmation = true
-            case .failure(let error):
-                // Handle error - could show an alert or log
+            } else if case .failure(let error) = result {
                 print("Photo capture failed: \(error)")
             }
         }
@@ -196,6 +194,8 @@ final class CameraPreviewUIView: UIView {
 }
 
 #Preview {
-    SecureCameraView(onCapture: { _ in })
+    SecureCameraView(onCapture: { _ in
+        // No-op: preview stub
+    })
 }
 

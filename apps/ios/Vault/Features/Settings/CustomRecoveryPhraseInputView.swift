@@ -177,7 +177,9 @@ struct CustomRecoveryPhraseInputView: View {
             .vaultProminentButtonStyle()
             .padding()
             .alert("Are you sure?", isPresented: $showSaveConfirmation) {
-                Button("Cancel", role: .cancel) { /* No-op */ }
+                Button("Cancel", role: .cancel) {
+                    // No-op: dismiss handled by SwiftUI
+                }
                 Button("Yes, I've saved it") { dismiss() }
             } message: {
                 Text("This recovery phrase will NEVER be shown again. Make sure you've written it down and stored it safely.")

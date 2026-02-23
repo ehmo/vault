@@ -98,15 +98,21 @@ struct WelcomeView: View {
 }
 
 #Preview("iPhone 16 Pro") {
-    WelcomeView(onContinue: {})
+    WelcomeView(onContinue: {
+        // No-op: preview stub
+    })
 }
 
 #Preview("iPhone SE") {
-    WelcomeView(onContinue: {})
+    WelcomeView(onContinue: {
+        // No-op: preview stub
+    })
         .previewDevice(PreviewDevice(rawValue: "iPhone SE (3rd generation)"))
 }
 
 #Preview("iPhone 16 mini") {
-    WelcomeView(onContinue: {})
+    WelcomeView(onContinue: {
+        // No-op: preview stub
+    })
         .previewDevice(PreviewDevice(rawValue: "iPhone 16 Pro"))
 }

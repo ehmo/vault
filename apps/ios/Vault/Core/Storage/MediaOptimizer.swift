@@ -409,10 +409,8 @@ actor MediaOptimizer {
         case heicEncodingFailed
 
         var errorDescription: String? {
-            switch self {
-            case .imageConversionFailed: return "Could not process image for optimization"
-            case .heicEncodingFailed: return "HEIC encoding failed"
-            }
+            if self == .imageConversionFailed { return "Could not process image for optimization" }
+            return "HEIC encoding failed"
         }
     }
 }

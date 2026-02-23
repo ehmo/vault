@@ -202,7 +202,9 @@ struct ChangePatternView: View {
                 }
             }
             .alert("Save New Pattern?", isPresented: $showSaveConfirmation) {
-                Button("Review", role: .cancel) { }
+                Button("Review", role: .cancel) {
+                    // No-op: dismiss handled by SwiftUI
+                }
                 Button("Save", role: .destructive) {
                     completePatternChange()
                 }

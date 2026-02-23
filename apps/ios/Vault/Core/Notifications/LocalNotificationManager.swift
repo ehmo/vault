@@ -14,7 +14,9 @@ final class LocalNotificationManager {
     private let center = UNUserNotificationCenter.current()
     private var permissionGranted = false
 
-    private init() { /* No-op */ }
+    private init() {
+        // No-op: singleton
+    }
 
     // MARK: - Permission
 

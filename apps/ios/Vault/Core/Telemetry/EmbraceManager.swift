@@ -72,7 +72,9 @@ final class EmbraceManager: @unchecked Sendable {
     /// Once Embrace SDK is initialized it cannot be re-initialized. This
     /// prevents a double-setup crash when the user toggles analytics off then on.
     private var hasSetup = false
-    private init() { /* No-op */ }
+    private init() {
+        // No-op: singleton
+    }
 
     // MARK: - Start / Stop
 
@@ -128,10 +130,9 @@ final class EmbraceManager: @unchecked Sendable {
                 }
             },
             finish: { status in
-                switch status {
-                case .ok:
+                if status == .ok {
                     span.end()
-                case .internalError, .invalidArgument, .notFound, .aborted:
+                } else {
                     span.end(errorCode: .failure)
                 }
             },
@@ -149,10 +150,9 @@ final class EmbraceManager: @unchecked Sendable {
                         }
                     },
                     finish: { status in
-                        switch status {
-                        case .ok:
+                        if status == .ok {
                             childSpan.end()
-                        case .internalError, .invalidArgument, .notFound, .aborted:
+                        } else {
                             childSpan.end(errorCode: .failure)
                         }
                     },

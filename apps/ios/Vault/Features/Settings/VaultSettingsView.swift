@@ -214,7 +214,9 @@ struct VaultSettingsView: View {
         }
         .ignoresSafeArea(.keyboard)
         .alert("Delete Vault?", isPresented: $showingDeleteConfirmation) {
-            Button("Cancel", role: .cancel) { /* No-op */ }
+            Button("Cancel", role: .cancel) {
+                // No-op: dismiss handled by SwiftUI
+            }
             Button("Delete", role: .destructive) {
                 deleteVault()
             }
@@ -222,7 +224,9 @@ struct VaultSettingsView: View {
             Text("All files in this vault will be permanently deleted. This cannot be undone.")
         }
         .alert("Regenerate Recovery Phrase?", isPresented: $showingRegenerateConfirmation) {
-            Button("Cancel", role: .cancel) { /* No-op */ }
+            Button("Cancel", role: .cancel) {
+                // No-op: dismiss handled by SwiftUI
+            }
             Button("Regenerate", role: .destructive) {
                 regenerateRecoveryPhrase()
             }
@@ -239,7 +243,9 @@ struct VaultSettingsView: View {
         }
         .alert("Rename Vault", isPresented: $showingRenameAlert) {
             TextField("Vault name", text: $renameText)
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) {
+                // No-op: dismiss handled by SwiftUI
+            }
             Button("Save") { renameVault() }
         } message: {
             Text("Enter a custom name, or clear to reset to the default name.")

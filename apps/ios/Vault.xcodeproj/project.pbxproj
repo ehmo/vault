@@ -148,6 +148,7 @@
 		PIT000001 /* ParallelImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PIT000000 /* ParallelImporterTests.swift */; };
 		DRST00001 /* DragRowSelectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DRST00000 /* DragRowSelectorTests.swift */; };
 		BT0000001 /* BackgroundTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BT0000000 /* BackgroundTaskTests.swift */; };
+		SQ0000001 /* SonarQubeRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SQ0000000 /* SonarQubeRulesTests.swift */; };
 		PV0000001 /* PatternValidationStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PV0000000 /* PatternValidationStateTests.swift */; };
 		CPF00001 /* ChangePatternFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CPF00000 /* ChangePatternFlowTests.swift */; };
 		ICB000001 /* iCloudBackupBackgroundTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ICB000000 /* iCloudBackupBackgroundTests.swift */; };
@@ -374,6 +375,7 @@
 		PIT000000 /* ParallelImporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParallelImporterTests.swift; sourceTree = "<group>"; };
 		DRST00000 /* DragRowSelectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragRowSelectorTests.swift; sourceTree = "<group>"; };
 		BT0000000 /* BackgroundTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTaskTests.swift; sourceTree = "<group>"; };
+		SQ0000000 /* SonarQubeRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonarQubeRulesTests.swift; sourceTree = "<group>"; };
 		PV0000000 /* PatternValidationStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidationStateTests.swift; sourceTree = "<group>"; };
 		CPF00000 /* ChangePatternFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangePatternFlowTests.swift; sourceTree = "<group>"; };
 		ICB000000 /* iCloudBackupBackgroundTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iCloudBackupBackgroundTests.swift; sourceTree = "<group>"; };
@@ -826,6 +828,7 @@
 				PIT000000 /* ParallelImporterTests.swift */,
 				DRST00000 /* DragRowSelectorTests.swift */,
 				BT0000000 /* BackgroundTaskTests.swift */,
+				SQ0000000 /* SonarQubeRulesTests.swift */,
 				PV0000000 /* PatternValidationStateTests.swift */,
 				CPF00000 /* ChangePatternFlowTests.swift */,
 				ICB000000 /* iCloudBackupBackgroundTests.swift */,
@@ -1264,6 +1267,7 @@
 				PIT000001 /* ParallelImporterTests.swift in Sources */,
 				DRST00001 /* DragRowSelectorTests.swift in Sources */,
 				BT0000001 /* BackgroundTaskTests.swift in Sources */,
+				SQ0000001 /* SonarQubeRulesTests.swift in Sources */,
 				PV0000001 /* PatternValidationStateTests.swift in Sources */,
 				CPF00001 /* ChangePatternFlowTests.swift in Sources */,
 				ICB000001 /* iCloudBackupBackgroundTests.swift in Sources */,

@@ -9,6 +9,8 @@ struct PaywallStepView: View {
 }
 
 #Preview {
-    PaywallStepView(onContinue: {})
+    PaywallStepView(onContinue: {
+        // No-op: preview stub
+    })
         .environment(SubscriptionManager.shared)
 }
