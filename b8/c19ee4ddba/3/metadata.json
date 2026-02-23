@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "b8c19ee4ddba",
+  "session_id": "f1199f8e-1602-4675-91b3-a89cfa839f06",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-23T01:20:24.157868Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/web/assets/alpine-app.js",
+    "apps/web/compare/index.html",
+    "apps/web/compare/styles.css",
+    "apps/web/features/index.html",
+    "apps/web/feed.xml",
+    "apps/web/index.html",
+    "apps/web/llms-full.txt",
+    "apps/web/llms.txt",
+    "apps/web/sitemap.xml",
+    "apps/web/styles/input.css",
+    "apps/web/styles/pages/features.css",
+    "apps/web/styles/pages/home.css",
+    "apps/web/styles/pages/legal.css",
+    "apps/web/styles/pages/privacy.css",
+    "apps/web/styles/pages/terms.css",
+    "apps/web/styles/site-shared.css",
+    "apps/web/tests/e2e/theme-and-mobile.spec.js"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 86,
+    "cache_creation_tokens": 141583,
+    "cache_read_tokens": 9352632,
+    "output_tokens": 2313,
+    "api_call_count": 80
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-23T01:20:24.057538Z",
+    "agent_lines": 1975,
+    "human_added": 74,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2049,
+    "agent_percentage": 96.38848218643241
+  }
+}

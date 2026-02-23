@@ -1,0 +1,128 @@
+Implement the following plan:
+
+# Website Cleanup & Quality Audit Plan
+
+## Context
+After building the feature page prototype (pattern-encryption) and updating nav/footer across all pages, a comprehensive 3-agent audit found: massive CSS duplication, WCAG contrast failures, a critical 404 (features/index.html missing), unused code, and SEO gaps. This plan addresses all findings.
+
+## Steps
+
+### Step 1: CRITICAL — Create `features/index.html` hub page
+Every page links to `/features/` in nav but the page doesn't exist = 404 on every page.
+- Create `features/index.html` with 9 feature cards (like compare landing page pattern)
+- Cards link to `/features/{slug}/` subpages
+- Use `.page-feature-hub` body class, styles already in `features.css`
+- Full SEO meta, JSON-LD ItemList, breadcrumbs
+
+### Step 2: Refactor `home.css` — eliminate duplication with `site-shared.css`
+`home.css` (1711 lines) re-declares nearly everything in `site-shared.css` (654 lines): header, nav, footer, buttons, mobile nav, logo, theme toggle — all identical except using `--bg-dark`/`--text-dark` vars vs `--bg`/`--text`.
+
+**Approach:**
+- Scope all home-specific styles under `.page-home`
+- Remove from `home.css`: header/nav/footer/button/mobile-nav/logo/theme-toggle/skip-link styles (all in `site-shared.css`)
+- Keep ONLY: hero, trust strip, features grid, timeline, security section, FAQ, final CTA, phone mockup, grid overlay, home-specific responsive, `unlockPulse` keyframe
+- In `home.css` `:root`, keep only home-specific vars (`--phone-*`, `--ease-cinematic`, `--bg-light`, `--surface-light`, `--text-light`). Remove duplicates of shared vars.
+- Map home.css's `--bg-dark`→`var(--bg)`, `--text-dark`→`var(--text)`, `--accent-dark`→`var(--accent)` etc throughout remaining home styles
+- Remove unused vars: `--app-*` (12 vars), `--angle-sharp`, `--border-width`, `--x-angle`, `--pattern-link`
+- Remove unused selectors: `.text-gradient`, `.highlight-text`, `.btn-secondary`
+- Remove unused keyframes: `loaderPulse`, `pulse` (keep `unlockPulse`)
+
+**Files:** `styles/pages/home.css`
+
+### Step 3: Merge `privacy.css` + `terms.css` → `legal.css`
+These files are nearly identical (74 vs 70 lines). Merge into one file using `.page-privacy, .page-terms` combined selector (or a shared `.page-legal` class).
+
+**Approach:**
+- Create `styles/pages/legal.css` with combined selectors
+- Delete `privacy.css` and `terms.css`
+- Update `input.css` imports
+- Only difference: privacy has `.legal-mt-10` class (keep it)
+
+**Files:** `styles/pages/legal.css` (new), delete `privacy.css` + `terms.css`, update `styles/input.css`
+
+### Step 4: Fix WCAG contrast failures
+1. **Light mode `--text-secondary`**: `#6C6F88` on `#FFFFFE` = 3.5:1 (needs 4.5:1). Change to `#555770` (~5.2:1)
+2. **Trust strip**: `.trust-item` uses `color: var(--surface-light)` which is `#3A3D55` on `var(--highlight-light)` `#FF6F6F` = ~3.0:1. Change to `#FFFFFF` for white text on red.
+3. **Trust strip light mode**: Same issue. Use `#1A1B2E` on highlight background.
+
+**Files:** `styles/site-shared.css` (--text-secondary light), `styles/pages/home.css` (.trust-item)
+
+### Step 5: Fix heading hierarchy
+1. **Homepage**: Security section jumps h1→h3 (no h2). The `.tech-content h3` should be h2.
+2. **Compare landing**: h1→h3 skip. `.compare-card h3` should be h2.
+3. **Review pages**: Check for h1→h3 skips.
+
+**Files:** `index.html`, `compare/index.html`, potentially compare subpages
+
+### Step 6: Mobile nav accessibility
+- Add `role="navigation"` and `aria-label="Mobile"` to mobile nav panel
+- Add `aria-controls="mobileNavExpand"` to hamburger button
+- Add `aria-hidden` toggling on panel open/close
+- Already has Escape key handler and aria-expanded
+
+**Files:** `assets/alpine-app.js`
+
+### Step 7: SEO file updates
+Add missing pages to:
+- `sitemap.xml`: add `/features/`, `/features/pattern-encryption/`
+- `llms.txt` + `llms-full.txt`: add feature pages section
+- `feed.xml`: add feature hub entry
+
+**Files:** `sitemap.xml`, `llms.txt`, `llms-full.txt`, `feed.xml`
+
+### Step 8: Minor cleanup
+- Remove duplicate `* { box-sizing: border-box }` (in both site-shared.css and home.css)
+- Remove `margin: 0; padding: 0` global reset from home.css (conflicts with Tailwind)
+- Remove `ul { list-style: none }` from home.css (too broad, affects legal pages)
+- Ensure `color: inherit` on `a` tag is only in site-shared.css, not duplicated
+- Clean up home.css responsive: deduplicate the 768px mobile nav styles already handled at 1160px breakpoint
+
+### Step 9: Build + verify
+- `npm run build` — compile Tailwind
+- Check all pages render in both themes
+- Verify no 404 links
+- Run Playwright tests
+
+## Files Summary
+
+| File | Action |
+|------|--------|
+| `features/index.html` | CREATE — hub page |
+| `styles/pages/home.css` | MAJOR REFACTOR — remove shared duplicates, remove unused code |
+| `styles/pages/legal.css` | CREATE — merged privacy+terms styles |
+| `styles/pages/privacy.css` | DELETE |
+| `styles/pages/terms.css` | DELETE |
+| `styles/input.css` | UPDATE — swap privacy+terms imports for legal |
+| `styles/site-shared.css` | UPDATE — fix light --text-secondary |
+| `index.html` | UPDATE — fix heading hierarchy |
+| `compare/index.html` | UPDATE — fix heading hierarchy |
+| `assets/alpine-app.js` | UPDATE — mobile nav ARIA |
+| `sitemap.xml` | UPDATE — add feature URLs |
+| `llms.txt`, `llms-full.txt` | UPDATE — add feature pages |
+| `feed.xml` | UPDATE — add feature entry |
+
+## Verification
+1. `npm run build` compiles clean
+2. All pages render in dark + light themes
+3. No 404 links (especially `/features/`)
+4. Playwright tests pass
+5. WCAG contrast: check `--text-secondary` light mode passes 4.5:1
+6. Mobile nav has proper ARIA attributes
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+<task-notification>
+<task-id>bacc2fd</task-id>
+<tool-use-id>toolu_01LHKkGgGNU1V5NKv1fottZN</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-nan-Work-ai-vault/tasks/bacc2fd.output</output-file>
+<status>completed</status>
+<summary>Background command "Rerun the failing mobile nav test" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-nan-Work-ai-vault/tasks/bacc2fd.output
+
+---
+
+commit this and deploy to cloudflare
