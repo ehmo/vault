@@ -89,21 +89,22 @@ struct PatternLockView: View {
 
             Spacer()
 
-            // Pattern Grid
-            PatternGridView(
-                state: patternState,
-                showFeedback: $showFeedback,
-                onPatternComplete: handlePatternComplete
-            )
-            .frame(width: 280, height: 280)
-            .disabled(isProcessing || isLockedOut)
-            .opacity(isLockedOut ? 0.3 : patternGridOpacity)
-            .accessibilityIdentifier("unlock_pattern_grid")
-
-            // Error / lockout message — overlay so it never shifts the grid
-            Color.clear
-                .frame(height: 0)
-                .overlay(alignment: .top) {
+            // Fixed height container to prevent layout shift when error appears
+            ZStack {
+                // Pattern Grid centered
+                PatternGridView(
+                    state: patternState,
+                    showFeedback: $showFeedback,
+                    onPatternComplete: handlePatternComplete
+                )
+                .frame(width: 280, height: 280)
+                .disabled(isProcessing || isLockedOut)
+                .opacity(isLockedOut ? 0.3 : patternGridOpacity)
+                .accessibilityIdentifier("unlock_pattern_grid")
+                
+                // Error / lockout message overlay at bottom
+                VStack {
+                    Spacer()
                     if isLockedOut {
                         VStack(spacing: 4) {
                             Text("Too many attempts")
@@ -132,8 +133,13 @@ struct PatternLockView: View {
                         .transition(.scale.combined(with: .opacity))
                     }
                 }
+                .frame(minHeight: 100, maxHeight: 100)
+            }
+            .frame(height: 380) // Fixed total height for grid + error area
 
-            Spacer()
+            // Fixed spacer instead of flexible
+            Color.clear
+                .frame(height: 20)
 
             // Options (hidden when VoiceOver promotes recovery above)
             if !isVoiceOverActive {

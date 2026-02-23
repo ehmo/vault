@@ -12,12 +12,13 @@ extension VaultView {
     var toolbarHeaderView: some View {
         ZStack {
             // Title centered on screen (independent of button widths)
-            // Constrained width to prevent overlap with toolbar buttons (44pt each side + padding)
+            // Constrained width to prevent overlap with toolbar buttons
+            // Settings button (44pt) + Lock button (44pt) + StorageRing (~50pt for free users) + padding
             Text(appState.vaultName)
                 .font(.headline)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .frame(maxWidth: 200)
+                .frame(maxWidth: 150)
 
             // Buttons on the edges
             HStack {

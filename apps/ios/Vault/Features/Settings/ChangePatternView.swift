@@ -158,32 +158,40 @@ struct ChangePatternView: View {
                 // Content based on step
                 switch step {
                 case .verifyCurrent, .createNew, .confirmNew:
-                    Spacer()
-                    patternInputSection
-                    Spacer()
-
-                    // Validation feedback — fixed height to prevent layout shift
-                    Group {
-                        if let result = validationResult, step == .createNew {
-                            PatternValidationFeedbackView(result: result)
-                                .accessibilityIdentifier("change_pattern_validation_feedback")
-                        } else if let error = errorMessage {
-                            HStack {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(.vaultHighlight)
-                                Text(error)
-                                    .font(.caption)
+                    // Fixed height container to prevent layout shift when feedback appears
+                    ZStack {
+                        // Pattern board centered in available space
+                        patternInputSection
+                            .frame(maxHeight: .infinity, alignment: .center)
+                        
+                        // Feedback overlay at bottom of the content area
+                        VStack {
+                            Spacer()
+                            Group {
+                                if let result = validationResult, step == .createNew {
+                                    PatternValidationFeedbackView(result: result)
+                                        .accessibilityIdentifier("change_pattern_validation_feedback")
+                                } else if let error = errorMessage {
+                                    HStack {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundStyle(.vaultHighlight)
+                                        Text(error)
+                                            .font(.caption)
+                                    }
+                                    .padding()
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .vaultGlassBackground(cornerRadius: 12)
+                                    .transition(.scale.combined(with: .opacity))
+                                    .accessibilityIdentifier("change_pattern_error_message")
+                                } else {
+                                    Color.clear
+                                }
                             }
-                            .padding()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .vaultGlassBackground(cornerRadius: 12)
-                            .transition(.scale.combined(with: .opacity))
-                            .accessibilityIdentifier("change_pattern_error_message")
-                        } else {
-                            Color.clear
+                            .frame(minHeight: 80, maxHeight: 80)
                         }
+                        .frame(maxHeight: .infinity, alignment: .bottom)
                     }
-                    .frame(minHeight: 80)
+                    .frame(maxHeight: .infinity)
 
                 case .complete:
                     ScrollView {
@@ -235,7 +243,7 @@ struct ChangePatternView: View {
     private var patternInputSection: some View {
         PatternGridView(
             state: patternState,
-            showFeedback: .constant(step != .verifyCurrent && showPatternFeedback),
+            showFeedback: .constant(showPatternFeedback),
             onPatternComplete: handlePatternComplete
         )
         .frame(width: 280, height: 280)
