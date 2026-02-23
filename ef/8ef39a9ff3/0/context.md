@@ -1,0 +1,16 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+The screenshot prevention is not working. When I take screenshot it takes it correctly and then locks the vault. It should be the other way around. Investigate and find out why is not working and fix it
+
+### Prompt 2
+
+Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases.
+
+### Prompt 3
+
+Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases.
+
