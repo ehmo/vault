@@ -154,6 +154,7 @@
 		SMT00001 /* SubscriptionManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SMT00000 /* SubscriptionManagerTests.swift */; };
 		ILM00001 /* InactivityLockManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ILM00000 /* InactivityLockManagerTests.swift */; };
 		SST00001 /* ScreenshotShieldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SST00000 /* ScreenshotShieldTests.swift */; };
+		FUE00001 /* FileUtilitiesExtensionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FUE00000 /* FileUtilitiesExtensionTests.swift */; };
 		SEM00001 /* SecureEnclaveManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SEM00000 /* SecureEnclaveManagerTests.swift */; };
 		DLH00001 /* DeepLinkHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DLH00000 /* DeepLinkHandlerTests.swift */; };
 		PBT00001 /* PerformanceBenchmarkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PBT00000 /* PerformanceBenchmarkTests.swift */; };
@@ -379,6 +380,7 @@
 		SMT00000 /* SubscriptionManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManagerTests.swift; sourceTree = "<group>"; };
 		ILM00000 /* InactivityLockManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InactivityLockManagerTests.swift; sourceTree = "<group>"; };
 		SST00000 /* ScreenshotShieldTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotShieldTests.swift; sourceTree = "<group>"; };
+		FUE00000 /* FileUtilitiesExtensionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUtilitiesExtensionTests.swift; sourceTree = "<group>"; };
 		SEM00000 /* SecureEnclaveManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureEnclaveManagerTests.swift; sourceTree = "<group>"; };
 		DLH00000 /* DeepLinkHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkHandlerTests.swift; sourceTree = "<group>"; };
 		PBT00000 /* PerformanceBenchmarkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceBenchmarkTests.swift; sourceTree = "<group>"; };
@@ -830,6 +832,7 @@
 				SMT00000 /* SubscriptionManagerTests.swift */,
 				ILM00000 /* InactivityLockManagerTests.swift */,
 				SST00000 /* ScreenshotShieldTests.swift */,
+				FUE00000 /* FileUtilitiesExtensionTests.swift */,
 				SEM00000 /* SecureEnclaveManagerTests.swift */,
 				DLH00000 /* DeepLinkHandlerTests.swift */,
 				PBT00000 /* PerformanceBenchmarkTests.swift */,
@@ -1267,6 +1270,7 @@
 				SMT00001 /* SubscriptionManagerTests.swift in Sources */,
 				ILM00001 /* InactivityLockManagerTests.swift in Sources */,
 				SST00001 /* ScreenshotShieldTests.swift in Sources */,
+				FUE00001 /* FileUtilitiesExtensionTests.swift in Sources */,
 				SEM00001 /* SecureEnclaveManagerTests.swift in Sources */,
 				DLH00001 /* DeepLinkHandlerTests.swift in Sources */,
 				PBT00001 /* PerformanceBenchmarkTests.swift in Sources */,

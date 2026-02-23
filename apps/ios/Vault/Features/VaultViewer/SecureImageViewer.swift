@@ -144,7 +144,8 @@ struct SecureImageViewer: View {
 
                 // Non-images (or failed image decode): stream-decrypt to temp file
                 let (_, decryptedURL) = try VaultStorage.shared.retrieveFileToTempURL(id: file.id, with: key)
-                let filename = file.filename ?? "file_\(file.id.uuidString)"
+                let rawName = file.filename ?? "file_\(file.id.uuidString)"
+                let filename = FileUtilities.filenameWithExtension(rawName, mimeType: file.mimeType)
                 let tempDir = FileManager.default.temporaryDirectory
                     .appendingPathComponent("vault_preview", isDirectory: true)
                 try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
@@ -177,7 +178,8 @@ struct SecureImageViewer: View {
             do {
                 // Use streaming decryption to avoid 2x memory peak for large files
                 let (_, decryptedURL) = try VaultStorage.shared.retrieveFileToTempURL(id: file.id, with: key)
-                let filename = file.filename ?? "Export_\(file.id.uuidString)"
+                let rawName = file.filename ?? "Export_\(file.id.uuidString)"
+                let filename = FileUtilities.filenameWithExtension(rawName, mimeType: file.mimeType)
                 let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
                 let url = tempDir.appendingPathComponent(filename)
                 try FileManager.default.moveItem(at: decryptedURL, to: url)

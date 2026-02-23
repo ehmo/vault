@@ -10,7 +10,7 @@ struct FilesGridView: View {
     var selectedIds: Set<UUID> = []
     var onToggleSelect: ((UUID) -> Void)?
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: 3)
 
     // Drag-to-select state
     @State private var cellFrames: [UUID: CGRect] = [:]

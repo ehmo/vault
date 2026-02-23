@@ -301,7 +301,8 @@ final class VaultViewModel {
                 guard !Task.isCancelled else { break }
                 guard let result = try? VaultStorage.shared.retrieveFile(id: id, with: key) else { continue }
                 let file = filesList.first { $0.id == id }
-                let filename = file?.filename ?? "Export_\(id.uuidString)"
+                let rawName = file?.filename ?? "Export_\(id.uuidString)"
+                let filename = FileUtilities.filenameWithExtension(rawName, mimeType: file?.mimeType)
                 let url = tempDir.appendingPathComponent(filename)
                 try? result.content.write(to: url, options: [.atomic])
                 urls.append(url)

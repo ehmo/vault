@@ -51,6 +51,35 @@ enum FileUtilities {
         }
     }
 
+    static func fileExtension(forMimeType mimeType: String) -> String? {
+        switch mimeType.lowercased() {
+        case "image/jpeg": return "jpg"
+        case "image/png": return "png"
+        case "image/gif": return "gif"
+        case "image/heic": return "heic"
+        case "image/webp": return "webp"
+        case "image/tiff": return "tiff"
+        case "image/bmp": return "bmp"
+        case "video/mp4": return "mp4"
+        case "video/quicktime": return "mov"
+        case "video/x-m4v": return "m4v"
+        case "application/pdf": return "pdf"
+        case "text/plain": return "txt"
+        case "text/csv": return "csv"
+        case "application/json": return "json"
+        case "application/zip": return "zip"
+        default: return nil
+        }
+    }
+
+    /// Ensures a filename has an extension, deriving one from the MIME type if missing.
+    static func filenameWithExtension(_ filename: String, mimeType: String?) -> String {
+        let url = URL(fileURLWithPath: filename)
+        if !url.pathExtension.isEmpty { return filename }
+        guard let mimeType, let ext = fileExtension(forMimeType: mimeType) else { return filename }
+        return "\(filename).\(ext)"
+    }
+
     /// Best-effort cleanup of temporary files.
     /// Silently ignores errors - use only for non-critical temp file cleanup.
     static func cleanupTemporaryFile(at url: URL?) {
