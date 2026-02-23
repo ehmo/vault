@@ -29,6 +29,7 @@ struct PhraseActionButtons: View {
             Button(action: copyToClipboard) {
                 HStack(spacing: 6) {
                     Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                        .frame(width: 20) // Fixed width for icon to prevent layout shift
                     Text(copied ? "Copied!" : "Copy")
                         .frame(minWidth: 50) // Fixed minWidth to prevent layout shift
                 }
