@@ -24,12 +24,17 @@ final class ScreenshotShield {
         // No-op: default initializer
     }
 
+    /// Whether the protected window has been destroyed or disconnected from its scene.
+    private var isWindowGone: Bool {
+        protectedWindow == nil || protectedWindow?.windowScene == nil
+    }
+
     /// Activates screenshot protection on the key window.
     /// Safe to call multiple times — only activates once.
     /// If the protected window is destroyed, will reactivate on the new key window.
     func activate() {
         // Check if we need to reactivate (window was destroyed or scene changed)
-        if isActive && protectedWindow == nil {
+        if isActive && isWindowGone {
             Self.logger.debug("Previous protected window was destroyed, resetting for reactivation")
             reset()
         }
@@ -149,7 +154,7 @@ final class ScreenshotShield {
     /// Reactivates the shield if the window was destroyed (e.g., scene disconnect/reconnect).
     /// Call this when the app becomes active or when scenes change.
     func reactivateIfNeeded() {
-        guard isActive && protectedWindow == nil else { return }
+        guard isActive && isWindowGone else { return }
         Self.logger.info("Reactivating screenshot shield after window destruction")
         reset()
         activate()

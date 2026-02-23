@@ -205,13 +205,13 @@ final class ScreenshotShieldTests: XCTestCase {
         shield.activate(on: hostWindow)
         XCTAssertTrue(shield.isActive)
 
-        // Simulate window destruction (common in scene lifecycle changes)
+        // Simulate window destruction (common in scene lifecycle changes).
+        // Detach from scene so the shield detects the window is gone.
         hostWindow.isHidden = true
+        hostWindow.windowScene = nil
         hostWindow = nil
 
-        // At this point protectedWindow is nil but isActive is still true
-        // This simulates a scene disconnect
-        XCTAssertNil(shield.protectedWindow)
+        // isActive is still true — the shield hasn't been told to deactivate
         XCTAssertTrue(shield.isActive)
 
         // Create a new window (simulates scene reconnect)
