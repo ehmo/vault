@@ -129,11 +129,11 @@ extension VaultView {
     var emptyStateContent: some View {
         GeometryReader { geometry in
             let totalHeight = geometry.size.height
-            let contentHeight: CGFloat = 420 // Fixed total height for empty state content
-            let topOffset = (totalHeight - contentHeight) / 2
+            let topContentHeight: CGFloat = 340 // Height for just the cards/walkthrough
+            let buttonHeight: CGFloat = 60 // Approximate button height with padding
             
             ZStack {
-                // Content positioned at exact center
+                // Main content (cards or shared vault message) - centered
                 VStack(spacing: 20) {
                     if viewModel.isSharedVault {
                         Image(systemName: "person.2.fill")
@@ -169,7 +169,16 @@ extension VaultView {
                             )
                         }
                         .frame(height: 240)
-
+                    }
+                }
+                .padding()
+                .frame(height: viewModel.isSharedVault ? nil : topContentHeight)
+                .position(x: geometry.size.width / 2, y: viewModel.isSharedVault ? totalHeight / 2 : (totalHeight - buttonHeight) / 2)
+                
+                // Button at bottom for non-shared vaults
+                if !viewModel.isSharedVault {
+                    VStack {
+                        Spacer()
                         Button(action: {
                             if subscriptionManager.canAddFile(currentFileCount: viewModel.files.count) {
                                 showingImportOptions = true
@@ -185,11 +194,10 @@ extension VaultView {
                         .vaultProminentButtonStyle()
                         .accessibilityIdentifier("vault_first_files")
                         .accessibilityHint("Import photos, videos, or files into the vault")
+                        .padding(.horizontal)
+                        .padding(.bottom, 20)
                     }
                 }
-                .padding()
-                .frame(height: contentHeight)
-                .position(x: geometry.size.width / 2, y: totalHeight / 2)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
