@@ -7,7 +7,7 @@ import UIKit
 /// Unified pixel loader with trailing snake animation.
 ///
 /// Features:
-/// - Left-to-right snake pattern (row-major: 1→2→3→4→5→6→7→8→9)
+/// - Counter-clockwise snake around cube perimeter (1→2→3→6→9→8→7→4)
 /// - Explicit trailing cells with decreasing opacity (head + 2 trailing)
 /// - Stronger colors for better visibility in both light and dark modes
 /// - Single unified appearance across the entire app
@@ -22,8 +22,9 @@ struct PixelLoader: View {
     @State private var step: Int = 0
     @State private var timerCancellable: AnyCancellable?
 
-    // Row-major order: left to right, top to bottom
-    private static let path = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    // Counter-clockwise perimeter walk: around the border skipping center
+    // 1→2→3→6→9→8→7→4 (skipping center 5)
+    private static let path = [1, 2, 3, 6, 9, 8, 7, 4]
 
     // Trail opacities: head + 2 trailing cells
     // These work with 0.1s timer interval and 0.3s animation duration
