@@ -50,24 +50,24 @@ struct RatingView: View {
 
                 VStack(spacing: 12) {
                     Button(action: {
+                        onContinue()
+                    }) {
+                        Text("Continue")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                    }
+                    .vaultProminentButtonStyle()
+                    .accessibilityIdentifier("rating_continue")
+
+                    Button(action: {
                         // Show native iOS rating dialog on this screen
                         // Note: requestReview() only works in App Store builds.
                         // In TestFlight, this button has no effect (expected behavior).
                         requestReview()
                         hasRequestedReview = true
                     }) {
-                        Text("Rate App")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                    }
-                    .vaultProminentButtonStyle()
-                    .accessibilityIdentifier("rating_rate_app")
-
-                    Button(action: {
-                        onContinue()
-                    }) {
-                        Text("Not Now")
+                        Text("Rate Vault")
                             .font(.subheadline)
                             .fontWeight(.medium)
                             .foregroundStyle(.vaultSecondaryText)
@@ -76,7 +76,7 @@ struct RatingView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("rating_not_now")
+                    .accessibilityIdentifier("rating_rate_app")
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 40)

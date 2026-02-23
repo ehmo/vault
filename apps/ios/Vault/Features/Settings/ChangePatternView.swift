@@ -126,11 +126,14 @@ struct ChangePatternView: View {
                         Text("You unlocked with your recovery phrase, so pattern verification is not required.")
                             .font(.caption)
                             .foregroundStyle(.vaultSecondaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .vaultGlassBackground(cornerRadius: 10)
                     .padding(.horizontal, 4)
+                    .padding(.bottom, 8)
                     .accessibilityIdentifier("change_pattern_skip_info_banner")
                 }
 
@@ -285,7 +288,8 @@ struct ChangePatternView: View {
                 Color.clear
                     .frame(height: 50)
             } else {
-                HStack(spacing: 16) {
+                // Center the Try Again button below the pattern
+                HStack {
                     if step == .confirmNew {
                         Button("Try Again") {
                             if skipVerification {
@@ -295,12 +299,12 @@ struct ChangePatternView: View {
                             }
                             patternState.reset()
                         }
+                        .buttonStyle(.bordered)
+                        .controlSize(.regular)
                         .accessibilityIdentifier("change_pattern_try_again")
                     }
-
-                    Color.clear
                 }
-                .frame(height: 50)
+                .frame(maxWidth: .infinity, minHeight: 50)
             }
         }
     }
@@ -328,7 +332,7 @@ struct ChangePatternView: View {
     // MARK: - Computed Properties
 
     private var skipVerification: Bool {
-        appState.currentPattern == nil
+        appState.unlockedWithRecoveryPhrase
     }
 
     private var step: ChangePatternStep { flow.step }

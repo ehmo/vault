@@ -105,7 +105,7 @@ struct AppSettingsView: View {
                 }
             }
 
-            // Settings
+            // Appearance
             Section {
                 NavigationLink {
                     AppearanceSettingsView()
@@ -121,9 +121,17 @@ struct AppSettingsView: View {
 
                 Toggle("Show pattern feedback", isOn: $showFeedback)
                     .accessibilityIdentifier("app_pattern_feedback")
+            } header: {
+                Text("Appearance")
+            }
 
-                Toggle("Help improve Vault", isOn: $analyticsEnabled)
-                    .accessibilityIdentifier("app_analytics_toggle")
+            // Storage & Backup
+            Section {
+                Picker("Import Quality", selection: $fileOptimization) {
+                    Text("Optimized").tag("optimized")
+                    Text("Original").tag("original")
+                }
+                .accessibilityIdentifier("app_file_optimization")
 
                 if subscriptionManager.canSyncWithICloud() {
                     NavigationLink("iCloud Backup") {
@@ -143,28 +151,12 @@ struct AppSettingsView: View {
                     .foregroundStyle(.primary)
                 }
             } header: {
-                Text("Security & Privacy")
-            } footer: {
-                Text("Anonymous crash reports help improve the app. No personal data is collected.")
-            }
-            .onChange(of: analyticsEnabled) { _, newValue in
-                AnalyticsManager.shared.setEnabled(newValue)
-            }
-
-            // File Optimization
-            Section {
-                Picker("Import Quality", selection: $fileOptimization) {
-                    Text("Optimized").tag("optimized")
-                    Text("Original").tag("original")
-                }
-                .accessibilityIdentifier("app_file_optimization")
-            } header: {
-                Text("Storage")
+                Text("Storage & Backup")
             } footer: {
                 if fileOptimization == "optimized" {
-                    Text("Reduces file sizes by up to 85%. Uses HEIC for images and HEVC for videos.")
+                    Text("Reduces file sizes by up to 85%. iCloud backup keeps an encrypted copy of your vault in your iCloud account.")
                 } else {
-                    Text("Keeps files at original size and format. Uses significantly more storage.")
+                    Text("Keeps files at original size and format. iCloud backup keeps an encrypted copy of your vault in your iCloud account.")
                 }
             }
 
@@ -179,6 +171,19 @@ struct AppSettingsView: View {
                 Text("Network")
             } footer: {
                 Text("Controls when share syncs and iCloud backups run. Wi-Fi Only saves cellular data.")
+            }
+
+            // Privacy & Analytics
+            Section {
+                Toggle("Help improve Vault", isOn: $analyticsEnabled)
+                    .accessibilityIdentifier("app_analytics_toggle")
+            } header: {
+                Text("Privacy")
+            } footer: {
+                Text("Anonymous crash reports help improve the app. No personal data is collected.")
+            }
+            .onChange(of: analyticsEnabled) { _, newValue in
+                AnalyticsManager.shared.setEnabled(newValue)
             }
 
             // Storage Management

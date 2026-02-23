@@ -79,6 +79,9 @@ final class AppState {
     var isUnlocked = false
     var currentVaultKey: VaultKey?
     var currentPattern: [Int]?
+    /// True if the current unlock session was via recovery phrase (not pattern).
+    /// Used to determine if pattern verification can be skipped when changing patterns.
+    var unlockedWithRecoveryPhrase = false
     var showOnboarding = false
     var isLoading = false
     var isSharedVault = false
@@ -270,6 +273,7 @@ final class AppState {
 
             currentVaultKey = VaultKey(key)
             currentPattern = pattern
+            unlockedWithRecoveryPhrase = false
             let letters = GridLetterManager.shared.vaultName(for: pattern)
             vaultName = letters.isEmpty ? "Vault" : "Vault \(letters)"
             isUnlocked = true
@@ -344,6 +348,7 @@ final class AppState {
         
         currentVaultKey = VaultKey(key)
         currentPattern = nil
+        unlockedWithRecoveryPhrase = true
         vaultName = "Vault"
         isUnlocked = true
         isLoading = false
@@ -394,6 +399,7 @@ final class AppState {
         // Clear the key reference (Data is a value type; resetBytes on a copy is a no-op)
         currentVaultKey = nil
         currentPattern = nil
+        unlockedWithRecoveryPhrase = false
         vaultName = "Vault"
         isUnlocked = false
         isLoading = false

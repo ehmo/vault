@@ -66,10 +66,10 @@ struct ShareVaultView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button("Close") {
                         dismiss()
                     }
-                    .accessibilityIdentifier("share_cancel")
+                    .accessibilityIdentifier("share_close")
                 }
             }
         }

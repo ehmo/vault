@@ -82,7 +82,7 @@ struct WelcomeView: View {
 
                 // Continue Button — pinned at bottom
                 Button(action: onContinue) {
-                    Text("Protect Your First Vault")
+                    Text("Continue")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
