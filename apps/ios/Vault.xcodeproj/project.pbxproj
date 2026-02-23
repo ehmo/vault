@@ -74,6 +74,7 @@
 		022000003 /* VaultSyncIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000002 /* VaultSyncIndicator.swift */; };
 		022000005 /* PhraseActionButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000004 /* PhraseActionButtons.swift */; };
 		04CF888D664CFBF885D120DD /* CKRetryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B83E548553CC4F470D2263 /* CKRetryTests.swift */; };
+		22DD9E83F9369BC07B60E669 /* DuressHandlerProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF0D40D75B9574BC389E134A /* DuressHandlerProtocol.swift */; };
 		246D2B74B1DF98A2FBC89F4E /* PixelLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CE72BFB1F9DC0A608226E67 /* PixelLoader.swift */; };
 		39EACF9D2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACF9C2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md */; };
 		39EACF9F2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACF9E2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md */; };
@@ -85,9 +86,11 @@
 		39EACFAB2F29EDB600FA7EC2 /* DURESS_VAULT_IMPROVEMENTS.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACFAA2F29EDB600FA7EC2 /* DURESS_VAULT_IMPROVEMENTS.md */; };
 		39EACFAD2F2AC5C500FA7EC2 /* GridLetterManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39EACFAC2F2AC5C500FA7EC2 /* GridLetterManager.swift */; };
 		6D5554047A7544D7954CEF9B /* EmbraceIO in Frameworks */ = {isa = PBXBuildFile; productRef = E8320F0CD52C4885B07B350E /* EmbraceIO */; };
+		97AEE2E08179AC87ED7B2E05 /* SecureEnclaveProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D00CF0C2AAF369530BECF95 /* SecureEnclaveProtocol.swift */; };
 		A1B2C3D4E5F64789A1B2C3D4 /* TelemetryDeck in Frameworks */ = {isa = PBXBuildFile; productRef = F1E2D3C4B5A647890123ABCD /* TelemetryDeck */; };
 		ASV000001 /* AppearanceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ASV000000 /* AppearanceSettingsView.swift */; };
 		BT0000001 /* BackgroundTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BT0000000 /* BackgroundTaskTests.swift */; };
+		C41D34F489875A0DB585E634 /* MockDuressHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E3F143060289D413F983227 /* MockDuressHandler.swift */; };
 		CAT00001 /* ConcurrentAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAT00000 /* ConcurrentAccessTests.swift */; };
 		CKC0000001 /* CloudKitSharingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = CKC0000000 /* CloudKitSharingClient.swift */; };
 		CKR0000001 /* CKDatabase+Retry.swift in Sources */ = {isa = PBXBuildFile; fileRef = CKR0000000 /* CKDatabase+Retry.swift */; };
@@ -100,7 +103,10 @@
 		DRS000001 /* DragRowSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = DRS000000 /* DragRowSelector.swift */; };
 		DRST00001 /* DragRowSelectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DRST00000 /* DragRowSelectorTests.swift */; };
 		DTT00001 /* DynamicTypeTruncationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DTT00000 /* DynamicTypeTruncationTests.swift */; };
+		E9196E156CB93B2C41B18ED1 /* CryptoEngineProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFE2A0A331634E6BA32AFB2C /* CryptoEngineProtocol.swift */; };
 		EB0000001 /* EncryptedBlobTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB0000000 /* EncryptedBlobTests.swift */; };
+		EC9A42DC3E3E0A62FAD9A4AD /* MockCryptoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 435D82F116747714733356AF /* MockCryptoEngine.swift */; };
+		F2002A91D88DEF375F696115 /* MockSecureEnclave.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3873FC4BF8488F235F0CA711 /* MockSecureEnclave.swift */; };
 		FC0000001 /* VaultFullChainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0000000 /* VaultFullChainTests.swift */; };
 		FOP00000 /* FileOperationProgressCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = FOP00001 /* FileOperationProgressCard.swift */; };
 		FOPT0001 /* FileOperationProgressCardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FOPT0000 /* FileOperationProgressCardTests.swift */; };
@@ -306,7 +312,9 @@
 		022000004 /* PhraseActionButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseActionButtons.swift; sourceTree = "<group>"; };
 		088000000000 /* Vault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Vault.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0CE72BFB1F9DC0A608226E67 /* PixelLoader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PixelLoader.swift; path = Vault/UI/Components/PixelLoader.swift; sourceTree = "<group>"; };
+		0E3F143060289D413F983227 /* MockDuressHandler.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MockDuressHandler.swift; sourceTree = "<group>"; };
 		33B83E548553CC4F470D2263 /* CKRetryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CKRetryTests.swift; sourceTree = "<group>"; };
+		3873FC4BF8488F235F0CA711 /* MockSecureEnclave.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MockSecureEnclave.swift; sourceTree = "<group>"; };
 		392ACAC62F3FB9140059878A /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Products.storekit; sourceTree = "<group>"; };
 		39EACF9C2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = NAVIGATION_REDESIGN.md; sourceTree = "<group>"; };
 		39EACF9E2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEBUG_RESET_FEATURE.md; sourceTree = "<group>"; };
@@ -317,15 +325,19 @@
 		39EACFA82F29E64000FA7EC2 /* VAULT_COLLISION_PROTECTION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = VAULT_COLLISION_PROTECTION.md; sourceTree = "<group>"; };
 		39EACFAA2F29EDB600FA7EC2 /* DURESS_VAULT_IMPROVEMENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DURESS_VAULT_IMPROVEMENTS.md; sourceTree = "<group>"; };
 		39EACFAC2F2AC5C500FA7EC2 /* GridLetterManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridLetterManager.swift; sourceTree = "<group>"; };
+		3D00CF0C2AAF369530BECF95 /* SecureEnclaveProtocol.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SecureEnclaveProtocol.swift; sourceTree = "<group>"; };
+		435D82F116747714733356AF /* MockCryptoEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MockCryptoEngine.swift; sourceTree = "<group>"; };
 		A5B3287CCF2A1DE71141BCF8 /* PixelLoader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PixelLoader.swift; sourceTree = "<group>"; };
 		ASV000000 /* AppearanceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsView.swift; sourceTree = "<group>"; };
 		BT0000000 /* BackgroundTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTaskTests.swift; sourceTree = "<group>"; };
 		CAT00000 /* ConcurrentAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConcurrentAccessTests.swift; sourceTree = "<group>"; };
+		CFE2A0A331634E6BA32AFB2C /* CryptoEngineProtocol.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CryptoEngineProtocol.swift; sourceTree = "<group>"; };
 		CKC0000000 /* CloudKitSharingClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitSharingClient.swift; sourceTree = "<group>"; };
 		CKR0000000 /* CKDatabase+Retry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CKDatabase+Retry.swift"; sourceTree = "<group>"; };
 		CPF00000 /* ChangePatternFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangePatternFlowTests.swift; sourceTree = "<group>"; };
 		CPV000000 /* ChangePatternView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangePatternView.swift; sourceTree = "<group>"; };
 		CRP000000 /* CustomRecoveryPhraseInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomRecoveryPhraseInputView.swift; sourceTree = "<group>"; };
+		DF0D40D75B9574BC389E134A /* DuressHandlerProtocol.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DuressHandlerProtocol.swift; sourceTree = "<group>"; };
 		DH0000000 /* DuressHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuressHandlerTests.swift; sourceTree = "<group>"; };
 		DLH00000 /* DeepLinkHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkHandlerTests.swift; sourceTree = "<group>"; };
 		DPV000000 /* DuressPatternSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuressPatternSettingsView.swift; sourceTree = "<group>"; };
@@ -522,6 +534,7 @@
 				002000004 /* PatternSerializer.swift */,
 				SB0000000 /* SecureBytes.swift */,
 				KT0000000 /* KeyTypes.swift */,
+				CFE2A0A331634E6BA32AFB2C /* CryptoEngineProtocol.swift */,
 			);
 			path = Crypto;
 			sourceTree = "<group>";
@@ -553,6 +566,8 @@
 				011000002 /* WordLists.swift */,
 				39EACFAA2F29EDB600FA7EC2 /* DURESS_VAULT_IMPROVEMENTS.md */,
 				39EACFAC2F2AC5C500FA7EC2 /* GridLetterManager.swift */,
+				3D00CF0C2AAF369530BECF95 /* SecureEnclaveProtocol.swift */,
+				DF0D40D75B9574BC389E134A /* DuressHandlerProtocol.swift */,
 			);
 			path = Security;
 			sourceTree = "<group>";
@@ -780,6 +795,17 @@
 			);
 			sourceTree = "<group>";
 		};
+		0B27133903E733FCFF850379 /* Mocks */ = {
+			isa = PBXGroup;
+			children = (
+				435D82F116747714733356AF /* MockCryptoEngine.swift */,
+				3873FC4BF8488F235F0CA711 /* MockSecureEnclave.swift */,
+				0E3F143060289D413F983227 /* MockDuressHandler.swift */,
+			);
+			name = Mocks;
+			path = Mocks;
+			sourceTree = "<group>";
+		};
 		SE0000070 /* ShareExtension */ = {
 			isa = PBXGroup;
 			children = (
@@ -845,6 +871,7 @@
 				VNT00000 /* VaultNameTests.swift */,
 				SVB00000 /* SharedVaultBannerTests.swift */,
 				33B83E548553CC4F470D2263 /* CKRetryTests.swift */,
+				0B27133903E733FCFF850379 /* Mocks */,
 			);
 			path = VaultTests;
 			sourceTree = "<group>";
@@ -1210,6 +1237,9 @@
 				SE0000019 /* PendingImportBanner.swift in Sources */,
 				246D2B74B1DF98A2FBC89F4E /* PixelLoader.swift in Sources */,
 				00DB687C5CE41DD99336A74B /* PixelLoader.swift in Sources */,
+				E9196E156CB93B2C41B18ED1 /* CryptoEngineProtocol.swift in Sources */,
+				97AEE2E08179AC87ED7B2E05 /* SecureEnclaveProtocol.swift in Sources */,
+				22DD9E83F9369BC07B60E669 /* DuressHandlerProtocol.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1286,6 +1316,9 @@
 				VNT00001 /* VaultNameTests.swift in Sources */,
 				SVB00001 /* SharedVaultBannerTests.swift in Sources */,
 				04CF888D664CFBF885D120DD /* CKRetryTests.swift in Sources */,
+				EC9A42DC3E3E0A62FAD9A4AD /* MockCryptoEngine.swift in Sources */,
+				F2002A91D88DEF375F696115 /* MockSecureEnclave.swift in Sources */,
+				C41D34F489875A0DB585E634 /* MockDuressHandler.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
