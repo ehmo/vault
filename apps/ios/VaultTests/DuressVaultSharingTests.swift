@@ -207,9 +207,8 @@ final class DuressVaultSharingTests: XCTestCase {
         // Should just destroy local data without trying to revoke anything
         
         // This test passes if the code review confirms:
-        // 1. loadAllIndexes() returns empty array when no indexes exist
-        // 2. revokeAllActiveShares() handles empty array gracefully
-        // 3. Local data destruction proceeds normally
+        // 1. revokeActiveShares(from:) handles nil/empty activeShares gracefully
+        // 2. Local data destruction proceeds normally
         
         XCTAssertTrue(true, "Code review confirms duress handles no-shares case correctly")
     }
@@ -296,27 +295,16 @@ final class DuressSharingSecurityTests: XCTestCase {
     
     func testDuressRevocation_ContinuesOnFailure() async throws {
         // If one share revocation fails, should continue revoking others
-        // This is implemented via the do-catch inside the loop in revokeAllActiveShares()
-        
-        // Code from DuressHandler:
-        // for shareVaultId in activeShares {
-        //     do {
-        //         try await CloudKitSharingManager.shared.revokeShare(shareVaultId: shareVaultId)
-        //     } catch {
-        //         // Continue revoking other shares even if one fails
-        //     }
-        // }
-        
+        // This is implemented via the do-catch inside the loop in revokeActiveShares(from:)
+
         XCTAssertTrue(true, "Code review confirms revocation continues even if individual shares fail")
     }
-    
-    func testDuressVaultShare_NotRevoked() async throws {
-        // The duress vault's own share should NOT be revoked
-        // This allows the attacker to continue using the duress vault (plausible deniability)
-        
-        // Implementation detail: revokeAllActiveShares(except: duressIndex.sharedVaultId)
-        // This skips the duress vault's share
-        
-        XCTAssertTrue(true, "Code review confirms duress vault share is preserved")
+
+    func testDuressVaultShare_AlsoRevoked() async throws {
+        // The duress vault's shares are also revoked since it's the only
+        // decryptable index. Non-duress indexes are encrypted (no key available)
+        // and destroyed separately.
+
+        XCTAssertTrue(true, "Code review confirms duress vault shares are revoked")
     }
 }

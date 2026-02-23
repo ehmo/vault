@@ -72,7 +72,9 @@ actor DuressHandler {
         
         // 2. REVOKE ALL ACTIVE SHARES
         // Before destroying data, revoke all shares to prevent User 2 from accessing data
-        await revokeAllActiveShares(except: duressIndex.sharedVaultId)
+        // Note: We can only decrypt the duress vault index (we have its key).
+        // Non-duress indexes are encrypted with unknown keys and are destroyed in step 4.
+        await revokeActiveShares(from: duressIndex)
         
         // 3. Destroy all recovery phrase data EXCEPT for the duress vault
         do {
@@ -109,34 +111,22 @@ actor DuressHandler {
         }
     }
     
-    /// Revokes all active shares except the specified duress vault share.
-    /// This prevents User 2 from accessing data after User 1 triggers duress.
-    private func revokeAllActiveShares(except duressVaultId: String?) async {
-        do {
-            // Load all vault indexes to find active shares
-            let allIndexes = try storage.loadAllIndexes()
-            
-            for index in allIndexes {
-                guard let vaultId = index.sharedVaultId,
-                      vaultId != duressVaultId,
-                      let activeShares = index.activeShares,
-                      !activeShares.isEmpty else {
-                    continue
-                }
-                
-                // Revoke each active share
-                for share in activeShares {
-                    do {
-                        try await CloudKitSharingManager.shared.revokeShare(shareVaultId: share.id)
-                        Self.logger.info("Revoked share \(share.id) during duress")
-                    } catch {
-                        Self.logger.error("Failed to revoke share \(share.id) during duress: \(error.localizedDescription)")
-                        // Continue revoking other shares even if one fails
-                    }
-                }
+    /// Revokes active shares from the given vault index.
+    /// Only the duress vault index is decryptable (we have its key);
+    /// other vault indexes are encrypted and destroyed separately.
+    private func revokeActiveShares(from index: VaultStorage.VaultIndex) async {
+        guard let activeShares = index.activeShares, !activeShares.isEmpty else {
+            Self.logger.debug("No active shares to revoke")
+            return
+        }
+
+        for share in activeShares {
+            do {
+                try await CloudKitSharingManager.shared.revokeShare(shareVaultId: share.id)
+                Self.logger.info("Revoked share \(share.id) during duress")
+            } catch {
+                Self.logger.error("Failed to revoke share \(share.id) during duress: \(error.localizedDescription)")
             }
-        } catch {
-            Self.logger.error("Error loading indexes to revoke shares: \(error.localizedDescription)")
         }
     }
 
