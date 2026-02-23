@@ -58,14 +58,26 @@ final class ScreenshotShieldTests: XCTestCase {
     func test_windowLayer_isInsideSecureContainer() {
         shield.activate(on: hostWindow)
 
-        guard let field = shield.secureField,
-              let secureContainer = field.layer.sublayers?.first else {
-            XCTFail("Shield should have a secure field with a container sublayer")
+        guard let field = shield.secureField else {
+            XCTFail("Shield should have a secure field")
+            return
+        }
+
+        // iOS 17+ changed the sublayer order - use .last instead of .first
+        let secureContainer: CALayer?
+        if #available(iOS 17.0, *) {
+            secureContainer = field.layer.sublayers?.last
+        } else {
+            secureContainer = field.layer.sublayers?.first
+        }
+
+        guard let container = secureContainer else {
+            XCTFail("Shield should have a secure container sublayer")
             return
         }
 
         // window.layer should now be a sublayer of the secure container
-        XCTAssertTrue(secureContainer.sublayers?.contains(hostWindow.layer) ?? false,
+        XCTAssertTrue(container.sublayers?.contains(hostWindow.layer) ?? false,
                       "Window layer must be inside the secure container for screenshot blanking")
     }
 
@@ -97,12 +109,20 @@ final class ScreenshotShieldTests: XCTestCase {
     func test_masksToBounds_disabledOnSecureContainer() {
         shield.activate(on: hostWindow)
 
-        guard let secureContainer = shield.secureField?.layer.sublayers?.first else {
+        // iOS 17+ changed the sublayer order - use .last instead of .first
+        let secureContainer: CALayer?
+        if #available(iOS 17.0, *) {
+            secureContainer = shield.secureField?.layer.sublayers?.last
+        } else {
+            secureContainer = shield.secureField?.layer.sublayers?.first
+        }
+
+        guard let container = secureContainer else {
             XCTFail("Secure container sublayer should exist")
             return
         }
 
-        XCTAssertFalse(secureContainer.masksToBounds,
+        XCTAssertFalse(container.masksToBounds,
                        "Secure container must not clip — it hosts the full-screen window layer")
     }
 
@@ -146,7 +166,13 @@ final class ScreenshotShieldTests: XCTestCase {
         let field = shield.secureField!
         XCTAssertEqual(field.layer.superlayer, originalSuperlayer)
 
-        let secureContainer = field.layer.sublayers!.first!
+        // iOS 17+ changed the sublayer order - use .last instead of .first
+        let secureContainer: CALayer
+        if #available(iOS 17.0, *) {
+            secureContainer = field.layer.sublayers!.last!
+        } else {
+            secureContainer = field.layer.sublayers!.first!
+        }
         XCTAssertTrue(secureContainer.sublayers!.contains(hostWindow.layer))
         XCTAssertEqual(hostWindow.layer.superlayer, secureContainer)
     }

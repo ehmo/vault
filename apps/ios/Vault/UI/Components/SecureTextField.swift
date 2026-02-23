@@ -50,8 +50,15 @@ final class ScreenshotShield {
         // windowSuperlayer. Any offset on field.layer shifts ALL window content.
 
         // Reparent: move the window's layer inside the text field's secure container.
-        // The secure container is the first sublayer of the text field's layer.
-        guard let secureContainer = field.layer.sublayers?.first,
+        // The secure container is a sublayer of the text field's layer.
+        // iOS 17+ changed the sublayer order, so we use .last instead of .first.
+        let secureContainer: CALayer?
+        if #available(iOS 17.0, *) {
+            secureContainer = field.layer.sublayers?.last
+        } else {
+            secureContainer = field.layer.sublayers?.first
+        }
+        guard let container = secureContainer,
               let windowSuperlayer = window.layer.superlayer else {
             Self.logger.error("Could not find secure container or window superlayer — screenshot protection unavailable")
             field.removeFromSuperview()
@@ -60,10 +67,10 @@ final class ScreenshotShield {
 
         // Prevent clipping — the zero-sized field/container must not clip the full-screen window layer.
         field.layer.masksToBounds = false
-        secureContainer.masksToBounds = false
+        container.masksToBounds = false
 
         windowSuperlayer.addSublayer(field.layer)
-        secureContainer.addSublayer(window.layer)
+        container.addSublayer(window.layer)
 
         secureField = field
         isActive = true
