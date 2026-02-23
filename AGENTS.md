@@ -37,6 +37,17 @@ bd sync && git push              # Complete
 **NEVER** run xcodebuild archive/export, asc builds upload, or wrangler pages deploy manually. Always use the scripts.
 When asked to "deploy", "push to phone", "upload to TestFlight", "push to devices", or "deploy the website" — use these scripts.
 
+## CRITICAL: UI/UX Immutable Guardrails (MUST READ)
+
+**Before making ANY UI changes, read `.ai/GUARDRAILS.md`. Violations are P0 bugs.**
+
+The three sacred rules:
+1. **PATTERN BOARD NEVER MOVES** - Must stay centered, errors appear below with fixed spacing
+2. **NO LAYOUT SHIFTS** - Fixed heights, use `Color.clear` placeholders, never let UI jump
+3. **TEXT NEVER TRUNCATES** - Always `.lineLimit(nil)` on descriptive text
+
+These rules are non-negotiable. Breaking them requires immediate rollback.
+
 ## Critical Rules
 
 1. **Never**: Commit secrets, force push, delete issues without permission
@@ -44,6 +55,7 @@ When asked to "deploy", "push to phone", "upload to TestFlight", "push to device
    - Run tests before push
    - Commit after every successful build
    - Use `git pull --rebase && git push` (never leave work stranded)
+   - Read `.ai/GUARDRAILS.md` before any UI changes
 3. **Ask first**: New dependencies, multi-project changes, architectural decisions
 
 ## Session Workflow

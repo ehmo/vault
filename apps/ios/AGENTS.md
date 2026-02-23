@@ -2,6 +2,17 @@
 
 SwiftUI app with CloudKit sharing. Stack: iOS 17+, `@Observable`, CloudKit, CryptoKit.
 
+## ⚠️ MANDATORY: Read UI Guardrails Before Any UI Changes
+
+**File**: `../../.ai/GUARDRAILS.md` (repo root)
+
+**The Three Sacred Rules:**
+1. **Pattern boards NEVER move** - Stay centered, errors appear below with fixed spacing
+2. **NO layout shifts** - Fixed heights, `Color.clear` placeholders, never let UI jump  
+3. **Text NEVER truncates** - Always `.lineLimit(nil)` on descriptive text
+
+Violating these = P0 bug requiring immediate rollback. Test on iPhone SE to verify.
+
 ## Physical Device — iPhone 16 (primary test device)
 
 | Field | Value |
