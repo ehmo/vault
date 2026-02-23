@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "663539a4d639",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/web/features/duress-mode/index.html",
+    "apps/web/features/ease-of-use/index.html",
+    "apps/web/features/encrypted-icloud-backup/index.html",
+    "apps/web/features/hidden-vaults/index.html",
+    "apps/web/features/plausible-deniability/index.html",
+    "apps/web/features/secret-phrase/index.html",
+    "apps/web/features/secure-sharing/index.html",
+    "apps/web/features/security-features/index.html",
+    "apps/web/index.html",
+    "apps/web/styles/pages/features.css"
+  ],
+  "sessions": [
+    {
+      "metadata": "/66/3539a4d639/0/metadata.json",
+      "transcript": "/66/3539a4d639/0/full.jsonl",
+      "context": "/66/3539a4d639/0/context.md",
+      "content_hash": "/66/3539a4d639/0/content_hash.txt",
+      "prompt": "/66/3539a4d639/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 30,
+    "cache_creation_tokens": 58520,
+    "cache_read_tokens": 1286431,
+    "output_tokens": 281,
+    "api_call_count": 22
+  }
+}

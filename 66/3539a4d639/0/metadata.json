@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "663539a4d639",
+  "session_id": "4a082f5a-fb02-487a-a0df-6ea1f6fa43a6",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-23T01:31:10.267075Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/web/features/duress-mode/index.html",
+    "apps/web/features/ease-of-use/index.html",
+    "apps/web/features/encrypted-icloud-backup/index.html",
+    "apps/web/features/hidden-vaults/index.html",
+    "apps/web/features/plausible-deniability/index.html",
+    "apps/web/features/secret-phrase/index.html",
+    "apps/web/features/secure-sharing/index.html",
+    "apps/web/features/security-features/index.html",
+    "apps/web/index.html",
+    "apps/web/styles/pages/features.css"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "74d882f7-a5f9-4cbe-9b0d-736aac83270d",
+  "token_usage": {
+    "input_tokens": 30,
+    "cache_creation_tokens": 58520,
+    "cache_read_tokens": 1286431,
+    "output_tokens": 281,
+    "api_call_count": 22
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-23T01:31:10.171786Z",
+    "agent_lines": 3169,
+    "human_added": 4133,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 7302,
+    "agent_percentage": 43.39906874828814
+  }
+}
