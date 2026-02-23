@@ -1,0 +1,17 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+There is a logical bug. While sharing a vault with someone is paid functionality, receiving a vault from someone isn't. Currently if user is on a free version they are unable to add shared vault as we show them the paywall. They should be add it as long as they don't go over the limits of their free tier.
+
+### Prompt 2
+
+Again, when you are done, write tests, send the build to the testing phone and then commit all to git
+
+### Prompt 3
+
+I want to improve the import files function. Currently I believe we are running 3 parallel ingestions with images taking 2 and videos taking 1. I think we
+  should revert it and have videos to take 2 and images 1. This should be a matter of prioritization only. That means if there are no more videos to ingest the other threads pick up pictures. Not that we explicitly associate each for the file type
+
