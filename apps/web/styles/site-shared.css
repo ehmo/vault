@@ -222,6 +222,11 @@ header {
   font-size: 0.9rem;
 }
 
+.btn {
+  position: relative;
+  z-index: 1;
+}
+
 .btn-primary::before {
   content: '';
   position: absolute;
@@ -232,7 +237,7 @@ header {
   background: rgba(255, 255, 255, 0.2);
   transform: translateX(-100%);
   transition: transform 0.4s;
-  z-index: 1;
+  z-index: -1;
 }
 
 .btn-primary:hover::before {
