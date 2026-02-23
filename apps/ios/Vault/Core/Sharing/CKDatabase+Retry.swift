@@ -62,7 +62,7 @@ extension CKDatabase {
     }
 }
 
-private func isCKRetryable(_ error: CKError) -> Bool {
+func isCKRetryable(_ error: CKError) -> Bool {
     switch error.code {
     case .networkUnavailable, .networkFailure, .serviceUnavailable,
          .zoneBusy, .requestRateLimited,
@@ -73,7 +73,7 @@ private func isCKRetryable(_ error: CKError) -> Bool {
     }
 }
 
-private func ckRetryDelay(for error: CKError, attempt: Int) -> TimeInterval {
+func ckRetryDelay(for error: CKError, attempt: Int) -> TimeInterval {
     if let retryAfter = error.retryAfterSeconds {
         return retryAfter
     }

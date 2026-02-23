@@ -73,6 +73,7 @@
 		022000001 /* PixelAnimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000000 /* PixelAnimation.swift */; };
 		022000003 /* VaultSyncIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000002 /* VaultSyncIndicator.swift */; };
 		022000005 /* PhraseActionButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022000004 /* PhraseActionButtons.swift */; };
+		04CF888D664CFBF885D120DD /* CKRetryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B83E548553CC4F470D2263 /* CKRetryTests.swift */; };
 		246D2B74B1DF98A2FBC89F4E /* PixelLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CE72BFB1F9DC0A608226E67 /* PixelLoader.swift */; };
 		39EACF9D2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACF9C2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md */; };
 		39EACF9F2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACF9E2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md */; };
@@ -305,6 +306,7 @@
 		022000004 /* PhraseActionButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseActionButtons.swift; sourceTree = "<group>"; };
 		088000000000 /* Vault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Vault.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0CE72BFB1F9DC0A608226E67 /* PixelLoader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PixelLoader.swift; path = Vault/UI/Components/PixelLoader.swift; sourceTree = "<group>"; };
+		33B83E548553CC4F470D2263 /* CKRetryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CKRetryTests.swift; sourceTree = "<group>"; };
 		392ACAC62F3FB9140059878A /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Products.storekit; sourceTree = "<group>"; };
 		39EACF9C2F295B0F00FA7EC2 /* NAVIGATION_REDESIGN.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = NAVIGATION_REDESIGN.md; sourceTree = "<group>"; };
 		39EACF9E2F29B1B400FA7EC2 /* DEBUG_RESET_FEATURE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEBUG_RESET_FEATURE.md; sourceTree = "<group>"; };
@@ -842,6 +844,7 @@
 				DTT00000 /* DynamicTypeTruncationTests.swift */,
 				VNT00000 /* VaultNameTests.swift */,
 				SVB00000 /* SharedVaultBannerTests.swift */,
+				33B83E548553CC4F470D2263 /* CKRetryTests.swift */,
 			);
 			path = VaultTests;
 			sourceTree = "<group>";
@@ -1282,6 +1285,7 @@
 				DTT00001 /* DynamicTypeTruncationTests.swift in Sources */,
 				VNT00001 /* VaultNameTests.swift in Sources */,
 				SVB00001 /* SharedVaultBannerTests.swift in Sources */,
+				04CF888D664CFBF885D120DD /* CKRetryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
