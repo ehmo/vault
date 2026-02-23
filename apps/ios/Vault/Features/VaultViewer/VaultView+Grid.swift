@@ -127,68 +127,71 @@ extension VaultView {
     // MARK: - Empty State
 
     var emptyStateContent: some View {
-        VStack(spacing: 20) {
-            if viewModel.isSharedVault {
-                Image(systemName: "person.2.fill")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.vaultSecondaryText)
-                    .accessibilityHidden(true)
+        GeometryReader { geometry in
+            let totalHeight = geometry.size.height
+            let contentHeight: CGFloat = 420 // Fixed total height for empty state content
+            let topOffset = (totalHeight - contentHeight) / 2
+            
+            ZStack {
+                // Content positioned at exact center
+                VStack(spacing: 20) {
+                    if viewModel.isSharedVault {
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 48))
+                            .foregroundStyle(.vaultSecondaryText)
+                            .accessibilityHidden(true)
 
-                Text("Waiting for files")
-                    .font(.title2)
-                    .fontWeight(.medium)
+                        Text("Waiting for files")
+                            .font(.title2)
+                            .fontWeight(.medium)
 
-                Text("The vault owner hasn't added any files yet")
-                    .font(.subheadline)
-                    .foregroundStyle(.vaultSecondaryText)
-                    .multilineTextAlignment(.center)
-            } else {
-                // Fixed spacer height instead of flexible Spacer to prevent layout jump
-                Color.clear
-                    .frame(height: 40)
-
-                // 3-step walkthrough with fixed container height
-                VStack(spacing: 12) {
-                    walkthroughCard(
-                        icon: "plus.circle.fill",
-                        title: "Add your files",
-                        description: "Photos, videos, documents — anything you want to protect"
-                    )
-                    walkthroughCard(
-                        icon: "lock.shield.fill",
-                        title: "Encrypted instantly",
-                        description: "Your files are scrambled with military-grade encryption"
-                    )
-                    walkthroughCard(
-                        icon: "eye.slash.fill",
-                        title: "Only you can access",
-                        description: "Your pattern is the only key. Not even us."
-                    )
-                }
-                .frame(minHeight: 240)
-
-                // Fixed spacer height instead of flexible Spacer
-                Color.clear
-                    .frame(height: 40)
-
-                Button(action: {
-                    if subscriptionManager.canAddFile(currentFileCount: viewModel.files.count) {
-                        showingImportOptions = true
+                        Text("The vault owner hasn't added any files yet")
+                            .font(.subheadline)
+                            .foregroundStyle(.vaultSecondaryText)
+                            .multilineTextAlignment(.center)
                     } else {
-                        showingPaywall = true
+                        // 3-step walkthrough with fixed container height
+                        VStack(spacing: 12) {
+                            walkthroughCard(
+                                icon: "plus.circle.fill",
+                                title: "Add your files",
+                                description: "Photos, videos, documents — anything you want to protect"
+                            )
+                            walkthroughCard(
+                                icon: "lock.shield.fill",
+                                title: "Encrypted instantly",
+                                description: "Your files are scrambled with military-grade encryption"
+                            )
+                            walkthroughCard(
+                                icon: "eye.slash.fill",
+                                title: "Only you can access",
+                                description: "Your pattern is the only key. Not even us."
+                            )
+                        }
+                        .frame(height: 240)
+
+                        Button(action: {
+                            if subscriptionManager.canAddFile(currentFileCount: viewModel.files.count) {
+                                showingImportOptions = true
+                            } else {
+                                showingPaywall = true
+                            }
+                        }) {
+                            Label("Protect Your First Files", systemImage: "plus.circle.fill")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 4)
+                        }
+                        .vaultProminentButtonStyle()
+                        .accessibilityIdentifier("vault_first_files")
+                        .accessibilityHint("Import photos, videos, or files into the vault")
                     }
-                }) {
-                    Label("Protect Your First Files", systemImage: "plus.circle.fill")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4)
                 }
-                .vaultProminentButtonStyle()
-                .accessibilityIdentifier("vault_first_files")
-                .accessibilityHint("Import photos, videos, or files into the vault")
+                .padding()
+                .frame(height: contentHeight)
+                .position(x: geometry.size.width / 2, y: totalHeight / 2)
             }
         }
-        .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("vault_empty_state_container")
     }
