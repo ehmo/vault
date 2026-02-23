@@ -3,12 +3,24 @@
   "checkpoint_id": "b8c19ee4ddba",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 2,
+  "checkpoints_count": 6,
   "files_touched": [
     "apps/ios/Vault/Features/VaultViewer/VaultView+SharedVault.swift",
     "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift",
     "apps/ios/VaultTests/VaultViewModelTests.swift",
     "apps/ios/onboarding-prototype.html",
+    "apps/web/assets/alpine-app.js",
+    "apps/web/compare/index.html",
+    "apps/web/features/pattern-encryption/index.html",
+    "apps/web/index.html",
+    "apps/web/manifesto/index.html",
+    "apps/web/privacy/index.html",
+    "apps/web/s/index.html",
+    "apps/web/styles/input.css",
+    "apps/web/styles/pages/features.css",
+    "apps/web/styles/pages/home.css",
+    "apps/web/styles/site-shared.css",
+    "apps/web/terms/index.html",
     "design/logos/Gemini_Generated_Image_nj5u7cnj5u7cnj5u.png",
     "design/logos/Gemini_Generated_Image_sfg24vsfg24vsfg2.png",
     "design/theme/design-tokens.json"
@@ -27,13 +39,20 @@
       "context": "/b8/c19ee4ddba/1/context.md",
       "content_hash": "/b8/c19ee4ddba/1/content_hash.txt",
       "prompt": "/b8/c19ee4ddba/1/prompt.txt"
+    },
+    {
+      "metadata": "/b8/c19ee4ddba/2/metadata.json",
+      "transcript": "/b8/c19ee4ddba/2/full.jsonl",
+      "context": "/b8/c19ee4ddba/2/context.md",
+      "content_hash": "/b8/c19ee4ddba/2/content_hash.txt",
+      "prompt": "/b8/c19ee4ddba/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 54,
-    "cache_creation_tokens": 405500,
-    "cache_read_tokens": 3755607,
-    "output_tokens": 6597,
-    "api_call_count": 46
+    "input_tokens": 155,
+    "cache_creation_tokens": 628777,
+    "cache_read_tokens": 13800394,
+    "output_tokens": 13335,
+    "api_call_count": 133
   }
 }

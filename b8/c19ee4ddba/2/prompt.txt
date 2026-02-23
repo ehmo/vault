@@ -1,0 +1,340 @@
+Implement the following plan:
+
+# Feature Pages Expansion Plan
+
+## Context
+Expand Vaultaire website from 6 inline feature cards to 9 features, each with a dedicated long-form subpage. Primary goal: SEO content for non-technical users. Educational + product discovery keyword targeting. 1500-2500 words per page.
+
+## Decisions Made
+- **Audience**: Non-technical users, SEO-focused
+- **Visuals**: CSS/SVG illustrations (no external image assets)
+- **Navigation**: Dedicated `/features/` hub page
+- **Design**: Match existing angular/geometric style
+- **SEO**: Educational intro → product implementation (content funnel)
+- **Length**: 1500-2500 words per page
+- **CTA**: App Store download + related feature links
+- **Bead created**: VAULT-60w (duress backup clock reset)
+
+## The 9 Features
+
+| # | Feature | Slug | Emoji |
+|---|---------|------|-------|
+| 1 | Pattern Encryption | `pattern-encryption` | `🔐` |
+| 2 | Secret Phrase | `secret-phrase` | `🔑` |
+| 3 | True Plausible Deniability | `plausible-deniability` | `🎭` |
+| 4 | Hidden Vaults | `hidden-vaults` | `🕶️` |
+| 5 | Duress Mode | `duress-mode` | `🚨` |
+| 6 | Encrypted iCloud Backup | `encrypted-icloud-backup` | `☁️` |
+| 7 | Secure Sharing | `secure-sharing` | `🤝` |
+| 8 | Security Features | `security-features` | `🛡️` |
+| 9 | Ease of Use | `ease-of-use` | `✨` |
+
+## Implementation Steps
+
+### Step 1: Feature page CSS (`styles/pages/features.css`)
+- Create new CSS file for feature subpages, scoped under `.page-feature`
+- Style: long-form article layout (max-width 800px), matching review-article pattern
+- Add styles for: hero section, info boxes, CSS/SVG diagram containers, stat callouts, CTA section, related features grid, breadcrumbs, FAQ accordion
+- Import in `styles/input.css`
+
+### Step 2: Build ONE prototype page — Pattern Encryption
+- Create `features/pattern-encryption/index.html`
+- Full page structure: meta tags, breadcrumbs, hero, content sections, CSS diagrams (5x5 grid visualization, encryption flow), CTA + related features
+- Use /humanizer skill for all copy
+- Content outline:
+  - What is pattern encryption (accessible explanation)
+  - How it works (step-by-step with CSS grid diagram)
+  - The math behind it (entropy, PBKDF2, AES-256-GCM — explained simply)
+  - Why nobody can break through (brute force math, key derivation cost)
+  - Choosing a strong pattern (tips, what to avoid)
+  - Why you should feel safe (summary reassurance)
+  - FAQ section
+  - CTA + related features
+
+### Step 3: User reviews prototype → iterate until approved
+
+### Step 4: Build remaining 8 feature pages (parallel subagents)
+Each follows the approved template with feature-specific content and diagrams.
+
+### Step 5: Create `/features/` hub page
+- `features/index.html` — grid of 9 feature cards with summaries linking to subpages
+- Similar to compare landing page pattern
+
+### Step 6: Update homepage
+- Expand feature grid from 6 → 9 cards
+- Each card links to its `/features/{slug}/` subpage
+- Add "Learn more →" link to each card
+
+### Step 7: Update navigation & footer
+- Add "Features" link in nav pointing to `/features/`
+- Add feature links in footer
+- Update all existing pages' nav/footer (manifesto, privacy, terms, compare pages, etc.)
+
+### Step 8: SEO updates
+- Update `sitemap.xml` with all 10 new URLs
+- Update `robots.txt` if needed
+- Update `llms.txt` and `llms-full.txt`
+- Update `feed.xml`
+
+### Step 9: Build CSS & test
+- `npm run build` to compile Tailwind
+- Visual review in browser
+- Run existing Playwright tests
+
+## File Structure (new files)
+
+```
+features/
+  index.html                          # Hub page
+  pattern-encryption/index.html
+  secret-phrase/index.html
+  plausible-deniability/index.html
+  hidden-vaults/index.html
+  duress-mode/index.html
+  encrypted-icloud-backup/index.html
+  secure-sharing/index.html
+  security-features/index.html
+  ease-of-use/index.html
+styles/pages/features.css              # Shared feature page styles
+```
+
+## Files to Modify
+
+- `styles/input.css` — add `@import "./pages/features.css"`
+- `index.html` — update features section (6→9, add links)
+- `manifesto/index.html` — update nav/footer
+- `privacy/index.html` — update nav/footer
+- `terms/index.html` — update nav/footer
+- `s/index.html` — update nav/footer
+- `compare/index.html` — update nav/footer
+- `compare/*/index.html` — update nav/footer (10 files)
+- `compare/*/review/index.html` — update nav/footer (10 files)
+- `sitemap.xml`, `llms.txt`, `llms-full.txt`, `feed.xml`
+
+## Approach
+**Iterative**: Build Step 1-2 first. User reviews the prototype. Once approved, batch-produce the rest with parallel subagents. This avoids rework if the design/content direction needs adjustment.
+
+## Verification
+1. `npm run build` compiles without errors
+2. All pages render correctly in browser (dark + light theme)
+3. Breadcrumb navigation works
+4. CTA links work
+5. Existing Playwright tests pass
+6. HTML validates (no broken links, proper meta tags)
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Remove this (image 1). Move the arrows to the middle (image 2). Explore more features (image 3) make sure there are all of them in the real page. Use a little bit more color on the pages, like we use in the compare e.g https://vaultaire.app/compare/vaultaire-vs-keepsafe/
+
+---
+
+[Image: source: /Users/nan/Library/Application Support/CleanShot/media/media_SGZTLeGdc9/CleanShot 2026-02-22 at 16.37.45@2x.png]
+
+[Image: source: /Users/nan/Library/Application Support/CleanShot/media/media_8zaKFd88q3/CleanShot 2026-02-22 at 16.38.01@2x.png]
+
+[Image: source: /Users/nan/Library/Application Support/CleanShot/media/media_SV9elxEjhy/CleanShot 2026-02-22 at 16.38.23@2x.png]
+
+---
+
+The text is hard to read. Try #D1D2DC for instead of 505368
+
+---
+
+Yes this looks great. I want you to update and unify the whole website, update the colors across not just these pages. Also make sure the menu is updated across the board. Because there is not that much space, you can remove faq from the menu and put features up there or something like that.
+
+---
+
+Ok, I want you to go through all pages, css and javascript and review for errors, redundancy, simplification. I want you to clean up code as much as you can and then focus on user experience across different screen sizes, readibility and seo.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial Plan**: The user provided a detailed implementation plan for expanding the Vaultaire website from 6 inline feature cards to 9 features with dedicated long-form subpages. The plan included 9 steps with specific technical details.
+
+2. **Step 1 - Feature Page CSS**: I created `styles/pages/features.css` with styles scoped under `.page-feature`. Included: hero section, info boxes, CSS/SVG diagram containers, stat callouts, CTA section, related features grid, breadcrumbs, FAQ accordion, and feature hub page styles. Added import to `styles/input.css`.
+
+3. **Step 2 - Pattern Encryption Prototype**: Created `features/pattern-encryption/index.html` with full SEO meta tags, breadcrumbs, ~2000 words of content across 6 sections, CSS diagrams (5x5 grid + encryption flow), FAQ, CTA, and related features.
+
+4. **User Feedback Round 1**: Three specific issues:
+   - Remove the article-meta section (ENCRYPTION/CORE FEATURE tags)
+   - Move flow arrows to middle (vertically center with boxes)
+   - Related features should include ALL 8 other features (was only 4)
+   - Use more color like the compare pages
+
+5. **Fixes Applied**:
+   - Removed article-meta HTML block
+   - Fixed flow arrows: set `height: 44px` + `display: flex; align-items: center` on both `.flow-arrow` and `.flow-step-box`
+   - Expanded related features from 4 to all 8
+   - Added color: h2 accent border-bottom, accent-tinted info boxes/stat cards, highlight-colored labels, accent diagram labels, stronger CTA borders, hover tints
+
+6. **User Feedback Round 2**: "The text is hard to read. Try #D1D2DC instead of 505368"
+   - Initially applied as hard-coded `#D1D2DC` values in features.css with light-mode overrides
+
+7. **User Feedback Round 3 - Major Request**: "update and unify the whole website, update the colors across not just these pages. Also make sure the menu is updated across the board. Because there is not that much space, you can remove faq from the menu and put features up there or something like that."
+
+8. **Global Updates Applied**:
+   - Changed `--text-secondary` from `#9FA1B5` to `#D1D2DC` in dark mode in both `site-shared.css` and `home.css`
+   - Cleaned up features.css to use `var(--text-secondary)` instead of hard-coded values
+   - Updated mobile nav in `alpine-app.js`: Features link → `/features/`, removed FAQ item
+   - Updated ALL 27 HTML pages: nav (Features → /features/, removed FAQ, added Compare where missing) and footer (added Features link, added Compare where missing)
+   - Final nav: Home, Features, How It Works, Security, Manifesto, Compare (6 links)
+   - Final footer: Home, Features, Manifesto, Privacy Policy, Terms of Use, Vault Invite, Compare, Support (8 links)
+
+9. **Errors during global nav/footer update**:
+   - Level-1 pages got duplicate Features links in nav (sed replaced #features→features/ AND added new Features line)
+   - Level-2 compare page footer sed didn't work (grep check was wrong)
+   - Fixed both by reading files and using Edit tool for precise corrections
+
+10. **User Request - Comprehensive Audit**: "go through all pages, css and javascript and review for errors, redundancy, simplification. I want you to clean up code as much as you can and then focus on user experience across different screen sizes, readability and seo."
+
+11. **Three parallel audit agents launched** - returned comprehensive reports:
+    - CSS Audit: Found massive duplication (home.css re-declares everything in site-shared.css), dual variable systems, unused variables/keyframes/selectors, unscoped global resets
+    - HTML/JS Audit: Missing accessibility attributes, heading hierarchy violations, inconsistent meta tags, mobile nav ARIA issues, missing JSON-LD on several pages
+    - Responsive/UX/SEO Audit: CRITICAL - features/index.html doesn't exist (404 on every page!), light mode `--text-secondary` fails WCAG AA, trust strip fails WCAG AA, feature pages missing from sitemap/llms.txt/feed.xml, various responsive issues
+
+12. **Plan mode entered** - was about to write the plan file when the summary was requested.
+
+Key files created/modified:
+- `styles/pages/features.css` - new, feature page styles
+- `styles/input.css` - added features.css import
+- `features/pattern-encryption/index.html` - new, prototype feature page
+- `styles/site-shared.css` - updated --text-secondary
+- `styles/pages/home.css` - updated --text-secondary
+- `assets/alpine-app.js` - updated mobile nav (Features link, removed FAQ)
+- All 27 HTML pages - nav and footer updates
+
+Critical pending issues discovered by audits:
+- features/index.html doesn't exist but is linked from every page (404!)
+- home.css has massive duplication with site-shared.css
+- Light mode --text-secondary (#6C6F88) fails WCAG AA contrast
+- Trust strip text fails WCAG AA in both themes
+- Feature pages missing from sitemap.xml, llms.txt, llms-full.txt, feed.xml
+- Related feature page links (8 of them) are all 404s
+- Various accessibility issues in JS-generated mobile nav
+
+Summary:
+1. Primary Request and Intent:
+   The user asked to implement a "Feature Pages Expansion Plan" for the Vaultaire website - expanding from 6 inline feature cards to 9 features, each with a dedicated long-form subpage. The plan is iterative: build CSS + one prototype page first, get approval, then batch-produce the rest. The 9 features are: Pattern Encryption, Secret Phrase, Plausible Deniability, Hidden Vaults, Duress Mode, Encrypted iCloud Backup, Secure Sharing, Security Features, and Ease of Use. Each page targets 1500-2500 words of SEO-focused content for non-technical users.
+
+   After the prototype was built, the user gave iterative feedback on design (remove meta tags, center flow arrows, show all related features, add more color, fix text readability). Then the user requested a global unification: update colors site-wide, update menus across all pages (add Features, remove FAQ). Finally, the user requested a comprehensive audit of all pages, CSS, and JavaScript for errors, redundancy, simplification, UX across screen sizes, readability, and SEO.
+
+2. Key Technical Concepts:
+   - Tailwind CSS v4.1.18 with `@tailwindcss/cli` build pipeline
+   - CSS custom properties for theming (dark/light mode via `data-theme='light'`)
+   - Two competing variable systems: site-shared.css (`--bg`, `--surface`, `--text`, `--accent`) vs home.css (`--bg-dark`, `--bg-light`, `--text-dark`, `--text-light`)
+   - Alpine.js for interactive components (`x-data="vaultaireApp()"`)
+   - Chamfered clip-path polygon design language throughout
+   - `color-mix()` CSS function for transparency effects
+   - Space Grotesk (display) + Plus Jakarta Sans (body) font pairing
+   - Page scoping via body classes: `.page-home`, `.page-feature`, `.page-compare`, etc.
+   - Mobile nav generated entirely by JavaScript (no HTML fallback)
+   - Beads issue tracking system (`bd` commands)
+
+3. Files and Code Sections:
+
+   - **`/Users/nan/Work/ai/vault/apps/web/styles/pages/features.css`** (CREATED)
+     - New CSS file for all feature subpages, scoped under `.page-feature`
+     - Contains styles for: article layout (max-width 800px), hero, info boxes, stat callouts, diagram containers (pattern grid + encryption flow), FAQ accordion, CTA section, related features grid, feature hub page
+     - Key design: h2 has `border-bottom: 2px solid var(--accent)`, info boxes use accent-tinted backgrounds, flow arrows vertically centered with `height: 44px; display: flex; align-items: center`
+     - After global color update, uses `var(--text-secondary)` for all body text (no more hard-coded `#D1D2DC`)
+
+   - **`/Users/nan/Work/ai/vault/apps/web/styles/input.css`** (MODIFIED)
+     - Added `@import "./pages/features.css";` after invite.css import
+     ```css
+     @import "./pages/invite.css";
+     @import "./pages/features.css";
+     ```
+
+   - **`/Users/nan/Work/ai/vault/apps/web/features/pattern-encryption/index.html`** (CREATED)
+     - Full prototype feature page with ~2000 words of SEO content
+     - Sections: What Is Pattern Encryption, How It Works (4 steps), The Math Behind It, Why Nobody Can Break Through, Choosing a Strong Pattern, Why You Should Feel Safe, FAQ (6 items), CTA, Related Features (all 8 others)
+     - Contains CSS diagrams: 5x5 pattern grid with `.grid-node.active` states, encryption flow diagram with `.flow-step-box` and `.flow-arrow` elements
+     - Nav: Home, Features, How It Works, Security, Manifesto, Compare (no FAQ)
+     - Footer: 8 links including Features and Compare
+
+   - **`/Users/nan/Work/ai/vault/apps/web/styles/site-shared.css`** (MODIFIED)
+     - Changed `--text-secondary: #9FA1B5` to `--text-secondary: #D1D2DC` in dark mode `:root` block
+     - Light mode `--text-secondary: #6C6F88` unchanged (but audit found this FAILS WCAG AA at 3.5:1 contrast)
+
+   - **`/Users/nan/Work/ai/vault/apps/web/styles/pages/home.css`** (MODIFIED)
+     - Changed `--text-secondary: #9FA1B5` to `--text-secondary: #D1D2DC` in dark mode `:root` block (line 23)
+
+   - **`/Users/nan/Work/ai/vault/apps/web/assets/alpine-app.js`** (MODIFIED)
+     - Mobile nav items: Changed Features href from `${prefix}index.html#features` to `${prefix}features/`
+     - Removed FAQ item entirely from the mobile nav items array
+     - Final mobile nav: Features, How it Works, Security, Manifesto, Compare (5 items, no Home, no FAQ)
+
+   - **All 27 HTML pages** (MODIFIED - nav and footer)
+     - Nav updated: Features → `/features/` hub, FAQ removed, Compare added where missing
+     - Footer updated: Features link added after Home, Compare link added where missing
+     - Pages affected: index.html, manifesto/, privacy/, terms/, s/, compare/, 10 compare competitor pages, 10 compare review pages, features/pattern-encryption/
+     - Verified: all pages have exactly 6 nav links and 8 footer links
+
+4. Errors and Fixes:
+   - **Duplicate Features links in level-1 nav**: When using sed to update level-1 pages (manifesto, privacy, terms, s, compare), the first sed changed `#features` to `features/`, and a second sed also added a new Features link (intended for the case where the original was removed). Result: duplicate Features links. Fixed by reading each file and using Edit tool to replace the duplicated block with the correct single entry plus Compare.
+   - **Level-2 compare footer sed failure**: The sed command for level-2 compare pages' footers didn't work because the grep-based conditional check had a syntax error. Fixed by running a simpler sed without the broken conditional.
+   - **Missing Compare link in compare/index.html footer**: After all batch updates, compare/index.html's footer was still missing the Compare link. Fixed with a targeted Edit.
+   - **User feedback - article-meta removal**: User showed screenshot of ENCRYPTION/CORE FEATURE tags and said "Remove this." Removed the entire `<div class="article-meta">` block from HTML.
+   - **User feedback - flow arrows**: User showed screenshot where arrows were at bottom of flow steps (aligned to the full step+label height). Fixed by setting explicit `height: 44px` on both `.flow-step-box` and `.flow-arrow` with `display: flex; align-items: center`.
+   - **User feedback - text readability**: User said text was hard to read, suggested `#D1D2DC`. Initially applied as hard-coded values per-property in features.css. Later unified by changing the global `--text-secondary` variable.
+
+5. Problem Solving:
+   - Solved the iterative design feedback loop for the prototype page (3 rounds of feedback)
+   - Solved the global nav/footer consistency problem across 27 pages
+   - Solved the color unification by changing the CSS custom property at the source rather than overriding per-component
+   - Launched comprehensive 3-agent audit that discovered critical issues (features/index.html 404, WCAG failures, massive CSS duplication)
+
+6. All User Messages:
+   - "Implement the following plan: [Feature Pages Expansion Plan with 9 steps, 9 features, detailed implementation instructions]"
+   - "Remove this (image 1). Move the arrows to the middle (image 2). Explore more features (image 3) make sure there are all of them in the real page. Use a little bit more color on the pages, like we use in the compare e.g https://vaultaire.app/compare/vaultaire-vs-keepsafe/ [3 screenshots attached]"
+   - "The text is hard to read. Try #D1D2DC for instead of 505368"
+   - "Yes this looks great. I want you to update and unify the whole website, update the colors across not just these pages. Also make sure the menu is updated across the board. Because there is not that much space, you can remove faq from the menu and put features up there or something like that."
+   - "Ok, I want you to go through all pages, css and javascript and review for errors, redundancy, simplification. I want you to clean up code as much as you can and then focus on user experience across different screen sizes, readibility and seo."
+
+7. Pending Tasks:
+   - **CRITICAL**: Create `features/index.html` hub page (currently 404 linked from every page)
+   - Clean up home.css massive duplication with site-shared.css (scope home-specific styles under `.page-home`, remove duplicated nav/header/footer/button/mobile-nav styles)
+   - Fix light mode `--text-secondary` (#6C6F88) WCAG AA contrast failure
+   - Fix trust strip WCAG AA contrast failure
+   - Update sitemap.xml with feature pages
+   - Update llms.txt and llms-full.txt with feature pages
+   - Update feed.xml with feature pages
+   - Fix heading hierarchy (homepage security section h3 without h2, compare landing h1→h3 skip)
+   - Add accessibility attributes to mobile nav (ARIA roles, aria-controls, aria-hidden, focus trap)
+   - Add JSON-LD to manifesto and review pages
+   - Fix breadcrumb accessibility on review pages
+   - Add `role="img"` and `aria-label` to homepage canvas
+   - Remove unused CSS: variables (`--app-*`, `--angle-sharp`, `--border-width`, `--x-angle`, `--pattern-link`), selectors (`.text-gradient`, `.highlight-text`, `.btn-secondary`), keyframes (`loaderPulse`, `pulse`)
+   - Consolidate privacy.css and terms.css into shared legal styles
+   - Fix responsive issues (flow diagram wrapping at 400-768px, footer touch targets, footer-compare 5-col at tablet)
+   - Block draft/test pages in robots.txt
+   - Build remaining 8 feature pages (Steps 4-9 of original plan, pending prototype approval)
+
+8. Current Work:
+   I had just entered plan mode to design the implementation approach for the comprehensive audit and cleanup requested by the user. Three parallel audit agents completed their analysis and returned detailed reports covering:
+   - CSS audit: Found home.css duplicates everything in site-shared.css, dual variable systems, unused code
+   - HTML/JS audit: Accessibility gaps, missing structured data, heading hierarchy issues
+   - Responsive/UX/SEO audit: Critical 404 (features/index.html missing), WCAG failures, missing SEO files
+
+   I was about to write the plan file at `/Users/nan/.claude/plans/sunny-napping-goblet.md` based on these audit findings before calling ExitPlanMode for user approval.
+
+9. Optional Next Step:
+   Write the comprehensive cleanup plan to the plan file based on the three audit reports, prioritizing: (1) the critical features/index.html 404 fix, (2) home.css deduplication/refactoring, (3) WCAG contrast fixes, (4) SEO file updates, (5) accessibility improvements, (6) responsive fixes. Then call ExitPlanMode for user approval before implementing.
+
+   The user's most recent request was: "Ok, I want you to go through all pages, css and javascript and review for errors, redundancy, simplification. I want you to clean up code as much as you can and then focus on user experience across different screen sizes, readibility and seo."
+
+   I was in plan mode Phase 1→2 transition, having completed exploration with three audit agents, and needed to write the plan file and present it for approval.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+[Request interrupted by user for tool use]
