@@ -193,6 +193,7 @@ extension VaultView {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea(.container, edges: .top) // Ignore top safe area to prevent jumping when toolbar changes
         .accessibilityIdentifier("vault_empty_state_container")
     }
 
