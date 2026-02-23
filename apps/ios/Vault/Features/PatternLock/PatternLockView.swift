@@ -87,9 +87,11 @@ struct PatternLockView: View {
                 .frame(height: 120)
             }
 
-            // Main content area - centered
+            // Main content area - centered with fixed spacer heights for precise centering
             VStack(spacing: 0) {
-                Spacer()
+                // Fixed top spacer to push pattern toward center (120pt centers pattern on most screens)
+                Color.clear
+                    .frame(height: 120)
 
                 // Pattern Grid - fixed position, never moves
                 PatternGridView(
@@ -136,7 +138,9 @@ struct PatternLockView: View {
                 }
                 .frame(height: 80)
 
-                Spacer()
+                // Bottom spacer fills remaining space
+                Color.clear
+                    .frame(maxHeight: .infinity)
             }
             .frame(maxHeight: .infinity)
 
