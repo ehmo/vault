@@ -20,6 +20,7 @@ struct VaultSettingsView: View {
     @State private var showingDuressConfirmation = false
     @State private var isDuressVault = false
     @State private var pendingDuressValue = false
+    @State private var hasLoadedDuressState = false
     @State private var activeUploadCount = 0
     @State private var fileCount = 0
     @State private var storageUsed: Int64 = 0
@@ -270,6 +271,8 @@ struct VaultSettingsView: View {
                 isDuressVault = oldValue
                 return
             }
+            // Only process changes after initial load - ignore the change when view initializes
+            guard hasLoadedDuressState else { return }
             if newValue != oldValue {
                 pendingDuressValue = newValue
                 if newValue {
@@ -475,6 +478,7 @@ struct VaultSettingsView: View {
                     isSharedVault = shared
                     activeShareCount = shareCount
                     activeUploadCount = uploadCount
+                    hasLoadedDuressState = true
                 }
             } catch {
                 vaultSettingsLogger.error("Failed to load vault statistics: \(error.localizedDescription, privacy: .public)")
