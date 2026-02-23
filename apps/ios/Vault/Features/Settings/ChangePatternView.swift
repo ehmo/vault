@@ -158,13 +158,11 @@ struct ChangePatternView: View {
                 // Content based on step
                 switch step {
                 case .verifyCurrent, .createNew, .confirmNew:
-                    // Fixed container to center pattern board with feedback below
-                    VStack(spacing: 12) {
-                        // Spacer to push pattern toward center
-                        Color.clear
-                            .frame(height: 20)
+                    // Main content area - centered with pattern + feedback
+                    VStack(spacing: 0) {
+                        Spacer()
                         
-                        // Pattern board - fixed position
+                        // Pattern board - fixed position, never moves
                         patternInputSection
 
                         // Validation feedback - BELOW the pattern, fixed height
@@ -188,11 +186,9 @@ struct ChangePatternView: View {
                                 Color.clear
                             }
                         }
-                        .frame(minHeight: 80, maxHeight: 80)
+                        .frame(height: 80)
                         
-                        // Spacer to fill remaining space
-                        Color.clear
-                            .frame(maxHeight: .infinity)
+                        Spacer()
                     }
                     .frame(maxHeight: .infinity)
 

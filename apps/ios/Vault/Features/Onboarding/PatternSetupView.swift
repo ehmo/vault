@@ -60,34 +60,38 @@ struct PatternSetupView: View {
             // Content based on step
             switch step {
             case .create, .confirm:
-                Spacer()
-                
-                // Pattern board - fixed position, never moves
-                patternInputSection
+                // Main content area - centered with pattern + feedback
+                VStack(spacing: 0) {
+                    Spacer()
+                    
+                    // Pattern board - fixed position, never moves
+                    patternInputSection
 
-                // Validation feedback - BELOW the pattern, fixed height prevents layout shift
-                Group {
-                    if let result = validationResult, step == .create {
-                        PatternValidationFeedbackView(result: result)
-                    } else if let error = errorMessage {
-                        HStack {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.vaultHighlight)
-                            Text(error)
-                                .font(.caption)
+                    // Validation feedback - BELOW the pattern, fixed height prevents layout shift
+                    Group {
+                        if let result = validationResult, step == .create {
+                            PatternValidationFeedbackView(result: result)
+                        } else if let error = errorMessage {
+                            HStack {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.vaultHighlight)
+                                Text(error)
+                                    .font(.caption)
+                            }
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .vaultGlassBackground(cornerRadius: 12)
+                            .transition(.scale.combined(with: .opacity))
+                            .accessibilityIdentifier("pattern_error_message")
+                        } else {
+                            Color.clear
                         }
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .vaultGlassBackground(cornerRadius: 12)
-                        .transition(.scale.combined(with: .opacity))
-                        .accessibilityIdentifier("pattern_error_message")
-                    } else {
-                        Color.clear
                     }
+                    .frame(height: 80)
+                    
+                    Spacer()
                 }
-                .frame(minHeight: 80, maxHeight: 80)
-                
-                Spacer()
+                .frame(maxHeight: .infinity)
 
             case .recovery:
                 recoveryScrollSection

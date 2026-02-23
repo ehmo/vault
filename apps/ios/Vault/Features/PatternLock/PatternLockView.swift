@@ -51,10 +51,8 @@ struct PatternLockView: View {
     }
 
     var body: some View {
-        VStack(spacing: 40) {
-            Spacer()
-
-            // Header
+        VStack(spacing: 0) {
+            // Header - fixed height
             VStack(spacing: 8) {
                 Image(systemName: "lock.shield.fill")
                     .font(.system(size: 48))
@@ -65,6 +63,7 @@ struct PatternLockView: View {
                     .font(.title2)
                     .fontWeight(.medium)
             }
+            .frame(height: 100)
 
             // VoiceOver: promote recovery phrase above grid
             if isVoiceOverActive {
@@ -85,71 +84,85 @@ struct PatternLockView: View {
                     .padding(.horizontal, 40)
                     .accessibilityHint("Unlock vault using your recovery phrase instead of drawing a pattern")
                 }
+                .frame(height: 120)
             }
 
-            Spacer()
+            // Main content area - centered
+            VStack(spacing: 0) {
+                Spacer()
 
-            // Pattern Grid - fixed position, never moves
-            PatternGridView(
-                state: patternState,
-                showFeedback: $showFeedback,
-                onPatternComplete: handlePatternComplete
-            )
-            .frame(width: 280, height: 280)
-            .disabled(isProcessing || isLockedOut)
-            .opacity(isLockedOut ? 0.3 : patternGridOpacity)
-            .accessibilityIdentifier("unlock_pattern_grid")
+                // Pattern Grid - fixed position, never moves
+                PatternGridView(
+                    state: patternState,
+                    showFeedback: $showFeedback,
+                    onPatternComplete: handlePatternComplete
+                )
+                .frame(width: 280, height: 280)
+                .disabled(isProcessing || isLockedOut)
+                .opacity(isLockedOut ? 0.3 : patternGridOpacity)
+                .accessibilityIdentifier("unlock_pattern_grid")
 
-            // Error / lockout message - BELOW the pattern, fixed height prevents layout shift
-            Group {
-                if isLockedOut {
-                    VStack(spacing: 4) {
-                        Text("Too many attempts")
-                            .font(.subheadline.weight(.medium))
-                        Text(formatCountdown(lockoutRemaining))
-                            .font(.title2.monospacedDigit().weight(.semibold))
+                // Error / lockout message - BELOW the pattern, fixed height prevents layout shift
+                Group {
+                    if isLockedOut {
+                        VStack(spacing: 4) {
+                            Text("Too many attempts")
+                                .font(.subheadline.weight(.medium))
+                            Text(formatCountdown(lockoutRemaining))
+                                .font(.title2.monospacedDigit().weight(.semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(Color.vaultHighlight.opacity(0.9))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .transition(.scale.combined(with: .opacity))
+                        .accessibilityIdentifier("unlock_lockout_countdown")
+                    } else if showError, let message = errorMessage {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.circle.fill")
+                            Text(message)
+                                .font(.subheadline)
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color.vaultHighlight.opacity(0.9))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .transition(.scale.combined(with: .opacity))
+                    } else {
+                        Color.clear
                     }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .background(Color.vaultHighlight.opacity(0.9))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .transition(.scale.combined(with: .opacity))
-                    .accessibilityIdentifier("unlock_lockout_countdown")
-                } else if showError, let message = errorMessage {
-                    HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.circle.fill")
-                        Text(message)
-                            .font(.subheadline)
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Color.vaultHighlight.opacity(0.9))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .transition(.scale.combined(with: .opacity))
-                } else {
-                    Color.clear
                 }
-            }
-            .frame(minHeight: 80, maxHeight: 80)
+                .frame(height: 80)
 
-            // Fixed spacer instead of flexible
-            Color.clear
-                .frame(height: 20)
+                Spacer()
+            }
+            .frame(maxHeight: .infinity)
 
             // Options (hidden when VoiceOver promotes recovery above)
-            if !isVoiceOverActive {
-                VStack(spacing: 12) {
-                    Button(action: { showRecoveryOption = true }) {
-                        Text("Use recovery phrase")
-                            .font(.subheadline)
-                            .foregroundStyle(.vaultSecondaryText)
-                            .frame(minHeight: 44)
-                    }
-                    .accessibilityIdentifier("unlock_recovery_link")
-                    .accessibilityHint("Unlock vault using your recovery phrase instead of drawing a pattern")
+            Group {
+                if !isVoiceOverActive {
+                    VStack(spacing: 12) {
+                        Button(action: { showRecoveryOption = true }) {
+                            Text("Use recovery phrase")
+                                .font(.subheadline)
+                                .foregroundStyle(.vaultSecondaryText)
+                                .frame(minHeight: 44)
+                        }
+                        .accessibilityIdentifier("unlock_recovery_link")
+                        .accessibilityHint("Unlock vault using your recovery phrase instead of drawing a pattern")
 
+                        Button(action: { showJoinSharedVault = true }) {
+                            Text("Join shared vault")
+                                .font(.subheadline)
+                                .foregroundStyle(.vaultSecondaryText)
+                                .frame(minHeight: 44)
+                        }
+                        .accessibilityIdentifier("unlock_join_link")
+                        .accessibilityHint("Enter a share phrase to access a vault shared with you")
+                    }
+                } else {
                     Button(action: { showJoinSharedVault = true }) {
                         Text("Join shared vault")
                             .font(.subheadline)
@@ -159,18 +172,8 @@ struct PatternLockView: View {
                     .accessibilityIdentifier("unlock_join_link")
                     .accessibilityHint("Enter a share phrase to access a vault shared with you")
                 }
-            } else {
-                Button(action: { showJoinSharedVault = true }) {
-                    Text("Join shared vault")
-                        .font(.subheadline)
-                        .foregroundStyle(.vaultSecondaryText)
-                        .frame(minHeight: 44)
-                }
-                .accessibilityIdentifier("unlock_join_link")
-                .accessibilityHint("Enter a share phrase to access a vault shared with you")
             }
-
-            Spacer()
+            .frame(height: 100)
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
