@@ -158,7 +158,8 @@ struct JoinVaultView: View {
                 .accessibilityIdentifier("join_phrase_input")
 
             Button(action: {
-                if subscriptionManager.isPremium {
+                let vaultCount = VaultStorage.shared.existingVaultCount()
+                if subscriptionManager.canJoinSharedVault(currentCount: vaultCount) {
                     joinVault()
                 } else {
                     showingPaywall = true

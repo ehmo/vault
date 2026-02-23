@@ -220,6 +220,38 @@ final class SubscriptionManagerTests: XCTestCase {
         manager.hasPremiumOverride = originalValue
     }
 
+    // MARK: - Regression: Join vs Create Shared Vault
+
+    /// Regression test: Joining (receiving) a shared vault is free-tier with limits,
+    /// while creating (sharing) a vault is premium-only. These must never be conflated.
+    func testFreeUserCanJoinButNotCreateSharedVault() {
+        let client = MockSubscriptionClient(isPremium: false)
+
+        // Free users CAN join/receive shared vaults (up to limit)
+        XCTAssertTrue(client.canJoinSharedVault(currentCount: 0),
+                       "Free users must be able to receive shared vaults")
+        XCTAssertTrue(client.canJoinSharedVault(currentCount: 9),
+                       "Free users must be able to receive shared vaults under the limit")
+
+        // Free users CANNOT create/share vaults
+        XCTAssertFalse(client.canCreateSharedVault(),
+                        "Only premium users can share vaults")
+    }
+
+    func testFreeUserJoinSharedVaultBlockedOnlyAtLimit() {
+        let client = MockSubscriptionClient(isPremium: false)
+
+        // Should be allowed right up to the limit
+        for count in 0..<SubscriptionManager.maxFreeSharedVaults {
+            XCTAssertTrue(client.canJoinSharedVault(currentCount: count),
+                           "Free user should be able to join shared vault at count \(count)")
+        }
+
+        // Blocked at and above the limit
+        XCTAssertFalse(client.canJoinSharedVault(currentCount: SubscriptionManager.maxFreeSharedVaults))
+        XCTAssertFalse(client.canJoinSharedVault(currentCount: SubscriptionManager.maxFreeSharedVaults + 1))
+    }
+
     // MARK: - Brute Force Delay (PatternLockView)
 
     func testBruteForceDelayProgressiveSchedule() {

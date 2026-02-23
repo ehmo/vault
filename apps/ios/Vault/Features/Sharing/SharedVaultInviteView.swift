@@ -171,7 +171,8 @@ struct SharedVaultInviteView: View {
                     
                     switch result {
                     case .success:
-                        if subscriptionManager.isPremium {
+                        let vaultCount = VaultStorage.shared.existingVaultCount()
+                        if subscriptionManager.canJoinSharedVault(currentCount: vaultCount) {
                             mode = .patternSetup
                         } else {
                             showingPaywall = true
