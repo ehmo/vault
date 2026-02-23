@@ -11,6 +11,7 @@ struct PhraseDisplayCard: View {
             .font(.title3)
             .fontWeight(.medium)
             .multilineTextAlignment(.center)
+            .lineLimit(nil)
             .padding()
             .frame(maxWidth: .infinity)
             .vaultGlassBackground(cornerRadius: 12)

@@ -561,6 +561,7 @@ struct iCloudBackupSettingsView: View {
             Text("iCloud is not available. Sign in to iCloud in Settings to enable backups.")
                 .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
+                .lineLimit(nil)
                 .padding(.horizontal)
 
             Button { SettingsURLHelper.openICloudSettings() } label: {

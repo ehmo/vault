@@ -33,6 +33,7 @@ struct PermissionsView: View {
                 .font(.subheadline)
                 .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
+                .lineLimit(nil)
                 .padding(.horizontal, 24)
 
             VStack(spacing: 16) {
