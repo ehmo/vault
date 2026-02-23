@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "fb2d24ae7260",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Features/Onboarding/PatternSetupView.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/fb/2d24ae7260/0/metadata.json",
+      "transcript": "/fb/2d24ae7260/0/full.jsonl",
+      "context": "/fb/2d24ae7260/0/context.md",
+      "content_hash": "/fb/2d24ae7260/0/content_hash.txt",
+      "prompt": "/fb/2d24ae7260/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 51670,
+    "cache_read_tokens": 386796,
+    "output_tokens": 99,
+    "api_call_count": 10
+  }
+}
