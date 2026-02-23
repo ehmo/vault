@@ -30,6 +30,7 @@ struct PhraseActionButtons: View {
                 HStack(spacing: 6) {
                     Image(systemName: copied ? "checkmark" : "doc.on.doc")
                     Text(copied ? "Copied!" : "Copy")
+                        .frame(minWidth: 50) // Fixed minWidth to prevent layout shift
                 }
                 .frame(maxWidth: .infinity)
             }
