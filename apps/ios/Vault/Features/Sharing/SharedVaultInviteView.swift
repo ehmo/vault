@@ -106,7 +106,8 @@ struct SharedVaultInviteView: View {
             
             // Calculate and log the vaultId
             let vaultId = CloudKitSharingManager.vaultId(from: trimmed)
-            debugLines.append("VaultID: \(vaultId.prefix(16))...")
+            debugLines.append("VaultID: \(vaultId)")
+            debugLines.append("Container: iCloud.app.vaultaire.shared")
             
             // Retry phrase availability check up to 6 times (CloudKit public DB has eventual consistency)
             // Delays: 1s, 2s, 3s, 5s, 8s, 13s (Fibonacci) = 32 seconds total
