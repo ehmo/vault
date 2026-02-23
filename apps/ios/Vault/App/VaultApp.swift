@@ -279,33 +279,7 @@ final class AppState {
             isUnlocked = true
             isLoading = false
 
-            // Check if this is a shared vault
-            let indexSpan = EmbraceManager.shared.startSpan(parent: transaction, operation: "storage.index_load", description: "Load vault index")
-            if let index = try? VaultStorage.shared.loadIndex(with: VaultKey(key)) {
-                isSharedVault = index.isSharedVault ?? false
-                if let custom = index.customName, !custom.isEmpty {
-                    vaultName = custom
-                }
-                let fileCount = index.files.filter { !$0.isDeleted }.count
-                transaction.setTag(value: "\(fileCount)", key: "fileCount")
-            }
-            indexSpan.finish()
-
-            // Clean up expired staged imports (older than 24h)
-            StagedImportManager.cleanupExpiredBatches()
-            StagedImportManager.cleanupOrphans()
-
-            // Check for pending imports from share extension
-            let fingerprint = KeyDerivation.keyFingerprint(from: key)
-            let pending = StagedImportManager.pendingBatches(for: fingerprint)
-            if !pending.isEmpty {
-                pendingImportCount = pending.reduce(0) { $0 + $1.files.count }
-                hasPendingImports = true
-            }
-
-            ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "vault_unlocked")
-
-            transaction.finish(status: .ok)
+            performPostUnlockSetup(key: key, transaction: transaction)
 
             Self.logger.info("Vault unlocked: name=\(self.vaultName, privacy: .public), shared=\(self.isSharedVault)")
 
@@ -353,7 +327,14 @@ final class AppState {
         isUnlocked = true
         isLoading = false
         
-        // Check if this is a shared vault
+        performPostUnlockSetup(key: key, transaction: transaction)
+
+        Self.logger.info("Vault unlocked via recovery: shared=\(self.isSharedVault)")
+    }
+
+    /// Shared post-unlock setup: index loading, staged import cleanup, and upload resume.
+    /// Called by both unlockWithPattern and unlockWithKey to eliminate duplication.
+    private func performPostUnlockSetup(key: Data, transaction: SpanHandle) {
         let indexSpan = EmbraceManager.shared.startSpan(parent: transaction, operation: "storage.index_load", description: "Load vault index")
         if let index = try? VaultStorage.shared.loadIndex(with: VaultKey(key)) {
             isSharedVault = index.isSharedVault ?? false
@@ -365,11 +346,9 @@ final class AppState {
         }
         indexSpan.finish()
 
-        // Clean up expired staged imports (older than 24h)
         StagedImportManager.cleanupExpiredBatches()
         StagedImportManager.cleanupOrphans()
 
-        // Check for pending imports from share extension
         let fingerprint = KeyDerivation.keyFingerprint(from: key)
         let pending = StagedImportManager.pendingBatches(for: fingerprint)
         if !pending.isEmpty {
@@ -378,10 +357,7 @@ final class AppState {
         }
 
         ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "vault_unlocked")
-
         transaction.finish(status: .ok)
-
-        Self.logger.info("Vault unlocked via recovery: shared=\(self.isSharedVault)")
     }
 
     func updateVaultName(_ name: String) {
