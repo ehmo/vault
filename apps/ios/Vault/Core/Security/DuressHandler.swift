@@ -1,3 +1,4 @@
+import BackgroundTasks
 import Foundation
 import os.log
 
@@ -76,7 +77,11 @@ actor DuressHandler {
         // Non-duress indexes are encrypted with unknown keys and are destroyed in step 4.
         await revokeActiveShares(from: duressIndex)
         
-        // 3. Destroy all recovery phrase data EXCEPT for the duress vault
+        // 3. Reset iCloud backup clock to prevent auto-backup from overwriting
+        // the full backup with duress-only data. Gives 24h restore window.
+        resetBackupClock()
+
+        // 4. Destroy all recovery phrase data EXCEPT for the duress vault
         do {
             try RecoveryPhraseManager.shared.destroyAllRecoveryData()
             Self.logger.debug("All recovery data destroyed")
@@ -84,14 +89,14 @@ actor DuressHandler {
             Self.logger.error("Error destroying recovery data: \(error.localizedDescription, privacy: .public)")
         }
         
-        // 4. The blob file contains data for ALL vaults
+        // 5. The blob file contains data for ALL vaults
         // Solution: Keep the blob intact, but all other indexes will be destroyed
         // Only the duress vault's index will exist, so only it can be accessed
         storage.destroyAllIndexesExcept(VaultKey(duressKey))
-        
+
         Self.logger.debug("All vault indexes destroyed except duress vault")
-        
-        // 5. Regenerate recovery phrase for duress vault only
+
+        // 6. Regenerate recovery phrase for duress vault only
         let newPhrase = RecoveryPhraseGenerator.shared.generatePhrase()
         do {
             try await RecoveryPhraseManager.shared.saveRecoveryPhrase(
@@ -101,7 +106,7 @@ actor DuressHandler {
                 patternKey: duressKey
             )
             
-            // 6. Clear the duress vault designation
+            // 7. Clear the duress vault designation
             // This allows the user to continue using this vault normally after duress is triggered
             clearDuressVault()
             
@@ -128,6 +133,23 @@ actor DuressHandler {
                 Self.logger.error("Failed to revoke share \(share.id) during duress: \(error.localizedDescription)")
             }
         }
+    }
+
+    /// Resets iCloud backup state to prevent auto-backup from overwriting
+    /// the existing full backup with post-duress (minimal) data.
+    /// - Stamps lastBackupTimestamp to now → 24h before next auto-backup
+    /// - Clears staged/pending backup chunks so they can't upload
+    /// - Cancels scheduled background backup tasks
+    private func resetBackupClock() {
+        UserDefaults.standard.set(
+            Date().timeIntervalSince1970,
+            forKey: "lastBackupTimestamp"
+        )
+        iCloudBackupManager.shared.clearStagingDirectory()
+        BGTaskScheduler.shared.cancel(
+            taskRequestWithIdentifier: iCloudBackupManager.backgroundBackupTaskIdentifier
+        )
+        Self.logger.info("iCloud backup clock reset — 24h restore window active")
     }
 
     private func destroyAllNonDuressData(duressKey: Data?) async {
