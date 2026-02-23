@@ -143,9 +143,11 @@ extension VaultView {
                     .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
             } else {
-                Spacer()
+                // Fixed spacer height instead of flexible Spacer to prevent layout jump
+                Color.clear
+                    .frame(height: 40)
 
-                // 3-step walkthrough
+                // 3-step walkthrough with fixed container height
                 VStack(spacing: 12) {
                     walkthroughCard(
                         icon: "plus.circle.fill",
@@ -163,8 +165,11 @@ extension VaultView {
                         description: "Your pattern is the only key. Not even us."
                     )
                 }
+                .frame(minHeight: 240)
 
-                Spacer()
+                // Fixed spacer height instead of flexible Spacer
+                Color.clear
+                    .frame(height: 40)
 
                 Button(action: {
                     if subscriptionManager.canAddFile(currentFileCount: viewModel.files.count) {
@@ -184,7 +189,7 @@ extension VaultView {
             }
         }
         .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("vault_empty_state_container")
     }
 
