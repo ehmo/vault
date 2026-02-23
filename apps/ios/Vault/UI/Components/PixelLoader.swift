@@ -1,10 +1,11 @@
 import SwiftUI
 import Combine
+import UIKit
 
 // MARK: - PixelLoader
 
 /// Unified pixel loader with trailing snake animation.
-/// 
+///
 /// Features:
 /// - Left-to-right snake pattern (row-major: 1→2→3→4→5→6→7→8→9)
 /// - Explicit trailing cells with decreasing opacity (head + 2 trailing)
@@ -19,15 +20,15 @@ struct PixelLoader: View {
 
     // Animation state
     @State private var step: Int = 0
+    @State private var timerCancellable: AnyCancellable?
 
     // Row-major order: left to right, top to bottom
     private static let path = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     // Trail opacities: head + 2 trailing cells
+    // These work with 0.1s timer interval and 0.3s animation duration
+    // to create a smooth trail of ~3 visible cells
     private static let trailOpacities: [Double] = [1.0, 0.66, 0.33]
-
-    // Timer for animation
-    private let timer = Timer.publish(every: 0.12, on: .main, in: .common).autoconnect()
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -53,16 +54,19 @@ struct PixelLoader: View {
             }
         }
         .frame(width: size, height: size)
-        .onReceive(timer) { _ in
-            withAnimation(.smooth(duration: 0.25)) {
-                step = (step + 1) % Self.path.count
-            }
+        .onAppear {
+            startTimer()
+        }
+        .onDisappear {
+            stopTimer()
         }
     }
 
     /// Compute opacity for each cell based on trail position.
     private func cellOpacities() -> [Int: Double] {
         let pathLen = Self.path.count
+        guard pathLen > 0 else { return [:] }
+
         let headIndex = step % pathLen
         var map: [Int: Double] = [:]
 
@@ -83,6 +87,27 @@ struct PixelLoader: View {
         // Lighten more aggressively for better visibility in dark mode
         return Color(UIColor(color).lighter(by: 0.45))
     }
+
+    /// Start the animation timer.
+    private func startTimer() {
+        // Only start if not already running
+        guard timerCancellable == nil else { return }
+        
+        timerCancellable = Timer.publish(every: 0.1, on: .main, in: .common)
+            .autoconnect()
+            .sink { _ in
+                guard !Self.path.isEmpty else { return }
+                withAnimation(.smooth(duration: 0.3)) {
+                    step = (step + 1) % Self.path.count
+                }
+            }
+    }
+
+    /// Stop the animation timer to prevent memory leaks.
+    private func stopTimer() {
+        timerCancellable?.cancel()
+        timerCancellable = nil
+    }
 }
 
 // MARK: - PixelCell
@@ -96,21 +121,15 @@ private struct PixelCell: View {
     private var isOn: Bool { opacity > 0 }
 
     var body: some View {
-        // Stack multiple rectangles for stronger glow
-        ZStack {
-            ForEach(0..<5, id: \.self) { _ in
-                Rectangle()
-                    .foregroundStyle(isOn ? color.opacity(opacity) : .clear)
-                    .frame(width: size, height: size)
-            }
-        }
-        // Shadow overlay for glow effect
-        .shadow(
-            color: isOn ? color.opacity(opacity * 0.9) : .clear,
-            radius: shadowRadius,
-            x: 0,
-            y: 0
-        )
+        Rectangle()
+            .foregroundStyle(isOn ? color.opacity(opacity) : .clear)
+            .frame(width: size, height: size)
+            .shadow(
+                color: isOn ? color.opacity(opacity * 0.9) : .clear,
+                radius: shadowRadius,
+                x: 0,
+                y: 0
+            )
     }
 }
 
@@ -118,7 +137,7 @@ private struct PixelCell: View {
 
 extension PixelLoader {
     /// The unified standard loader used everywhere in the app.
-    /// 
+    ///
     /// - Parameter size: Total size of the loader (default 60pt)
     /// - Returns: A configured PixelLoader with trailing snake animation
     static func standard(size: CGFloat = 60) -> PixelLoader {
@@ -129,6 +148,16 @@ extension PixelLoader {
     /// Same appearance as standard(), just smaller.
     static func compact(size: CGFloat = 24) -> PixelLoader {
         PixelLoader(size: size)
+    }
+
+    /// Returns a new PixelLoader with the specified color.
+    /// - Parameter color: The color to use for the pixels
+    /// - Returns: A new PixelLoader instance with the updated color
+    func color(_ newColor: Color) -> some View {
+        // Use id() to force view identity change when color changes
+        // This ensures proper state isolation between different colored loaders
+        PixelLoader(size: size, color: newColor)
+            .id("pixel-loader-\(size)-\(newColor.hashValue)")
     }
 }
 
@@ -155,7 +184,7 @@ private extension UIColor {
 #Preview("Standard - Light") {
     PixelLoader.standard(size: 80)
         .padding()
-        .background(Color.vaultBackground)
+        .background(Color.gray.opacity(0.1))
 }
 
 #Preview("Standard - Dark") {
@@ -168,5 +197,27 @@ private extension UIColor {
 #Preview("Compact") {
     PixelLoader.compact(size: 24)
         .padding()
-        .background(Color.vaultBackground)
+        .background(Color.gray.opacity(0.1))
+}
+
+#Preview("Custom Color") {
+    PixelLoader.standard(size: 60)
+        .color(.red)
+        .padding()
+        .background(Color.gray.opacity(0.1))
+}
+
+#Preview("Multiple Colors") {
+    HStack(spacing: 20) {
+        PixelLoader.standard(size: 40)
+            .color(.accentColor)
+        PixelLoader.standard(size: 40)
+            .color(.red)
+        PixelLoader.standard(size: 40)
+            .color(.green)
+        PixelLoader.standard(size: 40)
+            .color(.white)
+    }
+    .padding()
+    .background(Color.black)
 }
