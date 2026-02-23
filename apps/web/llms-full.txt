@@ -15,6 +15,14 @@
 
 - [Features Hub](https://vaultaire.app/features/): Feature directory.
 - [Pattern Encryption](https://vaultaire.app/features/pattern-encryption/): How pattern-based encryption works.
+- [Secret Phrase](https://vaultaire.app/features/secret-phrase/): BIP-39 recovery phrase for vault access.
+- [Plausible Deniability](https://vaultaire.app/features/plausible-deniability/): Decoy vaults with multiple patterns.
+- [Hidden Vaults](https://vaultaire.app/features/hidden-vaults/): Unlimited vaults per device.
+- [Duress Mode](https://vaultaire.app/features/duress-mode/): Emergency pattern for vault destruction.
+- [Encrypted iCloud Backup](https://vaultaire.app/features/encrypted-icloud-backup/): Off-site encrypted backup.
+- [Secure Sharing](https://vaultaire.app/features/secure-sharing/): Time-limited vault sharing.
+- [Security Architecture](https://vaultaire.app/features/security-features/): AES-256-GCM, Argon2id, ChaCha20 stack.
+- [Ease of Use](https://vaultaire.app/features/ease-of-use/): Simple UX with military-grade security.
 
 ## Compare Pages
 
