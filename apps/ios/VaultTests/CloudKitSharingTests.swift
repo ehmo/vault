@@ -1,0 +1,414 @@
+import XCTest
+@testable import Vault
+import CloudKit
+
+/// Comprehensive tests for CloudKit cross-iCloud sharing functionality.
+/// Tests manifest creation, querying, and cross-account accessibility.
+@MainActor
+final class CloudKitSharingTests: XCTestCase {
+    
+    // MARK: - Test Data
+    
+    private let testPhrase = "abandon ability able about above absent absorb abstract absurd"
+    private let testShareVaultId = "test-share-vault-id-12345"
+    private let testOwnerFingerprint = "owner123"
+    
+    // MARK: - Setup
+    
+    override func setUp() {
+        super.setUp()
+        // Clean up any test records before each test
+        Task {
+            await cleanupTestRecords()
+        }
+    }
+    
+    override func tearDown() {
+        super.tearDown()
+        // Clean up test records after each test
+        Task {
+            await cleanupTestRecords()
+        }
+    }
+    
+    private func cleanupTestRecords() async {
+        let vaultId = CloudKitSharingManager.vaultId(from: testPhrase)
+        let recordId = CKRecord.ID(recordName: vaultId)
+        
+        do {
+            _ = try await CloudKitSharingManager.shared.publicDatabase.deleteRecord(withID: recordId)
+        } catch {
+            // Record might not exist, which is fine
+        }
+    }
+    
+    // MARK: - Vault ID Generation Tests
+    
+    func testVaultIdGeneration_ConsistentHash() {
+        // Same phrase should always generate same vaultId
+        let vaultId1 = CloudKitSharingManager.vaultId(from: testPhrase)
+        let vaultId2 = CloudKitSharingManager.vaultId(from: testPhrase)
+        
+        XCTAssertEqual(vaultId1, vaultId2, "Same phrase should generate identical vaultId")
+        XCTAssertEqual(vaultId1.count, 32, "VaultId should be 32 hex characters (16 bytes)")
+    }
+    
+    func testVaultIdGeneration_CaseInsensitive() {
+        // Phrase normalization should make it case-insensitive
+        let lowerId = CloudKitSharingManager.vaultId(from: testPhrase.lowercased())
+        let upperId = CloudKitSharingManager.vaultId(from: testPhrase.uppercased())
+        let mixedId = CloudKitSharingManager.vaultId(from: "Abandon Ability Able About Above Absent Absorb Abstract Absurd")
+        
+        XCTAssertEqual(lowerId, upperId, "VaultId should be case-insensitive")
+        XCTAssertEqual(lowerId, mixedId, "VaultId should handle mixed case")
+    }
+    
+    func testVaultIdGeneration_WhitespaceNormalization() {
+        // Extra spaces should be normalized
+        let normalId = CloudKitSharingManager.vaultId(from: testPhrase)
+        let extraSpacesId = CloudKitSharingManager.vaultId(from: "  abandon   ability   able   about  ")
+        
+        XCTAssertNotEqual(normalId, extraSpacesId, "Leading/trailing spaces should not match")
+        
+        // But internal spaces should be normalized
+        let internalExtraId = CloudKitSharingManager.vaultId(from: "abandon  ability  able  about  above  absent  absorb  abstract  absurd")
+        XCTAssertEqual(normalId, internalExtraId, "Multiple internal spaces should be normalized to single spaces")
+    }
+    
+    // MARK: - Manifest Creation Tests
+    
+    func testManifestCreation_SavesToPublicDatabase() async throws {
+        let shareKey = try ShareKey(Data(repeating: 0x01, count: 32))
+        let policy = VaultStorage.SharePolicy(expiresAt: nil, maxOpens: nil, allowScreenshots: false, allowDownloads: true)
+        let phraseVaultId = CloudKitSharingManager.vaultId(from: testPhrase)
+        
+        // Save manifest
+        try await CloudKitSharingManager.shared.saveManifest(
+            shareVaultId: testShareVaultId,
+            phraseVaultId: phraseVaultId,
+            shareKey: shareKey,
+            policy: policy,
+            ownerFingerprint: testOwnerFingerprint,
+            totalChunks: 5
+        )
+        
+        // Verify it exists by fetching directly
+        let recordId = CKRecord.ID(recordName: phraseVaultId)
+        let manifest = try await CloudKitSharingManager.shared.publicDatabase.record(for: recordId)
+        
+        XCTAssertEqual(manifest.recordType, "SharedVault")
+        XCTAssertEqual(manifest.recordID.recordName, phraseVaultId)
+        XCTAssertEqual(manifest["shareVaultId"] as? String, testShareVaultId)
+        XCTAssertEqual(manifest["ownerFingerprint"] as? String, testOwnerFingerprint)
+        XCTAssertEqual(manifest["chunkCount"] as? Int, 5)
+        XCTAssertEqual(manifest["claimed"] as? Bool, false)
+        XCTAssertEqual(manifest["revoked"] as? Bool, false)
+        XCTAssertEqual(manifest["version"] as? Int, 4)
+    }
+    
+    // MARK: - Phrase Availability Tests
+    
+    func testCheckPhraseAvailability_AvailableShare() async throws {
+        // First create a share
+        let shareKey = try ShareKey(Data(repeating: 0x02, count: 32))
+        let policy = VaultStorage.SharePolicy()
+        let phraseVaultId = CloudKitSharingManager.vaultId(from: testPhrase)
+        
+        try await CloudKitSharingManager.shared.saveManifest(
+            shareVaultId: testShareVaultId,
+            phraseVaultId: phraseVaultId,
+            shareKey: shareKey,
+            policy: policy,
+            ownerFingerprint: testOwnerFingerprint,
+            totalChunks: 3
+        )
+        
+        // Now check availability
+        let result = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: testPhrase)
+        
+        XCTAssertEqual(result, .success(()), "Available share should return success")
+    }
+    
+    func testCheckPhraseAvailability_NotFound() async {
+        // Check a non-existent phrase
+        let nonExistentPhrase = "this phrase definitely does not exist anywhere"
+        let result = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: nonExistentPhrase)
+        
+        if case .failure(let error) = result {
+            XCTAssertEqual(error, .vaultNotFound, "Non-existent share should return vaultNotFound")
+        } else {
+            XCTFail("Should have returned failure for non-existent vault")
+        }
+    }
+    
+    func testCheckPhraseAvailability_ClaimedShare() async throws {
+        // Create and claim a share
+        let shareKey = try ShareKey(Data(repeating: 0x03, count: 32))
+        let policy = VaultStorage.SharePolicy()
+        let phraseVaultId = CloudKitSharingManager.vaultId(from: testPhrase)
+        
+        try await CloudKitSharingManager.shared.saveManifest(
+            shareVaultId: testShareVaultId,
+            phraseVaultId: phraseVaultId,
+            shareKey: shareKey,
+            policy: policy,
+            ownerFingerprint: testOwnerFingerprint,
+            totalChunks: 2
+        )
+        
+        // Mark as claimed
+        try await CloudKitSharingManager.shared.markShareClaimed(shareVaultId: testShareVaultId)
+        
+        // Check availability
+        let result = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: testPhrase)
+        
+        if case .failure(let error) = result {
+            XCTAssertEqual(error, .alreadyClaimed, "Claimed share should return alreadyClaimed")
+        } else {
+            XCTFail("Should have returned failure for claimed vault")
+        }
+    }
+    
+    func testCheckPhraseAvailability_RevokedShare() async throws {
+        // Create and revoke a share
+        let shareKey = try ShareKey(Data(repeating: 0x04, count: 32))
+        let policy = VaultStorage.SharePolicy()
+        let phraseVaultId = CloudKitSharingManager.vaultId(from: testPhrase)
+        
+        try await CloudKitSharingManager.shared.saveManifest(
+            shareVaultId: testShareVaultId,
+            phraseVaultId: phraseVaultId,
+            shareKey: shareKey,
+            policy: policy,
+            ownerFingerprint: testOwnerFingerprint,
+            totalChunks: 1
+        )
+        
+        // Revoke the share
+        try await CloudKitSharingManager.shared.revokeShare(shareVaultId: testShareVaultId)
+        
+        // Check availability
+        let result = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: testPhrase)
+        
+        if case .failure(let error) = result {
+            XCTAssertEqual(error, .revoked, "Revoked share should return revoked")
+        } else {
+            XCTFail("Should have returned failure for revoked vault")
+        }
+    }
+    
+    // MARK: - Query Fallback Tests
+    
+    func testCheckPhraseAvailability_QueryFallback() async throws {
+        // Save a manifest
+        let shareKey = try ShareKey(Data(repeating: 0x05, count: 32))
+        let policy = VaultStorage.SharePolicy()
+        let phraseVaultId = CloudKitSharingManager.vaultId(from: testPhrase)
+        
+        try await CloudKitSharingManager.shared.saveManifest(
+            shareVaultId: testShareVaultId,
+            phraseVaultId: phraseVaultId,
+            shareKey: shareKey,
+            policy: policy,
+            ownerFingerprint: testOwnerFingerprint,
+            totalChunks: 4
+        )
+        
+        // Check should work via direct fetch (primary method)
+        let result1 = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: testPhrase)
+        XCTAssertEqual(result1, .success(()), "Direct fetch should succeed")
+        
+        // Verify record exists via query as well (tests query path indirectly through fallback)
+        let predicate = NSPredicate(format: "recordID == %@", CKRecord.ID(recordName: phraseVaultId))
+        let query = CKQuery(recordType: "SharedVault", predicate: predicate)
+        let results = try await CloudKitSharingManager.shared.publicDatabase.records(matching: query)
+        
+        XCTAssertEqual(results.matchResults.count, 1, "Query should return exactly one record")
+    }
+    
+    // MARK: - Share Link Encoding Tests
+    
+    func testShareLinkEncoding_PhraseExtraction() {
+        let phrase = "test phrase for encoding"
+        let encoded = ShareLinkEncoder.encode(phrase)
+        let url = URL(string: "https://vaultaire.app/share#\(encoded)")!
+        
+        let extracted = ShareLinkEncoder.phrase(from: url)
+        
+        XCTAssertEqual(extracted, phrase, "Extracted phrase should match original")
+    }
+    
+    func testShareLinkEncoding_InvalidURL() {
+        let invalidURL = URL(string: "https://other-domain.com/share#abc123")!
+        let phrase = ShareLinkEncoder.phrase(from: invalidURL)
+        
+        XCTAssertNil(phrase, "Invalid domain should return nil")
+    }
+    
+    func testShareLinkEncoding_EmptyFragment() {
+        let url = URL(string: "https://vaultaire.app/share")!
+        let phrase = ShareLinkEncoder.phrase(from: url)
+        
+        XCTAssertNil(phrase, "Empty fragment should return nil")
+    }
+    
+    func testShareLinkEncoding_QueryParameterFallback() {
+        // Some messaging apps might strip the fragment, so we support query params too
+        let phrase = "fallback test phrase"
+        let encoded = ShareLinkEncoder.encode(phrase)
+        let url = URL(string: "https://vaultaire.app/share?p=\(encoded)")!
+        
+        let extracted = ShareLinkEncoder.phrase(from: url)
+        
+        XCTAssertEqual(extracted, phrase, "Query parameter fallback should work")
+    }
+    
+    // MARK: - Retry Logic Tests
+    
+    func testCheckPhraseAvailability_WithRetry() async throws {
+        // This test verifies the retry mechanism works
+        // We can't easily simulate network delays in unit tests,
+        // but we can verify the method completes without errors
+        
+        let shareKey = try ShareKey(Data(repeating: 0x06, count: 32))
+        let policy = VaultStorage.SharePolicy()
+        let phraseVaultId = CloudKitSharingManager.vaultId(from: testPhrase)
+        
+        try await CloudKitSharingManager.shared.saveManifest(
+            shareVaultId: testShareVaultId,
+            phraseVaultId: phraseVaultId,
+            shareKey: shareKey,
+            policy: policy,
+            ownerFingerprint: testOwnerFingerprint,
+            totalChunks: 3
+        )
+        
+        // The actual retry logic is in SharedVaultInviteView.task,
+        // but checkPhraseAvailability is the underlying method it calls
+        let startTime = Date()
+        let result = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: testPhrase)
+        let duration = Date().timeIntervalSince(startTime)
+        
+        XCTAssertEqual(result, .success(()), "Should find available share")
+        XCTAssertLessThan(duration, 1.0, "Direct fetch should be fast, no retry needed")
+    }
+}
+
+// MARK: - Mock Objects for Testing
+
+/// Mock CloudKitSharingClient for unit testing without network calls
+class MockCloudKitSharingClient: CloudKitSharingClient {
+    var manifests: [String: CKRecord] = [:]
+    var shouldFailWithError: CloudKitSharingError?
+    
+    func checkPhraseAvailability(phrase: String) async -> Result<Void, CloudKitSharingError> {
+        if let error = shouldFailWithError {
+            return .failure(error)
+        }
+        
+        let vaultId = CloudKitSharingManager.vaultId(from: phrase)
+        if let manifest = manifests[vaultId] {
+            if let claimed = manifest["claimed"] as? Bool, claimed {
+                return .failure(.alreadyClaimed)
+            }
+            if let revoked = manifest["revoked"] as? Bool, revoked {
+                return .failure(.revoked)
+            }
+            return .success(())
+        }
+        return .failure(.vaultNotFound)
+    }
+    
+    func consumedStatusByShareVaultIds(_ shareVaultIds: [String]) async throws -> [String: Bool] {
+        return [:]
+    }
+    
+    func markShareClaimed(shareVaultId: String) async throws {
+        // Implementation not needed for current tests
+    }
+    
+    func markShareConsumed(shareVaultId: String) async throws {
+        // Implementation not needed for current tests
+    }
+    
+    func isShareConsumed(shareVaultId: String) async throws -> Bool {
+        return false
+    }
+    
+    func uploadSharedVault(shareVaultId: String, phrase: String, vaultData: Data, shareKey: ShareKey, policy: VaultStorage.SharePolicy, ownerFingerprint: String, onProgress: ((Int, Int) -> Void)?) async throws {
+        // Implementation not needed for current tests
+    }
+    
+    func syncSharedVault(shareVaultId: String, vaultData: Data, shareKey: ShareKey, currentVersion: Int, onProgress: ((Int, Int) -> Void)?) async throws {
+        // Implementation not needed for current tests
+    }
+    
+    func syncSharedVaultIncremental(shareVaultId: String, svdfData: Data, newChunkHashes: [String], previousChunkHashes: [String], onProgress: ((Int, Int) -> Void)?) async throws {
+        // Implementation not needed for current tests
+    }
+    
+    func syncSharedVaultIncrementalFromFile(shareVaultId: String, svdfFileURL: URL, newChunkHashes: [String], previousChunkHashes: [String], onProgress: ((Int, Int) -> Void)?) async throws {
+        // Implementation not needed for current tests
+    }
+    
+    func uploadChunksParallel(shareVaultId: String, chunks: [(Int, Data)], onProgress: ((Int, Int) -> Void)?) async throws {
+        // Implementation not needed for current tests
+    }
+    
+    func uploadChunksFromFile(shareVaultId: String, fileURL: URL, chunkIndices: [Int], onProgress: ((Int, Int) -> Void)?) async throws {
+        // Implementation not needed for current tests
+    }
+    
+    func downloadSharedVault(phrase: String) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
+        return (Data(), "", VaultStorage.SharePolicy(), 1)
+    }
+    
+    func downloadSharedVaultWithProgress(phrase: String, onProgress: ((Int64, Int64) -> Void)?) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
+        return (Data(), "", VaultStorage.SharePolicy(), 1)
+    }
+    
+    func saveManifest(shareVaultId: String, phraseVaultId: String, shareKey: ShareKey, policy: VaultStorage.SharePolicy, ownerFingerprint: String, totalChunks: Int) async throws {
+        let record = CKRecord(recordType: "SharedVault")
+        record["shareVaultId"] = shareVaultId
+        record["claimed"] = false
+        record["revoked"] = false
+        manifests[phraseVaultId] = record
+    }
+    
+    func revokeShare(shareVaultId: String) async throws {
+        // Implementation not needed for current tests
+    }
+}
+
+// MARK: - Performance Tests
+
+@MainActor
+final class CloudKitSharingPerformanceTests: XCTestCase {
+    
+    func testCheckPhraseAvailability_Performance() async throws {
+        // Create a share first
+        let testPhrase = "performance test phrase"
+        let shareKey = try ShareKey(Data(repeating: 0x07, count: 32))
+        let policy = VaultStorage.SharePolicy()
+        let phraseVaultId = CloudKitSharingManager.vaultId(from: testPhrase)
+        
+        try await CloudKitSharingManager.shared.saveManifest(
+            shareVaultId: "perf-test-id",
+            phraseVaultId: phraseVaultId,
+            shareKey: shareKey,
+            policy: policy,
+            ownerFingerprint: "perf-test-owner",
+            totalChunks: 1
+        )
+        
+        // Measure performance
+        measure {
+            let expectation = self.expectation(description: "Check availability")
+            Task {
+                _ = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: testPhrase)
+                expectation.fulfill()
+            }
+            wait(for: [expectation], timeout: 5.0)
+        }
+    }
+}

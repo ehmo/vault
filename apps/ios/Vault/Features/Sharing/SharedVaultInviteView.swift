@@ -10,10 +10,6 @@ struct SharedVaultInviteView: View {
     @State private var mode: ViewMode = .loading
     @State private var showingPaywall = false
     @State private var iCloudStatus: CKAccountStatus?
-    
-    // Debug state
-    @State private var debugInfo: String = ""
-    @State private var showDebug: Bool = true
 
     // Pattern setup
     @State private var patternState = PatternState()
@@ -85,29 +81,14 @@ struct SharedVaultInviteView: View {
         }
         .background(Color.vaultBackground.ignoresSafeArea())
         .task {
-            var debugLines: [String] = []
-            debugLines.append("Step 1: Extracting phrase...")
-            
             let status = await CloudKitSharingManager.shared.checkiCloudStatus()
             iCloudStatus = status
-            debugLines.append("iCloud Status: \(status)")
             
-            // Early check: is the phrase still available?
             let trimmed = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
-            debugLines.append("Phrase length: \(trimmed.count)")
-            debugLines.append("Phrase empty: \(trimmed.isEmpty)")
-            
             guard !trimmed.isEmpty else {
-                debugLines.append("❌ ERROR: Phrase is empty!")
-                debugInfo = debugLines.joined(separator: "\n")
                 mode = .error("Invalid invitation link - no phrase found. Please try copying the link again.")
                 return
             }
-            
-            // Calculate and log the vaultId
-            let vaultId = CloudKitSharingManager.vaultId(from: trimmed)
-            debugLines.append("VaultID: \(vaultId)")
-            debugLines.append("Container: iCloud.app.vaultaire.shared")
             
             // Retry phrase availability check up to 6 times (CloudKit public DB has eventual consistency)
             // Delays: 1s, 2s, 3s, 5s, 8s, 13s (Fibonacci) = 32 seconds total
@@ -115,16 +96,12 @@ struct SharedVaultInviteView: View {
             var lastError: CloudKitSharingError?
             for (index, delay) in retryDelays.enumerated() {
                 let attempt = index + 1
-                debugLines.append("Checking attempt \(attempt)/6...")
                 let result = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: trimmed)
                 switch result {
                 case .success:
-                    debugLines.append("✓ Found in CloudKit!")
-                    debugInfo = debugLines.joined(separator: "\n")
                     mode = .invite
                     return
                 case .failure(let error):
-                    debugLines.append("Attempt \(attempt) error: \(error)")
                     lastError = error
                     // Check if we should retry (network errors or vault not found could be temporary)
                     let shouldRetry: Bool
@@ -136,11 +113,9 @@ struct SharedVaultInviteView: View {
                     }
                     
                     if shouldRetry {
-                        debugLines.append("Waiting \(delay)s before retry...")
                         try? await Task.sleep(for: .seconds(Double(delay)))
                         continue
                     } else {
-                        debugInfo = debugLines.joined(separator: "\n")
                         mode = .error(error.localizedDescription)
                         return
                     }
@@ -148,8 +123,6 @@ struct SharedVaultInviteView: View {
             }
             
             // If we get here, all retries failed
-            debugLines.append("❌ All retries exhausted")
-            debugInfo = debugLines.joined(separator: "\n")
             if let error = lastError {
                 mode = .error(error.localizedDescription)
             } else {
@@ -298,21 +271,6 @@ struct SharedVaultInviteView: View {
                 .font(.title2).fontWeight(.semibold)
             Text(message)
                 .foregroundStyle(.vaultSecondaryText).multilineTextAlignment(.center)
-            
-            // Debug info section
-            if !debugInfo.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Debug Info:")
-                        .font(.caption).fontWeight(.bold)
-                    Text(debugInfo)
-                        .font(.caption2)
-                        .foregroundStyle(.gray)
-                        .multilineTextAlignment(.leading)
-                }
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(8)
-            }
 
             Button("Close") {
                 deepLinkHandler.clearPending()

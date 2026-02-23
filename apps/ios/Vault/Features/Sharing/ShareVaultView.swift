@@ -666,12 +666,6 @@ struct ShareVaultView: View {
             return
         }
 
-        // DEBUG: Log share creation details
-        let vaultId = CloudKitSharingManager.vaultId(from: phrase)
-        print("📤 SHARE CREATION: Phrase length: \(phrase.count)")
-        print("📤 SHARE CREATION: VaultID: \(vaultId)")
-        print("📤 SHARE CREATION: Starting upload...")
-
         ShareUploadManager.shared.startBackgroundUpload(
             vaultKey: vaultKey,
             phrase: phrase,

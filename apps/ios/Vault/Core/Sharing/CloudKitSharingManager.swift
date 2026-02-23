@@ -120,49 +120,34 @@ final class CloudKitSharingManager {
         let phraseVaultId = Self.vaultId(from: phrase)
         let recordId = CKRecord.ID(recordName: phraseVaultId)
         
-        Self.logger.info("[checkPhrase] phraseVaultId: \(phraseVaultId, privacy: .private)")
-        Self.logger.info("[checkPhrase] Looking for record: \(recordId.recordName, privacy: .private)")
-        
-        // METHOD 1: Try direct record fetch
+        // Try direct record fetch first
         do {
-            Self.logger.info("[checkPhrase] Attempting direct record fetch...")
             let manifest = try await publicDatabase.record(for: recordId)
-            Self.logger.info("[checkPhrase] Found manifest via direct fetch")
             
             if let claimed = manifest["claimed"] as? Bool, claimed {
-                Self.logger.info("[checkPhrase] Share already claimed")
                 return .failure(.alreadyClaimed)
             }
             if let revoked = manifest["revoked"] as? Bool, revoked {
-                Self.logger.info("[checkPhrase] Share revoked")
                 return .failure(.revoked)
             }
-            Self.logger.info("[checkPhrase] Share available")
             return .success(())
         } catch let error as CKError where error.code == .unknownItem {
-            // Record doesn't exist - this is the expected error when not found
-            Self.logger.warning("[checkPhrase] Direct fetch: record not found (unknownItem)")
-            // Fall through to query method as backup
+            // Record doesn't exist - fall through to query method as backup
         } catch {
-            Self.logger.error("[checkPhrase] Direct fetch error: \(error.localizedDescription)")
             // Fall through to query method
         }
         
-        // METHOD 2: Try query-based fetch (backup method)
-        // This can work when direct fetch fails due to permissions
-        Self.logger.info("[checkPhrase] Trying query-based lookup...")
+        // Query-based fetch backup method
         let predicate = NSPredicate(format: "recordID == %@", recordId)
         let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
         
         do {
             let results = try await publicDatabase.records(matching: query)
             guard let match = results.matchResults.first else {
-                Self.logger.warning("[checkPhrase] Query returned no results")
                 return .failure(.vaultNotFound)
             }
             
             let manifest = try match.1.get()
-            Self.logger.info("[checkPhrase] Found manifest via query")
             
             if let claimed = manifest["claimed"] as? Bool, claimed {
                 return .failure(.alreadyClaimed)
@@ -172,10 +157,8 @@ final class CloudKitSharingManager {
             }
             return .success(())
         } catch let error as CKError where error.code == .unknownItem {
-            Self.logger.warning("[checkPhrase] Query: record not found")
             return .failure(.vaultNotFound)
         } catch {
-            Self.logger.error("[checkPhrase] Query error: \(error.localizedDescription)")
             return .failure(.networkError)
         }
     }
