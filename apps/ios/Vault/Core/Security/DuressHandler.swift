@@ -25,6 +25,11 @@ actor DuressHandler {
         try secureEnclave.setDuressKeyFingerprint(fingerprint)
     }
 
+    /// Type-safe overload accepting any SymmetricKeyData (VaultKey, MasterKey, ShareKey).
+    func setAsDuressVault(key: some SymmetricKeyData) async throws {
+        try await setAsDuressVault(key: key.rawBytes)
+    }
+
     /// Checks if a key corresponds to the duress vault.
     func isDuressKey(_ key: Data) -> Bool {
         guard let storedFingerprint = secureEnclave.getDuressKeyFingerprint() else {
@@ -32,6 +37,11 @@ actor DuressHandler {
         }
         let keyFingerprint = KeyDerivation.keyFingerprint(from: key)
         return keyFingerprint == storedFingerprint
+    }
+
+    /// Type-safe overload accepting any SymmetricKeyData.
+    func isDuressKey(_ key: some SymmetricKeyData) -> Bool {
+        isDuressKey(key.rawBytes)
     }
 
     /// Clears the duress vault setting.

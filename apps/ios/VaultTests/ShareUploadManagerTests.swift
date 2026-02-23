@@ -26,7 +26,7 @@ private final class MockUploadVaultStorage: VaultStorageProtocol {
     func retrieveFile(id _: UUID, with _: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
         throw VaultStorageError.corruptedData
     }
-    func retrieveFileContent(entry _: VaultStorage.VaultIndex.VaultFileEntry, index _: VaultStorage.VaultIndex, masterKey _: Data) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
+    func retrieveFileContent(entry _: VaultStorage.VaultIndex.VaultFileEntry, index _: VaultStorage.VaultIndex, masterKey _: MasterKey) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
         throw VaultStorageError.corruptedData
     }
     func retrieveFileToTempURL(id _: UUID, with _: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, tempURL: URL) {
@@ -39,8 +39,8 @@ private final class MockUploadVaultStorage: VaultStorageProtocol {
         // No-op: test stub
     }
     func listFiles(with _: VaultKey) throws -> [VaultStorage.VaultFileEntry] { [] }
-    func listFilesLightweight(with _: VaultKey) throws -> (masterKey: Data, files: [VaultStorage.LightweightFileEntry]) {
-        (Data(repeating: 0, count: 32), [])
+    func listFilesLightweight(with _: VaultKey) throws -> (masterKey: MasterKey, files: [VaultStorage.LightweightFileEntry]) {
+        (MasterKey(Data(repeating: 0, count: 32)), [])
     }
     func vaultExists(for _: VaultKey) -> Bool { true }
     func vaultHasFiles(for _: VaultKey) -> Bool { false }

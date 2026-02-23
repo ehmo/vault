@@ -671,7 +671,7 @@ final class ShareSyncManager {
         guard let encryptedMasterKey = index.encryptedMasterKey else {
             throw VaultStorageError.corruptedData
         }
-        let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey.rawBytes)
+        let masterKey = MasterKey(try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey))
 
         let keyFingerprint = vaultKey.rawBytes.hashValue
         let cache = ShareSyncCache(shareVaultId: shareVaultId, vaultKeyFingerprint: String(keyFingerprint))
@@ -772,7 +772,7 @@ final class ShareSyncManager {
     nonisolated private static func reencryptFileForShare(
         entry: VaultStorage.VaultIndex.VaultFileEntry,
         index: VaultStorage.VaultIndex,
-        masterKey: Data,
+        masterKey: MasterKey,
         shareKey: ShareKey,
         cache: ShareSyncCache,
         storage: VaultStorageProtocol = VaultStorage.shared
@@ -824,7 +824,7 @@ final class ShareSyncManager {
     /// Retrieves just the header from a file entry (for cached files where we need header info).
     nonisolated private static func retrieveHeaderFromEntry(
         _ entry: VaultStorage.VaultIndex.VaultFileEntry,
-        masterKey: Data
+        masterKey: MasterKey
     ) throws -> CryptoEngine.EncryptedFileHeader {
         // The entry stores the first 64 bytes of encrypted file data as encryptedHeaderPreview
         // This contains the header size + encrypted header

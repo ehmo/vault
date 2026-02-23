@@ -58,7 +58,7 @@ final class VaultIndexManagerTests: XCTestCase {
         let index = try manager.loadIndex(with: testKey)
         let masterKey = try manager.getMasterKey(from: index, vaultKey: testKey)
 
-        XCTAssertEqual(masterKey.count, 32, "Master key should be 32 bytes")
+        XCTAssertEqual(masterKey.rawBytes.count, 32, "Master key should be 32 bytes")
     }
 
     /// Tests that getMasterKey throws when encryptedMasterKey is nil.

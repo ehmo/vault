@@ -22,11 +22,11 @@ final class ShareRoundTripTests: XCTestCase {
     // MARK: - Helpers
 
     /// Derives master key from an index and vault key (mirrors VaultIndexManager.getMasterKey).
-    private func getMasterKey(from index: VaultStorage.VaultIndex, vaultKey: VaultKey) throws -> Data {
+    private func getMasterKey(from index: VaultStorage.VaultIndex, vaultKey: VaultKey) throws -> MasterKey {
         guard let encryptedMasterKey = index.encryptedMasterKey else {
             throw VaultStorageError.corruptedData
         }
-        return try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey.rawBytes)
+        return MasterKey(try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey))
     }
 
     // MARK: - Single File Round Trip

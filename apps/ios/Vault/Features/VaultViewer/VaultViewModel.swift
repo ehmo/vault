@@ -209,7 +209,7 @@ final class VaultViewModel {
                 }
                 await MainActor.run {
                     vmLogger.info("loadFiles() loaded \(items.count) files from disk (was \(self.files.count))")
-                    self.masterKey = MasterKey(result.masterKey)
+                    self.masterKey = result.masterKey
                     self.files = items
                     self.isLoading = false
 

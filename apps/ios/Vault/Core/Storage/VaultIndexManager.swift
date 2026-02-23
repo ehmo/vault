@@ -87,7 +87,7 @@ final class VaultIndexManager {
             guard let masterKey = CryptoEngine.generateRandomBytes(count: 32) else {
                 throw VaultStorageError.corruptedData
             }
-            let encryptedMasterKey = try CryptoEngine.encrypt(masterKey, with: key.rawBytes)
+            let encryptedMasterKey = try CryptoEngine.encrypt(masterKey, with: key)
             let globalCursor = readGlobalCursor()
             let primary = VaultStorage.BlobDescriptor(
                 blobId: "primary",
@@ -114,7 +114,7 @@ final class VaultIndexManager {
 
         // Try to decrypt - if it fails, this key doesn't match any vault
         do {
-            let decryptedData = try CryptoEngine.decrypt(encryptedData, with: key.rawBytes)
+            let decryptedData = try CryptoEngine.decrypt(encryptedData, with: key)
             var index = try JSONDecoder().decode(VaultStorage.VaultIndex.self, from: decryptedData)
 
             indexLogger.info("Index decrypted. Files: \(index.files.count, privacy: .public), nextOffset: \(index.nextOffset, privacy: .public), version: \(index.version, privacy: .public)")
@@ -125,7 +125,7 @@ final class VaultIndexManager {
                 guard let masterKeyData = CryptoEngine.generateRandomBytes(count: 32) else {
                     throw VaultStorageError.corruptedData
                 }
-                index.encryptedMasterKey = try CryptoEngine.encrypt(masterKeyData, with: key.rawBytes)
+                index.encryptedMasterKey = try CryptoEngine.encrypt(masterKeyData, with: key)
                 index.version = 2
 
                 try performSaveIndex(index, with: key)
@@ -172,7 +172,7 @@ final class VaultIndexManager {
 
         indexLogger.debug("Index encoded, size: \(encoded.count, privacy: .public) bytes")
 
-        let encrypted = try CryptoEngine.encrypt(encoded, with: key.rawBytes)
+        let encrypted = try CryptoEngine.encrypt(encoded, with: key)
 
         indexLogger.debug("Index encrypted, size: \(encrypted.count, privacy: .public) bytes")
 
@@ -189,15 +189,15 @@ final class VaultIndexManager {
     // MARK: - Master Key
 
     /// Extract and decrypt the master key from the vault index
-    func getMasterKey(from index: VaultStorage.VaultIndex, vaultKey: VaultKey) throws -> Data {
+    func getMasterKey(from index: VaultStorage.VaultIndex, vaultKey: VaultKey) throws -> MasterKey {
         guard let encryptedMasterKey = index.encryptedMasterKey else {
             throw VaultStorageError.corruptedData
         }
 
-        let masterKey = try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey.rawBytes)
+        let masterKeyData = try CryptoEngine.decrypt(encryptedMasterKey, with: vaultKey)
         indexLogger.debug("Master key decrypted")
 
-        return masterKey
+        return MasterKey(masterKeyData)
     }
 
     // MARK: - Cache Invalidation

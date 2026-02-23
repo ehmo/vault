@@ -13,12 +13,12 @@ protocol VaultStorageProtocol {
     func storeFile(data: Data, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data?, duration: TimeInterval?, fileId: UUID?) throws -> UUID
     func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data?, duration: TimeInterval?, fileId: UUID?, originalDate: Date?) throws -> UUID
     func retrieveFile(id: UUID, with key: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data)
-    func retrieveFileContent(entry: VaultStorage.VaultIndex.VaultFileEntry, index: VaultStorage.VaultIndex, masterKey: Data) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data)
+    func retrieveFileContent(entry: VaultStorage.VaultIndex.VaultFileEntry, index: VaultStorage.VaultIndex, masterKey: MasterKey) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data)
     func retrieveFileToTempURL(id: UUID, with key: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, tempURL: URL)
     func deleteFile(id: UUID, with key: VaultKey) throws
     func deleteFiles(ids: Set<UUID>, with key: VaultKey, onProgress: ((Int) -> Void)?) throws
     func listFiles(with key: VaultKey) throws -> [VaultStorage.VaultFileEntry]
-    func listFilesLightweight(with key: VaultKey) throws -> (masterKey: Data, files: [VaultStorage.LightweightFileEntry])
+    func listFilesLightweight(with key: VaultKey) throws -> (masterKey: MasterKey, files: [VaultStorage.LightweightFileEntry])
 
     // MARK: - Vault Lifecycle
 

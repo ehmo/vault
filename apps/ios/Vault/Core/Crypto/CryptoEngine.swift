@@ -660,3 +660,52 @@ enum CryptoEngine {
         return HMAC<SHA256>.isValidAuthenticationCode(hmac, authenticating: data, using: symmetricKey)
     }
 }
+
+// MARK: - SymmetricKeyData Overloads
+
+extension CryptoEngine {
+    static func encrypt(_ data: Data, with key: some SymmetricKeyData) throws -> Data {
+        try encrypt(data, with: key.rawBytes)
+    }
+
+    static func decrypt(_ encryptedData: Data, with key: some SymmetricKeyData) throws -> Data {
+        try decrypt(encryptedData, with: key.rawBytes)
+    }
+
+    static func encryptFile(data: Data, filename: String, mimeType: String, with key: some SymmetricKeyData, fileId: UUID? = nil) throws -> EncryptedFile {
+        try encryptFile(data: data, filename: filename, mimeType: mimeType, with: key.rawBytes, fileId: fileId)
+    }
+
+    static func decryptFile(data: Data, with key: some SymmetricKeyData) throws -> (header: EncryptedFileHeader, content: Data) {
+        try decryptFile(data: data, with: key.rawBytes)
+    }
+
+    static func decryptStaged(_ data: Data, with key: some SymmetricKeyData) throws -> Data {
+        try decryptStaged(data, with: key.rawBytes)
+    }
+
+    static func computeHMAC(for data: Data, with key: some SymmetricKeyData) -> Data {
+        computeHMAC(for: data, with: key.rawBytes)
+    }
+
+    static func verifyHMAC(_ hmac: Data, for data: Data, with key: some SymmetricKeyData) -> Bool {
+        verifyHMAC(hmac, for: data, with: key.rawBytes)
+    }
+
+    static func encryptFileStreamingToHandle(from sourceURL: URL, to handle: FileHandle, with key: some SymmetricKeyData) throws {
+        try encryptFileStreamingToHandle(from: sourceURL, to: handle, with: key.rawBytes)
+    }
+
+    @discardableResult
+    static func decryptFileToTempURL(data: Data, with key: some SymmetricKeyData, tempURL: URL) throws -> EncryptedFileHeader {
+        try decryptFileToTempURL(data: data, with: key.rawBytes, tempURL: tempURL)
+    }
+
+    static func encryptFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: some SymmetricKeyData, fileId: UUID? = nil) throws -> EncryptedFile {
+        try encryptFileFromURL(fileURL, filename: filename, mimeType: mimeType, with: key.rawBytes, fileId: fileId)
+    }
+
+    static func decryptStreamingFromHandleToFile(handle: FileHandle, contentLength: Int, with key: some SymmetricKeyData, outputURL: URL) throws {
+        try decryptStreamingFromHandleToFile(handle: handle, contentLength: contentLength, with: key.rawBytes, outputURL: outputURL)
+    }
+}

@@ -304,7 +304,7 @@ struct VaultSettingsView: View {
         EmbraceManager.shared.addBreadcrumb(category: "settings.duressToggled")
         Task {
             do {
-                try await DuressHandler.shared.setAsDuressVault(key: key.rawBytes)
+                try await DuressHandler.shared.setAsDuressVault(key: key)
                 await MainActor.run {
                     duressAlreadyEnabled = true
                 }
@@ -407,7 +407,7 @@ struct VaultSettingsView: View {
                 vaultSettingsLogger.error("Failed to delete recovery data: \(error.localizedDescription, privacy: .public)")
                 EmbraceManager.shared.captureError(error, context: ["action": "deleteRecoveryData"])
             }
-            if await DuressHandler.shared.isDuressKey(key.rawBytes) {
+            if await DuressHandler.shared.isDuressKey(key) {
                 await DuressHandler.shared.clearDuressVault()
             }
         }
@@ -458,7 +458,7 @@ struct VaultSettingsView: View {
                 
                 // Check if this is the duress vault
                 let ownerFingerprint = KeyDerivation.keyFingerprint(from: key.rawBytes)
-                let duressInitiallyEnabled = await DuressHandler.shared.isDuressKey(key.rawBytes)
+                let duressInitiallyEnabled = await DuressHandler.shared.isDuressKey(key)
 
                 // Load sharing info
                 let index = try VaultStorage.shared.loadIndex(with: key)

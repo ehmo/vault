@@ -42,7 +42,7 @@ private final class MockSyncVaultStorage: VaultStorageProtocol {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func retrieveFileContent(entry _: VaultStorage.VaultIndex.VaultFileEntry, index _: VaultStorage.VaultIndex, masterKey _: Data) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
+    func retrieveFileContent(entry _: VaultStorage.VaultIndex.VaultFileEntry, index _: VaultStorage.VaultIndex, masterKey _: MasterKey) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
         fatalError("Not used in ShareSyncManager tests")
     }
 
@@ -62,7 +62,7 @@ private final class MockSyncVaultStorage: VaultStorageProtocol {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func listFilesLightweight(with _: VaultKey) throws -> (masterKey: Data, files: [VaultStorage.LightweightFileEntry]) {
+    func listFilesLightweight(with _: VaultKey) throws -> (masterKey: MasterKey, files: [VaultStorage.LightweightFileEntry]) {
         fatalError("Not used in ShareSyncManager tests")
     }
 

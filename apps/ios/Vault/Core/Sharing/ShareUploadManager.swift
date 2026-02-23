@@ -339,7 +339,7 @@ final class ShareUploadManager {
         allowDownloads: Bool = true
     ) {
         Task {
-            if await DuressHandler.shared.isDuressKey(vaultKey.rawBytes) {
+            if await DuressHandler.shared.isDuressKey(vaultKey) {
                 await DuressHandler.shared.clearDuressVault()
                 Self.logger.info("Cleared duress vault designation before starting share upload")
             }

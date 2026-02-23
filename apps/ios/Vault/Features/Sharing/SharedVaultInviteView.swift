@@ -414,7 +414,7 @@ struct SharedVaultInviteView: View {
 
     private func overwriteExistingVaultIfNeeded(patternKey: VaultKey) async throws {
         if VaultStorage.shared.vaultExists(for: patternKey) {
-            if await DuressHandler.shared.isDuressKey(patternKey.rawBytes) {
+            if await DuressHandler.shared.isDuressKey(patternKey) {
                 await DuressHandler.shared.clearDuressVault()
             }
             try VaultStorage.shared.deleteVaultIndex(for: patternKey)

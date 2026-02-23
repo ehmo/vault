@@ -118,7 +118,7 @@ final class VaultStorage {
         try indexManager.saveIndex(index, with: key)
     }
 
-    private func getMasterKey(from index: VaultIndex, vaultKey: VaultKey) throws -> Data {
+    private func getMasterKey(from index: VaultIndex, vaultKey: VaultKey) throws -> MasterKey {
         return try indexManager.getMasterKey(from: index, vaultKey: vaultKey)
     }
 
@@ -651,7 +651,7 @@ final class VaultStorage {
     func retrieveFileContent(
         entry: VaultIndex.VaultFileEntry,
         index: VaultIndex,
-        masterKey: Data
+        masterKey: MasterKey
     ) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
         ensureBlobReady()
 
@@ -886,7 +886,7 @@ final class VaultStorage {
 
     /// Returns the master key and file entries without decrypting thumbnails.
     /// Use this for lazy thumbnail loading — thumbnails are decrypted on-demand per cell.
-    func listFilesLightweight(with key: VaultKey) throws -> (masterKey: Data, files: [LightweightFileEntry]) {
+    func listFilesLightweight(with key: VaultKey) throws -> (masterKey: MasterKey, files: [LightweightFileEntry]) {
         let span = EmbraceManager.shared.startTransaction(name: "storage.list_files_lightweight", operation: "storage.list_files_lightweight")
         defer { span.finish(status: .ok) }
 
@@ -966,7 +966,7 @@ final class VaultStorage {
         Self.logger.debug("Master key decrypted with old vault key")
 
         // 3. Re-encrypt master key with NEW vault key
-        let newEncryptedMasterKey = try CryptoEngine.encrypt(masterKey, with: newKey.rawBytes)
+        let newEncryptedMasterKey = try CryptoEngine.encrypt(masterKey.rawBytes, with: newKey)
 
         Self.logger.debug("Master key re-encrypted with new vault key")
 
@@ -980,12 +980,12 @@ final class VaultStorage {
 
         // Encode and encrypt
         let encoded = try JSONEncoder().encode(newIndex)
-        let encrypted = try CryptoEngine.encrypt(encoded, with: newKey.rawBytes)
+        let encrypted = try CryptoEngine.encrypt(encoded, with: newKey)
         try encrypted.write(to: tempURL, options: [.atomic, .completeFileProtection])
 
         // Verify: read back and decrypt to confirm integrity
         let readBack = try Data(contentsOf: tempURL)
-        let decrypted = try CryptoEngine.decrypt(readBack, with: newKey.rawBytes)
+        let decrypted = try CryptoEngine.decrypt(readBack, with: newKey)
         let verified = try JSONDecoder().decode(VaultIndex.self, from: decrypted)
         guard verified.files.count == newIndex.files.count,
               verified.encryptedMasterKey == newEncryptedMasterKey else {
