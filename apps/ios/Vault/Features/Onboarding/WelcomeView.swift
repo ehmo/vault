@@ -15,7 +15,8 @@ struct WelcomeView: View {
             VStack(spacing: 0) {
                 ScrollView {
                     VStack(spacing: 0) {
-                        Spacer().frame(height: h * 0.08)
+                        // Reduced top spacing to move logo/text higher
+                        Spacer().frame(height: h * 0.04)
 
                         // App Logo
                         Image("VaultLogo")
@@ -33,7 +34,7 @@ struct WelcomeView: View {
                                 }
                             }
 
-                        Spacer().frame(height: h * 0.03)
+                        Spacer().frame(height: h * 0.02)
 
                         // Welcome Text
                         VStack(spacing: 8) {
@@ -47,7 +48,8 @@ struct WelcomeView: View {
                         }
                         .multilineTextAlignment(.center)
 
-                        Spacer().frame(height: h * 0.04)
+                        // Increased spacing to push feature rows lower
+                        Spacer().frame(height: h * 0.08)
 
                         // Feature Rows
                         VStack(alignment: .leading, spacing: h * 0.02) {
