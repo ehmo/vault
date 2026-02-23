@@ -537,7 +537,6 @@
   width: 32px;
   height: 32px;
   background: linear-gradient(to bottom left, var(--highlight) 50%, transparent 50%);
-  opacity: 0.2;
 }
 
 .feature-hub-card:hover {

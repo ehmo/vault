@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hidden Vaults: Nobody Knows How Many Exist | Vaultaire</title>
+  <meta name="description" content="Vaultaire makes it impossible to determine how many vaults exist on your device. No vault list, no directory, no count. Storage padding defeats forensic analysis.">
+  <meta name="keywords" content="hidden vaults, invisible vaults, forensic resistance, storage obfuscation, plausible deniability, vault app iOS, secure vault, hidden photo vault, anti-forensic encryption">
+  <meta property="og:title" content="Hidden Vaults: Nobody Knows How Many Exist">
+  <meta property="og:description" content="There is no vault list, no directory, no count. Vaultaire makes it cryptographically impossible to determine how many vaults exist on your device.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://vaultaire.app/features/hidden-vaults/">
+  <meta property="og:image" content="https://vaultaire.app/assets/social-share.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Hidden Vaults: Nobody Knows How Many Exist">
+  <meta name="twitter:description" content="There is no vault list, no directory, no count. Vaultaire makes it cryptographically impossible to determine how many vaults exist on your device.">
+  <meta name="twitter:image" content="https://vaultaire.app/assets/social-share.png">
+  <meta property="article:published_time" content="2026-02-22T00:00:00Z">
+  <meta property="article:modified_time" content="2026-02-22T00:00:00Z">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="canonical" href="https://vaultaire.app/features/hidden-vaults/">
+  <link rel="alternate" type="application/rss+xml" title="Vaultaire Updates" href="https://vaultaire.app/feed.xml">
+  <link rel="alternate" type="application/json" title="MCP manifest" href="https://vaultaire.app/.well-known/mcp.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles/output.css">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Hidden Vaults: Nobody Knows How Many Exist",
+    "description": "Vaultaire makes it impossible to determine how many vaults exist on your device. No vault list, no directory, no count.",
+    "author": {
+      "@type": "Organization",
+      "name": "Vaultaire"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Vaultaire",
+      "url": "https://vaultaire.app"
+    },
+    "datePublished": "2026-02-22",
+    "dateModified": "2026-02-22",
+    "mainEntityOfPage": "https://vaultaire.app/features/hidden-vaults/"
+  }
+  </script>
+</head>
+<body class="page-feature" x-data="vaultaireApp()">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <header role="banner">
+    <div class="container nav-inner">
+      <a href="../../index.html" class="logo">
+        <img src="../../assets/vault-logo.png" alt="Vaultaire logo" class="logo-mark logo-mark--dark" srcset="../../assets/vault-logo.png 1x" sizes="32px" width="32" height="32">
+        <img src="../../assets/vault-logo-light.png" alt="Vaultaire logo for light theme" class="logo-mark logo-mark--light" srcset="../../assets/vault-logo-light.png 1x" sizes="32px" width="32" height="32">
+        <span>Vaultaire</span>
+      </a>
+      <nav class="nav-links" role="navigation" aria-label="Primary">
+        <a href="../../index.html">Home</a>
+        <a href="../">Features</a>
+        <a href="../../index.html#how-it-works">How It Works</a>
+        <a href="../../index.html#security">Security</a>
+        <a href="../../manifesto/index.html">Manifesto</a>
+        <a href="../../compare/">Compare</a>
+      </nav>
+      <div class="nav-cta">
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+          <span class="theme-icon" id="theme-icon">&#9788;</span>
+          <span id="theme-label">Light</span>
+        </button>
+        <a href="https://apps.apple.com/app/vaultaire/id6758529311" class="btn btn-primary btn-nav">Get App</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content" role="main">
+    <div class="container">
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="../../index.html">Home</a><span>/</span>
+        <a href="../">Features</a><span>/</span>
+        Hidden Vaults
+      </nav>
+
+      <article class="feature-article">
+        <!-- Hero -->
+        <div class="feature-hero">
+          <span class="feature-hero-icon" aria-hidden="true">&#x1f576;&#xfe0f;</span>
+          <h1>Hidden Vaults: Nobody Knows How Many Exist</h1>
+          <p class="hero-lead">There is no vault list. No directory. No count. Vaultaire makes it cryptographically impossible to determine how many vaults exist on your device &mdash; even with forensic tools and physical access. If nobody can prove a vault exists, nobody can demand you open it.</p>
+        </div>
+
+        <!-- Section 1: What Hidden Vaults Means -->
+        <h2>What Does "Hidden Vaults" Actually Mean?</h2>
+
+        <p>Most vault apps work like filing cabinets. Open the app, and you see a list of your vaults. Maybe they have names. Maybe they show a count. Maybe there is a little lock icon next to each one. The app knows exactly how many vaults you have, and that information is visible to anyone who opens the app &mdash; or examines the device.</p>
+
+        <p>Vaultaire works differently. There is no list of vaults. No directory. No registry. No metadata file that catalogs what exists. When you draw a pattern, Vaultaire does not look up your vault in a database. It derives a cryptographic key from your pattern and attempts to decrypt data with that key. If the key matches an existing vault, the data decrypts into your files. If it does not match anything, the decryption produces noise &mdash; and Vaultaire cannot distinguish between "no vault exists for this pattern" and "a vault exists but you drew the wrong pattern."</p>
+
+        <p>This is not a UI decision. It is an architectural one. Vaultaire genuinely does not know how many vaults are on your device. The app cannot count them, cannot enumerate them, and cannot reveal them &mdash; because it was never designed to track them in the first place.</p>
+
+        <div class="info-box">
+          <div class="info-box-label">The Key Insight</div>
+          <p>Most apps hide vaults <strong>from the user interface</strong>. Vaultaire hides vaults <strong>from itself</strong>. The app has no mechanism to enumerate vaults because no enumerable record exists. A vault is nothing more than encrypted data that becomes meaningful only when the correct key is applied.</p>
+        </div>
+
+        <!-- Section 2: Not "Hidden Folders" -->
+        <h2>This Is Not a "Hidden Folder"</h2>
+
+        <p>The phrase "hidden vault" might make you think of apps that tuck a folder away where you cannot easily see it. Maybe the folder is named with a dot prefix so it does not show up in a file browser. Maybe the app uses a "calculator" disguise to conceal its real purpose. These are camouflage tricks, and they all share the same fatal flaw: the hidden data is still there, in a known location, waiting to be found.</p>
+
+        <p>A forensic examiner with access to your device can trivially find a hidden folder. File system tools list every directory. Storage analyzers show where disk space is allocated. Even a moderately tech-savvy friend with five minutes and a search engine could locate most "hidden" folders.</p>
+
+        <p>Vaultaire does not hide folders. It does not disguise files. Instead, the encrypted data for all vaults exists in a single, undifferentiated storage pool. There are no file boundaries that correspond to vault boundaries. There are no headers marking where one vault ends and another begins. The entire pool is encrypted data, and without the correct key for a specific vault, there is no way to determine which bytes belong to which vault &mdash; or how many vaults the pool contains.</p>
+
+        <p>The difference is the difference between hiding a book on a high shelf and dissolving the book's ink into a swimming pool. One requires a ladder. The other requires knowing exactly which molecules were yours.</p>
+
+        <!-- Section 3: Storage Obfuscation -->
+        <h2>Storage Obfuscation: The Padding Mechanism</h2>
+
+        <p>Even without a vault list, a clever adversary might try a different approach: analyzing disk usage. If Vaultaire uses 500 MB of storage today and 800 MB tomorrow, maybe you added a vault. If deleting photos from one vault reduces storage by exactly 200 MB, maybe there is a correlation to exploit.</p>
+
+        <p>Vaultaire defeats this with storage padding. The app maintains a consistent storage footprint by padding its data pool with cryptographically random bytes. When you add files to a vault, the padding shrinks. When you delete files, the padding grows. The total size of the storage pool changes only at predetermined thresholds, not in response to individual file operations.</p>
+
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="stat-value">0</div>
+            <div class="stat-label">Vault Directories</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">Padded</div>
+            <div class="stat-label">Storage Footprint</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">Zero</div>
+            <div class="stat-label">Enumerable Records</div>
+          </div>
+        </div>
+
+        <p>This means an observer watching your device's storage over time cannot determine whether changes are caused by adding files, deleting files, creating new vaults, or destroying old ones. The storage footprint is designed to be uninformative. It is noise by design.</p>
+
+        <h3>How Padding Works</h3>
+
+        <p>The padding mechanism operates on a simple principle: the storage pool always occupies a size that falls on a fixed step boundary. Think of it like a staircase rather than a ramp. Your actual data might be 347 MB, but the pool occupies 512 MB. You add 100 MB of photos, and the pool still occupies 512 MB &mdash; the padding absorbed the difference. Only when you cross the next step threshold does the pool size change, and that change is identical regardless of whether you added one vault or ten.</p>
+
+        <p>The padding bytes are indistinguishable from encrypted data. Both are random-looking byte sequences. There is no header, no marker, and no metadata that identifies which bytes are padding and which are encrypted vault contents. Without the correct key, every byte looks exactly the same.</p>
+
+        <!-- Section 4: Forensic Resistance -->
+        <h2>Forensic Resistance: What Happens When They Take Your Phone</h2>
+
+        <p>Let us be specific about the threat model. Imagine someone with physical access to your device, professional forensic tools, unlimited time, and the legal authority to examine every byte. What can they determine about your vaults?</p>
+
+        <h3>What Forensic Tools Can See</h3>
+
+        <p>A forensic examiner can see that Vaultaire is installed. They can see that Vaultaire is using a certain amount of storage. They can see that the stored data is encrypted. That is all.</p>
+
+        <h3>What Forensic Tools Cannot Determine</h3>
+
+        <ul>
+          <li><strong>How many vaults exist.</strong> There is no vault count, no directory structure, and no metadata that reveals the number of vaults.</li>
+          <li><strong>Whether any vaults exist.</strong> The storage pool exists regardless of whether it contains zero vaults or a hundred. Padding fills the space either way.</li>
+          <li><strong>What is in any vault.</strong> The encrypted data is indistinguishable from random noise without the correct key.</li>
+          <li><strong>When vaults were created or modified.</strong> Timestamps are encrypted along with the data. File system timestamps reflect pool-level operations, not vault-level ones.</li>
+          <li><strong>How much real data exists.</strong> Padding makes the actual data volume indeterminate. 500 MB of storage could contain 10 MB of real data and 490 MB of padding, or 490 MB of real data and 10 MB of padding.</li>
+        </ul>
+
+        <div class="info-box">
+          <div class="info-box-label">The Forensic Dead End</div>
+          <p>In traditional forensic analysis, encrypted data is a challenge &mdash; but the <em>existence</em> of encrypted data is evidence. With Vaultaire, even the existence of vaults is unprovable. An examiner can say "Vaultaire is installed" but cannot say "this device contains N vaults." The answer is always: <strong>we do not know, and neither does the app.</strong></p>
+        </div>
+
+        <!-- Section 5: Plausible Deniability -->
+        <h2>How Hidden Vaults Enable Plausible Deniability</h2>
+
+        <p>Hidden vaults are the foundation that makes Vaultaire's <a href="../plausible-deniability/">plausible deniability</a> feature actually work. Here is why the two are inseparable.</p>
+
+        <p>Plausible deniability means that every pattern you draw opens <em>something</em>. Draw your real pattern, and you see your private files. Draw a different pattern, and you see a decoy vault &mdash; a set of innocuous photos that you placed there for exactly this scenario. To an observer, both outcomes look identical. There is no way to tell whether someone drew their "real" pattern or their "decoy" pattern.</p>
+
+        <p>But plausible deniability only works if the existence of additional vaults is undetectable. If an examiner can determine that your device contains three vaults, then showing them one vault is not deniable &mdash; they know two more exist. Hidden vaults eliminate this vulnerability. Because nobody can count your vaults, nobody can prove you are withholding access to any of them.</p>
+
+        <h3>The Complete Chain</h3>
+
+        <ul>
+          <li><strong>Step 1:</strong> You create multiple vaults with different patterns &mdash; one for real files, one for decoys, as many as you want.</li>
+          <li><strong>Step 2:</strong> If pressured, you draw the decoy pattern. The observer sees a vault with boring photos.</li>
+          <li><strong>Step 3:</strong> The observer cannot determine whether other vaults exist. There is no count, no list, no evidence of additional vaults.</li>
+          <li><strong>Step 4:</strong> You truthfully state that you have shown them what you have. They cannot prove otherwise.</li>
+        </ul>
+
+        <p>Without hidden vaults, plausible deniability is theater. With hidden vaults, it is mathematics.</p>
+
+        <!-- Section 6: Why This Matters -->
+        <h2>Why This Matters</h2>
+
+        <p>You might think forensic resistance sounds extreme. Most people are not facing device seizures or court orders. But the principle behind hidden vaults protects you in everyday scenarios too.</p>
+
+        <p>A partner who picks up your phone cannot tell whether you have private vaults. A coworker borrowing your device sees nothing to be curious about. A thief who steals your phone cannot determine whether there is anything worth extracting. In every case, the protection is the same: what cannot be found cannot be targeted.</p>
+
+        <p>This is a fundamental shift in how privacy works. Traditional security asks: "Can they break in?" Hidden vaults ask a different question entirely: "Can they even tell there is something to break into?" The answer, by design, is no.</p>
+
+        <!-- FAQ -->
+        <section class="feature-faq">
+          <h2>Frequently Asked Questions</h2>
+
+          <details class="feature-faq-item">
+            <summary>If the app does not know how many vaults exist, how does it find mine?</summary>
+            <div class="faq-answer">
+              <p>When you draw a pattern, Vaultaire derives a cryptographic key and uses it to attempt decryption against the storage pool. If the key matches a vault, the data decrypts into meaningful files. If it does not match, the result is noise. The app does not search for your vault &mdash; it mathematically reconstructs it from your pattern. No lookup is needed because there is no index to look up.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>Can someone tell how many vaults I have by looking at storage usage?</summary>
+            <div class="faq-answer">
+              <p>No. Vaultaire pads its storage pool with cryptographically random data so the total footprint does not correlate with the number or size of vaults. Whether you have one vault with 50 photos or ten vaults with 500 photos, the storage pool can occupy the same amount of space. The padding absorbs the difference.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>What happens if I delete a vault? Does the storage shrink?</summary>
+            <div class="faq-answer">
+              <p>When you delete a vault, the space it occupied is reclaimed by padding. The total storage footprint does not immediately change. It only adjusts when the padding-to-data ratio crosses a predetermined threshold, and that adjustment is identical regardless of what caused it. An observer cannot determine whether storage changed because you deleted a vault, added files, or simply triggered a routine rebalance.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>How is this different from just encrypting a folder?</summary>
+            <div class="faq-answer">
+              <p>An encrypted folder is still a folder. It appears in the file system, it has a name, it has a size, and it has timestamps. An examiner knows it exists even if they cannot read its contents. Vaultaire's hidden vaults have no file system presence as individual entities. They exist only as undifferentiated bytes within a padded storage pool. There is nothing to point at and say "that is a vault."</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>Could a future update to Vaultaire compromise hidden vaults?</summary>
+            <div class="faq-answer">
+              <p>The hidden vault architecture is fundamental to how Vaultaire stores data, not a feature that can be toggled off. There is no vault registry to add, no directory structure to create. Changing this would require rebuilding the entire storage engine from scratch. The design is intentionally irreversible &mdash; the app cannot betray what it was never built to know.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>Does hidden vaults work with iCloud backup?</summary>
+            <div class="faq-answer">
+              <p>Yes. When Vaultaire backs up to iCloud, the entire padded storage pool is encrypted and uploaded as a single blob. The backup contains the same undifferentiated data as the local storage. iCloud sees an encrypted file of a certain size &mdash; it cannot determine how many vaults are inside, what they contain, or whether the data is mostly padding or mostly real files.</p>
+            </div>
+          </details>
+        </section>
+
+        <!-- CTA -->
+        <div class="feature-cta">
+          <h2>Your Vaults, Your Secret</h2>
+          <p>Create as many vaults as you want. Nobody will ever know how many exist &mdash; not even the app.</p>
+          <a href="https://apps.apple.com/app/vaultaire/id6758529311" class="btn btn-primary">Download Vaultaire Free</a>
+        </div>
+
+        <!-- Related Features -->
+        <nav class="related-features" aria-label="Related features">
+          <h2>Explore More Features</h2>
+          <div class="related-grid">
+            <a href="../pattern-encryption/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f510;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Pattern Encryption</span>
+                <span class="related-card-desc">Draw a shape, encrypt your files</span>
+              </div>
+            </a>
+            <a href="../secret-phrase/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f511;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Secret Phrase</span>
+                <span class="related-card-desc">Recovery backup for your pattern</span>
+              </div>
+            </a>
+            <a href="../plausible-deniability/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f3ad;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Plausible Deniability</span>
+                <span class="related-card-desc">Every pattern opens a vault</span>
+              </div>
+            </a>
+            <a href="../duress-mode/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f6a8;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Duress Mode</span>
+                <span class="related-card-desc">Emergency vault destruction</span>
+              </div>
+            </a>
+            <a href="../encrypted-icloud-backup/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x2601;&#xfe0f;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Encrypted iCloud Backup</span>
+                <span class="related-card-desc">Encrypted before it leaves your device</span>
+              </div>
+            </a>
+            <a href="../secure-sharing/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f91d;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Secure Sharing</span>
+                <span class="related-card-desc">Share vaults with full control</span>
+              </div>
+            </a>
+            <a href="../security-features/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f6e1;&#xfe0f;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Security Features</span>
+                <span class="related-card-desc">Full security architecture</span>
+              </div>
+            </a>
+            <a href="../ease-of-use/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x2728;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Ease of Use</span>
+                <span class="related-card-desc">Powerful security made simple</span>
+              </div>
+            </a>
+          </div>
+        </nav>
+      </article>
+    </div>
+  </main>
+
+  <footer role="contentinfo">
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <h4>Vaultaire</h4>
+        <p>&copy; 2026 Wraxle LLC</p>
+      </div>
+      <div class="footer-links">
+        <a href="../../index.html">Home</a>
+        <a href="../../manifesto/index.html">Manifesto</a>
+        <a href="../../privacy/index.html">Privacy Policy</a>
+        <a href="../../terms/index.html">Terms of Use</a>
+        <a href="../../s/index.html">Vault Invite</a>
+        <a href="../">Features</a>
+        <a href="../../compare/">Compare</a>
+        <a href="mailto:support@vaultaire.app">Support</a>
+      </div>
+      <div class="footer-compare">
+        <a href="../../compare/vaultaire-vs-private-photo-vault/">Vaultaire vs Private Photo Vault</a>
+        <a href="../../compare/vaultaire-vs-keepsafe/">Vaultaire vs Keepsafe</a>
+        <a href="../../compare/vaultaire-vs-privault/">Vaultaire vs Privault</a>
+        <a href="../../compare/vaultaire-vs-spv/">Vaultaire vs SPV</a>
+        <a href="../../compare/vaultaire-vs-secret-photo-album/">Vaultaire vs Secret Photo Album</a>
+        <a href="../../compare/vaultaire-vs-pv-secret-photo-album/">Vaultaire vs PV Secret Photo Album</a>
+        <a href="../../compare/vaultaire-vs-calculator-hide-photos/">Vaultaire vs Calculator#</a>
+        <a href="../../compare/vaultaire-vs-secret-photo-vault/">Vaultaire vs Secret Photo Vault</a>
+        <a href="../../compare/vaultaire-vs-hide-it-pro/">Vaultaire vs Hide it Pro</a>
+        <a href="../../compare/vaultaire-vs-safe-lock/">Vaultaire vs Safe Lock</a>
+      </div>
+    </div>
+  </footer>
+  <script defer src="/assets/alpine-app.js"></script>
+  <script defer src="/assets/alpine.min.js"></script>
+</body>
+</html>

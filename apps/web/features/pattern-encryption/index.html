@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pattern Encryption: How Drawing a Shape Protects Your Files | Vaultaire</title>
+  <meta name="description" content="Learn how Vaultaire turns a simple drawn pattern into military-grade AES-256-GCM encryption. No passwords to remember, no PINs to guess. Your pattern is the key.">
+  <meta name="keywords" content="pattern encryption, pattern lock encryption, draw pattern to encrypt, AES-256 encryption app, photo vault encryption, how pattern lock works, secure vault app iOS">
+  <meta property="og:title" content="Pattern Encryption: How Drawing a Shape Protects Your Files">
+  <meta property="og:description" content="Your finger draws a shape. That shape becomes a 256-bit encryption key. Here's how Vaultaire makes it work, and why nobody can break it.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://vaultaire.app/features/pattern-encryption/">
+  <meta property="og:image" content="https://vaultaire.app/assets/social-share.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Pattern Encryption: How Drawing a Shape Protects Your Files">
+  <meta name="twitter:description" content="Your finger draws a shape. That shape becomes a 256-bit encryption key. Here's how Vaultaire makes it work.">
+  <meta name="twitter:image" content="https://vaultaire.app/assets/social-share.png">
+  <meta property="article:published_time" content="2026-02-22T00:00:00Z">
+  <meta property="article:modified_time" content="2026-02-22T00:00:00Z">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="canonical" href="https://vaultaire.app/features/pattern-encryption/">
+  <link rel="alternate" type="application/rss+xml" title="Vaultaire Updates" href="https://vaultaire.app/feed.xml">
+  <link rel="alternate" type="application/json" title="MCP manifest" href="https://vaultaire.app/.well-known/mcp.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles/output.css">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Pattern Encryption: How Drawing a Shape Protects Your Files",
+    "description": "Learn how Vaultaire turns a simple drawn pattern into military-grade AES-256-GCM encryption.",
+    "author": {
+      "@type": "Organization",
+      "name": "Vaultaire"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Vaultaire",
+      "url": "https://vaultaire.app"
+    },
+    "datePublished": "2026-02-22",
+    "dateModified": "2026-02-22",
+    "mainEntityOfPage": "https://vaultaire.app/features/pattern-encryption/"
+  }
+  </script>
+</head>
+<body class="page-feature" x-data="vaultaireApp()">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <header role="banner">
+    <div class="container nav-inner">
+      <a href="../../index.html" class="logo">
+        <img src="../../assets/vault-logo.png" alt="Vaultaire logo" class="logo-mark logo-mark--dark" srcset="../../assets/vault-logo.png 1x" sizes="32px" width="32" height="32">
+        <img src="../../assets/vault-logo-light.png" alt="Vaultaire logo for light theme" class="logo-mark logo-mark--light" srcset="../../assets/vault-logo-light.png 1x" sizes="32px" width="32" height="32">
+        <span>Vaultaire</span>
+      </a>
+      <nav class="nav-links" role="navigation" aria-label="Primary">
+        <a href="../../index.html">Home</a>
+        <a href="../">Features</a>
+        <a href="../../index.html#how-it-works">How It Works</a>
+        <a href="../../index.html#security">Security</a>
+        <a href="../../manifesto/index.html">Manifesto</a>
+        <a href="../../compare/">Compare</a>
+      </nav>
+      <div class="nav-cta">
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+          <span class="theme-icon" id="theme-icon">&#9788;</span>
+          <span id="theme-label">Light</span>
+        </button>
+        <a href="https://apps.apple.com/app/vaultaire/id6758529311" class="btn btn-primary btn-nav">Get App</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content" role="main">
+    <div class="container">
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="../../index.html">Home</a><span>/</span>
+        <a href="../">Features</a><span>/</span>
+        Pattern Encryption
+      </nav>
+
+      <article class="feature-article">
+        <!-- Hero -->
+        <div class="feature-hero">
+          <span class="feature-hero-icon" aria-hidden="true">&#x1f510;</span>
+          <h1>Pattern Encryption: How Drawing a Shape Protects Your Files</h1>
+          <p class="hero-lead">You draw a pattern with your finger. That pattern becomes a cryptographic key that locks your files behind AES-256 encryption. No passwords to forget, no PINs to guess. Just your pattern, and the math behind it.</p>
+        </div>
+
+        <!-- Section 1: What Is Pattern Encryption -->
+        <h2>What Is Pattern Encryption?</h2>
+
+        <p>Most vault apps hide behind a PIN or a password. You type in four digits, and your photos appear. Sounds secure enough, right?</p>
+
+        <p>Here is the problem: a four-digit PIN has exactly 10,000 possible combinations. A computer can try every single one in under a second. Six digits? A million combinations. Still trivially fast for modern hardware. Even an eight-character password, if it uses only lowercase letters, gives you about 200 billion possibilities. That sounds like a lot until you learn that a standard laptop can test billions of password hashes per second.</p>
+
+        <p>Pattern encryption takes a fundamentally different approach. Instead of typing characters into a box, you draw a geometric shape across a grid of dots. The specific path you trace &mdash; which dots you touch, in what order, with what geometry &mdash; becomes the raw material for generating an encryption key. Not an access code. Not a convenience unlock. An actual cryptographic key that mathematically scrambles your data.</p>
+
+        <p>The distinction matters. When you enter a PIN into most apps, the app checks whether you typed the right number. If you did, it opens. The data itself is often sitting on disk in a readable format, just hidden behind an access gate. Pattern encryption in Vaultaire works differently: the pattern you draw is fed into a key derivation function that produces a unique 256-bit encryption key. That key is what encrypts and decrypts your files. If someone draws a different pattern, they get a different key. The decryption produces garbage. There is no &ldquo;wrong password&rdquo; message &mdash; just meaningless noise.</p>
+
+        <div class="info-box">
+          <div class="info-box-label">Key Difference</div>
+          <p>A PIN-based vault is like a locked door: pick the lock, and you walk right in. Pattern encryption is like a safe where the combination <strong>is the metal the safe is made of</strong>. Wrong combination, and there is no safe &mdash; just random scrap.</p>
+        </div>
+
+        <!-- Section 2: How It Works -->
+        <h2>How It Works, Step by Step</h2>
+
+        <p>Here is what happens from the moment your finger touches the screen to the moment your files become unreadable to everyone else.</p>
+
+        <h3>Step 1: You Draw Your Pattern</h3>
+
+        <p>Vaultaire presents a 5&times;5 grid of dots. You draw a continuous path connecting at least 4 of these dots. The app records exactly which dots you visited and in what order. This sequence is your pattern.</p>
+
+        <div class="diagram-container">
+          <div class="diagram-label">5&times;5 Pattern Grid</div>
+          <div class="pattern-grid-diagram">
+            <div class="grid-node active"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node active"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node active"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node active"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node active"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node"></div>
+            <div class="grid-node active"></div>
+          </div>
+        </div>
+
+        <p>Unlike the 3&times;3 grids you see on Android lock screens, Vaultaire uses a 5&times;5 grid. This is not a cosmetic choice. A 3&times;3 grid gives you 9 dots and roughly 140,000 possible patterns when you connect at least 4 dots. A 5&times;5 grid with 25 dots? The number of possible patterns jumps into the billions. More dots, more connections, exponentially more entropy.</p>
+
+        <h3>Step 2: The Pattern Becomes a Key</h3>
+
+        <p>Your drawn pattern is converted into a numerical sequence. This sequence is then fed into a key derivation function &mdash; specifically, PBKDF2 (Password-Based Key Derivation Function 2) combined with a unique, randomly generated salt. The salt is a string of random data that ensures two identical patterns on different vaults still produce completely different keys.</p>
+
+        <div class="diagram-container">
+          <div class="diagram-label">Encryption Flow</div>
+          <div class="flow-diagram">
+            <div class="flow-step">
+              <div class="flow-step-box">Your Pattern</div>
+              <div class="flow-step-label">5&times;5 grid path</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-step">
+              <div class="flow-step-box">PBKDF2 + Salt</div>
+              <div class="flow-step-label">Key derivation</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-step">
+              <div class="flow-step-box">256-bit Key</div>
+              <div class="flow-step-label">Unique per vault</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-step">
+              <div class="flow-step-box">AES-256-GCM</div>
+              <div class="flow-step-label">File encryption</div>
+            </div>
+          </div>
+        </div>
+
+        <p>The key derivation process is deliberately slow. PBKDF2 runs thousands of iterations, making each guess computationally expensive. This is by design: you only draw your pattern once, so a fraction of a second is imperceptible to you. But an attacker trying millions of patterns will face hours, days, or years of computation per attempt.</p>
+
+        <h3>Step 3: Your Files Get Encrypted</h3>
+
+        <p>The derived 256-bit key is used with AES-256-GCM (Advanced Encryption Standard, 256-bit key, Galois/Counter Mode) to encrypt every file in your vault. Each file receives its own unique initialization vector (IV), so even identical files produce completely different encrypted outputs.</p>
+
+        <p>GCM mode adds an important layer: authentication. It does not just scramble your data &mdash; it also generates a tag that detects any tampering. If a single bit of the encrypted file is modified, the decryption will fail. Nobody can tamper with your files without you knowing.</p>
+
+        <h3>Step 4: The Key Disappears</h3>
+
+        <p>Once you close Vaultaire, the encryption key is wiped from device memory. It is not stored on disk, not cached, not saved anywhere. The next time you open the app, you must redraw your pattern to regenerate the key. If you draw the right pattern, the key derivation produces the same key, and your files decrypt perfectly. If you draw any other pattern, the math produces a different key, and the decryption outputs noise.</p>
+
+        <!-- Section 3: The Math -->
+        <h2>The Math Behind It (In Plain English)</h2>
+
+        <p>You do not need a computer science degree to understand why this works. The security comes down to three numbers: how many patterns are possible, how long each guess takes, and how many guesses an attacker can make.</p>
+
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="stat-value">2<sup>256</sup></div>
+            <div class="stat-label">AES Key Space</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">5&times;5</div>
+            <div class="stat-label">Grid Size</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">Billions</div>
+            <div class="stat-label">Possible Patterns</div>
+          </div>
+        </div>
+
+        <h3>Entropy: The Measure of Unpredictability</h3>
+
+        <p>Entropy is a fancy word for &ldquo;how hard is this to guess.&rdquo; A coin flip has 1 bit of entropy (two outcomes). A four-digit PIN has about 13 bits of entropy (10,000 outcomes). A well-chosen pattern on a 5&times;5 grid, connecting 8 or more dots, can exceed 30 bits of entropy &mdash; more than a billion possible patterns.</p>
+
+        <p>But the real security does not come from the pattern alone. It comes from what happens after you draw it.</p>
+
+        <h3>Key Derivation: Making Guesses Expensive</h3>
+
+        <p>PBKDF2 takes your pattern and runs it through thousands of rounds of cryptographic hashing. Each round takes a tiny amount of time &mdash; maybe a thousandth of a second. That adds up. If an attacker wants to test a billion patterns, and each test takes a thousandth of a second, that is a million seconds. About 11.5 days. For a <em>single</em> vault.</p>
+
+        <p>And that assumes they know the salt, which is unique to each vault and stored in a way that requires physical access to your device. Remote attacks are off the table entirely.</p>
+
+        <h3>AES-256: The Standard That Governments Trust</h3>
+
+        <p>AES-256 is the encryption standard used by the U.S. government for classified information. The &ldquo;256&rdquo; refers to the key length in bits. A 256-bit key has 2<sup>256</sup> possible values &mdash; a number so large that if every atom in the observable universe were a computer, and each computer could test a trillion keys per second, they still would not crack it before the heat death of the universe.</p>
+
+        <p>This is not marketing language. This is mathematics. The security of AES-256 does not depend on secrecy or obscurity. The algorithm is public. The code is public. The security depends entirely on the key &mdash; and your pattern generates that key.</p>
+
+        <!-- Section 4: Why Nobody Can Break It -->
+        <h2>Why Nobody Can Break Through</h2>
+
+        <p>Let us consider the ways someone might try to access your encrypted files, and why each one fails.</p>
+
+        <h3>Brute Force: Trying Every Pattern</h3>
+
+        <p>Even with a fast computer, the key derivation function makes each attempt expensive. A billion possible patterns multiplied by a millisecond per attempt equals years of computation. And that is using hardware that most people do not have access to.</p>
+
+        <h3>Smudge Attacks: Reading Your Screen</h3>
+
+        <p>On a 3&times;3 grid, smudge marks on a screen can narrow down the possible patterns significantly. On a 5&times;5 grid, the smudge pattern reveals which dots were touched but not the order, direction, or connections between them. The combinatorial explosion makes this approach impractical.</p>
+
+        <h3>Shoulder Surfing: Watching You Draw</h3>
+
+        <p>Patterns drawn quickly on a small phone screen are extremely difficult to memorize by observation, especially on a 5&times;5 grid. Research shows that observers have a much harder time replicating complex patterns compared to overhearing a PIN or password being spoken aloud.</p>
+
+        <h3>Device Seizure: Taking Your Phone</h3>
+
+        <p>If someone takes your phone, they have an encrypted blob. Without your pattern, the data is mathematically indistinguishable from random noise. Vaultaire does not store the key, does not store a hash of the pattern, and does not store anything that could be used to verify whether a guess is correct. The attacker has no oracle to check against.</p>
+
+        <div class="info-box">
+          <div class="info-box-label">No Verification Oracle</div>
+          <p>Most password systems store a hash of your password. An attacker with database access can check guesses against that hash. Vaultaire stores <strong>nothing</strong>. Every pattern produces a valid-looking key. Only the right key produces meaningful data. The attacker cannot even tell if they have guessed correctly without decrypting the entire vault and inspecting the contents.</p>
+        </div>
+
+        <!-- Section 5: Choosing a Strong Pattern -->
+        <h2>Choosing a Strong Pattern</h2>
+
+        <p>The encryption is only as strong as the pattern you choose. Here is how to maximize your security with minimal effort.</p>
+
+        <h3>What Makes a Pattern Strong</h3>
+
+        <ul>
+          <li><strong>Use more dots.</strong> Connect at least 8 of the 25 available dots. Every additional dot multiplies the number of possible patterns.</li>
+          <li><strong>Cross your own path.</strong> Patterns that loop back, skip dots, or change direction unexpectedly are much harder to reproduce from memory or observation.</li>
+          <li><strong>Avoid obvious shapes.</strong> Letters (L, Z, S), simple geometric shapes (squares, triangles), and straight lines are the first things an attacker would try.</li>
+          <li><strong>Use the full grid.</strong> Patterns that stay in one corner or along one edge waste the available entropy. Spread out.</li>
+        </ul>
+
+        <h3>What to Avoid</h3>
+
+        <ul>
+          <li><strong>Short patterns.</strong> Connecting only 4 dots gives you far fewer possible combinations. Think of it like a two-character password.</li>
+          <li><strong>Simple geometric shapes.</strong> An L-shape, a zigzag, or a straight diagonal line are the pattern equivalents of &ldquo;password123.&rdquo;</li>
+          <li><strong>Starting from the same corner every time.</strong> Research on Android lock patterns shows that most people start from the top-left dot. Attackers know this.</li>
+        </ul>
+
+        <h3>The Sweet Spot</h3>
+
+        <p>A pattern connecting 8&ndash;12 dots with at least two direction changes provides excellent security while remaining easy for you to remember through muscle memory. You do not need to memorize it like a password &mdash; your hand remembers the motion, the same way it remembers how to write your signature.</p>
+
+        <!-- Section 6: Why You Should Feel Safe -->
+        <h2>Why You Should Feel Safe</h2>
+
+        <p>Pattern encryption in Vaultaire is not a gimmick. It is not a prettier version of a PIN pad. It is a genuine cryptographic mechanism that turns a human-friendly gesture into military-grade encryption.</p>
+
+        <p>Your pattern never leaves your device. The key derived from it never touches a server. The encrypted files cannot be decrypted without the exact key, and the key cannot be derived without the exact pattern. Every link in this chain is mathematically verifiable, and none of it depends on trusting a company, a server, or a cloud provider.</p>
+
+        <p>You draw a shape. That shape protects your files. The math does the rest.</p>
+
+        <!-- FAQ -->
+        <section class="feature-faq">
+          <h2>Frequently Asked Questions</h2>
+
+          <details class="feature-faq-item">
+            <summary>What happens if I forget my pattern?</summary>
+            <div class="faq-answer">
+              <p>When you create a vault, Vaultaire generates a recovery phrase &mdash; a series of words that can regenerate your encryption key. If you forget your pattern, you can enter this phrase to regain access. If you lose both the pattern and the recovery phrase, the data cannot be recovered. This is by design: it means nobody else can recover it either.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>Is a pattern really more secure than a password?</summary>
+            <div class="faq-answer">
+              <p>A well-chosen pattern on a 5&times;5 grid can match or exceed the entropy of a typical password. The advantage is usability: people choose weak passwords because strong ones are hard to remember. Patterns leverage muscle memory, making it natural to use a complex one without conscious memorization.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>Can someone screenshot or record my pattern?</summary>
+            <div class="faq-answer">
+              <p>Vaultaire blocks screenshots while the pattern grid is visible. Screen recording is also prevented by the operating system&rsquo;s secure screen flag. An attacker would need direct visual access to your screen while you draw.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>What encryption algorithm does Vaultaire use?</summary>
+            <div class="faq-answer">
+              <p>AES-256-GCM for file encryption, with PBKDF2 for key derivation. Each vault has a unique salt, and each file has a unique initialization vector. Metadata is protected with ChaCha20. Key material is managed through the device&rsquo;s Secure Enclave.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>Is the pattern stored on my device?</summary>
+            <div class="faq-answer">
+              <p>No. Vaultaire does not store your pattern, a hash of your pattern, or any representation of your pattern. The pattern is used to derive a key in real time, and both the pattern data and the key are wiped from memory when the app closes.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>Can Vaultaire access my encrypted files?</summary>
+            <div class="faq-answer">
+              <p>No. Vaultaire has zero-knowledge architecture. The company never sees your pattern, never generates your key, and never has access to your unencrypted data. Even if compelled by a court order, there is nothing to hand over.</p>
+            </div>
+          </details>
+        </section>
+
+        <!-- CTA -->
+        <div class="feature-cta">
+          <h2>Try Pattern Encryption</h2>
+          <p>Draw your first pattern and see how it feels to have your files truly protected.</p>
+          <a href="https://apps.apple.com/app/vaultaire/id6758529311" class="btn btn-primary">Download Vaultaire Free</a>
+        </div>
+
+        <!-- Related Features -->
+        <nav class="related-features" aria-label="Related features">
+          <h2>Explore More Features</h2>
+          <div class="related-grid">
+            <a href="../secret-phrase/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f511;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Secret Phrase</span>
+                <span class="related-card-desc">Recovery backup for your pattern</span>
+              </div>
+            </a>
+            <a href="../plausible-deniability/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f3ad;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Plausible Deniability</span>
+                <span class="related-card-desc">Every pattern opens a vault</span>
+              </div>
+            </a>
+            <a href="../hidden-vaults/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f576;&#xfe0f;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Hidden Vaults</span>
+                <span class="related-card-desc">Nobody knows how many exist</span>
+              </div>
+            </a>
+            <a href="../duress-mode/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f6a8;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Duress Mode</span>
+                <span class="related-card-desc">Emergency vault destruction</span>
+              </div>
+            </a>
+            <a href="../encrypted-icloud-backup/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x2601;&#xfe0f;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Encrypted iCloud Backup</span>
+                <span class="related-card-desc">Encrypted before it leaves your device</span>
+              </div>
+            </a>
+            <a href="../secure-sharing/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f91d;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Secure Sharing</span>
+                <span class="related-card-desc">Share vaults with full control</span>
+              </div>
+            </a>
+            <a href="../security-features/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f6e1;&#xfe0f;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Security Features</span>
+                <span class="related-card-desc">Full security architecture</span>
+              </div>
+            </a>
+            <a href="../ease-of-use/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x2728;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Ease of Use</span>
+                <span class="related-card-desc">Powerful security made simple</span>
+              </div>
+            </a>
+          </div>
+        </nav>
+      </article>
+    </div>
+  </main>
+
+  <footer role="contentinfo">
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <h4>Vaultaire</h4>
+        <p>&copy; 2026 Wraxle LLC</p>
+      </div>
+      <div class="footer-links">
+        <a href="../../index.html">Home</a>
+        <a href="../../manifesto/index.html">Manifesto</a>
+        <a href="../../privacy/index.html">Privacy Policy</a>
+        <a href="../../terms/index.html">Terms of Use</a>
+        <a href="../../s/index.html">Vault Invite</a>
+        <a href="../">Features</a>
+        <a href="../../compare/">Compare</a>
+        <a href="mailto:support@vaultaire.app">Support</a>
+      </div>
+      <div class="footer-compare">
+        <a href="../../compare/vaultaire-vs-private-photo-vault/">Vaultaire vs Private Photo Vault</a>
+        <a href="../../compare/vaultaire-vs-keepsafe/">Vaultaire vs Keepsafe</a>
+        <a href="../../compare/vaultaire-vs-privault/">Vaultaire vs Privault</a>
+        <a href="../../compare/vaultaire-vs-spv/">Vaultaire vs SPV</a>
+        <a href="../../compare/vaultaire-vs-secret-photo-album/">Vaultaire vs Secret Photo Album</a>
+        <a href="../../compare/vaultaire-vs-pv-secret-photo-album/">Vaultaire vs PV Secret Photo Album</a>
+        <a href="../../compare/vaultaire-vs-calculator-hide-photos/">Vaultaire vs Calculator#</a>
+        <a href="../../compare/vaultaire-vs-secret-photo-vault/">Vaultaire vs Secret Photo Vault</a>
+        <a href="../../compare/vaultaire-vs-hide-it-pro/">Vaultaire vs Hide it Pro</a>
+        <a href="../../compare/vaultaire-vs-safe-lock/">Vaultaire vs Safe Lock</a>
+      </div>
+    </div>
+  </footer>
+  <script defer src="/assets/alpine-app.js"></script>
+  <script defer src="/assets/alpine.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security Architecture: The Full Technical Stack | Vaultaire</title>
+  <meta name="description" content="Explore Vaultaire's complete cryptographic stack: AES-256-GCM, Argon2id key derivation, ChaCha20 metadata protection, Secure Enclave integration, and zero-knowledge architecture. Every layer explained.">
+  <meta name="keywords" content="encryption architecture, AES-256-GCM, Argon2id, ChaCha20, zero-knowledge encryption, Secure Enclave, iOS security, encrypted vault app, cryptographic stack, per-file IV">
+  <meta property="og:title" content="Security Architecture: The Full Technical Stack">
+  <meta property="og:description" content="Seven layers of cryptography, zero trust required. A deep dive into every cipher, protocol, and design decision that makes Vaultaire unbreakable.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://vaultaire.app/features/security-features/">
+  <meta property="og:image" content="https://vaultaire.app/assets/social-share.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Security Architecture: The Full Technical Stack">
+  <meta name="twitter:description" content="Seven layers of cryptography, zero trust required. A deep dive into every cipher, protocol, and design decision that makes Vaultaire unbreakable.">
+  <meta name="twitter:image" content="https://vaultaire.app/assets/social-share.png">
+  <meta property="article:published_time" content="2026-02-22T00:00:00Z">
+  <meta property="article:modified_time" content="2026-02-22T00:00:00Z">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="canonical" href="https://vaultaire.app/features/security-features/">
+  <link rel="alternate" type="application/rss+xml" title="Vaultaire Updates" href="https://vaultaire.app/feed.xml">
+  <link rel="alternate" type="application/json" title="MCP manifest" href="https://vaultaire.app/.well-known/mcp.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles/output.css">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Security Architecture: The Full Technical Stack",
+    "description": "A comprehensive guide to Vaultaire's cryptographic architecture: AES-256-GCM, Argon2id, ChaCha20, zero-knowledge design, and hardware-backed key management.",
+    "author": {
+      "@type": "Organization",
+      "name": "Vaultaire"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Vaultaire",
+      "url": "https://vaultaire.app"
+    },
+    "datePublished": "2026-02-22",
+    "dateModified": "2026-02-22",
+    "mainEntityOfPage": "https://vaultaire.app/features/security-features/"
+  }
+  </script>
+</head>
+<body class="page-feature" x-data="vaultaireApp()">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <header role="banner">
+    <div class="container nav-inner">
+      <a href="../../index.html" class="logo">
+        <img src="../../assets/vault-logo.png" alt="Vaultaire logo" class="logo-mark logo-mark--dark" srcset="../../assets/vault-logo.png 1x" sizes="32px" width="32" height="32">
+        <img src="../../assets/vault-logo-light.png" alt="Vaultaire logo for light theme" class="logo-mark logo-mark--light" srcset="../../assets/vault-logo-light.png 1x" sizes="32px" width="32" height="32">
+        <span>Vaultaire</span>
+      </a>
+      <nav class="nav-links" role="navigation" aria-label="Primary">
+        <a href="../../index.html">Home</a>
+        <a href="../">Features</a>
+        <a href="../../index.html#how-it-works">How It Works</a>
+        <a href="../../index.html#security">Security</a>
+        <a href="../../manifesto/index.html">Manifesto</a>
+        <a href="../../compare/">Compare</a>
+      </nav>
+      <div class="nav-cta">
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+          <span class="theme-icon" id="theme-icon">&#9788;</span>
+          <span id="theme-label">Light</span>
+        </button>
+        <a href="https://apps.apple.com/app/vaultaire/id6758529311" class="btn btn-primary btn-nav">Get App</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content" role="main">
+    <div class="container">
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="../../index.html">Home</a><span>/</span>
+        <a href="../">Features</a><span>/</span>
+        Security Architecture
+      </nav>
+
+      <article class="feature-article">
+        <!-- Hero -->
+        <div class="feature-hero">
+          <span class="feature-hero-icon" aria-hidden="true">&#x1f6e1;&#xfe0f;</span>
+          <h1>Security Architecture: The Full Technical Stack</h1>
+          <p class="hero-lead">Vaultaire does not rely on a single algorithm or a single clever trick. It uses a layered cryptographic architecture where every component has a specific job, and the failure of any one layer does not compromise the others. Here is every cipher, protocol, and design decision that stands between your private data and the rest of the world.</p>
+        </div>
+
+        <!-- Section 1: Overview -->
+        <h2>The Cryptographic Stack</h2>
+
+        <p>Most security apps pick one encryption algorithm and call it a day. Vaultaire uses six distinct cryptographic mechanisms working in concert, each chosen for a specific threat model. File contents are encrypted with one cipher. Metadata is encrypted with another. Keys are derived through a memory-hard function. Hardware security stores the result. And a zero-knowledge architecture ensures that even the people who built Vaultaire cannot access your data.</p>
+
+        <p>This is not complexity for its own sake. Each layer addresses a different attack surface. AES-256-GCM handles bulk file encryption because it is fast and hardware-accelerated on Apple silicon. ChaCha20 protects metadata because it is constant-time and resistant to cache-timing attacks. Argon2id derives keys because it punishes GPU-based cracking rigs. The Secure Enclave stores key material because software-only protection is not enough when someone has physical access to your device.</p>
+
+        <p>Together, these layers form a defense-in-depth architecture. An attacker would need to break multiple independent cryptographic primitives simultaneously &mdash; a scenario that sits firmly in the realm of the mathematically impossible.</p>
+
+        <div class="info-box">
+          <div class="info-box-label">Defense in Depth</div>
+          <p>Think of Vaultaire's security like a series of bank vault doors, each requiring a different type of key. Breaking through one door does not help with the next. The <strong>file cipher</strong>, <strong>metadata cipher</strong>, <strong>key derivation function</strong>, and <strong>hardware enclave</strong> are each independent barriers. An attacker must defeat all of them, not just one.</p>
+        </div>
+
+        <!-- Section 2: AES-256-GCM -->
+        <h2>AES-256-GCM: File Encryption</h2>
+
+        <p>Every photo, video, and document stored in Vaultaire is encrypted with AES-256-GCM &mdash; the Advanced Encryption Standard with a 256-bit key in Galois/Counter Mode. This is the same cipher used by the U.S. government for top-secret classified information. It is not a marketing comparison. It is literally the same algorithm, the same key size, and the same mode of operation.</p>
+
+        <p>The &ldquo;256&rdquo; in AES-256 refers to the key length in bits. A 256-bit key has 2<sup>256</sup> possible values. To put that number in perspective: there are roughly 2<sup>80</sup> atoms in the observable universe. If every atom were a supercomputer testing a billion keys per second, running since the Big Bang, they would have explored less than a trillionth of a trillionth of one percent of the key space. AES-256 is not going to be brute-forced. Not today. Not this century. Not before the stars burn out.</p>
+
+        <h3>Why GCM Mode Matters</h3>
+
+        <p>AES is a block cipher &mdash; it encrypts data in 128-bit chunks. The &ldquo;mode&rdquo; determines how those chunks are combined. GCM (Galois/Counter Mode) provides two things that simpler modes like CBC do not: parallelized encryption and built-in authentication.</p>
+
+        <p>The authentication piece is critical. GCM generates a cryptographic tag for every encrypted file. This tag acts as a tamper seal. If even a single bit of the ciphertext is modified &mdash; whether by a malicious actor or a corrupted disk sector &mdash; the authentication tag will not match, and decryption will fail. You do not get corrupted data. You get a clear signal that something is wrong. This property is called authenticated encryption, and it prevents an entire class of attacks where an adversary modifies encrypted data to manipulate the decrypted output.</p>
+
+        <!-- Section 3: Argon2id -->
+        <h2>Argon2id: Key Derivation</h2>
+
+        <p>Your encryption key does not come from nowhere. It is derived from your pattern (or secret phrase) through a key derivation function &mdash; an algorithm specifically designed to turn a human-provided input into a cryptographic key. Vaultaire uses Argon2id, the winner of the Password Hashing Competition and the current state of the art in key derivation.</p>
+
+        <h3>Why Not PBKDF2 or bcrypt?</h3>
+
+        <p>Older key derivation functions like PBKDF2 and bcrypt have a critical weakness: they are CPU-bound. Their difficulty is measured in iterations &mdash; how many times the hash function runs. This makes them vulnerable to GPU-based attacks. A modern graphics card has thousands of cores optimized for parallel computation. An attacker with a rack of GPUs can test millions of PBKDF2 hashes per second, effectively neutralizing the computational cost.</p>
+
+        <p>Argon2id takes a fundamentally different approach. It is <strong>memory-hard</strong>. Each key derivation requires a configurable amount of RAM &mdash; Vaultaire uses parameters that demand significant memory per operation. GPUs have fast cores but limited per-core memory. Filling that memory for every single guess makes GPU attacks orders of magnitude more expensive. A cracking rig that could test millions of PBKDF2 guesses per second might manage only hundreds with Argon2id.</p>
+
+        <p>The &ldquo;id&rdquo; in Argon2id refers to its hybrid design. It combines Argon2i (optimized for resistance to side-channel attacks) and Argon2d (optimized for resistance to GPU cracking). This gives you the best of both: protection against hardware-based brute force <em>and</em> protection against timing attacks on the derivation process itself.</p>
+
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="stat-value">256-bit</div>
+            <div class="stat-label">Encryption Key Length</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">6</div>
+            <div class="stat-label">Cryptographic Layers</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">0</div>
+            <div class="stat-label">Keys Stored on Servers</div>
+          </div>
+        </div>
+
+        <!-- Section 4: ChaCha20 -->
+        <h2>ChaCha20: Metadata Protection</h2>
+
+        <p>Encrypting file contents is not enough. File names, creation dates, thumbnail dimensions, and vault structure are all metadata &mdash; and metadata can be just as revealing as the data itself. A file named &ldquo;tax-return-2025.pdf&rdquo; tells an attacker exactly what is inside even if the contents are encrypted. A timestamp shows when you used the vault. A thumbnail size reveals whether something is a photo or a video.</p>
+
+        <p>Vaultaire encrypts all metadata with ChaCha20, a stream cipher designed by Daniel J. Bernstein. ChaCha20 is used alongside AES rather than instead of it for a specific reason: cryptographic diversity.</p>
+
+        <h3>Why a Separate Cipher for Metadata?</h3>
+
+        <p>Using the same algorithm for both file contents and metadata means that a theoretical breakthrough against that algorithm would expose everything at once. By using AES-256-GCM for file contents and ChaCha20 for metadata, Vaultaire ensures that even in the extraordinarily unlikely event that one cipher is compromised, the other layer remains intact.</p>
+
+        <p>ChaCha20 also has practical advantages for metadata. It is a pure software cipher &mdash; it does not rely on hardware AES instructions &mdash; which makes its performance perfectly constant regardless of the data being encrypted. This eliminates cache-timing side channels, a class of attack where an adversary measures how long encryption takes to infer information about the key or plaintext. For small, structured data like metadata, this constant-time property is especially important.</p>
+
+        <!-- Section 5: Zero-Knowledge Architecture -->
+        <h2>Zero-Knowledge Architecture</h2>
+
+        <p>Here is a question worth asking about any security app: what happens if the company behind it gets hacked, subpoenaed, or simply turns malicious?</p>
+
+        <p>With most apps, the answer is uncomfortable. They hold your data, your keys, or both. A court order compels them to hand it over. A data breach exposes it. A rogue employee accesses it. The app&rsquo;s security is only as strong as the company&rsquo;s operational security &mdash; and history shows that companies get breached regularly.</p>
+
+        <p>Vaultaire is built on zero-knowledge architecture. This means the company that makes Vaultaire never has access to your encryption keys, your pattern, your secret phrase, or your unencrypted data. Not during sync. Not during backup. Not ever. The cryptographic operations happen entirely on your device. What leaves your device &mdash; if anything does &mdash; is already encrypted with keys that only you possess.</p>
+
+        <h3>What Zero-Knowledge Means in Practice</h3>
+
+        <p>If a law enforcement agency serves Vaultaire with a subpoena demanding your data, the company can comply fully and hand over exactly nothing useful. There are no keys to surrender. There is no master password. There is no backdoor. The encrypted blobs stored in iCloud are mathematically indistinguishable from random noise without your key, and your key exists only in your head (as a pattern) and momentarily in your device&rsquo;s Secure Enclave (while the app is open).</p>
+
+        <p>This is not a policy decision. It is an architectural one. Vaultaire <em>cannot</em> access your data, regardless of intent, incentive, or legal pressure. The system is designed so that the capability does not exist.</p>
+
+        <div class="info-box">
+          <div class="info-box-label">Trust No One &mdash; By Design</div>
+          <p>Zero-knowledge architecture means you do not need to trust Vaultaire as a company. You do not need to trust that the servers are secure, that the employees are honest, or that the government will not come knocking. <strong>The math protects you from everyone</strong> &mdash; including the people who wrote the math.</p>
+        </div>
+
+        <!-- Section 6: Secure Enclave -->
+        <h2>Secure Enclave Integration</h2>
+
+        <p>Software-only security has a ceiling. No matter how carefully an app handles encryption keys in memory, the operating system, other apps, or physical access tools could theoretically read that memory. Apple&rsquo;s Secure Enclave removes this vulnerability by providing a hardware-isolated environment for key operations.</p>
+
+        <p>The Secure Enclave is a dedicated coprocessor built into every modern iPhone. It has its own encrypted memory, its own boot process, and its own security boundary. Keys stored in the Secure Enclave never leave it &mdash; not even the main processor can read them. Instead, the app sends data to the Secure Enclave, which performs cryptographic operations internally and returns only the result.</p>
+
+        <p>Vaultaire uses the Secure Enclave for key management. When you draw your pattern and the key derivation function produces an encryption key, that key is handed to the Secure Enclave. All subsequent encrypt and decrypt operations are delegated to the hardware. The key never exists in the app&rsquo;s memory space in a form that could be extracted by a debugger, a jailbreak tool, or a forensic imaging system.</p>
+
+        <p>This means that even if an attacker has root access to your iPhone &mdash; a scenario that requires a sophisticated jailbreak &mdash; the encryption keys remain inaccessible. The Secure Enclave is a separate chip with its own silicon. Compromising iOS does not compromise the Enclave.</p>
+
+        <!-- Section 7: Per-File IVs -->
+        <h2>Per-File Initialization Vectors</h2>
+
+        <p>When you encrypt two identical files with the same key, a naive implementation would produce identical ciphertext. This is a problem. An attacker who sees two identical encrypted blobs knows &mdash; without decrypting anything &mdash; that the two original files are the same. In a vault full of photos, this kind of pattern analysis can reveal information even through encryption.</p>
+
+        <p>Vaultaire eliminates this by generating a unique, cryptographically random initialization vector (IV) for every single file. The IV is combined with the encryption key during the AES-256-GCM operation, ensuring that even byte-for-byte identical files produce completely different ciphertext. Two copies of the same photo, encrypted with the same key, will look like entirely unrelated random data.</p>
+
+        <p>The IVs are stored alongside the encrypted files but are not secret &mdash; their security comes from uniqueness, not confidentiality. Each IV is generated using the device&rsquo;s cryptographic random number generator, which draws entropy from hardware noise sources. The probability of generating the same IV twice is astronomically small: roughly 1 in 2<sup>96</sup> for GCM&rsquo;s 96-bit IVs.</p>
+
+        <!-- Encryption Pipeline Diagram -->
+        <div class="diagram-container">
+          <div class="diagram-label">Encryption Pipeline</div>
+          <div class="flow-diagram">
+            <div class="flow-step">
+              <div class="flow-step-box">Your Pattern</div>
+              <div class="flow-step-label">5&times;5 grid input</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-step">
+              <div class="flow-step-box">Argon2id</div>
+              <div class="flow-step-label">Memory-hard KDF</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-step">
+              <div class="flow-step-box">Secure Enclave</div>
+              <div class="flow-step-label">Hardware key storage</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-step">
+              <div class="flow-step-box">AES-256-GCM + IV</div>
+              <div class="flow-step-label">Per-file encryption</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 8: Memory Management -->
+        <h2>Memory Management: Keys That Self-Destruct</h2>
+
+        <p>A common failure in security software is leaving sensitive data in memory after it is no longer needed. Encryption keys, derived passwords, and decrypted data can persist in RAM long after the app has finished using them. Forensic tools can dump device memory and search for these remnants &mdash; a technique known as a cold boot attack or memory dump analysis.</p>
+
+        <p>Vaultaire takes an aggressive approach to memory hygiene. When you close the app or lock your vault, the following happens in immediate sequence:</p>
+
+        <ul>
+          <li><strong>Encryption keys are overwritten.</strong> The memory locations holding key material are filled with zeros, then random data, then zeros again. This is not a simple deallocation &mdash; the memory is actively wiped to prevent recovery.</li>
+          <li><strong>Derived key material is purged.</strong> Intermediate values from the Argon2id computation, temporary buffers, and any cached decrypted data are zeroed out.</li>
+          <li><strong>Secure Enclave keys are invalidated.</strong> The key references in the Secure Enclave are marked for destruction, ensuring they cannot be reused without re-deriving from the pattern.</li>
+          <li><strong>Decrypted thumbnails and previews are cleared.</strong> Any cached image data in memory is overwritten before the app fully closes.</li>
+        </ul>
+
+        <p>The next time you open Vaultaire, you start from scratch. You draw your pattern, the key is derived fresh, and the Secure Enclave receives a new key reference. There is no session token, no cached credential, and no shortcut. Every app launch is cryptographically independent from the last.</p>
+
+        <!-- FAQ -->
+        <section class="feature-faq">
+          <h2>Frequently Asked Questions</h2>
+
+          <details class="feature-faq-item">
+            <summary>Is AES-256 really unbreakable?</summary>
+            <div class="faq-answer">
+              <p>No encryption algorithm can be proven unbreakable in an absolute mathematical sense. However, AES-256 has withstood over two decades of public cryptanalysis by the global research community. The best known attack against AES-256 reduces the effective key strength from 256 bits to about 254.4 bits &mdash; a reduction so negligible it has zero practical impact. Breaking AES-256 by brute force would require more energy than exists in the solar system. For all practical purposes, it is unbreakable with any technology that currently exists or is theoretically foreseeable.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>Why use Argon2id instead of PBKDF2?</summary>
+            <div class="faq-answer">
+              <p>PBKDF2 relies on repeated hashing, which can be massively parallelized on GPUs. A single modern GPU can test millions of PBKDF2 hashes per second. Argon2id requires large amounts of memory per computation, which GPUs cannot efficiently provide. This makes cracking attempts orders of magnitude more expensive. Argon2id won the 2015 Password Hashing Competition specifically because it addresses this class of attack.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>What data does Vaultaire send to its servers?</summary>
+            <div class="faq-answer">
+              <p>None. Vaultaire has no servers that receive your data. If you enable iCloud backup, your encrypted data is stored in your personal iCloud account &mdash; encrypted before it leaves your device with keys that Apple does not possess. Vaultaire the company never receives, processes, or stores any user data, encrypted or otherwise.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>Can a jailbroken iPhone compromise my vault?</summary>
+            <div class="faq-answer">
+              <p>A jailbreak gives an attacker root access to iOS, but the Secure Enclave is a physically separate coprocessor with its own security boundary. Jailbreaking iOS does not jailbreak the Secure Enclave. The encryption keys stored there remain inaccessible even with full operating system control. However, a jailbroken device does increase the attack surface for keylogging or screen capture, so Vaultaire recommends using a non-jailbroken device for maximum security.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>Why use two different ciphers for files and metadata?</summary>
+            <div class="faq-answer">
+              <p>Cryptographic diversity. If a vulnerability were discovered in AES (extremely unlikely, but not impossible), your metadata would still be protected by ChaCha20, and vice versa. Additionally, ChaCha20 offers constant-time performance characteristics that are ideal for small, structured data like file names and timestamps, eliminating a category of side-channel attacks that could theoretically affect AES in software-only implementations.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>What happens to my keys if the app crashes?</summary>
+            <div class="faq-answer">
+              <p>iOS reclaims all app memory on termination, whether graceful or not. The Secure Enclave key references are tied to the app&rsquo;s session and are automatically invalidated when the process ends. Even in a crash scenario, key material does not persist in an accessible form. The next launch requires a full pattern entry and fresh key derivation &mdash; there is no way to resume a previous session.</p>
+            </div>
+          </details>
+        </section>
+
+        <!-- CTA -->
+        <div class="feature-cta">
+          <h2>See the Stack in Action</h2>
+          <p>Six cryptographic layers. Zero trust required. Download Vaultaire and experience security architecture that protects you from everyone &mdash; including us.</p>
+          <a href="https://apps.apple.com/app/vaultaire/id6758529311" class="btn btn-primary">Download Vaultaire Free</a>
+        </div>
+
+        <!-- Related Features -->
+        <nav class="related-features" aria-label="Related features">
+          <h2>Explore More Features</h2>
+          <div class="related-grid">
+            <a href="../pattern-encryption/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f510;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Pattern Encryption</span>
+                <span class="related-card-desc">Draw a shape, encrypt your files</span>
+              </div>
+            </a>
+            <a href="../secret-phrase/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f511;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Secret Phrase</span>
+                <span class="related-card-desc">Recovery backup for your pattern</span>
+              </div>
+            </a>
+            <a href="../plausible-deniability/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f3ad;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Plausible Deniability</span>
+                <span class="related-card-desc">Every pattern opens a vault</span>
+              </div>
+            </a>
+            <a href="../hidden-vaults/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f576;&#xfe0f;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Hidden Vaults</span>
+                <span class="related-card-desc">Nobody knows how many exist</span>
+              </div>
+            </a>
+            <a href="../duress-mode/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f6a8;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Duress Mode</span>
+                <span class="related-card-desc">Emergency vault destruction</span>
+              </div>
+            </a>
+            <a href="../encrypted-icloud-backup/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x2601;&#xfe0f;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Encrypted iCloud Backup</span>
+                <span class="related-card-desc">Encrypted before it leaves your device</span>
+              </div>
+            </a>
+            <a href="../secure-sharing/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f91d;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Secure Sharing</span>
+                <span class="related-card-desc">Share vaults with full control</span>
+              </div>
+            </a>
+            <a href="../ease-of-use/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x2728;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Ease of Use</span>
+                <span class="related-card-desc">Powerful security made simple</span>
+              </div>
+            </a>
+          </div>
+        </nav>
+      </article>
+    </div>
+  </main>
+
+  <footer role="contentinfo">
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <h4>Vaultaire</h4>
+        <p>&copy; 2026 Wraxle LLC</p>
+      </div>
+      <div class="footer-links">
+        <a href="../../index.html">Home</a>
+        <a href="../../manifesto/index.html">Manifesto</a>
+        <a href="../../privacy/index.html">Privacy Policy</a>
+        <a href="../../terms/index.html">Terms of Use</a>
+        <a href="../../s/index.html">Vault Invite</a>
+        <a href="../">Features</a>
+        <a href="../../compare/">Compare</a>
+        <a href="mailto:support@vaultaire.app">Support</a>
+      </div>
+      <div class="footer-compare">
+        <a href="../../compare/vaultaire-vs-private-photo-vault/">Vaultaire vs Private Photo Vault</a>
+        <a href="../../compare/vaultaire-vs-keepsafe/">Vaultaire vs Keepsafe</a>
+        <a href="../../compare/vaultaire-vs-privault/">Vaultaire vs Privault</a>
+        <a href="../../compare/vaultaire-vs-spv/">Vaultaire vs SPV</a>
+        <a href="../../compare/vaultaire-vs-secret-photo-album/">Vaultaire vs Secret Photo Album</a>
+        <a href="../../compare/vaultaire-vs-pv-secret-photo-album/">Vaultaire vs PV Secret Photo Album</a>
+        <a href="../../compare/vaultaire-vs-calculator-hide-photos/">Vaultaire vs Calculator#</a>
+        <a href="../../compare/vaultaire-vs-secret-photo-vault/">Vaultaire vs Secret Photo Vault</a>
+        <a href="../../compare/vaultaire-vs-hide-it-pro/">Vaultaire vs Hide it Pro</a>
+        <a href="../../compare/vaultaire-vs-safe-lock/">Vaultaire vs Safe Lock</a>
+      </div>
+    </div>
+  </footer>
+  <script defer src="/assets/alpine-app.js"></script>
+  <script defer src="/assets/alpine.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plausible Deniability: Every Pattern Opens a Different Vault | Vaultaire</title>
+  <meta name="description" content="Every pattern you draw unlocks a different vault. There is no master index, no way to prove other vaults exist. Learn how Vaultaire makes plausible deniability mathematically provable.">
+  <meta name="keywords" content="plausible deniability, hidden vault, decoy vault, deniable encryption, multiple vaults, coercion resistant, secure vault app iOS, encrypted vault">
+  <meta property="og:title" content="Plausible Deniability: Every Pattern Opens a Different Vault">
+  <meta property="og:description" content="Draw one pattern, open one vault. Draw another, open another. Nobody can prove the second vault exists. That is plausible deniability, and Vaultaire makes it real.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://vaultaire.app/features/plausible-deniability/">
+  <meta property="og:image" content="https://vaultaire.app/assets/social-share.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Plausible Deniability: Every Pattern Opens a Different Vault">
+  <meta name="twitter:description" content="Draw one pattern, open one vault. Draw another, open another. Nobody can prove the second vault exists.">
+  <meta name="twitter:image" content="https://vaultaire.app/assets/social-share.png">
+  <meta property="article:published_time" content="2026-02-22T00:00:00Z">
+  <meta property="article:modified_time" content="2026-02-22T00:00:00Z">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="canonical" href="https://vaultaire.app/features/plausible-deniability/">
+  <link rel="alternate" type="application/rss+xml" title="Vaultaire Updates" href="https://vaultaire.app/feed.xml">
+  <link rel="alternate" type="application/json" title="MCP manifest" href="https://vaultaire.app/.well-known/mcp.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles/output.css">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Plausible Deniability: Every Pattern Opens a Different Vault",
+    "description": "Every pattern you draw unlocks a different vault. There is no master index, no way to prove other vaults exist. Learn how Vaultaire makes plausible deniability mathematically provable.",
+    "author": {
+      "@type": "Organization",
+      "name": "Vaultaire"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Vaultaire",
+      "url": "https://vaultaire.app"
+    },
+    "datePublished": "2026-02-22",
+    "dateModified": "2026-02-22",
+    "mainEntityOfPage": "https://vaultaire.app/features/plausible-deniability/"
+  }
+  </script>
+</head>
+<body class="page-feature" x-data="vaultaireApp()">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <header role="banner">
+    <div class="container nav-inner">
+      <a href="../../index.html" class="logo">
+        <img src="../../assets/vault-logo.png" alt="Vaultaire logo" class="logo-mark logo-mark--dark" srcset="../../assets/vault-logo.png 1x" sizes="32px" width="32" height="32">
+        <img src="../../assets/vault-logo-light.png" alt="Vaultaire logo for light theme" class="logo-mark logo-mark--light" srcset="../../assets/vault-logo-light.png 1x" sizes="32px" width="32" height="32">
+        <span>Vaultaire</span>
+      </a>
+      <nav class="nav-links" role="navigation" aria-label="Primary">
+        <a href="../../index.html">Home</a>
+        <a href="../">Features</a>
+        <a href="../../index.html#how-it-works">How It Works</a>
+        <a href="../../index.html#security">Security</a>
+        <a href="../../manifesto/index.html">Manifesto</a>
+        <a href="../../compare/">Compare</a>
+      </nav>
+      <div class="nav-cta">
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+          <span class="theme-icon" id="theme-icon">&#9788;</span>
+          <span id="theme-label">Light</span>
+        </button>
+        <a href="https://apps.apple.com/app/vaultaire/id6758529311" class="btn btn-primary btn-nav">Get App</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content" role="main">
+    <div class="container">
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="../../index.html">Home</a><span>/</span>
+        <a href="../">Features</a><span>/</span>
+        Plausible Deniability
+      </nav>
+
+      <article class="feature-article">
+        <!-- Hero -->
+        <div class="feature-hero">
+          <span class="feature-hero-icon" aria-hidden="true">&#x1f3ad;</span>
+          <h1>Plausible Deniability: Every Pattern Opens a Different Vault</h1>
+          <p class="hero-lead">Someone demands you unlock your vault. You draw a pattern. A vault opens &mdash; full of harmless photos and grocery lists. What they do not know is that a different pattern opens a completely different vault containing everything you actually need to protect. And there is no way for them to prove it exists.</p>
+        </div>
+
+        <!-- Section 1: What Is Plausible Deniability -->
+        <h2>What Plausible Deniability Actually Means</h2>
+
+        <p>In security, plausible deniability means you can credibly deny that something exists. Not just hide it. Not just make it hard to find. You can look someone in the eye &mdash; a border agent, an abusive partner, a thief who grabbed your phone &mdash; and truthfully say &ldquo;this is everything,&rdquo; and there is no technical evidence to contradict you.</p>
+
+        <p>Most vault apps give you one vault behind one password. If someone forces you to open it, everything is exposed. Some apps offer a &ldquo;decoy mode&rdquo; where you can set a second password that shows a fake screen. But those implementations are usually cosmetic. A forensic examiner can look at the app&rsquo;s data, see configuration flags, notice the size of encrypted data does not match the visible files, or find metadata that betrays the existence of a hidden layer.</p>
+
+        <p>Vaultaire takes a fundamentally different approach. Every pattern you draw on the 5&times;5 grid derives a different encryption key. Each key decrypts a different encrypted blob. There is no master index, no registry of vaults, no configuration file that lists how many vaults exist. The app itself does not know. It cannot know. It simply takes whatever pattern you draw, derives a key, attempts to decrypt data with that key, and shows you whatever it finds.</p>
+
+        <p>If it finds a vault, you see your files. If it finds nothing, it offers to create a new vault. If someone draws a different pattern, they get a different key, and a different result. There is no &ldquo;wrong pattern&rdquo; error. There is no indication that other vaults exist. There is only the vault in front of you &mdash; and complete, mathematically enforced silence about everything else.</p>
+
+        <div class="info-box">
+          <div class="info-box-label">The Core Principle</div>
+          <p>Traditional vault apps are like a house with a visible safe. Even if the safe is locked, everyone can see it is there. Vaultaire is like a house where <strong>each key creates a different room</strong>. Nobody can tell how many rooms exist, because each key only reveals the room it was made for. The other rooms are not hidden &mdash; from the perspective of anyone without the right key, they simply do not exist.</p>
+        </div>
+
+        <!-- Section 2: How It Works Technically -->
+        <h2>How It Works Under the Hood</h2>
+
+        <p>The technical foundation of Vaultaire&rsquo;s plausible deniability is surprisingly elegant. It relies on a property of encryption that most vault apps ignore entirely: different keys produce different outputs from the same encrypted data, and there is no way to distinguish a &ldquo;correct&rdquo; decryption from a &ldquo;wrong&rdquo; one without examining the plaintext.</p>
+
+        <h3>Different Patterns, Different Keys</h3>
+
+        <p>When you draw a pattern on Vaultaire&rsquo;s 5&times;5 grid, the sequence of dots you connect is fed into a key derivation function (PBKDF2) along with a cryptographic salt. This process produces a unique 256-bit AES encryption key. A different pattern &mdash; even one that differs by a single dot &mdash; produces a completely different key. Not a slightly different key. A <em>completely</em> different one. Change one dot in your pattern, and every single bit of the derived key changes unpredictably.</p>
+
+        <h3>Each Key Decrypts Its Own Blob</h3>
+
+        <p>Vaultaire stores encrypted data as opaque blobs. When you draw a pattern, the app derives a key and attempts to decrypt the data. If the key matches an existing vault, the authenticated decryption (AES-256-GCM) succeeds, the authentication tag verifies, and your files appear. If the key does not match any vault, the decryption either fails silently or produces meaningless output. In either case, the app does not display an error. It simply asks if you would like to create a new vault with that pattern.</p>
+
+        <h3>No Master Index</h3>
+
+        <p>This is the critical design decision that separates Vaultaire from apps that merely offer a &ldquo;decoy mode.&rdquo; There is no database table listing vault IDs. There is no configuration file counting how many vaults exist. There is no metadata structure that could reveal the presence of additional encrypted containers. The encrypted blobs sitting on disk are indistinguishable from one another and indistinguishable from random data. Even Vaultaire itself cannot enumerate how many vaults a user has created.</p>
+
+        <div class="diagram-container">
+          <div class="diagram-label">Plausible Deniability Flow</div>
+          <div class="flow-diagram">
+            <div class="flow-step">
+              <div class="flow-step-box">Pattern A</div>
+              <div class="flow-step-label">Your real pattern</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-step">
+              <div class="flow-step-box">Key A</div>
+              <div class="flow-step-label">Derived key</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-step">
+              <div class="flow-step-box">Vault A</div>
+              <div class="flow-step-label">Your private files</div>
+            </div>
+          </div>
+          <div class="flow-diagram" style="margin-top: 1rem;">
+            <div class="flow-step">
+              <div class="flow-step-box">Pattern B</div>
+              <div class="flow-step-label">Decoy pattern</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-step">
+              <div class="flow-step-box">Key B</div>
+              <div class="flow-step-label">Different key</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-step">
+              <div class="flow-step-box">Vault B</div>
+              <div class="flow-step-label">Innocent files</div>
+            </div>
+          </div>
+        </div>
+
+        <p>Both vaults are equally real. Both are encrypted with the same algorithm. Both produce the same kind of encrypted output. There is no flag, no marker, no metadata that labels one as &ldquo;real&rdquo; and the other as &ldquo;decoy.&rdquo; As far as the math is concerned, they are identical.</p>
+
+        <!-- Section 3: The Decoy Vault Strategy -->
+        <h2>The Decoy Vault Strategy</h2>
+
+        <p>Plausible deniability only works if you have something to show. An empty vault is suspicious. A vault that obviously contains nothing worth protecting is suspicious. The strongest defense is a vault that looks exactly like what someone would expect to find.</p>
+
+        <h3>Setting Up Your Decoy</h3>
+
+        <p>Choose a second pattern &mdash; one you can draw quickly and naturally under pressure. Create a vault with that pattern. Fill it with content that makes sense for someone who uses a vault app: maybe some personal photos you would prefer to keep private but that are not sensitive, a few financial documents, some notes. The content should be believable and slightly embarrassing &mdash; just enough that someone searching your phone thinks they have found what you were hiding.</p>
+
+        <h3>Making It Convincing</h3>
+
+        <p>A good decoy vault has a few characteristics. It should contain a reasonable number of files &mdash; not too few (suspiciously empty) and not too many (why would you protect that much mundane content?). The files should be recent enough to suggest active use. And ideally, the content should provide a plausible reason for why you installed a vault app in the first place.</p>
+
+        <p>Someone who finds your decoy vault and sees personal photos, tax documents, and private notes will likely conclude they have found everything. They have no reason to suspect additional vaults exist, because the app itself provides no indication. The storage on disk shows encrypted blobs that are fully accounted for by the visible vault &mdash; or more precisely, there is no technical method to determine whether the blobs are fully accounted for or not.</p>
+
+        <h3>Under Pressure</h3>
+
+        <p>If you are ever coerced into unlocking your device, draw the decoy pattern. The vault opens. The files appear. Hand over the phone. There is nothing to find, nothing to investigate, no hidden menu to discover. The person holding your phone sees a vault app with an unlocked vault. Story over.</p>
+
+        <p>Your real vault &mdash; the one with the files that actually matter &mdash; remains invisible. Not hidden behind a menu. Not protected by a second layer of authentication. It simply does not manifest unless the correct pattern is drawn. And nobody can force you to draw a pattern they do not know exists.</p>
+
+        <!-- Section 4: Why It's Mathematically Provable -->
+        <h2>Why It Is Mathematically Provable</h2>
+
+        <p>This is not a marketing claim. The security of Vaultaire&rsquo;s plausible deniability is rooted in well-understood properties of modern cryptography. Here is why no forensic analysis, no matter how sophisticated, can prove additional vaults exist.</p>
+
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="stat-value">0</div>
+            <div class="stat-label">Metadata Revealing Vault Count</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">2<sup>256</sup></div>
+            <div class="stat-label">Possible Keys per Pattern</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">100%</div>
+            <div class="stat-label">Indistinguishable from Random Noise</div>
+          </div>
+        </div>
+
+        <h3>Encrypted Data Looks Like Random Noise</h3>
+
+        <p>AES-256-GCM encryption produces output that is computationally indistinguishable from random data. This is not a rough approximation &mdash; it is a formal property of the cipher. Given a block of encrypted data, no algorithm can determine whether it is meaningful encrypted content or genuinely random bytes. This means that encrypted vault data sitting on disk cannot be identified as &ldquo;vault data&rdquo; without the correct key.</p>
+
+        <h3>No Vault Registry</h3>
+
+        <p>There is no file, database, or data structure that records how many vaults exist or what patterns they correspond to. A forensic examiner can see that Vaultaire is installed and that some encrypted data exists. They cannot determine how many vaults that data represents. It could be one. It could be ten. The data itself does not answer the question.</p>
+
+        <h3>No Distinguishing Oracle</h3>
+
+        <p>In cryptography, an &ldquo;oracle&rdquo; is anything that answers questions about encrypted data. Most password systems include an oracle: you enter a password, and the system tells you whether it was correct. Vaultaire has no such oracle. Every pattern produces a key. Every key attempts a decryption. There is no &ldquo;access denied&rdquo; response that would confirm or deny whether a given pattern corresponds to an existing vault. An attacker trying random patterns cannot even tell if they are getting &ldquo;warmer.&rdquo;</p>
+
+        <h3>The Information-Theoretic Argument</h3>
+
+        <p>Put formally: given the observable data on disk (encrypted blobs) and one valid decryption (the decoy vault), an adversary gains zero information about whether additional valid decryptions exist. This holds even if the adversary has unlimited computational power. It is not a matter of computing harder or longer. The information simply is not there.</p>
+
+        <div class="info-box">
+          <div class="info-box-label">Why This Matters Legally</div>
+          <p>In many jurisdictions, you can be compelled to hand over a password or unlock a device. But you cannot be compelled to reveal something whose existence cannot be proven. If a court or authority demands access to your vault and you provide access to a vault, the burden of proof falls on them to demonstrate additional vaults exist. With Vaultaire, <strong>that proof is mathematically impossible to produce</strong>.</p>
+        </div>
+
+        <!-- Section 5: Who Needs Plausible Deniability -->
+        <h2>Who Needs Plausible Deniability</h2>
+
+        <p>You might think plausible deniability is only for spies and whistleblowers. In reality, millions of ordinary people face situations where the ability to protect information under coercion is not a luxury &mdash; it is a necessity.</p>
+
+        <h3>Journalists and Their Sources</h3>
+
+        <p>Investigative journalists often carry sensitive material: source identities, leaked documents, interview recordings. In many countries, journalists are routinely detained and their devices searched at borders, checkpoints, or during raids. A decoy vault containing innocuous notes and published photos provides cover, while the real vault protects sources whose lives may depend on anonymity.</p>
+
+        <h3>Activists and Organizers</h3>
+
+        <p>Political activists, labor organizers, and human rights workers operate in environments where their phones are surveillance targets. Membership lists, strategic communications, and documentation of abuses must be protected not just from theft but from forced disclosure. Plausible deniability means a confiscated phone reveals nothing that cannot be explained away.</p>
+
+        <h3>People in Abusive Situations</h3>
+
+        <p>Domestic abuse survivors often need to document evidence &mdash; photos of injuries, recordings of threats, communications with legal counsel or shelters &mdash; while living with someone who monitors their device. If an abuser demands to see what is in the vault app, a decoy vault shows nothing alarming. The evidence vault remains invisible, preserving both the documentation and the person&rsquo;s safety.</p>
+
+        <h3>Travelers Crossing Borders</h3>
+
+        <p>In an increasing number of countries, border agents can demand that travelers unlock their devices and hand them over for inspection. Refusing can mean denial of entry, detention, or worse. With Vaultaire, you can comply fully and honestly &mdash; you open your vault, the agent inspects it, and your private data in other vaults remains completely undetectable.</p>
+
+        <h3>Anyone Who Values Privacy</h3>
+
+        <p>You do not need to be in danger to deserve privacy. Maybe you keep a private journal. Maybe you have medical information you do not want anyone to stumble across. Maybe you simply believe that not every piece of your digital life should be accessible to anyone who picks up your phone. Plausible deniability is the strongest form of privacy because it does not just prevent access &mdash; it prevents even the question from being asked.</p>
+
+        <!-- Section 6: Comparison to Competitors -->
+        <h2>How This Compares to Other Vault Apps</h2>
+
+        <p>Most vault apps on the market treat security as an access control problem: set a password, and the password gates access to your files. Some offer a &ldquo;fake PIN&rdquo; or &ldquo;decoy mode.&rdquo; But the implementations are shallow, and a knowledgeable examiner can see right through them.</p>
+
+        <h3>The One-Vault Problem</h3>
+
+        <p>The vast majority of vault apps &mdash; Private Photo Vault, Keepsafe, Calculator# &mdash; have a single vault behind a single password. If you are forced to open it, everything is visible. There is no second layer, no alternative view, no way to show some files while hiding others. Your only option is to refuse to unlock, which in many situations is not an option at all.</p>
+
+        <h3>Cosmetic Decoy Modes</h3>
+
+        <p>A handful of apps offer a &ldquo;fake password&rdquo; feature where entering a secondary code shows a limited or empty vault. This sounds clever until you consider the implementation. These apps typically store a flag in their configuration indicating that decoy mode exists. A forensic tool &mdash; or even a moderately technical person &mdash; can inspect the app&rsquo;s data directory, find the flag, and know there is a hidden mode. The decoy mode is security theater.</p>
+
+        <h3>Vaultaire&rsquo;s Approach Is Architecturally Different</h3>
+
+        <p>Vaultaire does not bolt plausible deniability onto a traditional vault architecture. It is built into the foundation. The pattern-to-key derivation, the absence of a vault registry, the use of authenticated encryption that reveals nothing about other keys &mdash; these are not features that can be toggled on or off. They are properties of the encryption scheme itself. There is no flag to find because there is no flag. There is no decoy mode because every vault is real.</p>
+
+        <p>This is the difference between a system that <em>tries</em> to hide vaults and a system where the concept of &ldquo;hiding&rdquo; does not apply. Vaultaire does not hide your vaults. It makes them cryptographically nonexistent to anyone without the right pattern.</p>
+
+        <!-- FAQ -->
+        <section class="feature-faq">
+          <h2>Frequently Asked Questions</h2>
+
+          <details class="feature-faq-item">
+            <summary>How many vaults can I create?</summary>
+            <div class="faq-answer">
+              <p>There is no artificial limit. Each unique pattern you draw creates a separate vault with its own encryption key. You could have two vaults or twenty. Since there is no registry or count stored anywhere, the number of vaults you have is known only to you.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>Can a forensic examiner determine how many vaults I have?</summary>
+            <div class="faq-answer">
+              <p>No. The encrypted data on disk is indistinguishable from random noise. There is no metadata, index, or structural artifact that reveals how many vaults exist. A forensic examiner can confirm Vaultaire is installed and that encrypted data is present, but they cannot determine how many distinct vaults that data represents.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>What if someone knows about Vaultaire&rsquo;s plausible deniability feature?</summary>
+            <div class="faq-answer">
+              <p>That is the beauty of the design. Even if someone knows exactly how the system works &mdash; even if they read this very page &mdash; they still cannot prove additional vaults exist. The security does not depend on obscurity. It depends on mathematics. Knowing the algorithm does not help without the key, and no amount of analysis can reveal whether additional keys exist.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>Does having multiple vaults affect storage or performance?</summary>
+            <div class="faq-answer">
+              <p>Each vault consumes storage proportional to the files it contains. The encryption and decryption overhead is the same whether you have one vault or several. The app only decrypts the vault corresponding to the pattern you draw, so performance is unaffected by the existence of other vaults.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>Can Vaultaire be forced to reveal all vaults via a software update?</summary>
+            <div class="faq-answer">
+              <p>No. The architecture makes this impossible even in theory. There is no vault list to expose. A software update could not create a list of vaults because the app itself does not have that information. The only way to discover a vault is to supply the pattern that derived its key. This is a property of the encryption, not the app.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>What happens if I accidentally create a vault with a pattern I already use?</summary>
+            <div class="faq-answer">
+              <p>If you draw a pattern that matches an existing vault, the app opens that vault. You cannot accidentally create a duplicate because the key derivation is deterministic: the same pattern always produces the same key. Drawing an existing vault&rsquo;s pattern simply opens it.</p>
+            </div>
+          </details>
+        </section>
+
+        <!-- CTA -->
+        <div class="feature-cta">
+          <h2>Protect What Matters Most</h2>
+          <p>Set up your first decoy vault in under a minute. Because real security means having nothing to hide &mdash; even when you do.</p>
+          <a href="https://apps.apple.com/app/vaultaire/id6758529311" class="btn btn-primary">Download Vaultaire Free</a>
+        </div>
+
+        <!-- Related Features -->
+        <nav class="related-features" aria-label="Related features">
+          <h2>Explore More Features</h2>
+          <div class="related-grid">
+            <a href="../pattern-encryption/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f510;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Pattern Encryption</span>
+                <span class="related-card-desc">Draw a shape to encrypt your files</span>
+              </div>
+            </a>
+            <a href="../secret-phrase/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f511;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Secret Phrase</span>
+                <span class="related-card-desc">Recovery backup for your pattern</span>
+              </div>
+            </a>
+            <a href="../hidden-vaults/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f576;&#xfe0f;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Hidden Vaults</span>
+                <span class="related-card-desc">Nobody knows how many exist</span>
+              </div>
+            </a>
+            <a href="../duress-mode/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f6a8;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Duress Mode</span>
+                <span class="related-card-desc">Emergency vault destruction</span>
+              </div>
+            </a>
+            <a href="../encrypted-icloud-backup/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x2601;&#xfe0f;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Encrypted iCloud Backup</span>
+                <span class="related-card-desc">Encrypted before it leaves your device</span>
+              </div>
+            </a>
+            <a href="../secure-sharing/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f91d;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Secure Sharing</span>
+                <span class="related-card-desc">Share vaults with full control</span>
+              </div>
+            </a>
+            <a href="../security-features/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f6e1;&#xfe0f;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Security Features</span>
+                <span class="related-card-desc">Full security architecture</span>
+              </div>
+            </a>
+            <a href="../ease-of-use/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x2728;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Ease of Use</span>
+                <span class="related-card-desc">Powerful security made simple</span>
+              </div>
+            </a>
+          </div>
+        </nav>
+      </article>
+    </div>
+  </main>
+
+  <footer role="contentinfo">
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <h4>Vaultaire</h4>
+        <p>&copy; 2026 Wraxle LLC</p>
+      </div>
+      <div class="footer-links">
+        <a href="../../index.html">Home</a>
+        <a href="../../manifesto/index.html">Manifesto</a>
+        <a href="../../privacy/index.html">Privacy Policy</a>
+        <a href="../../terms/index.html">Terms of Use</a>
+        <a href="../../s/index.html">Vault Invite</a>
+        <a href="../">Features</a>
+        <a href="../../compare/">Compare</a>
+        <a href="mailto:support@vaultaire.app">Support</a>
+      </div>
+      <div class="footer-compare">
+        <a href="../../compare/vaultaire-vs-private-photo-vault/">Vaultaire vs Private Photo Vault</a>
+        <a href="../../compare/vaultaire-vs-keepsafe/">Vaultaire vs Keepsafe</a>
+        <a href="../../compare/vaultaire-vs-privault/">Vaultaire vs Privault</a>
+        <a href="../../compare/vaultaire-vs-spv/">Vaultaire vs SPV</a>
+        <a href="../../compare/vaultaire-vs-secret-photo-album/">Vaultaire vs Secret Photo Album</a>
+        <a href="../../compare/vaultaire-vs-pv-secret-photo-album/">Vaultaire vs PV Secret Photo Album</a>
+        <a href="../../compare/vaultaire-vs-calculator-hide-photos/">Vaultaire vs Calculator#</a>
+        <a href="../../compare/vaultaire-vs-secret-photo-vault/">Vaultaire vs Secret Photo Vault</a>
+        <a href="../../compare/vaultaire-vs-hide-it-pro/">Vaultaire vs Hide it Pro</a>
+        <a href="../../compare/vaultaire-vs-safe-lock/">Vaultaire vs Safe Lock</a>
+      </div>
+    </div>
+  </footer>
+  <script defer src="/assets/alpine-app.js"></script>
+  <script defer src="/assets/alpine.min.js"></script>
+</body>
+</html>

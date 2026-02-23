@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secret Phrase: Your Vault's Recovery Lifeline | Vaultaire</title>
+  <meta name="description" content="Vaultaire generates a BIP-39 style secret phrase when you create a vault. It's your backup key — the only way to recover your data if you forget your pattern.">
+  <meta name="keywords" content="secret recovery phrase, BIP-39 backup, vault recovery, encryption recovery key, pattern backup, mnemonic phrase, photo vault recovery, Vaultaire secret phrase">
+  <meta property="og:title" content="Secret Phrase: Your Vault's Recovery Lifeline">
+  <meta property="og:description" content="Forget your pattern? Your secret phrase regenerates the encryption key and gets you back in. Learn how Vaultaire's recovery phrase works and why it matters.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://vaultaire.app/features/secret-phrase/">
+  <meta property="og:image" content="https://vaultaire.app/assets/social-share.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Secret Phrase: Your Vault's Recovery Lifeline">
+  <meta name="twitter:description" content="Forget your pattern? Your secret phrase regenerates the encryption key and gets you back in. Learn how it works.">
+  <meta name="twitter:image" content="https://vaultaire.app/assets/social-share.png">
+  <meta property="article:published_time" content="2026-02-22T00:00:00Z">
+  <meta property="article:modified_time" content="2026-02-22T00:00:00Z">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="canonical" href="https://vaultaire.app/features/secret-phrase/">
+  <link rel="alternate" type="application/rss+xml" title="Vaultaire Updates" href="https://vaultaire.app/feed.xml">
+  <link rel="alternate" type="application/json" title="MCP manifest" href="https://vaultaire.app/.well-known/mcp.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../styles/output.css">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Secret Phrase: Your Vault's Recovery Lifeline",
+    "description": "Vaultaire generates a BIP-39 style secret phrase when you create a vault. It's your backup key — the only way to recover your data if you forget your pattern.",
+    "author": {
+      "@type": "Organization",
+      "name": "Vaultaire"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Vaultaire",
+      "url": "https://vaultaire.app"
+    },
+    "datePublished": "2026-02-22",
+    "dateModified": "2026-02-22",
+    "mainEntityOfPage": "https://vaultaire.app/features/secret-phrase/"
+  }
+  </script>
+</head>
+<body class="page-feature" x-data="vaultaireApp()">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <header role="banner">
+    <div class="container nav-inner">
+      <a href="../../index.html" class="logo">
+        <img src="../../assets/vault-logo.png" alt="Vaultaire logo" class="logo-mark logo-mark--dark" srcset="../../assets/vault-logo.png 1x" sizes="32px" width="32" height="32">
+        <img src="../../assets/vault-logo-light.png" alt="Vaultaire logo for light theme" class="logo-mark logo-mark--light" srcset="../../assets/vault-logo-light.png 1x" sizes="32px" width="32" height="32">
+        <span>Vaultaire</span>
+      </a>
+      <nav class="nav-links" role="navigation" aria-label="Primary">
+        <a href="../../index.html">Home</a>
+        <a href="../">Features</a>
+        <a href="../../index.html#how-it-works">How It Works</a>
+        <a href="../../index.html#security">Security</a>
+        <a href="../../manifesto/index.html">Manifesto</a>
+        <a href="../../compare/">Compare</a>
+      </nav>
+      <div class="nav-cta">
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+          <span class="theme-icon" id="theme-icon">&#9788;</span>
+          <span id="theme-label">Light</span>
+        </button>
+        <a href="https://apps.apple.com/app/vaultaire/id6758529311" class="btn btn-primary btn-nav">Get App</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content" role="main">
+    <div class="container">
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="../../index.html">Home</a><span>/</span>
+        <a href="../">Features</a><span>/</span>
+        Secret Phrase
+      </nav>
+
+      <article class="feature-article">
+        <!-- Hero -->
+        <div class="feature-hero">
+          <span class="feature-hero-icon" aria-hidden="true">&#x1f511;</span>
+          <h1>Secret Phrase: Your Vault's Recovery Lifeline</h1>
+          <p class="hero-lead">When you create a vault, Vaultaire generates a series of plain English words that encode your encryption key. Write them down. Keep them safe. If you ever forget your pattern, these words are the only way back in.</p>
+        </div>
+
+        <!-- Section 1: What Is the Secret Phrase -->
+        <h2>What Is the Secret Phrase?</h2>
+
+        <p>Every vault in Vaultaire is protected by a cryptographic encryption key. Normally, that key is derived from the pattern you draw on screen. But what happens if you forget your pattern? What if months pass and the muscle memory fades? Without a backup, your data would be gone forever.</p>
+
+        <p>That is where the secret phrase comes in. When you create a new vault, Vaultaire generates a sequence of 12 or 24 ordinary English words &mdash; words like &ldquo;timber,&rdquo; &ldquo;harvest,&rdquo; &ldquo;ocean,&rdquo; &ldquo;bright.&rdquo; These words are not random gibberish. They follow the BIP-39 standard, a well-established protocol originally designed for cryptocurrency wallets that encodes binary data into human-readable words. Each word maps to a specific number from a standardized list of 2,048 words, and together the full sequence encodes the exact same cryptographic key that your pattern derives.</p>
+
+        <p>Think of it this way: your pattern and your secret phrase are two different roads that lead to the same destination. The pattern is the road you use every day. The secret phrase is the emergency detour you keep in the glove box, just in case.</p>
+
+        <div class="info-box">
+          <div class="info-box-label">Why Words Instead of Random Characters?</div>
+          <p>A 256-bit key written in hexadecimal looks like this: <code>a3f7...c4d1</code> &mdash; 64 characters of letters and numbers that no human could reliably copy by hand. The BIP-39 standard converts that same key into 12 or 24 common English words. <strong>Same security, but you can actually write it down without making a mistake.</strong></p>
+        </div>
+
+        <!-- Section 2: How It Works -->
+        <h2>How the Secret Phrase Works</h2>
+
+        <p>The secret phrase is not a separate password or a second key. It is a different representation of the same underlying cryptographic material that your pattern produces. Understanding this distinction matters, because it means the phrase does not introduce a second attack surface &mdash; it does not create an alternative way to crack your vault. It simply provides an alternative way for <em>you</em> to access it.</p>
+
+        <h3>Generation</h3>
+
+        <p>When you create a vault and draw your pattern for the first time, Vaultaire derives a cryptographic key through its key derivation process. This key &mdash; a long string of binary data &mdash; is then encoded into a sequence of words using the BIP-39 word list. The mapping is deterministic: the same key always produces the same words, and the same words always produce the same key.</p>
+
+        <h3>Display</h3>
+
+        <p>Vaultaire shows you the secret phrase exactly once, at the moment of vault creation. The app presents each word clearly and gives you time to write them down. Once you dismiss this screen, the phrase is never shown again. It is not stored in the app, not saved to a file, and not backed up to any server.</p>
+
+        <h3>Recovery</h3>
+
+        <p>If you forget your pattern, you open Vaultaire and choose the recovery option. You enter your secret phrase &mdash; all 12 or 24 words, in the correct order. The app converts those words back into the cryptographic key, verifies it against the encrypted data, and if everything matches, you are back in. You then set a new pattern, and continue as normal.</p>
+
+        <div class="diagram-container">
+          <div class="diagram-label">Recovery Flow</div>
+          <div class="flow-diagram">
+            <div class="flow-step">
+              <div class="flow-step-box">Enter Phrase</div>
+              <div class="flow-step-label">12 or 24 words</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-step">
+              <div class="flow-step-box">BIP-39 Decode</div>
+              <div class="flow-step-label">Words to key</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-step">
+              <div class="flow-step-box">Key Restored</div>
+              <div class="flow-step-label">Vault decrypts</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-step">
+              <div class="flow-step-box">New Pattern</div>
+              <div class="flow-step-label">Set fresh access</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Why It Exists -->
+        <h2>Why the Secret Phrase Exists</h2>
+
+        <p>Vaultaire uses zero-knowledge encryption. That means nobody &mdash; not Vaultaire, not Apple, not your cloud provider &mdash; can decrypt your vault. This is a tremendous security advantage, but it comes with a tradeoff: there is no &ldquo;forgot password&rdquo; button. No support team can reset your access. No server holds a backup copy of your key.</p>
+
+        <p>The secret phrase is Vaultaire&rsquo;s answer to this tradeoff. It gives you a human-readable backup of your encryption key without compromising the zero-knowledge architecture. The phrase exists entirely under your control. If you keep it safe, you always have a way back in. If you lose it, nobody can help you &mdash; and that is exactly the point.</p>
+
+        <p>Patterns are powerful and intuitive, but they rely on muscle memory. Life gets in the way. You might not open a vault for six months. You might switch phones and lose the physical familiarity of the gesture. You might have a medical situation that affects your fine motor control. The secret phrase ensures that none of these scenarios means losing your data permanently.</p>
+
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="stat-value">2,048</div>
+            <div class="stat-label">BIP-39 Word List</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">1 Time</div>
+            <div class="stat-label">Shown at Creation</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">0</div>
+            <div class="stat-label">Copies Stored by Vaultaire</div>
+          </div>
+        </div>
+
+        <!-- Section 4: Security of the Phrase -->
+        <h2>Security of the Secret Phrase</h2>
+
+        <p>The secret phrase is the most sensitive piece of information associated with your vault. Anyone who has it can reconstruct your encryption key and access your data. That is why Vaultaire treats it with extreme care &mdash; and why you should too.</p>
+
+        <h3>Shown Once, Then Gone</h3>
+
+        <p>Vaultaire displays the secret phrase a single time, during vault creation. After you confirm that you have recorded it, the phrase is permanently erased from the app&rsquo;s memory. There is no &ldquo;show phrase again&rdquo; button. There is no settings screen where you can look it up. If you did not write it down when it appeared, it is gone.</p>
+
+        <h3>Never Stored, Never Transmitted</h3>
+
+        <p>The phrase is not saved to your device&rsquo;s storage, not included in iCloud backups, not sent to any analytics service, and not logged anywhere. It exists in device memory for the brief moment it is displayed on screen, and then it is zeroed out. Even if someone gains full access to your phone, they will not find the phrase anywhere on it.</p>
+
+        <h3>No Recovery Without It</h3>
+
+        <p>If you lose both your pattern and your secret phrase, your vault is permanently inaccessible. Vaultaire cannot help you. Apple cannot help you. No law enforcement agency, no court order, no amount of computational power can recover the data. This is the fundamental bargain of zero-knowledge encryption: absolute security means absolute responsibility.</p>
+
+        <div class="info-box">
+          <div class="info-box-label">The Finality Principle</div>
+          <p>Losing both your pattern and your secret phrase is equivalent to destroying the key to a safe and melting down the lock. The data still exists on your device &mdash; encrypted &mdash; but it is <strong>mathematically indistinguishable from random noise</strong> without the key. No future technology will change this. AES-256 is not waiting to be cracked.</p>
+        </div>
+
+        <!-- Section 5: Best Practices -->
+        <h2>Best Practices for Your Secret Phrase</h2>
+
+        <p>Your secret phrase is the ultimate backup for your most private data. Treat it accordingly.</p>
+
+        <h3>Write It Down on Paper</h3>
+
+        <p>Use a pen and paper. Write each word clearly, in order, numbered. Paper cannot be hacked remotely. It cannot be compromised by malware. It cannot be silently exfiltrated from a cloud service. A piece of paper in a safe place is the most resilient form of backup storage ever invented.</p>
+
+        <h3>Never Store It Digitally</h3>
+
+        <p>Do not type it into a notes app. Do not take a screenshot. Do not email it to yourself. Do not save it in a password manager. Every digital copy creates an attack surface &mdash; a place where the phrase could be discovered by malware, exposed in a data breach, or accessed by someone who compromises your accounts. The entire point of zero-knowledge encryption is that no digital system holds your key. Putting the phrase in a digital file defeats that purpose.</p>
+
+        <h3>Keep It in a Safe Place</h3>
+
+        <p>Store the paper somewhere secure and private. A home safe, a safety deposit box, or a locked drawer that only you access. Consider the same precautions you would take with an important legal document or a birth certificate. If you have multiple vaults, label each phrase clearly so you know which vault it belongs to.</p>
+
+        <h3>Consider a Trusted Person</h3>
+
+        <p>If something happens to you, should someone be able to access your vault? If so, you might give a copy of the phrase to a trusted family member or include it in a sealed envelope with your estate documents. This is a personal decision, but it is worth thinking about before the question becomes urgent.</p>
+
+        <!-- Section 6: How Recovery Works -->
+        <h2>How Recovery Works</h2>
+
+        <p>The recovery process is straightforward, but it is worth understanding what happens at each step so you know exactly what to expect.</p>
+
+        <h3>Step 1: Open the Recovery Screen</h3>
+
+        <p>When you open Vaultaire and are prompted for your pattern, you will see a recovery option. Tap it, and the app presents a word-entry interface where you can type or select each word of your secret phrase.</p>
+
+        <h3>Step 2: Enter Your Phrase</h3>
+
+        <p>Enter all 12 or 24 words in the exact order they were originally shown. The app validates each word against the BIP-39 word list as you type, helping you catch typos before you submit. Word order matters &mdash; &ldquo;ocean timber harvest&rdquo; is not the same key as &ldquo;timber ocean harvest.&rdquo;</p>
+
+        <h3>Step 3: Key Regeneration</h3>
+
+        <p>Once all words are entered, Vaultaire converts the phrase back into a cryptographic key using the BIP-39 decoding algorithm. This is a deterministic process &mdash; the same words always produce the same key, no matter what device you are on or how much time has passed.</p>
+
+        <h3>Step 4: Set a New Pattern</h3>
+
+        <p>After the key is restored and your vault is accessible again, Vaultaire prompts you to draw a new pattern. This new pattern becomes your primary access method going forward. The underlying encryption key does not change &mdash; only the pattern that derives it is updated. Your secret phrase remains valid.</p>
+
+        <!-- FAQ -->
+        <section class="feature-faq">
+          <h2>Frequently Asked Questions</h2>
+
+          <details class="feature-faq-item">
+            <summary>Can I view my secret phrase after vault creation?</summary>
+            <div class="faq-answer">
+              <p>No. The secret phrase is displayed exactly once, when you first create the vault. After you confirm it, the phrase is permanently wiped from device memory. This is a deliberate security choice &mdash; if the phrase were retrievable from the app, anyone with access to your unlocked phone could read it.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>What if I lose both my pattern and my secret phrase?</summary>
+            <div class="faq-answer">
+              <p>Your vault becomes permanently inaccessible. There is no backdoor, no master key, and no recovery service. Vaultaire never stores your key or phrase, so there is nothing anyone can do. This is the necessary cost of true zero-knowledge encryption.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>Is the secret phrase the same as a password?</summary>
+            <div class="faq-answer">
+              <p>Not exactly. A password is something you choose and remember. The secret phrase is generated by Vaultaire using cryptographically secure randomness &mdash; you do not choose the words. This ensures maximum entropy. The phrase is also much longer than a typical password, encoding a full 256-bit key in human-readable form.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>Does the secret phrase change if I change my pattern?</summary>
+            <div class="faq-answer">
+              <p>No. Your secret phrase encodes the vault&rsquo;s underlying encryption key, which remains constant regardless of what pattern you use to access the vault. Changing your pattern updates the access method but not the key itself. Your original secret phrase continues to work.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>Can I use my secret phrase on a different device?</summary>
+            <div class="faq-answer">
+              <p>The secret phrase restores your encryption key, but your encrypted vault data must also be present on the device. If you use Vaultaire&rsquo;s encrypted iCloud backup, your data syncs across devices, and the secret phrase can unlock it on any of them. Without the backup data, the phrase alone is not enough.</p>
+            </div>
+          </details>
+
+          <details class="feature-faq-item">
+            <summary>Why does Vaultaire use BIP-39 instead of a simpler format?</summary>
+            <div class="faq-answer">
+              <p>BIP-39 is a battle-tested standard used by hundreds of millions of cryptocurrency wallets worldwide. It includes a built-in checksum that catches transcription errors, uses a carefully curated word list that avoids similar-looking words, and has been audited extensively by the security community. There is no reason to reinvent the wheel when an excellent standard already exists.</p>
+            </div>
+          </details>
+        </section>
+
+        <!-- CTA -->
+        <div class="feature-cta">
+          <h2>Your Safety Net Awaits</h2>
+          <p>Create your first vault and secure your recovery phrase. It takes less than a minute.</p>
+          <a href="https://apps.apple.com/app/vaultaire/id6758529311" class="btn btn-primary">Download Vaultaire Free</a>
+        </div>
+
+        <!-- Related Features -->
+        <nav class="related-features" aria-label="Related features">
+          <h2>Explore More Features</h2>
+          <div class="related-grid">
+            <a href="../pattern-encryption/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f510;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Pattern Encryption</span>
+                <span class="related-card-desc">Draw a shape, encrypt your files</span>
+              </div>
+            </a>
+            <a href="../plausible-deniability/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f3ad;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Plausible Deniability</span>
+                <span class="related-card-desc">Every pattern opens a vault</span>
+              </div>
+            </a>
+            <a href="../hidden-vaults/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f576;&#xfe0f;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Hidden Vaults</span>
+                <span class="related-card-desc">Nobody knows how many exist</span>
+              </div>
+            </a>
+            <a href="../duress-mode/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f6a8;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Duress Mode</span>
+                <span class="related-card-desc">Emergency vault destruction</span>
+              </div>
+            </a>
+            <a href="../encrypted-icloud-backup/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x2601;&#xfe0f;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Encrypted iCloud Backup</span>
+                <span class="related-card-desc">Encrypted before it leaves your device</span>
+              </div>
+            </a>
+            <a href="../secure-sharing/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f91d;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Secure Sharing</span>
+                <span class="related-card-desc">Share vaults with full control</span>
+              </div>
+            </a>
+            <a href="../security-features/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x1f6e1;&#xfe0f;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Security Features</span>
+                <span class="related-card-desc">Full security architecture</span>
+              </div>
+            </a>
+            <a href="../ease-of-use/" class="related-card">
+              <span class="related-card-icon" aria-hidden="true">&#x2728;</span>
+              <div class="related-card-text">
+                <span class="related-card-title">Ease of Use</span>
+                <span class="related-card-desc">Powerful security made simple</span>
+              </div>
+            </a>
+          </div>
+        </nav>
+      </article>
+    </div>
+  </main>
+
+  <footer role="contentinfo">
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <h4>Vaultaire</h4>
+        <p>&copy; 2026 Wraxle LLC</p>
+      </div>
+      <div class="footer-links">
+        <a href="../../index.html">Home</a>
+        <a href="../../manifesto/index.html">Manifesto</a>
+        <a href="../../privacy/index.html">Privacy Policy</a>
+        <a href="../../terms/index.html">Terms of Use</a>
+        <a href="../../s/index.html">Vault Invite</a>
+        <a href="../">Features</a>
+        <a href="../../compare/">Compare</a>
+        <a href="mailto:support@vaultaire.app">Support</a>
+      </div>
+      <div class="footer-compare">
+        <a href="../../compare/vaultaire-vs-private-photo-vault/">Vaultaire vs Private Photo Vault</a>
+        <a href="../../compare/vaultaire-vs-keepsafe/">Vaultaire vs Keepsafe</a>
+        <a href="../../compare/vaultaire-vs-privault/">Vaultaire vs Privault</a>
+        <a href="../../compare/vaultaire-vs-spv/">Vaultaire vs SPV</a>
+        <a href="../../compare/vaultaire-vs-secret-photo-album/">Vaultaire vs Secret Photo Album</a>
+        <a href="../../compare/vaultaire-vs-pv-secret-photo-album/">Vaultaire vs PV Secret Photo Album</a>
+        <a href="../../compare/vaultaire-vs-calculator-hide-photos/">Vaultaire vs Calculator#</a>
+        <a href="../../compare/vaultaire-vs-secret-photo-vault/">Vaultaire vs Secret Photo Vault</a>
+        <a href="../../compare/vaultaire-vs-hide-it-pro/">Vaultaire vs Hide it Pro</a>
+        <a href="../../compare/vaultaire-vs-safe-lock/">Vaultaire vs Safe Lock</a>
+      </div>
+    </div>
+  </footer>
+  <script defer src="/assets/alpine-app.js"></script>
+  <script defer src="/assets/alpine.min.js"></script>
+</body>
+</html>
