@@ -3,7 +3,8 @@ import AVFoundation
 import UniformTypeIdentifiers
 
 /// Runs import work off MainActor with dedicated worker tasks.
-/// 1 video worker + 2 image workers for photo picker imports.
+/// 2 video-priority workers + 1 image-priority worker for photo picker imports.
+/// Workers drain their primary queue first, then steal from the other queue.
 /// Results stream back to MainActor via AsyncStream for real-time UI updates.
 enum ParallelImporter {
 
@@ -96,6 +97,7 @@ enum ParallelImporter {
         let imageQueue = Queue(imageWork)
 
         await withTaskGroup(of: Void.self) { group in
+            // Video-priority workers: drain videos first, then steal from image queue
             for _ in 0..<videoWorkerCount {
                 group.addTask {
                     while let item = await videoQueue.next() {
@@ -108,15 +110,38 @@ enum ParallelImporter {
                             continuation.yield(.failed(reason: error.localizedDescription))
                         }
                     }
+                    // Steal remaining images
+                    while let item = await imageQueue.next() {
+                        guard !Task.isCancelled else { return }
+                        do {
+                            if let file = try await importImage(item: item, key: config.key, encryptionKey: config.encryptionKey, optimizationMode: config.optimizationMode) {
+                                continuation.yield(.imported(file))
+                            }
+                        } catch {
+                            continuation.yield(.failed(reason: error.localizedDescription))
+                        }
+                    }
                 }
             }
 
+            // Image-priority workers: drain images first, then steal from video queue
             for _ in 0..<imageWorkerCount {
                 group.addTask {
                     while let item = await imageQueue.next() {
                         guard !Task.isCancelled else { return }
                         do {
                             if let file = try await importImage(item: item, key: config.key, encryptionKey: config.encryptionKey, optimizationMode: config.optimizationMode) {
+                                continuation.yield(.imported(file))
+                            }
+                        } catch {
+                            continuation.yield(.failed(reason: error.localizedDescription))
+                        }
+                    }
+                    // Steal remaining videos
+                    while let item = await videoQueue.next() {
+                        guard !Task.isCancelled else { return }
+                        do {
+                            if let file = try await importVideo(item: item, key: config.key, encryptionKey: config.encryptionKey, optimizationMode: config.optimizationMode) {
                                 continuation.yield(.imported(file))
                             }
                         } catch {
@@ -142,6 +167,7 @@ enum ParallelImporter {
         let otherQueue = Queue(otherWork)
 
         await withTaskGroup(of: Void.self) { group in
+            // Video-priority workers: drain videos first, then steal from other queue
             for _ in 0..<videoWorkerCount {
                 group.addTask {
                     while let item = await videoQueue.next() {
@@ -154,12 +180,35 @@ enum ParallelImporter {
                             continuation.yield(.failed(reason: error.localizedDescription))
                         }
                     }
+                    // Steal remaining non-video files
+                    while let item = await otherQueue.next() {
+                        guard !Task.isCancelled else { return }
+                        do {
+                            if let file = try await importFileFromURL(url: item.url, key: config.key, encryptionKey: config.encryptionKey, optimizationMode: config.optimizationMode) {
+                                continuation.yield(.imported(file))
+                            }
+                        } catch {
+                            continuation.yield(.failed(reason: error.localizedDescription))
+                        }
+                    }
                 }
             }
 
+            // Other-priority workers: drain other files first, then steal from video queue
             for _ in 0..<otherWorkerCount {
                 group.addTask {
                     while let item = await otherQueue.next() {
+                        guard !Task.isCancelled else { return }
+                        do {
+                            if let file = try await importFileFromURL(url: item.url, key: config.key, encryptionKey: config.encryptionKey, optimizationMode: config.optimizationMode) {
+                                continuation.yield(.imported(file))
+                            }
+                        } catch {
+                            continuation.yield(.failed(reason: error.localizedDescription))
+                        }
+                    }
+                    // Steal remaining videos
+                    while let item = await videoQueue.next() {
                         guard !Task.isCancelled else { return }
                         do {
                             if let file = try await importFileFromURL(url: item.url, key: config.key, encryptionKey: config.encryptionKey, optimizationMode: config.optimizationMode) {

@@ -141,6 +141,98 @@ final class ParallelImporterTests: XCTestCase {
         XCTAssertLessThan(processedCount, 50, "Most items should NOT be processed after cancellation (got \(processedCount))")
     }
 
+    // MARK: - testRunWorkers_WorkStealing
+
+    /// Verifies that workers steal from a second queue after draining their primary queue.
+    /// Two workers on queue A (2 items each) + one worker on queue B (6 items).
+    /// Without stealing: queue B takes 6 × 100ms = 600ms (1 worker).
+    /// With stealing: after A workers finish (~100ms), they help B, total ~300ms.
+    func testRunWorkersStealFromSecondQueue() async {
+        let primaryItems = Array(0..<4)
+        let secondaryItems = Array(100..<106)
+        let primaryQueue = ParallelImporter.Queue(primaryItems)
+        let secondaryQueue = ParallelImporter.Queue(secondaryItems)
+
+        let (stream, continuation) = AsyncStream<ParallelImporter.ImportEvent>.makeStream()
+
+        let start = ContinuousClockInstant.now
+
+        let workerTask = Task {
+            await withTaskGroup(of: Void.self) { group in
+                // 2 workers: primary queue first, then steal from secondary
+                for _ in 0..<2 {
+                    group.addTask {
+                        await ParallelImporter.runWorkers(
+                            queues: [(primaryQueue, 1), (secondaryQueue, 0)],
+                            process: { @Sendable item in
+                                try await Task.sleep(for: .milliseconds(100))
+                                return VaultFileItem(
+                                    id: UUID(), size: item,
+                                    mimeType: "text/plain", filename: "item\(item).txt"
+                                )
+                            },
+                            continuation: continuation
+                        )
+                        // After primary queue drained, steal from secondary
+                        await ParallelImporter.runWorkers(
+                            queues: [(secondaryQueue, 1)],
+                            process: { @Sendable item in
+                                try await Task.sleep(for: .milliseconds(100))
+                                return VaultFileItem(
+                                    id: UUID(), size: item,
+                                    mimeType: "text/plain", filename: "item\(item).txt"
+                                )
+                            },
+                            continuation: continuation
+                        )
+                    }
+                }
+                // 1 worker: secondary queue first, then steal from primary
+                group.addTask {
+                    await ParallelImporter.runWorkers(
+                        queues: [(secondaryQueue, 1)],
+                        process: { @Sendable item in
+                            try await Task.sleep(for: .milliseconds(100))
+                            return VaultFileItem(
+                                id: UUID(), size: item,
+                                mimeType: "text/plain", filename: "item\(item).txt"
+                            )
+                        },
+                        continuation: continuation
+                    )
+                    await ParallelImporter.runWorkers(
+                        queues: [(primaryQueue, 1)],
+                        process: { @Sendable item in
+                            try await Task.sleep(for: .milliseconds(100))
+                            return VaultFileItem(
+                                id: UUID(), size: item,
+                                mimeType: "text/plain", filename: "item\(item).txt"
+                            )
+                        },
+                        continuation: continuation
+                    )
+                }
+            }
+            continuation.finish()
+        }
+
+        var importedSizes: Set<Int> = []
+        for await event in stream {
+            if case .imported(let file) = event {
+                importedSizes.insert(file.size)
+            }
+        }
+        await workerTask.value
+
+        let elapsed = ContinuousClockInstant.now - start
+        let totalItems = primaryItems.count + secondaryItems.count
+
+        XCTAssertEqual(importedSizes.count, totalItems, "All \(totalItems) items should be processed")
+        // Without stealing: 1 worker on 6 secondary items = 600ms
+        // With 3 workers sharing both queues: ~400ms max
+        XCTAssertLessThan(elapsed, .milliseconds(600), "Work stealing should reduce total time vs single-queue processing")
+    }
+
     // MARK: - testQueue_ThreadSafety
 
     /// Verifies that Queue actor safely distributes items across many concurrent consumers

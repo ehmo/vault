@@ -481,7 +481,8 @@ final class VaultViewModel {
         IdleTimerManager.shared.disable()
 
         // Separate videos and images for prioritized parallel processing:
-        // 1 dedicated video worker + 2 image workers = 3 parallel workers
+        // 2 video-priority workers + 1 image worker = 3 parallel workers
+        // Workers steal from the other queue when their primary queue is drained.
         var videoWork: [ParallelImporter.PickerWorkItem] = []
         var imageWork: [ParallelImporter.PickerWorkItem] = []
 
@@ -491,8 +492,8 @@ final class VaultViewModel {
             if isVideo { videoWork.append(item) } else { imageWork.append(item) }
         }
 
-        let videoWorkerCount = videoWork.isEmpty ? 0 : 1
-        let imageWorkerCount = videoWork.isEmpty ? 3 : 2
+        let videoWorkerCount = videoWork.isEmpty ? 0 : 2
+        let imageWorkerCount = videoWork.isEmpty ? 3 : 1
         vmLogger.info("Import: \(videoWork.count) videos, \(imageWork.count) images — \(videoWorkerCount) video + \(imageWorkerCount) image workers")
 
         let (stream, continuation) = AsyncStream<ParallelImporter.ImportEvent>.makeStream()
@@ -601,7 +602,9 @@ final class VaultViewModel {
         if showProgress { importProgress = (0, count) }
         IdleTimerManager.shared.disable()
 
-        // Separate videos and non-videos for prioritized parallel processing
+        // Separate videos and non-videos for prioritized parallel processing:
+        // 2 video-priority workers + 1 other worker = 3 parallel workers
+        // Workers steal from the other queue when their primary queue is drained.
         var videoWork: [ParallelImporter.URLWorkItem] = []
         var otherWork: [ParallelImporter.URLWorkItem] = []
 
@@ -611,8 +614,8 @@ final class VaultViewModel {
             if mime.hasPrefix("video/") { videoWork.append(item) } else { otherWork.append(item) }
         }
 
-        let videoWorkerCount = videoWork.isEmpty ? 0 : 1
-        let otherWorkerCount = videoWork.isEmpty ? 3 : 2
+        let videoWorkerCount = videoWork.isEmpty ? 0 : 2
+        let otherWorkerCount = videoWork.isEmpty ? 3 : 1
         vmLogger.info("File import: \(videoWork.count) videos, \(otherWork.count) other — \(videoWorkerCount + otherWorkerCount) workers")
 
         let (stream, continuation) = AsyncStream<ParallelImporter.ImportEvent>.makeStream()
