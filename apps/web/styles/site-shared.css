@@ -323,6 +323,10 @@ footer {
 }
 
 .footer-links a {
+  position: relative;
+}
+
+.footer-links a {
   margin: 0;
   color: var(--accent);
   text-decoration: none;
@@ -330,6 +334,21 @@ footer {
 
 .footer-links a:hover {
   color: var(--highlight);
+}
+
+.footer-links a.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.footer-links a.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--accent);
 }
 
 .footer-compare {
@@ -351,6 +370,40 @@ footer {
 
 .footer-compare a:hover {
   color: var(--accent);
+}
+
+/* Footer feature sub-links */
+.footer-features {
+  width: 100%;
+  padding-top: 16px;
+  margin-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--text) 8%, transparent 92%);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px 14px;
+  font-size: 0.78rem;
+}
+
+.footer-features a {
+  color: var(--text-secondary);
+  transition: color 0.2s;
+  text-align: left;
+}
+
+.footer-features a:hover {
+  color: var(--accent);
+}
+
+.footer-features a.active {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .footer-features {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
 }
 
 /* ── Mobile Expanding Navigation ── */
