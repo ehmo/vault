@@ -325,10 +325,9 @@ struct PatternSetupView: View {
                     }
                     Button("Yes, I've saved it") {
                         if useCustomPhrase {
-                            // Validation already enforced by the disabled button guard;
-                            // re-checking here caused a silent no-op when SwiftUI
-                            // re-evaluated state during alert/keyboard transitions.
-                            saveCustomRecoveryPhrase()
+                            // For custom phrases, the phrase was already saved during pattern creation.
+                            // We just need to complete the flow.
+                            onComplete()
                         } else {
                             onComplete()
                         }
