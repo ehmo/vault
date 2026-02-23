@@ -13,16 +13,19 @@ final class ScreenshotShieldTests: XCTestCase {
 
         // Create a window with a superlayer (required for reparenting).
         // Adding it to a UIWindowScene gives its layer a superlayer.
-        let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene
-        hostWindow = UIWindow(windowScene: scene!)
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene else {
+            XCTFail("No window scene available for testing")
+            return
+        }
+        hostWindow = UIWindow(windowScene: scene)
         hostWindow.frame = CGRect(x: 0, y: 0, width: 393, height: 852)
         hostWindow.makeKeyAndVisible()
     }
 
     override func tearDown() {
+        shield.reset()
         hostWindow.isHidden = true
         hostWindow = nil
-        shield = nil
         super.tearDown()
     }
 
@@ -63,13 +66,8 @@ final class ScreenshotShieldTests: XCTestCase {
             return
         }
 
-        // iOS 17+ changed the sublayer order - use .last instead of .first
-        let secureContainer: CALayer?
-        if #available(iOS 17.0, *) {
-            secureContainer = field.layer.sublayers?.last
-        } else {
-            secureContainer = field.layer.sublayers?.first
-        }
+        // Get the secure container using the same logic as the implementation
+        let secureContainer = findSecureContainer(in: field.layer)
 
         guard let container = secureContainer else {
             XCTFail("Shield should have a secure container sublayer")
@@ -87,13 +85,13 @@ final class ScreenshotShieldTests: XCTestCase {
 
         shield.activate(on: hostWindow)
 
-        guard let field = shield.secureField else {
+        guard shield.secureField != nil else {
             XCTFail("Shield should have a secure field")
             return
         }
 
         // field.layer should be a direct sublayer of what was the window's superlayer
-        XCTAssertEqual(field.layer.superlayer, originalSuperlayer,
+        XCTAssertEqual(shield.secureField!.layer.superlayer, originalSuperlayer,
                        "Field layer must be a sublayer of the original window superlayer")
     }
 
@@ -109,13 +107,12 @@ final class ScreenshotShieldTests: XCTestCase {
     func test_masksToBounds_disabledOnSecureContainer() {
         shield.activate(on: hostWindow)
 
-        // iOS 17+ changed the sublayer order - use .last instead of .first
-        let secureContainer: CALayer?
-        if #available(iOS 17.0, *) {
-            secureContainer = shield.secureField?.layer.sublayers?.last
-        } else {
-            secureContainer = shield.secureField?.layer.sublayers?.first
+        guard let field = shield.secureField else {
+            XCTFail("Secure field should exist")
+            return
         }
+
+        let secureContainer = findSecureContainer(in: field.layer)
 
         guard let container = secureContainer else {
             XCTFail("Secure container sublayer should exist")
@@ -166,14 +163,98 @@ final class ScreenshotShieldTests: XCTestCase {
         let field = shield.secureField!
         XCTAssertEqual(field.layer.superlayer, originalSuperlayer)
 
-        // iOS 17+ changed the sublayer order - use .last instead of .first
-        let secureContainer: CALayer
-        if #available(iOS 17.0, *) {
-            secureContainer = field.layer.sublayers!.last!
-        } else {
-            secureContainer = field.layer.sublayers!.first!
-        }
-        XCTAssertTrue(secureContainer.sublayers!.contains(hostWindow.layer))
+        let secureContainer = findSecureContainer(in: field.layer)!
+        XCTAssertTrue(secureContainer.sublayers?.contains(hostWindow.layer) ?? false)
         XCTAssertEqual(hostWindow.layer.superlayer, secureContainer)
+    }
+
+    // MARK: - Deactivation
+
+    func test_deactivate_removesField() {
+        shield.activate(on: hostWindow)
+        XCTAssertNotNil(shield.secureField)
+
+        shield.deactivate()
+
+        XCTAssertNil(shield.secureField)
+        XCTAssertFalse(shield.isActive)
+    }
+
+    func test_deactivate_idempotent() {
+        // Should not crash when called without prior activation
+        shield.deactivate()
+        XCTAssertFalse(shield.isActive)
+    }
+
+    // MARK: - Reset
+
+    func test_reset_clearsState() {
+        shield.activate(on: hostWindow)
+        XCTAssertTrue(shield.isActive)
+
+        shield.reset()
+
+        XCTAssertNil(shield.secureField)
+        XCTAssertFalse(shield.isActive)
+    }
+
+    // MARK: - Reactivation After Window Destruction
+
+    func test_reactivateIfNeeded_afterWindowDestruction() {
+        // Activate on original window
+        shield.activate(on: hostWindow)
+        XCTAssertTrue(shield.isActive)
+
+        // Simulate window destruction (common in scene lifecycle changes)
+        hostWindow.isHidden = true
+        let oldWindow = hostWindow
+        hostWindow = nil
+
+        // At this point protectedWindow is nil but isActive is still true
+        // This simulates a scene disconnect
+        XCTAssertNil(shield.protectedWindow)
+        XCTAssertTrue(shield.isActive)
+
+        // Create a new window (simulates scene reconnect)
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene else {
+            XCTFail("No window scene available")
+            return
+        }
+        hostWindow = UIWindow(windowScene: scene)
+        hostWindow.frame = CGRect(x: 0, y: 0, width: 393, height: 852)
+        hostWindow.makeKeyAndVisible()
+
+        // Try to reactivate
+        shield.reactivateIfNeeded()
+
+        // Should have reactivated on new window
+        XCTAssertTrue(shield.isActive)
+        XCTAssertNotNil(shield.protectedWindow)
+        XCTAssertTrue(shield.protectedWindow === hostWindow)
+    }
+
+    // MARK: - Reactivation Idempotency
+
+    func test_reactivateIfNeeded_doesNothingWhenWindowExists() {
+        shield.activate(on: hostWindow)
+        XCTAssertTrue(shield.isActive)
+
+        // Call reactivateIfNeeded when window still exists
+        shield.reactivateIfNeeded()
+
+        // Should still be active on same window
+        XCTAssertTrue(shield.isActive)
+        XCTAssertTrue(shield.protectedWindow === hostWindow)
+    }
+
+    // MARK: - Helper Methods
+
+    /// Finds the secure container using the same logic as the implementation
+    private func findSecureContainer(in layer: CALayer) -> CALayer? {
+        if #available(iOS 17.0, *) {
+            return layer.sublayers?.last ?? layer.sublayers?.first
+        } else {
+            return layer.sublayers?.first ?? layer.sublayers?.last
+        }
     }
 }

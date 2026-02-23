@@ -60,6 +60,8 @@ struct VaultApp: App {
                         ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "scene_active")
                         iCloudBackupManager.shared.resumeBackupUploadIfNeeded(trigger: "scene_active")
                         ShareSyncManager.shared.resumePendingSyncsIfNeeded(trigger: "scene_active")
+                        // Reactivate screenshot shield if window was destroyed during background
+                        ScreenshotShield.shared.reactivateIfNeeded()
                     default:
                         break
                     }

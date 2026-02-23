@@ -9,8 +9,10 @@ struct ContentView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var showUnlockTransition = false
+    @State private var isLockingInProgress = false
 
     private let capturePollIntervalNanoseconds: UInt64 = 1_000_000_000
+    private let screenshotLockDebounceIntervalNanoseconds: UInt64 = 200_000_000  // 200ms debounce
 
     private var enforceCaptureLocking: Bool {
         #if DEBUG
@@ -177,20 +179,39 @@ struct ContentView: View {
         guard enforceCaptureLocking else { return }
         guard appState.isUnlocked else { return }
 
+        // Debounce: prevent concurrent/rapid locking attempts
+        guard !isLockingInProgress else {
+            logger.debug("Lock already in progress, debouncing trigger: \(trigger, privacy: .public)")
+            return
+        }
+
         logger.info("Capture violation detected (\(trigger, privacy: .public)), locking vault")
         EmbraceManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": trigger])
+
+        isLockingInProgress = true
 
         if showOverlayBeforeLock {
             appState.screenshotDetected = true
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 100_000_000)
-                guard appState.isUnlocked else { return }
+                guard appState.isUnlocked else {
+                    isLockingInProgress = false
+                    return
+                }
                 appState.lockVault()
+                // Reset after debounce interval to allow future locks
+                try? await Task.sleep(nanoseconds: screenshotLockDebounceIntervalNanoseconds)
+                isLockingInProgress = false
             }
             return
         }
 
         appState.lockVault()
+        // Reset debounce flag after interval
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: screenshotLockDebounceIntervalNanoseconds)
+            isLockingInProgress = false
+        }
     }
 }
 
