@@ -289,6 +289,20 @@ final class CryptoStreamingTests: XCTestCase {
         XCTAssertNotEqual(nonce0, nonce1, "Different indices should produce different nonces")
     }
 
+    func testXorNonceWithMaxIndex() throws {
+        let baseNonce = CryptoEngine.generateRandomBytes(count: 12)!
+        let nonceMax = try CryptoEngine.xorNonce(baseNonce, with: UInt64.max)
+        XCTAssertEqual(nonceMax.count, 12)
+        // XOR with all-ones should flip bytes 4..11
+        for i in 4..<12 {
+            XCTAssertEqual(nonceMax[i], baseNonce[i] ^ 0xFF)
+        }
+        // Bytes 0..3 untouched
+        for i in 0..<4 {
+            XCTAssertEqual(nonceMax[i], baseNonce[i])
+        }
+    }
+
     func testXorNonceInvalidBaseLengthThrows() {
         let shortNonce = Data(repeating: 0xAA, count: 11)
         XCTAssertThrowsError(try CryptoEngine.xorNonce(shortNonce, with: 0)) { error in
@@ -365,6 +379,81 @@ final class CryptoStreamingTests: XCTestCase {
 
         let decrypted = try Data(contentsOf: outputURL)
         XCTAssertEqual(decrypted, originalData)
+    }
+
+    // MARK: - Tamper Detection
+
+    func testReorderedChunksThrowsOrderingViolation() throws {
+        // Encrypt a file > streamingThreshold that produces ≥ 2 chunks, then swap them
+        let size = VaultCoreConstants.streamingThreshold + VaultCoreConstants.streamingChunkSize + 100
+        let sourceURL = try writeTestFile(size: size)
+
+        var encrypted = try CryptoEngine.encryptForStaging(sourceURL, with: key)
+        XCTAssertTrue(CryptoEngine.isStreamingFormat(encrypted))
+
+        // Parse the encrypted data to find chunk boundaries
+        // Header = 33 bytes, then per-chunk: [encSize(4B)][encData(encSize)]
+        let headerEnd = 33
+        var offset = headerEnd
+
+        // Read chunk 0 bounds
+        let chunk0SizeBytes = encrypted.subdata(in: offset..<offset+4)
+        let chunk0Size = chunk0SizeBytes.withUnsafeBytes { $0.load(as: UInt32.self) }
+        let chunk0Start = offset + 4
+        let chunk0End = chunk0Start + Int(chunk0Size)
+        let chunk0Data = encrypted.subdata(in: chunk0Start..<chunk0End)
+
+        // Move to chunk 1
+        offset = chunk0End
+        let chunk1SizeBytes = encrypted.subdata(in: offset..<offset+4)
+        let chunk1Size = chunk1SizeBytes.withUnsafeBytes { $0.load(as: UInt32.self) }
+        let chunk1Start = offset + 4
+        let chunk1End = chunk1Start + Int(chunk1Size)
+        let chunk1Data = encrypted.subdata(in: chunk1Start..<chunk1End)
+
+        // Swap chunk 0 and chunk 1 content (keep size prefixes matched)
+        var tampered = encrypted.prefix(headerEnd)
+        // Chunk 0 slot now holds chunk 1 data
+        var swappedSize0 = UInt32(chunk1Data.count)
+        tampered.append(Data(bytes: &swappedSize0, count: 4))
+        tampered.append(chunk1Data)
+        // Chunk 1 slot now holds chunk 0 data
+        var swappedSize1 = UInt32(chunk0Data.count)
+        tampered.append(Data(bytes: &swappedSize1, count: 4))
+        tampered.append(chunk0Data)
+        // Append remaining chunks unchanged
+        tampered.append(encrypted.suffix(from: chunk1End))
+
+        XCTAssertThrowsError(try CryptoEngine.decryptStreaming(Data(tampered), with: key)) { error in
+            XCTAssertEqual(error as? CryptoError, CryptoError.chunkOrderingViolation,
+                           "Swapped chunks must trigger ordering violation")
+        }
+    }
+
+    func testTruncatedLastChunkThrows() throws {
+        // Encrypt > streamingThreshold, then remove the last chunk entirely
+        let size = VaultCoreConstants.streamingThreshold + VaultCoreConstants.streamingChunkSize + 100
+        let sourceURL = try writeTestFile(size: size)
+
+        let encrypted = try CryptoEngine.encryptForStaging(sourceURL, with: key)
+        XCTAssertTrue(CryptoEngine.isStreamingFormat(encrypted))
+
+        // Walk chunks to find start of last chunk
+        var offset = 33
+        let totalChunks = encrypted.subdata(in: 9..<13).withUnsafeBytes { $0.load(as: UInt32.self) }
+        XCTAssertGreaterThanOrEqual(totalChunks, 2)
+
+        for _ in 0..<(totalChunks - 1) {
+            let encSize = encrypted.subdata(in: offset..<offset+4).withUnsafeBytes { $0.load(as: UInt32.self) }
+            offset += 4 + Int(encSize)
+        }
+
+        // Truncate before the last chunk
+        let truncated = encrypted.prefix(offset)
+        XCTAssertThrowsError(try CryptoEngine.decryptStreaming(Data(truncated), with: key)) { error in
+            XCTAssertEqual(error as? CryptoError, CryptoError.invalidData,
+                           "Missing last chunk must throw invalidData")
+        }
     }
 
     func testDecryptStagedFileToURLWrongKeyThrows() throws {
