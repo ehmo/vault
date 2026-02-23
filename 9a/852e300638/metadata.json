@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "9a852e300638",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/UI/Components/SecureTextField.swift",
+    "apps/ios/VaultTests/ScreenshotShieldTests.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9a/852e300638/0/metadata.json",
+      "transcript": "/9a/852e300638/0/full.jsonl",
+      "context": "/9a/852e300638/0/context.md",
+      "content_hash": "/9a/852e300638/0/content_hash.txt",
+      "prompt": "/9a/852e300638/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 25,
+    "cache_creation_tokens": 27284,
+    "cache_read_tokens": 2586378,
+    "output_tokens": 635,
+    "api_call_count": 21
+  }
+}
