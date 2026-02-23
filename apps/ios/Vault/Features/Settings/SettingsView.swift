@@ -761,6 +761,7 @@ struct iCloudBackupSettingsView: View {
                 })
                 await MainActor.run {
                     lastBackupTimestamp = Date().timeIntervalSince1970
+                    uploadProgress = 1.0 // Show 100% briefly before hiding
                     isBackingUp = false
                     backupStage = nil
                 }
@@ -805,7 +806,10 @@ struct iCloudBackupSettingsView: View {
     private func resumePendingBackup() {
         isBackingUp = true
         backupStage = .uploading
-        uploadProgress = 0
+        // Don't set uploadProgress to 0 - the uploadStagedBackup function
+        // will immediately report the correct initial progress based on
+        // already-uploaded chunks. This prevents the "0% then jump" issue.
+        uploadProgress = -1 // Use negative to indicate "calculating..."
         errorMessage = nil
         IdleTimerManager.shared.disable()
 
@@ -824,6 +828,7 @@ struct iCloudBackupSettingsView: View {
                 })
                 await MainActor.run {
                     lastBackupTimestamp = Date().timeIntervalSince1970
+                    uploadProgress = 1.0 // Show 100% briefly before hiding
                     isBackingUp = false
                     backupStage = nil
                 }

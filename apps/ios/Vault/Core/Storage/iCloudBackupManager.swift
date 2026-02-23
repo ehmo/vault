@@ -296,6 +296,11 @@ final class iCloudBackupManager: @unchecked Sendable {
 
         Self.logger.info("[upload] \(existingIndices.count)/\(state.totalChunks) chunks already uploaded, \(missingIndices.count) remaining")
 
+        // Report initial progress immediately based on already-uploaded chunks
+        // This ensures resuming shows correct progress, not starting from 0
+        let initialProgress = Double(existingIndices.count) / Double(state.totalChunks)
+        onUploadProgress?(initialProgress)
+
         // Upload missing chunks from disk files
         if !missingIndices.isEmpty {
             try await withThrowingTaskGroup(of: Void.self) { group in
@@ -345,6 +350,10 @@ final class iCloudBackupManager: @unchecked Sendable {
                 }
             }
         }
+
+        // All chunks uploaded - report 95% before manifest save
+        // This prevents the "stall at 100%" issue while saving manifest
+        onUploadProgress?(0.95)
 
         state.uploadFinished = true
         savePendingBackupState(state)

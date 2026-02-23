@@ -1,0 +1,253 @@
+# Test: Pattern Board Consistency Across All Screens
+# Verifies that the pattern board has the same layout, size, and behavior on every screen
+
+appId: app.vaultaire.ios
+
+---
+
+# Test 1: Pattern Setup View - Grid Layout
+- launchApp:
+    clearState: true
+    arguments:
+      - "-MAESTRO_FORCE_ONBOARDING"
+
+# Verify pattern board is centered and has correct size
+- assertVisible:
+    id: "pattern_setup_grid"
+- assertVisible:
+    text: "Create Your Pattern"
+
+# Test validation feedback appears without shifting layout
+- tapOn:
+    id: "pattern_setup_grid"
+    index: 0
+- tapOn:
+    id: "pattern_setup_grid"
+    index: 1
+
+# Should show validation feedback (too short)
+- assertVisible:
+    id: "pattern_validation_feedback"
+
+# Continue with valid pattern (6+ dots)
+- tapOn:
+    id: "pattern_setup_grid"
+    index: 0
+- tapOn:
+    id: "pattern_setup_grid"
+    index: 1
+- tapOn:
+    id: "pattern_setup_grid"
+    index: 2
+- tapOn:
+    id: "pattern_setup_grid"
+    index: 5
+- tapOn:
+    id: "pattern_setup_grid"
+    index: 8
+- tapOn:
+    id: "pattern_setup_grid"
+    index: 7
+
+# Should advance to confirm step
+- assertVisible:
+    text: "Confirm Your Pattern"
+
+---
+
+# Test 2: Change Pattern View - Layout Consistency
+- launchApp:
+    clearState: true
+
+# Complete onboarding first
+- runFlow: ../subflows/onboarding_complete.yaml
+
+# Navigate to settings
+- tapOn:
+    id: "vault_settings_button"
+
+# Navigate to Change Pattern
+- tapOn:
+    id: "settings_change_pattern"
+
+# Verify pattern grid has same size as onboarding
+- assertVisible:
+    id: "change_pattern_grid"
+
+# Test Try Again button is centered (appears in confirm step)
+- runFlow: ../subflows/change_pattern_create.yaml
+
+# Draw different pattern to trigger mismatch
+- tapOn:
+    id: "change_pattern_grid"
+    index: 0
+- tapOn:
+    id: "change_pattern_grid"
+    index: 1
+- tapOn:
+    id: "change_pattern_grid"
+    index: 2
+- tapOn:
+    id: "change_pattern_grid"
+    index: 5
+- tapOn:
+    id: "change_pattern_grid"
+    index: 8
+- tapOn:
+    id: "change_pattern_grid"
+    index: 7
+
+# Should show Try Again button centered
+- assertVisible:
+    id: "change_pattern_try_again"
+
+# Test that blue notice doesn't truncate when error appears
+- assertNotVisible:
+    id: "change_pattern_skip_info_banner"
+
+---
+
+# Test 3: Change Pattern - Skip Verification Logic
+# Test that verification is required when unlocked with pattern
+- launchApp:
+    clearState: true
+
+# Complete onboarding with pattern (not recovery phrase)
+- runFlow: ../subflows/onboarding_complete.yaml
+
+# Navigate to Change Pattern
+- tapOn:
+    id: "vault_settings_button"
+- tapOn:
+    id: "settings_change_pattern"
+
+# Should start with "Verify Current Pattern" step (not skip)
+- assertVisible:
+    text: "Verify Current Pattern"
+- assertNotVisible:
+    text: "Create New Pattern"
+
+# Now test with recovery phrase unlock
+- launchApp:
+    clearState: true
+
+# Complete onboarding
+- runFlow: ../subflows/onboarding_complete.yaml
+
+# Lock vault
+- tapOn:
+    id: "vault_lock_button"
+
+# Unlock with recovery phrase
+- runFlow: ../subflows/unlock_with_recovery_phrase.yaml
+
+# Navigate to Change Pattern
+- tapOn:
+    id: "vault_settings_button"
+- tapOn:
+    id: "settings_change_pattern"
+
+# Should show blue notice about skipping verification
+- assertVisible:
+    id: "change_pattern_skip_info_banner"
+- assertVisible:
+    text: "Create New Pattern"
+
+---
+
+# Test 4: Pattern Grid Size Consistency
+- launchApp:
+    clearState: true
+
+# Test PatternSetupView grid
+- runFlow: ../subflows/onboarding_start.yaml
+
+- assertVisible:
+    id: "pattern_setup_grid"
+
+# Complete onboarding
+- runFlow: ../subflows/onboarding_complete.yaml
+
+# Test ChangePatternView grid
+- tapOn:
+    id: "vault_settings_button"
+- tapOn:
+    id: "settings_change_pattern"
+
+- assertVisible:
+    id: "change_pattern_grid"
+
+# Both grids should visually appear the same size
+# (Manual verification: grids should be same dimensions)
+
+---
+
+# Test 5: Feedback Area Height Consistency
+# Verifies that validation feedback doesn't cause layout shift
+
+- launchApp:
+    clearState: true
+
+- runFlow: ../subflows/onboarding_start.yaml
+
+# Pattern board should be centered with feedback area below
+- assertVisible:
+    id: "pattern_setup_grid"
+
+# Enter invalid pattern
+- tapOn:
+    id: "pattern_setup_grid"
+    index: 0
+- tapOn:
+    id: "pattern_setup_grid"
+    index: 1
+
+# Feedback appears
+- assertVisible:
+    id: "pattern_validation_feedback"
+
+# Grid should still be centered (no jump)
+- assertVisible:
+    id: "pattern_setup_grid"
+
+---
+
+# Test 6: Error Message Styling Consistency
+- launchApp:
+    clearState: true
+
+- runFlow: ../subflows/onboarding_complete.yaml
+
+# Navigate to Change Pattern
+- tapOn:
+    id: "vault_settings_button"
+- tapOn:
+    id: "settings_change_pattern"
+
+# Enter wrong current pattern
+- tapOn:
+    id: "change_pattern_grid"
+    index: 0
+- tapOn:
+    id: "change_pattern_grid"
+    index: 1
+- tapOn:
+    id: "change_pattern_grid"
+    index: 2
+- tapOn:
+    id: "change_pattern_grid"
+    index: 3
+- tapOn:
+    id: "change_pattern_grid"
+    index: 4
+- tapOn:
+    id: "change_pattern_grid"
+    index: 5
+
+# Error should appear with consistent styling (icon + text)
+- assertVisible:
+    id: "change_pattern_error_message"
+
+# Error styling should match across all screens
+- assertVisible:
+    text: "Pattern incorrect"

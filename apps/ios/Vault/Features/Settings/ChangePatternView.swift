@@ -97,6 +97,7 @@ struct ChangePatternView: View {
     @State private var patternState = PatternState()
     @State private var flow = ChangePatternFlowState()
     @State private var showSaveConfirmation = false
+    @AppStorage("showPatternFeedback") private var showPatternFeedback = true
 
     var body: some View {
         NavigationStack {
@@ -234,7 +235,7 @@ struct ChangePatternView: View {
     private var patternInputSection: some View {
         PatternGridView(
             state: patternState,
-            showFeedback: .constant(step != .verifyCurrent),
+            showFeedback: .constant(step != .verifyCurrent && showPatternFeedback),
             onPatternComplete: handlePatternComplete
         )
         .frame(width: 280, height: 280)
