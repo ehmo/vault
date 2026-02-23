@@ -125,12 +125,12 @@ actor DuressHandler {
                 }
                 
                 // Revoke each active share
-                for shareVaultId in activeShares {
+                for share in activeShares {
                     do {
-                        try await CloudKitSharingManager.shared.revokeShare(shareVaultId: shareVaultId)
-                        Self.logger.info("Revoked share \(shareVaultId) during duress")
+                        try await CloudKitSharingManager.shared.revokeShare(shareVaultId: share.id)
+                        Self.logger.info("Revoked share \(share.id) during duress")
                     } catch {
-                        Self.logger.error("Failed to revoke share \(shareVaultId) during duress: \(error.localizedDescription)")
+                        Self.logger.error("Failed to revoke share \(share.id) during duress: \(error.localizedDescription)")
                         // Continue revoking other shares even if one fails
                     }
                 }
