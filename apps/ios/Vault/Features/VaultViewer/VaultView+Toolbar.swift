@@ -63,8 +63,13 @@ extension VaultView {
 
     func topSafeAreaContent(visible: VisibleFiles) -> some View {
         VStack(spacing: 8) {
+            // Always maintain consistent height - show toolbar or placeholder
             if !showingSettings {
                 toolbarHeaderView
+            } else {
+                // Placeholder to maintain height when settings is open
+                Color.clear
+                    .frame(height: 56)
             }
 
             VStack(spacing: 8) {
