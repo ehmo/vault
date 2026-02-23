@@ -66,6 +66,8 @@ Secrets/
 node_modules/
 apps/web/styles/output.css
 apps/web/.wrangler/
+apps/web/playwright-report/
+apps/web/test-results/
 
 # Outputs
 outputs/
