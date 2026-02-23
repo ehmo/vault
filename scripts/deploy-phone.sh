@@ -19,7 +19,9 @@ DERIVED_DATA="/tmp/VaultDevice"
 BUNDLE_ID="app.vaultaire.ios"
 
 # Device configs
-# NOTE: Use hardware UDID (00008140-...) for xcodebuild, not CoreDevice identifier
+# NOTE: Use hardware UDID (00008140-...) for xcodebuild
+# Device 1: Test device 1, iPhone 16
+# Device 2: Test device 2, iPhone 16
 DEVICE1_UDID="00008140-001A00141163001C"
 DEVICE1_NAME="Test device 1"
 DEVICE2_UDID="00008140-001975DC3678801C"
