@@ -80,6 +80,20 @@ enum FileUtilities {
         return "\(filename).\(ext)"
     }
 
+    /// Extracts the original creation date from an image file's EXIF metadata.
+    /// Returns nil if no EXIF date is found.
+    static func extractImageCreationDate(from url: URL) -> Date? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        guard let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] else { return nil }
+        guard let exif = properties[kCGImagePropertyExifDictionary] as? [CFString: Any] else { return nil }
+        guard let dateString = exif[kCGImagePropertyExifDateTimeOriginal] as? String else { return nil }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy:MM:dd HH:mm:ss"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter.date(from: dateString)
+    }
+
     /// Best-effort cleanup of temporary files.
     /// Silently ignores errors - use only for non-critical temp file cleanup.
     static func cleanupTemporaryFile(at url: URL?) {

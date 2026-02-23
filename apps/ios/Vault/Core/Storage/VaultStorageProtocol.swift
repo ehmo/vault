@@ -11,7 +11,7 @@ protocol VaultStorageProtocol {
     // MARK: - File Operations
 
     func storeFile(data: Data, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data?, duration: TimeInterval?, fileId: UUID?) throws -> UUID
-    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data?, duration: TimeInterval?, fileId: UUID?) throws -> UUID
+    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data?, duration: TimeInterval?, fileId: UUID?, originalDate: Date?) throws -> UUID
     func retrieveFile(id: UUID, with key: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data)
     func retrieveFileContent(entry: VaultStorage.VaultIndex.VaultFileEntry, index: VaultStorage.VaultIndex, masterKey: Data) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data)
     func retrieveFileToTempURL(id: UUID, with key: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, tempURL: URL)
@@ -35,8 +35,8 @@ extension VaultStorageProtocol {
         try storeFile(data: data, filename: filename, mimeType: mimeType, with: key, thumbnailData: thumbnailData, duration: nil, fileId: fileId)
     }
 
-    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, fileId: UUID? = nil) throws -> UUID {
-        try storeFileFromURL(fileURL, filename: filename, mimeType: mimeType, with: key, thumbnailData: thumbnailData, duration: nil, fileId: fileId)
+    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, fileId: UUID? = nil, originalDate: Date? = nil) throws -> UUID {
+        try storeFileFromURL(fileURL, filename: filename, mimeType: mimeType, with: key, thumbnailData: thumbnailData, duration: nil, fileId: fileId, originalDate: originalDate)
     }
 
     func deleteFiles(ids: Set<UUID>, with key: VaultKey) throws {

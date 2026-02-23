@@ -96,7 +96,7 @@ final class VaultViewModel {
     // MARK: - Computed
 
     var useDateGrouping: Bool {
-        sortOrder == .dateNewest || sortOrder == .dateOldest
+        sortOrder == .dateNewest || sortOrder == .dateOldest || sortOrder == .fileDate
     }
 
     var fileOptimization: String = UserDefaults.standard.string(forKey: "fileOptimization") ?? "optimized"
@@ -136,6 +136,8 @@ final class VaultViewModel {
             visible.sort { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
         case .dateOldest:
             visible.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+        case .fileDate:
+            visible.sort { ($0.originalDate ?? $0.createdAt ?? .distantPast) > ($1.originalDate ?? $1.createdAt ?? .distantPast) }
         case .sizeSmallest:
             visible.sort { $0.size < $1.size }
         case .sizeLargest:
@@ -201,7 +203,8 @@ final class VaultViewModel {
                         mimeType: entry.mimeType,
                         filename: entry.filename,
                         createdAt: entry.createdAt,
-                        duration: entry.duration
+                        duration: entry.duration,
+                        originalDate: entry.originalDate
                     )
                 }
                 await MainActor.run {

@@ -23,6 +23,7 @@ enum FileFilter: String, CaseIterable, Identifiable {
 enum SortOrder: String, CaseIterable {
     case dateNewest = "Newest First"
     case dateOldest = "Oldest First"
+    case fileDate = "File Date"
     case sizeSmallest = "Smallest"
     case sizeLargest = "Largest"
     case name = "Name"
@@ -43,7 +44,7 @@ struct DateGroup: Identifiable {
     let files: [VaultFileItem] // non-media files
 }
 
-func groupFilesByDate(_ items: [VaultFileItem], newestFirst: Bool = true) -> [DateGroup] {
+func groupFilesByDate(_ items: [VaultFileItem], newestFirst: Bool = true, dateKeyPath: KeyPath<VaultFileItem, Date?> = \.createdAt) -> [DateGroup] {
     let calendar = Calendar.current
     let now = Date()
     let startOfToday = calendar.startOfDay(for: now)
@@ -61,7 +62,7 @@ func groupFilesByDate(_ items: [VaultFileItem], newestFirst: Bool = true) -> [Da
     }()
 
     for item in items {
-        let date = item.createdAt ?? .distantPast
+        let date = item[keyPath: dateKeyPath] ?? .distantPast
         let dayStart = calendar.startOfDay(for: date)
 
         let title: String
@@ -417,8 +418,9 @@ struct VaultFileItem: Identifiable, Sendable, Equatable {
     let filename: String?
     let createdAt: Date?
     let duration: TimeInterval?
+    let originalDate: Date?
 
-    init(id: UUID, size: Int, hasThumbnail: Bool = false, mimeType: String?, filename: String?, createdAt: Date? = nil, duration: TimeInterval? = nil) {
+    init(id: UUID, size: Int, hasThumbnail: Bool = false, mimeType: String?, filename: String?, createdAt: Date? = nil, duration: TimeInterval? = nil, originalDate: Date? = nil) {
         self.id = id
         self.size = size
         self.hasThumbnail = hasThumbnail
@@ -426,6 +428,7 @@ struct VaultFileItem: Identifiable, Sendable, Equatable {
         self.filename = filename
         self.createdAt = createdAt
         self.duration = duration
+        self.originalDate = originalDate
     }
 
     var isImage: Bool {

@@ -260,7 +260,8 @@ enum ParallelImporter {
 
         let fileId = try VaultStorage.shared.storeFileFromURL(
             optimizedURL, filename: filename, mimeType: mimeType,
-            with: key, thumbnailData: metadata.thumbnail, duration: metadata.duration
+            with: key, thumbnailData: metadata.thumbnail, duration: metadata.duration,
+            originalDate: metadata.creationDate
         )
 
         let encThumb = metadata.thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
@@ -271,7 +272,8 @@ enum ParallelImporter {
         return VaultFileItem(
             id: fileId, size: fileSize,
             hasThumbnail: encThumb != nil, mimeType: mimeType,
-            filename: filename, createdAt: Date(), duration: metadata.duration
+            filename: filename, createdAt: Date(), duration: metadata.duration,
+            originalDate: metadata.creationDate
         )
     }
 
@@ -283,18 +285,18 @@ enum ParallelImporter {
     ) async throws -> VaultFileItem? {
         guard !Task.isCancelled else { return nil }
 
-        guard item.provider.canLoadObject(ofClass: UIImage.self) else {
-            throw ImportError.unsupportedFormat
-        }
+        // Load image via file representation to preserve EXIF data for original date extraction
+        let tempImageURL = try await loadImageURL(from: item.provider)
+        defer { try? FileManager.default.removeItem(at: tempImageURL) }
 
-        let image: UIImage? = await withCheckedContinuation { continuation in
-            item.provider.loadObject(ofClass: UIImage.self) { object, _ in
-                continuation.resume(returning: object as? UIImage)
-            }
-        }
+        // Extract EXIF creation date before any conversion
+        let originalDate = FileUtilities.extractImageCreationDate(from: tempImageURL)
 
         guard !Task.isCancelled else { return nil }
-        guard let image else { throw ImportError.conversionFailed }
+
+        guard let image = UIImage(contentsOfFile: tempImageURL.path) else {
+            throw ImportError.conversionFailed
+        }
 
         let tempInputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -321,7 +323,7 @@ enum ParallelImporter {
 
         let fileId = try VaultStorage.shared.storeFileFromURL(
             optimizedURL, filename: filename, mimeType: mimeType,
-            with: key, thumbnailData: thumbnail
+            with: key, thumbnailData: thumbnail, originalDate: originalDate
         )
 
         let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
@@ -332,7 +334,7 @@ enum ParallelImporter {
         return VaultFileItem(
             id: fileId, size: fileSize,
             hasThumbnail: encThumb != nil, mimeType: mimeType,
-            filename: filename, createdAt: Date()
+            filename: filename, createdAt: Date(), originalDate: originalDate
         )
     }
 
@@ -363,13 +365,18 @@ enum ParallelImporter {
             ? MediaOptimizer.updatedFilename(originalFilename, newMimeType: mimeType)
             : originalFilename
 
+        // Extract original date from the source file's filesystem creation date
+        let resourceOriginalDate = (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate
+
         if mimeType.hasPrefix("video/") {
             let metadata = await generateVideoMetadata(from: optimizedURL)
+            let originalDate = metadata.creationDate ?? resourceOriginalDate
             let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
 
             let fileId = try VaultStorage.shared.storeFileFromURL(
                 optimizedURL, filename: filename, mimeType: mimeType,
-                with: key, thumbnailData: metadata.thumbnail, duration: metadata.duration
+                with: key, thumbnailData: metadata.thumbnail, duration: metadata.duration,
+                originalDate: originalDate
             )
 
             let encThumb = metadata.thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
@@ -378,7 +385,8 @@ enum ParallelImporter {
             return VaultFileItem(
                 id: fileId, size: fileSize,
                 hasThumbnail: encThumb != nil, mimeType: mimeType,
-                filename: filename, createdAt: Date(), duration: metadata.duration
+                filename: filename, createdAt: Date(), duration: metadata.duration,
+                originalDate: originalDate
             )
         } else {
             let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
@@ -386,9 +394,14 @@ enum ParallelImporter {
                 ? FileUtilities.generateThumbnail(fromFileURL: optimizedURL)
                 : nil
 
+            // For images, try EXIF first, then fall back to filesystem date
+            let originalDate: Date? = mimeType.hasPrefix("image/")
+                ? (FileUtilities.extractImageCreationDate(from: url) ?? resourceOriginalDate)
+                : resourceOriginalDate
+
             let fileId = try VaultStorage.shared.storeFileFromURL(
                 optimizedURL, filename: filename, mimeType: mimeType,
-                with: key, thumbnailData: thumbnail
+                with: key, thumbnailData: thumbnail, originalDate: originalDate
             )
 
             let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
@@ -397,12 +410,37 @@ enum ParallelImporter {
             return VaultFileItem(
                 id: fileId, size: fileSize,
                 hasThumbnail: encThumb != nil, mimeType: mimeType,
-                filename: filename, createdAt: Date()
+                filename: filename, createdAt: Date(), originalDate: originalDate
             )
         }
     }
 
     // MARK: - Utilities (nonisolated — no MainActor dependency)
+
+    /// Loads an image from PHPicker provider to a temp URL, preserving EXIF metadata.
+    private static func loadImageURL(from provider: NSItemProvider) async throws -> URL {
+        try await withCheckedThrowingContinuation { continuation in
+            provider.loadFileRepresentation(forTypeIdentifier: UTType.image.identifier) { url, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                guard let url else {
+                    continuation.resume(throwing: CocoaError(.fileReadUnknown))
+                    return
+                }
+                let destURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString)
+                    .appendingPathExtension(url.pathExtension.isEmpty ? "jpg" : url.pathExtension)
+                do {
+                    try FileManager.default.copyItem(at: url, to: destURL)
+                    continuation.resume(returning: destURL)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
 
     /// Loads a video from PHPicker provider to a temp URL.
     private static func loadVideoURL(from provider: NSItemProvider) async throws -> URL {
@@ -429,8 +467,8 @@ enum ParallelImporter {
         }
     }
 
-    /// Generates thumbnail + duration from a video URL.
-    private static func generateVideoMetadata(from url: URL) async -> (thumbnail: Data?, duration: TimeInterval?) {
+    /// Generates thumbnail + duration + creation date from a video URL.
+    private static func generateVideoMetadata(from url: URL) async -> (thumbnail: Data?, duration: TimeInterval?, creationDate: Date?) {
         let asset = AVAsset(url: url)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
@@ -438,10 +476,19 @@ enum ParallelImporter {
 
         var thumbnail: Data?
         var duration: TimeInterval?
+        var creationDate: Date?
 
         if let cmDuration = try? await asset.load(.duration) {
             let seconds = CMTimeGetSeconds(cmDuration)
             if seconds.isFinite && seconds > 0 { duration = seconds }
+        }
+
+        // Extract creation date from video metadata
+        if let metadataItems = try? await asset.load(.commonMetadata) {
+            let dateItems = AVMetadataItem.metadataItems(from: metadataItems, filteredByIdentifier: .commonIdentifierCreationDate)
+            if let dateItem = dateItems.first, let dateValue = try? await dateItem.load(.dateValue) {
+                creationDate = dateValue
+            }
         }
 
         let time = CMTime(seconds: 0.5, preferredTimescale: 600)
@@ -449,7 +496,7 @@ enum ParallelImporter {
             thumbnail = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.7)
         }
 
-        return (thumbnail, duration)
+        return (thumbnail, duration, creationDate)
     }
 
     enum ImportError: Error {

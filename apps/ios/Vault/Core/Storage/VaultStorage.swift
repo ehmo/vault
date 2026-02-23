@@ -562,7 +562,7 @@ final class VaultStorage {
 
     /// Store a file from a URL without loading the entire raw content into memory.
     /// Uses streaming encryption for large files (VCSE for files > 1MB).
-    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, duration: TimeInterval? = nil, fileId: UUID? = nil) throws -> UUID {
+    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, duration: TimeInterval? = nil, fileId: UUID? = nil, originalDate: Date? = nil) throws -> UUID {
         ensureBlobReady()
         Self.logger.info("[DEBUG] storeFileFromURL START - filename: \(filename), key hash: \(key.rawBytes.hashValue)")
         indexManager.indexLock.lock()
@@ -627,7 +627,8 @@ final class VaultStorage {
             filename: filename,
             blobId: blobWrite.blobId == "primary" ? nil : blobWrite.blobId,
             createdAt: Date(),
-            duration: duration
+            duration: duration,
+            originalDate: originalDate
         )
         index.files.append(entry)
 
@@ -781,7 +782,8 @@ final class VaultStorage {
             filename: entry.filename,
             blobId: entry.blobId,
             createdAt: entry.createdAt,
-            duration: entry.duration
+            duration: entry.duration,
+            originalDate: entry.originalDate
         )
 
         try saveIndex(index, with: key)
@@ -830,7 +832,8 @@ final class VaultStorage {
                     filename: entry.filename,
                     blobId: entry.blobId,
                     createdAt: entry.createdAt,
-                    duration: entry.duration
+                    duration: entry.duration,
+                    originalDate: entry.originalDate
                 )
 
                 deletedCount += 1
@@ -884,6 +887,7 @@ final class VaultStorage {
         let filename: String?
         let createdAt: Date?
         let duration: TimeInterval?
+        let originalDate: Date?
     }
 
     /// Returns the master key and file entries without decrypting thumbnails.
@@ -903,7 +907,8 @@ final class VaultStorage {
                 mimeType: entry.mimeType,
                 filename: entry.filename,
                 createdAt: entry.createdAt,
-                duration: entry.duration
+                duration: entry.duration,
+                originalDate: entry.originalDate
             )
         }
 
@@ -1259,7 +1264,8 @@ final class VaultStorage {
                 filename: entry.filename,
                 blobId: currentBlobId == "primary" ? nil : currentBlobId,
                 createdAt: entry.createdAt,
-                duration: entry.duration
+                duration: entry.duration,
+                originalDate: entry.originalDate
             )
             newFiles.append(newEntry)
             currentCursor += entry.size

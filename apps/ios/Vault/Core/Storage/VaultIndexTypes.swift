@@ -94,6 +94,7 @@ extension VaultStorage {
             let blobId: String? // nil = primary blob (backward compat)
             let createdAt: Date? // When the file was added to the vault
             let duration: TimeInterval? // Video duration in seconds (nil for non-video)
+            let originalDate: Date? // Original file creation date (EXIF, video metadata, or filesystem)
 
             // Legacy initializer for backward compatibility
             init(fileId: UUID, offset: Int, size: Int, encryptedHeaderPreview: Data, isDeleted: Bool) {
@@ -108,12 +109,13 @@ extension VaultStorage {
                 self.blobId = nil
                 self.createdAt = nil
                 self.duration = nil
+                self.originalDate = nil
             }
 
             // Full initializer with thumbnail and blobId
             init(fileId: UUID, offset: Int, size: Int, encryptedHeaderPreview: Data, isDeleted: Bool,
                  thumbnailData: Data?, mimeType: String?, filename: String?, blobId: String? = nil,
-                 createdAt: Date? = nil, duration: TimeInterval? = nil) {
+                 createdAt: Date? = nil, duration: TimeInterval? = nil, originalDate: Date? = nil) {
                 self.fileId = fileId
                 self.offset = offset
                 self.size = size
@@ -125,6 +127,7 @@ extension VaultStorage {
                 self.blobId = blobId
                 self.createdAt = createdAt
                 self.duration = duration
+                self.originalDate = originalDate
             }
         }
     }
