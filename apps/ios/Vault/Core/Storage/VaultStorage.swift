@@ -1009,6 +1009,34 @@ final class VaultStorage {
         Self.logger.info("Vault key change complete! No files were re-encrypted.")
     }
 
+    // MARK: - Load All Indexes
+    
+    /// Loads all vault indexes from disk.
+    /// Used during duress mode to find and revoke all active shares.
+    func loadAllIndexes() throws -> [VaultIndex] {
+        let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        var indexes: [VaultIndex] = []
+        
+        guard let files = try? fileManager.contentsOfDirectory(at: documents, includingPropertiesForKeys: nil) else {
+            return []
+        }
+        
+        for file in files {
+            guard file.lastPathComponent.hasPrefix("vault_index_") else { continue }
+            
+            // Try to load the index file directly using IndexManager
+            do {
+                let data = try Data(contentsOf: file)
+                let index = try JSONDecoder().decode(VaultIndex.self, from: data)
+                indexes.append(index)
+            } catch {
+                Self.logger.error("Failed to load index from file: \(file.lastPathComponent)")
+            }
+        }
+        
+        return indexes
+    }
+
     // MARK: - Vault Destruction (for duress)
 
     func deleteVaultIndex(for key: VaultKey) throws {

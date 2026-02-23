@@ -49,19 +49,17 @@ actor DuressHandler {
     /// This happens silently - no UI indication.
     /// The duress vault remains fully functional to appear legitimate.
     /// After triggering, the vault is no longer marked as the duress vault.
+    /// All shared vaults created by this user are also revoked to prevent access.
     func triggerDuress(preservingKey duressKey: Data) async {
         Self.logger.info("Triggering duress mode")
         
         // Strategy: The duress vault's encrypted index and blob data are stored per-key.
         // We need to:
         // 1. Backup the duress vault's encrypted index file (it's already encrypted with the vault key)
-        // 2. Destroy all vault data and recovery phrases
-        // 3. Regenerate device salt (invalidates all keys)
+        // 2. Revoke all active shares to prevent others from accessing shared data
+        // 3. Destroy all vault data and recovery phrases
         // 4. Restore the duress vault's encrypted index
-        // 5. The duress pattern will still derive the same key (salt is per-device, not per-pattern)
-        
-        // Actually, regenerating the salt will break the key derivation!
-        // Better strategy: Just destroy all OTHER vault indexes, but leave the duress one intact
+        // 5. The duress pattern will still derive the same key
         
         // 1. Load and backup the duress vault's index data before destruction
         guard let duressIndex = try? storage.loadIndex(with: VaultKey(duressKey)) else {
@@ -72,8 +70,11 @@ actor DuressHandler {
         
         Self.logger.debug("Duress vault index backed up: \(duressIndex.files.count) files")
         
-        // 2. Destroy all recovery phrase data EXCEPT for the duress vault
-        // Actually, destroy ALL recovery data - we'll regenerate for duress vault only
+        // 2. REVOKE ALL ACTIVE SHARES
+        // Before destroying data, revoke all shares to prevent User 2 from accessing data
+        await revokeAllActiveShares(except: duressIndex.sharedVaultId)
+        
+        // 3. Destroy all recovery phrase data EXCEPT for the duress vault
         do {
             try RecoveryPhraseManager.shared.destroyAllRecoveryData()
             Self.logger.debug("All recovery data destroyed")
@@ -81,21 +82,14 @@ actor DuressHandler {
             Self.logger.error("Error destroying recovery data: \(error.localizedDescription, privacy: .public)")
         }
         
-        // 3. The blob file contains data for ALL vaults
-        // We can't selectively destroy other vaults' data without breaking the duress vault
+        // 4. The blob file contains data for ALL vaults
         // Solution: Keep the blob intact, but all other indexes will be destroyed
         // Only the duress vault's index will exist, so only it can be accessed
-        
-        // Don't regenerate salt - that would invalidate the duress key too!
-        // Instead, just delete all index files except the duress vault's index
         storage.destroyAllIndexesExcept(VaultKey(duressKey))
         
         Self.logger.debug("All vault indexes destroyed except duress vault")
         
         // 5. Regenerate recovery phrase for duress vault only
-        // NOTE: pattern is empty so phrase-based recovery won't re-derive a key.
-        // This is acceptable — the duress vault is still accessible via its pattern,
-        // and the recovery entry exists for plausibility (attacker sees a phrase exists).
         let newPhrase = RecoveryPhraseGenerator.shared.generatePhrase()
         do {
             try await RecoveryPhraseManager.shared.saveRecoveryPhrase(
@@ -109,9 +103,40 @@ actor DuressHandler {
             // This allows the user to continue using this vault normally after duress is triggered
             clearDuressVault()
             
-            Self.logger.info("Duress mode complete, \(duressIndex.files.count) files preserved, designation cleared")
+            Self.logger.info("Duress mode complete, \(duressIndex.files.count) files preserved, \(duressIndex.activeShares?.count ?? 0) shares revoked, designation cleared")
         } catch {
             Self.logger.error("Error creating new recovery phrase: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+    
+    /// Revokes all active shares except the specified duress vault share.
+    /// This prevents User 2 from accessing data after User 1 triggers duress.
+    private func revokeAllActiveShares(except duressVaultId: String?) async {
+        do {
+            // Load all vault indexes to find active shares
+            let allIndexes = try storage.loadAllIndexes()
+            
+            for index in allIndexes {
+                guard let vaultId = index.sharedVaultId,
+                      vaultId != duressVaultId,
+                      let activeShares = index.activeShares,
+                      !activeShares.isEmpty else {
+                    continue
+                }
+                
+                // Revoke each active share
+                for shareVaultId in activeShares {
+                    do {
+                        try await CloudKitSharingManager.shared.revokeShare(shareVaultId: shareVaultId)
+                        Self.logger.info("Revoked share \(shareVaultId) during duress")
+                    } catch {
+                        Self.logger.error("Failed to revoke share \(shareVaultId) during duress: \(error.localizedDescription)")
+                        // Continue revoking other shares even if one fails
+                    }
+                }
+            }
+        } catch {
+            Self.logger.error("Error loading indexes to revoke shares: \(error.localizedDescription)")
         }
     }
 
