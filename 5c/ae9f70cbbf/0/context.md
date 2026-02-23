@@ -15,3 +15,11 @@ Again, when you are done, write tests, send the build to the testing phone and t
 I want to improve the import files function. Currently I believe we are running 3 parallel ingestions with images taking 2 and videos taking 1. I think we
   should revert it and have videos to take 2 and images 1. This should be a matter of prioritization only. That means if there are no more videos to ingest the other threads pick up pictures. Not that we explicitly associate each for the file type
 
+### Prompt 4
+
+I want to retain the imported files original creation/modification dates. I still want to defualt sort to be by the date/time they were added (newest first) but also want to add new sort that sorts by file's original creation date. I am not sure what we should call the sort as it needs to be short but descriptive so it fits into that view
+
+### Prompt 5
+
+[Request interrupted by user for tool use]
+

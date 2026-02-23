@@ -3,7 +3,7 @@
   "checkpoint_id": "5cae9f70cbbf",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 0,
   "files_touched": [
     "apps/ios/Vault/Features/Sharing/JoinVaultView.swift",
     "apps/ios/Vault/Features/Sharing/SharedVaultInviteView.swift",
@@ -22,10 +22,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 18,
-    "cache_creation_tokens": 23719,
-    "cache_read_tokens": 1350626,
-    "output_tokens": 1473,
+    "input_tokens": 2725,
+    "cache_creation_tokens": 27059,
+    "cache_read_tokens": 1632203,
+    "output_tokens": 5769,
     "api_call_count": 16
   }
 }

@@ -3,9 +3,9 @@
   "checkpoint_id": "5cae9f70cbbf",
   "session_id": "6af42f08-4f74-4d67-afb9-d31e3c98bea0",
   "strategy": "manual-commit",
-  "created_at": "2026-02-23T18:58:49.313071Z",
+  "created_at": "2026-02-23T19:35:07.248034Z",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 0,
   "files_touched": [
     "apps/ios/Vault/Features/Sharing/JoinVaultView.swift",
     "apps/ios/Vault/Features/Sharing/SharedVaultInviteView.swift",
@@ -16,22 +16,22 @@
   ],
   "agent": "Claude Code",
   "transcript_identifier_at_start": "8509e44e-6f39-4b04-831d-109d8aed582f",
-  "checkpoint_transcript_start": 434,
-  "transcript_lines_at_start": 434,
+  "checkpoint_transcript_start": 621,
+  "transcript_lines_at_start": 621,
   "token_usage": {
-    "input_tokens": 18,
-    "cache_creation_tokens": 23719,
-    "cache_read_tokens": 1350626,
-    "output_tokens": 1473,
+    "input_tokens": 2725,
+    "cache_creation_tokens": 27059,
+    "cache_read_tokens": 1632203,
+    "output_tokens": 5769,
     "api_call_count": 16
   },
   "initial_attribution": {
-    "calculated_at": "2026-02-23T18:58:49.228388Z",
+    "calculated_at": "2026-02-23T19:35:07.079241Z",
     "agent_lines": 0,
-    "human_added": 144,
-    "human_modified": 11,
+    "human_added": 93,
+    "human_modified": 22,
     "human_removed": 0,
-    "total_committed": 148,
+    "total_committed": 93,
     "agent_percentage": 0
   }
 }
