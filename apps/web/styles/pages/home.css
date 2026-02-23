@@ -31,16 +31,16 @@
   --phone-frame-bg: #B8BCD2;
   --phone-screen-bg: #D1D1E9;
   --phone-screen-border: rgba(31, 13, 119, 0.22);
-  --phone-text-primary: #2B2C34;
-  --phone-text-secondary: rgba(43, 44, 52, 0.70);
-  --phone-dot-inactive: rgba(43, 44, 52, 0.35);
-  --phone-dot-border: rgba(43, 44, 52, 0.21);
+  --phone-text-primary: #252631;
+  --phone-text-secondary: rgba(37, 38, 49, 0.70);
+  --phone-dot-inactive: rgba(37, 38, 49, 0.35);
+  --phone-dot-border: rgba(37, 38, 49, 0.21);
   --phone-dot-active: #1F0D77;
   --phone-line-color: rgba(31, 13, 119, 0.70);
-  --phone-shield-fill: rgba(43, 44, 52, 0.3);
+  --phone-shield-fill: rgba(37, 38, 49, 0.3);
   --phone-shield-cut: #D1D1E9;
-  --phone-action-primary: rgba(43, 44, 52, 0.70);
-  --phone-action-secondary: rgba(43, 44, 52, 0.50);
+  --phone-action-primary: rgba(37, 38, 49, 0.70);
+  --phone-action-secondary: rgba(37, 38, 49, 0.50);
   --phone-unlock-pixel: rgba(31, 13, 119, 0.82);
   --phone-unlock-pixel-dim: rgba(31, 13, 119, 0.30);
 }
