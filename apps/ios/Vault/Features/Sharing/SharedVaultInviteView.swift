@@ -164,10 +164,21 @@ struct SharedVaultInviteView: View {
                 .multilineTextAlignment(.center)
 
             Button {
-                if subscriptionManager.isPremium {
-                    mode = .patternSetup
-                } else {
-                    showingPaywall = true
+                Task {
+                    // Re-verify the share is still available before accepting
+                    let trimmed = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let result = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: trimmed)
+                    
+                    switch result {
+                    case .success:
+                        if subscriptionManager.isPremium {
+                            mode = .patternSetup
+                        } else {
+                            showingPaywall = true
+                        }
+                    case .failure(let error):
+                        mode = .error(error.localizedDescription)
+                    }
                 }
             } label: {
                 Text("Accept Invite")
