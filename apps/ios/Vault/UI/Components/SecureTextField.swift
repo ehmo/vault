@@ -203,7 +203,14 @@ extension View {
     /// Prevents screenshots by activating the window-level screenshot shield.
     /// The shield uses the secure UITextField layer technique so that iOS renders
     /// a blank screen in screenshots and screen recordings.
+    /// 
+    /// Note: Automatically disabled in DEBUG builds to allow screenshot testing.
     func preventScreenshots() -> some View {
-        modifier(ScreenshotPreventionModifier())
+        #if DEBUG
+        // Screenshot protection disabled in debug mode for testing
+        return self
+        #else
+        return modifier(ScreenshotPreventionModifier())
+        #endif
     }
 }
