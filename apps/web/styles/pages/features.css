@@ -172,6 +172,12 @@
   margin-bottom: 0;
 }
 
+/* Code styling for long hex keys and other strings */
+.feature-article code {
+  word-break: break-all;
+  font-size: 0.9em;
+}
+
 /* ── Stat Callouts ── */
 .stat-row {
   display: grid;
