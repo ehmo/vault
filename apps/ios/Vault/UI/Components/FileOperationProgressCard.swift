@@ -11,7 +11,7 @@ struct FileOperationProgressCard: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            PixelAnimation.loading(size: 80)
+            PixelLoader.standard(size: 80)
 
             VStack(spacing: 8) {
                 ProgressView(value: Double(completed), total: Double(total))

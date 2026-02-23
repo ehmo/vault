@@ -21,8 +21,8 @@ struct PendingImportBanner: View {
             Spacer()
 
             if isImporting {
-                ProgressView()
-                    .tint(.white)
+                PixelLoader.compact(size: 20)
+                    .color(.white)
             } else {
                 Button("Import") {
                     onImport()
@@ -72,8 +72,8 @@ struct PendingSharedVaultImportBanner: View {
             Spacer()
 
             if isResuming {
-                ProgressView()
-                    .tint(.white)
+                PixelLoader.compact(size: 20)
+                    .color(.white)
             } else {
                 Button("Resume") {
                     onResume()

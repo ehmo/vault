@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// Drop-in replacement for ProgressView spinners in upload/download/sync banners.
+/// Uses the unified PixelLoader for consistent appearance across the app.
 struct VaultSyncIndicator: View {
     enum Style {
         case uploading
@@ -17,7 +18,7 @@ struct VaultSyncIndicator: View {
         if style == .loading {
             // Centered vertical layout for full-screen loading
             VStack(spacing: 24) {
-                pixelAnimation
+                PixelLoader.standard(size: 80)
                 Text(message)
                     .font(.subheadline)
                     .foregroundStyle(.vaultSecondaryText)
@@ -25,7 +26,7 @@ struct VaultSyncIndicator: View {
         } else {
             // Compact horizontal layout for inline banners
             HStack(spacing: 8) {
-                pixelAnimation
+                PixelLoader.compact(size: 24)
                 Text(message)
                     .font(.caption)
                 Spacer()
@@ -36,20 +37,6 @@ struct VaultSyncIndicator: View {
                         .foregroundStyle(.vaultSecondaryText)
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    private var pixelAnimation: some View {
-        switch style {
-        case .uploading:
-            PixelAnimation.loading(size: 32)
-        case .downloading:
-            PixelAnimation.loading(size: 32)
-        case .syncing:
-            PixelAnimation.syncing(size: 24)
-        case .loading:
-            PixelAnimation.loading(size: 80)
         }
     }
 }

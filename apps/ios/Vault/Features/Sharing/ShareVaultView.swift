@@ -189,7 +189,7 @@ struct ShareVaultView: View {
 
     private var loadingView: some View {
         VStack(spacing: 16) {
-            PixelAnimation.loading(size: 60)
+            PixelLoader.standard(size: 60)
             Text("Checking sharing status...")
                 .foregroundStyle(.vaultSecondaryText)
         }
@@ -549,7 +549,7 @@ struct ShareVaultView: View {
                 EmptyView()
             case .syncing:
                 HStack(spacing: 4) {
-                    PixelAnimation.syncing(size: 24)
+                    PixelLoader.compact(size: 24)
                     Text("Syncing").font(.caption)
                 }
             case .upToDate:

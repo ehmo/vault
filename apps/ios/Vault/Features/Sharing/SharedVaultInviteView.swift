@@ -227,7 +227,7 @@ struct SharedVaultInviteView: View {
 
     private var loadingView: some View {
         VStack(spacing: 20) {
-            PixelAnimation.syncing(size: 48)
+            PixelLoader.compact(size: 48)
             Text("Checking invitation...")
                 .font(.headline)
                 .foregroundStyle(.vaultSecondaryText)
