@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "fd1017a080ca",
+  "session_id": "24efffa6-4438-49a7-9fa8-8ea4c253de5f",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-23T02:08:10.977785Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/App/ContentView.swift",
+    "apps/ios/Vault/Core/Storage/FileUtilities.swift",
+    "apps/ios/Vault/Features/VaultViewer/FilesGridView.swift",
+    "apps/ios/Vault/Features/VaultViewer/SecureImageViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift",
+    "apps/ios/Vault/UI/Components/SecureTextField.swift",
+    "apps/ios/VaultTests/FileUtilitiesExtensionTests.swift",
+    "apps/ios/VaultTests/ScreenshotShieldTests.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "a6e4117c-02aa-47d0-b830-b70eb48b8465",
+  "checkpoint_transcript_start": 810,
+  "transcript_lines_at_start": 810,
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 55057,
+    "cache_read_tokens": 3331045,
+    "output_tokens": 1570,
+    "api_call_count": 26
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-23T02:08:10.864465Z",
+    "agent_lines": 0,
+    "human_added": 183,
+    "human_modified": 8,
+    "human_removed": 0,
+    "total_committed": 189,
+    "agent_percentage": 0
+  }
+}

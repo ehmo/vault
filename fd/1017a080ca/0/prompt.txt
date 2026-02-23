@@ -1,0 +1,264 @@
+The screenshot prevention is not working. When I take screenshot it takes it correctly and then locks the vault. It should be the other way around. Investigate and find out why is not working and fix it
+
+---
+
+Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases.
+
+---
+
+Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases.
+
+---
+
+Make sure you write tests to capture this. Then send the build to testflight
+
+---
+
+commit and push
+
+---
+
+When files are added, some are out of the line (see image, the red rectangle)
+
+---
+
+[Image: source: /Users/nan/Downloads/IMG_2212.PNG]
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **User's first request**: "The screenshot prevention is not working. When I take screenshot it takes it correctly and then locks the vault. It should be the other way around."
+
+2. **Investigation phase**: I searched the iOS codebase for screenshot-related code. Found:
+   - `ContentView.swift` uses `UIApplication.userDidTakeScreenshotNotification` (fires AFTER screenshot)
+   - `SecureTextField.swift` had a broken `preventScreenshots()` modifier that just overlaid a UITextField on top of content
+   - The overlay approach doesn't work because content must be INSIDE the secure container, not underneath it
+
+3. **First implementation**: Rewrote `SecureTextField.swift` with `ScreenshotShield` class using window-level layer reparenting technique. Deployed to phone.
+
+4. **User asked to review code**: I identified a critical bug - missing guard on `window.layer.superlayer` being nil. Also moved `.preventScreenshots()` from VaultView to ContentView for earlier activation. Fixed both.
+
+5. **User reported "You broke the screen"** with screenshot showing content shifted to bottom-right. This was caused by centering constraints on the UITextField - after layer reparenting, the field's position offset shifted ALL window content. Fixed by removing constraints and keeping field at frame .zero. Also added explicit `masksToBounds = false`.
+
+6. **User asked for tests and TestFlight**: Created `ScreenshotShieldTests.swift` with 11 tests. One test failed (`test_noSuperlayer_doesNotActivate`) because UIWindow always has a superlayer - replaced with simpler `test_notActive_beforeActivation`. All 11 tests passed. Deployed build 131 to TestFlight.
+
+7. **User asked to commit and push**: Committed all changes and pushed to main.
+
+8. **User reported two more bugs**:
+   - Grid alignment: "When files are added, some are out of the line" - row with mixed 1-line/2-line filenames shifts because `GridItem` defaults to center alignment
+   - Missing file extension: "Some files when opened in the native view are missing extension" - QuickLook shows "data" because temp file has no extension when stored filename lacks one
+   - Also asked for test coverage
+
+9. **Grid fix**: Changed `GridItem(.flexible(), spacing: 12)` to `GridItem(.flexible(), spacing: 12, alignment: .top)` in `FilesGridView.swift`
+
+10. **Extension fix**: Added `fileExtension(forMimeType:)` and `filenameWithExtension(_:mimeType:)` to `FileUtilities.swift`. Applied the fix in three places:
+    - `SecureImageViewer.swift` loadFile() (preview path)
+    - `SecureImageViewer.swift` exportFile() (export path)  
+    - `VaultViewModel.swift` batch export path
+
+11. **Tests**: Created `FileUtilitiesExtensionTests.swift` with 15 tests covering extension derivation, filename completion, edge cases, round-trips. All 15 passed.
+
+12. **Deployed to phone** but have NOT yet:
+    - Deployed to TestFlight
+    - Committed and pushed the grid alignment + extension fixes
+
+Let me now catalog all files and code changes precisely.
+
+Summary:
+1. Primary Request and Intent:
+   - **Fix screenshot prevention**: Screenshots were capturing vault content before locking. User wanted screenshots to be blank AND then lock the vault.
+   - **Review code for bugs**: User asked twice for thorough code review including edge cases and dependent code.
+   - **Write tests**: User explicitly requested test coverage for all bugs fixed.
+   - **Deploy to TestFlight**: User requested TestFlight upload after screenshot shield fix.
+   - **Commit and push**: User explicitly requested git commit and push.
+   - **Fix grid alignment**: Files grid had misaligned rows when filenames had different line counts.
+   - **Fix missing file extension**: Files opened in QuickLook preview showed as "data" type because temp files lacked extensions.
+   - **Add test coverage for grid and extension bugs**: User requested tests for both new bugs.
+
+2. Key Technical Concepts:
+   - **iOS Screenshot Prevention via UITextField secure layer technique**: A `UITextField` with `isSecureTextEntry = true` creates an internal secure container sublayer. By reparenting the window's layer into this container, iOS blanks all content during screenshots/recordings.
+   - **CALayer reparenting**: Moving `window.layer` into the secure container via `windowSuperlayer.addSublayer(field.layer)` then `secureContainer.addSublayer(window.layer)`. Order is CRITICAL — reversing causes circular layer reference.
+   - **Field positioning bug**: Centering constraints on the UITextField caused `field.layer.position` to be at screen center, which offset ALL window content after reparenting. Field MUST stay at frame .zero (origin).
+   - **`masksToBounds = false`**: Required on both field layer and secure container to prevent clipping since the zero-sized layers host full-screen content.
+   - **`userDidTakeScreenshotNotification`**: Fires AFTER screenshot is captured — cannot prevent capture, only react.
+   - **LazyVGrid alignment**: `GridItem(.flexible())` defaults to center vertical alignment. When cells have different heights (varying filename line counts), shorter cells shift down.
+   - **QuickLook file extension**: `QLPreviewController` uses file extension to determine type. Files without extensions show as "data".
+   - **MIME type to extension mapping**: Reverse lookup from MIME type to derive file extension when stored filename lacks one.
+
+3. Files and Code Sections:
+
+   - **`apps/ios/Vault/UI/Components/SecureTextField.swift`** (COMPLETE REWRITE)
+     - Was: Broken `SecureTextField` view, `SecureOverlay`, and `ScreenshotPreventionModifier` that just overlaid a UITextField on content (doesn't work)
+     - Now: `ScreenshotShield` singleton with window-level layer reparenting technique
+     - Final state:
+     ```swift
+     @MainActor
+     final class ScreenshotShield {
+         static let shared = ScreenshotShield()
+         private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "ScreenshotShield")
+         private(set) var secureField: UITextField?
+         private(set) var isActive = false
+         init() {}
+         func activate() {
+             guard !isActive else { return }
+             guard let window = UIApplication.shared.connectedScenes
+                 .compactMap({ $0 as? UIWindowScene })
+                 .flatMap(\.windows)
+                 .first(where: \.isKeyWindow) else { return }
+             activate(on: window)
+         }
+         func activate(on window: UIWindow) {
+             guard !isActive else { return }
+             let field = UITextField()
+             field.isSecureTextEntry = true
+             field.isUserInteractionEnabled = false
+             window.addSubview(field)
+             // Keep field at frame .zero — NO constraints
+             guard let secureContainer = field.layer.sublayers?.first,
+                   let windowSuperlayer = window.layer.superlayer else {
+                 field.removeFromSuperview()
+                 return
+             }
+             field.layer.masksToBounds = false
+             secureContainer.masksToBounds = false
+             windowSuperlayer.addSublayer(field.layer)
+             secureContainer.addSublayer(window.layer)
+             secureField = field
+             isActive = true
+         }
+     }
+     ```
+     - Also contains `ScreenshotPreventionModifier`, `ScreenshotShieldActivator` (UIViewRepresentable), `ShieldTriggerView` (activates on `didMoveToWindow`), and `View.preventScreenshots()` extension.
+
+   - **`apps/ios/Vault/App/ContentView.swift`**
+     - Added `.preventScreenshots()` modifier after `.ignoresSafeArea(.keyboard)` (line 79)
+     - This ensures shield activates at app launch, not just when VaultView appears
+     - Existing notification-based lock (`userDidTakeScreenshotNotification`, `capturedDidChangeNotification`, polling) kept as secondary measure
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView.swift`**
+     - Removed `.preventScreenshots()` from line 398 (moved to ContentView)
+
+   - **`apps/ios/Vault/Features/VaultViewer/FilesGridView.swift`**
+     - Changed grid alignment from center (default) to top:
+     ```swift
+     // Before:
+     private let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+     // After:
+     private let columns = Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: 3)
+     ```
+
+   - **`apps/ios/Vault/Core/Storage/FileUtilities.swift`**
+     - Added two new methods:
+     ```swift
+     static func fileExtension(forMimeType mimeType: String) -> String? {
+         switch mimeType.lowercased() {
+         case "image/jpeg": return "jpg"
+         case "image/png": return "png"
+         case "image/gif": return "gif"
+         case "image/heic": return "heic"
+         case "image/webp": return "webp"
+         case "image/tiff": return "tiff"
+         case "image/bmp": return "bmp"
+         case "video/mp4": return "mp4"
+         case "video/quicktime": return "mov"
+         case "video/x-m4v": return "m4v"
+         case "application/pdf": return "pdf"
+         case "text/plain": return "txt"
+         case "text/csv": return "csv"
+         case "application/json": return "json"
+         case "application/zip": return "zip"
+         default: return nil
+         }
+     }
+
+     static func filenameWithExtension(_ filename: String, mimeType: String?) -> String {
+         let url = URL(fileURLWithPath: filename)
+         if !url.pathExtension.isEmpty { return filename }
+         guard let mimeType, let ext = fileExtension(forMimeType: mimeType) else { return filename }
+         return "\(filename).\(ext)"
+     }
+     ```
+
+   - **`apps/ios/Vault/Features/VaultViewer/SecureImageViewer.swift`**
+     - Fixed two locations where filename is used for temp file:
+     - Line ~147 (loadFile/preview): `let filename = FileUtilities.filenameWithExtension(rawName, mimeType: file.mimeType)`
+     - Line ~180 (exportFile): `let filename = FileUtilities.filenameWithExtension(rawName, mimeType: file.mimeType)`
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift`**
+     - Fixed batch export path at line ~304:
+     ```swift
+     let rawName = file?.filename ?? "Export_\(id.uuidString)"
+     let filename = FileUtilities.filenameWithExtension(rawName, mimeType: file?.mimeType)
+     ```
+
+   - **`apps/ios/VaultTests/ScreenshotShieldTests.swift`** (NEW - 11 tests, all pass)
+     - Tests: secureField setup, field at origin (regression test), layer reparenting, masksToBounds, idempotency, activation state, layer hierarchy order
+
+   - **`apps/ios/VaultTests/FileUtilitiesExtensionTests.swift`** (NEW - 15 tests, all pass)
+     - Tests: fileExtension for image/video/document types, case insensitivity, unknown types, filenameWithExtension with/without existing extension, nil/unknown MIME, spaces in names, round-trip consistency
+
+   - **`apps/ios/Vault.xcodeproj/project.pbxproj`**
+     - Added test files (SST00000/SST00001, FUE00000/FUE00001)
+     - Build number bumped 130→131 (by deploy-testflight.sh)
+
+4. Errors and Fixes:
+   - **Content offset bug (CRITICAL)**: Centering constraints (`centerX/centerY`) on the UITextField caused all window content to shift to bottom-right by ~half screen size after layer reparenting. User reported with screenshot showing shifted content.
+     - Fix: Removed all auto layout constraints, kept field at default `frame = .zero`. Added `masksToBounds = false` on both field layer and secure container.
+     - User feedback: "You broke the screen. Fix it" with screenshot showing shifted content.
+   
+   - **Missing `window.layer.superlayer` guard**: If nil, `secureContainer.addSublayer(window.layer)` would move window layer into a detached container, making window invisible.
+     - Fix: Added `guard let windowSuperlayer = window.layer.superlayer` alongside the secure container guard.
+   
+   - **Test failure `test_noSuperlayer_doesNotActivate`**: UIWindow always has a layer superlayer even when detached, so the "no superlayer" scenario is unreachable.
+     - Fix: Replaced with `test_notActive_beforeActivation` which tests initial state.
+   
+   - **Xcode project file manipulation**: `xcodeproj` Ruby gem too old for Xcode 26. Used Python string manipulation on pbxproj instead.
+   
+   - **Simulator name mismatch**: `iPhone 16 Pro` not available, had to use `iPhone 17 Pro` UUID.
+
+5. Problem Solving:
+   - **Screenshot prevention**: Identified that `userDidTakeScreenshotNotification` fires post-capture (fundamental iOS limitation). The only way to blank screenshots is the `UITextField.isSecureTextEntry` layer container technique. Previous overlay approach was fundamentally wrong.
+   - **Layer reparenting order**: The order of `windowSuperlayer.addSublayer(field.layer)` THEN `secureContainer.addSublayer(window.layer)` is critical. Reversing creates a circular layer reference.
+   - **Grid misalignment**: `LazyVGrid` with default center alignment causes shorter cells (1-line filenames) to shift down when sharing a row with taller cells (2-line filenames). Fixed with `.top` alignment.
+   - **Missing file extension in preview**: When stored filenames lack extensions, QuickLook can't determine file type. Added MIME-to-extension reverse lookup applied at all three temp file creation points.
+
+6. All User Messages:
+   - "The screenshot prevention is not working. When I take screenshot it takes it correctly and then locks the vault. It should be the other way around. Investigate and find out why is not working and fix it"
+   - "Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases."
+   - "Review all code you just written for bugs. Also review other code that can depend on this code and see if there are any issues that could arise from this change. Look for any logical, implementation issues and any edge cases." (second time)
+   - "You broke the screen. Fix it" (with screenshot showing content shifted to bottom-right)
+   - "Make sure you write tests to capture this. Then send the build to testflight"
+   - "commit and push"
+   - "When files are added, some are out of the line (see image)" (with screenshot showing misaligned grid row)
+   - "Some files when opened in the native view are missing extension (see image)" (with screenshot showing QuickLook displaying "data" type)
+   - "Make sure you add test coverage for these bugs"
+
+7. Pending Tasks:
+   - **Commit and push** the grid alignment fix + file extension fix + tests (not yet committed)
+   - **Deploy to TestFlight** with the latest fixes (grid + extension) — user has not explicitly asked yet but pattern suggests they will
+   - **Session close protocol**: `git add`, `bd sync`, `git commit`, `bd sync`, `git push`
+
+8. Current Work:
+   Immediately before the summary request, I had just:
+   - Fixed the grid alignment bug in `FilesGridView.swift` (alignment: .top)
+   - Added `fileExtension(forMimeType:)` and `filenameWithExtension(_:mimeType:)` to `FileUtilities.swift`
+   - Fixed `SecureImageViewer.swift` (two locations) and `VaultViewModel.swift` (one location) to use `filenameWithExtension`
+   - Created `FileUtilitiesExtensionTests.swift` with 15 passing tests
+   - Deployed to phone (`deploy-phone.sh --launch` succeeded)
+   - Have NOT yet committed, pushed, or deployed to TestFlight
+
+9. Optional Next Step:
+   The immediate next step is to **commit and push** the grid alignment + file extension fixes with tests, following the session close protocol. The changes are deployed to phone but not committed or pushed. The user's pattern from earlier in the session suggests they'll want a commit+push and potentially TestFlight deployment. The files to commit are:
+   - `apps/ios/Vault/Features/VaultViewer/FilesGridView.swift`
+   - `apps/ios/Vault/Core/Storage/FileUtilities.swift`
+   - `apps/ios/Vault/Features/VaultViewer/SecureImageViewer.swift`
+   - `apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift`
+   - `apps/ios/VaultTests/FileUtilitiesExtensionTests.swift`
+   - `apps/ios/Vault.xcodeproj/project.pbxproj`
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.

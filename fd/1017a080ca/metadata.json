@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "fd1017a080ca",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/App/ContentView.swift",
+    "apps/ios/Vault/Core/Storage/FileUtilities.swift",
+    "apps/ios/Vault/Features/VaultViewer/FilesGridView.swift",
+    "apps/ios/Vault/Features/VaultViewer/SecureImageViewer.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift",
+    "apps/ios/Vault/UI/Components/SecureTextField.swift",
+    "apps/ios/VaultTests/FileUtilitiesExtensionTests.swift",
+    "apps/ios/VaultTests/ScreenshotShieldTests.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/fd/1017a080ca/0/metadata.json",
+      "transcript": "/fd/1017a080ca/0/full.jsonl",
+      "context": "/fd/1017a080ca/0/context.md",
+      "content_hash": "/fd/1017a080ca/0/content_hash.txt",
+      "prompt": "/fd/1017a080ca/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 55057,
+    "cache_read_tokens": 3331045,
+    "output_tokens": 1570,
+    "api_call_count": 26
+  }
+}
