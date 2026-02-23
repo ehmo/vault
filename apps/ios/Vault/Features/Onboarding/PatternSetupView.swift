@@ -225,6 +225,7 @@ struct PatternSetupView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
 
                     // Validation feedback — fixed height so layout doesn't shift
+                    // Height accommodates up to 3 lines of error message
                     Group {
                         if let validation = customPhraseValidation {
                             HStack(spacing: 8) {
@@ -233,13 +234,14 @@ struct PatternSetupView: View {
                                 Text(validation.message)
                                     .font(.caption)
                                     .fixedSize(horizontal: false, vertical: true)
+                                    .lineLimit(nil)
                             }
                             .padding(.horizontal)
                         } else {
                             Color.clear
                         }
                     }
-                    .frame(minHeight: 20)
+                    .frame(height: 70)
                 } else {
                     PhraseDisplayCard(phrase: generatedPhrase)
                         .frame(minHeight: 148)
