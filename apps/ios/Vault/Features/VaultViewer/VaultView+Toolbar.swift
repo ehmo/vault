@@ -146,6 +146,11 @@ extension VaultView {
                     .foregroundStyle(.vaultSecondaryText)
                 TextField("Search files", text: $viewModel.searchText)
                     .textFieldStyle(.plain)
+                    .submitLabel(.done)
+                    .onSubmit {
+                        // Dismiss keyboard when Done is tapped
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }
                     .accessibilityIdentifier("vault_search_field")
                 if !viewModel.searchText.isEmpty {
                     Button {

@@ -368,6 +368,8 @@ struct VaultView: View {
         .onTapGesture {
             // Report any tap as user activity
             InactivityLockManager.shared.userDidInteract()
+            // Dismiss keyboard when tapping outside search field
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }
         .onChange(of: appState.currentVaultKey) { oldKey, newKey in
             viewModel.handleVaultKeyChange(oldKey: oldKey, newKey: newKey)
