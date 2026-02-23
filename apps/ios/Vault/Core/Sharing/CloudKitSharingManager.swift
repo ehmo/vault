@@ -4,9 +4,6 @@ import CryptoKit
 import os.log
 import Network
 
-private let networkMonitor = NWPathMonitor()
-private var currentNetworkType: String = "unknown"
-
 enum CloudKitSharingError: Error, LocalizedError {
     case notAvailable
     case uploadFailed(Error)
@@ -55,20 +52,32 @@ final class CloudKitSharingManager {
 
     private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "CloudKitSharing")
 
+    // MARK: - Network Monitoring (lock-protected to prevent data races)
+
+    private let networkMonitor = NWPathMonitor()
+    private var networkTypeStorage: String = "unknown"
+    private let networkLock = NSLock()
+
+    private var currentNetworkType: String {
+        get { networkLock.withLock { networkTypeStorage } }
+        set { networkLock.withLock { networkTypeStorage = newValue } }
+    }
+
     private init() {
         container = CKContainer(identifier: "iCloud.app.vaultaire.shared")
         publicDatabase = container.publicCloudDatabase
 
         // Start network monitoring
-        networkMonitor.pathUpdateHandler = { path in
+        networkMonitor.pathUpdateHandler = { [weak self] path in
+            guard let self else { return }
             if path.usesInterfaceType(.wifi) {
-                currentNetworkType = "wifi"
+                self.currentNetworkType = "wifi"
             } else if path.usesInterfaceType(.cellular) {
-                currentNetworkType = "cellular"
+                self.currentNetworkType = "cellular"
             } else if path.usesInterfaceType(.wiredEthernet) {
-                currentNetworkType = "ethernet"
+                self.currentNetworkType = "ethernet"
             } else {
-                currentNetworkType = path.status == .satisfied ? "other" : "offline"
+                self.currentNetworkType = path.status == .satisfied ? "other" : "offline"
             }
         }
         networkMonitor.start(queue: DispatchQueue.global(qos: .background))
@@ -81,7 +90,7 @@ final class CloudKitSharingManager {
 
     /// Whether the device is currently on WiFi or Ethernet.
     static var isOnWiFi: Bool {
-        currentNetworkType == "wifi" || currentNetworkType == "ethernet"
+        shared.currentNetworkType == "wifi" || shared.currentNetworkType == "ethernet"
     }
 
     /// Checks whether network conditions allow sync/upload/backup based on user preference.
