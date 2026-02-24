@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "f7eedc7afcce",
+  "session_id": "964aba6a-e272-4b9a-85d9-c0b6d86b1dc1",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-24T17:56:29.918359Z",
+  "branch": "worktree-clever-frolicking-sun",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Core/Telemetry/EmbraceManager.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "8bf1f45f-f248-48b6-95d5-aceee229d260",
+  "checkpoint_transcript_start": 931,
+  "transcript_lines_at_start": 931,
+  "token_usage": {
+    "input_tokens": 38,
+    "cache_creation_tokens": 53186,
+    "cache_read_tokens": 4293247,
+    "output_tokens": 653,
+    "api_call_count": 36
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T17:56:29.741441Z",
+    "agent_lines": 6,
+    "human_added": 5702,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 5708,
+    "agent_percentage": 0.10511562718990891
+  }
+}

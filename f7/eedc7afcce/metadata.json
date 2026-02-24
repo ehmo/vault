@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "f7eedc7afcce",
+  "strategy": "manual-commit",
+  "branch": "worktree-clever-frolicking-sun",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Core/Telemetry/EmbraceManager.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f7/eedc7afcce/0/metadata.json",
+      "transcript": "/f7/eedc7afcce/0/full.jsonl",
+      "context": "/f7/eedc7afcce/0/context.md",
+      "content_hash": "/f7/eedc7afcce/0/content_hash.txt",
+      "prompt": "/f7/eedc7afcce/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 38,
+    "cache_creation_tokens": 53186,
+    "cache_read_tokens": 4293247,
+    "output_tokens": 653,
+    "api_call_count": 36
+  }
+}
