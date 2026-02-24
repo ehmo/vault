@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "ccd510ed86ab",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".beads/config.yaml",
+    "apps/ios/Vault/Core/Storage/MediaOptimizer.swift",
+    "apps/ios/Vault/Features/VaultViewer/ParallelImporter.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/cc/d510ed86ab/0/metadata.json",
+      "transcript": "/cc/d510ed86ab/0/full.jsonl",
+      "context": "/cc/d510ed86ab/0/context.md",
+      "content_hash": "/cc/d510ed86ab/0/content_hash.txt",
+      "prompt": "/cc/d510ed86ab/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 42,
+    "cache_creation_tokens": 59671,
+    "cache_read_tokens": 2299046,
+    "output_tokens": 2677,
+    "api_call_count": 38
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "ccd510ed86ab",
+  "session_id": "b023693b-fe95-4773-b8a2-861026bcb4ad",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-24T03:55:21.122593Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".beads/config.yaml",
+    "apps/ios/Vault/Core/Storage/MediaOptimizer.swift",
+    "apps/ios/Vault/Features/VaultViewer/ParallelImporter.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "585e2124-41a7-4944-8ee5-04de6569b8d9",
+  "token_usage": {
+    "input_tokens": 42,
+    "cache_creation_tokens": 59671,
+    "cache_read_tokens": 2299046,
+    "output_tokens": 2677,
+    "api_call_count": 38
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T03:55:21.009776Z",
+    "agent_lines": 0,
+    "human_added": 7,
+    "human_modified": 94,
+    "human_removed": 0,
+    "total_committed": 8,
+    "agent_percentage": 0
+  }
+}
