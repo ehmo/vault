@@ -293,10 +293,12 @@ enum ParallelImporter {
         continuation: AsyncStream<ImportEvent>.Continuation
     ) async {
         await entryBuffer.startWorker()
-        defer { Task { await entryBuffer.endWorker() } }
         
         while let (item, allocation) = await queue.next() {
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled else {
+                await entryBuffer.endWorker()
+                return
+            }
             do {
                 guard let result = try await importVideoWithAllocation(
                     item: item,
@@ -314,6 +316,8 @@ enum ParallelImporter {
                 await entryBuffer.recordFailure()
             }
         }
+        
+        await entryBuffer.endWorker()
     }
 
     /// Process image work items with pre-allocated blob space.
@@ -325,10 +329,12 @@ enum ParallelImporter {
         continuation: AsyncStream<ImportEvent>.Continuation
     ) async {
         await entryBuffer.startWorker()
-        defer { Task { await entryBuffer.endWorker() } }
         
         while let (item, allocation) = await queue.next() {
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled else {
+                await entryBuffer.endWorker()
+                return
+            }
             do {
                 guard let result = try await importImageWithAllocation(
                     item: item,
@@ -346,6 +352,44 @@ enum ParallelImporter {
                 await entryBuffer.recordFailure()
             }
         }
+        
+        await entryBuffer.endWorker()
+    }
+
+    /// Process file work items with pre-allocated blob space.
+    private static func processFileWorkWithAllocation(
+        queue: Queue<(URLWorkItem, VaultStorage.BlobAllocation)>,
+        entryBuffer: EntryBuffer,
+        config: ImportConfig,
+        masterKey: MasterKey,
+        continuation: AsyncStream<ImportEvent>.Continuation
+    ) async {
+        await entryBuffer.startWorker()
+        
+        while let (item, allocation) = await queue.next() {
+            guard !Task.isCancelled else {
+                await entryBuffer.endWorker()
+                return
+            }
+            do {
+                guard let result = try await importFileFromURLWithAllocation(
+                    item: item,
+                    allocation: allocation,
+                    key: config.key,
+                    encryptionKey: config.encryptionKey,
+                    optimizationMode: config.optimizationMode,
+                    masterKey: masterKey
+                ) else {
+                    await entryBuffer.recordFailure()
+                    continue
+                }
+                await entryBuffer.append(entry: result.entry, allocation: result.allocation, file: result.file)
+            } catch {
+                await entryBuffer.recordFailure()
+            }
+        }
+        
+        await entryBuffer.endWorker()
     }
 
     /// Coordinate periodic batch commits.
@@ -620,38 +664,6 @@ enum ParallelImporter {
         }
 
         continuation.finish()
-    }
-
-    /// Process file work items with pre-allocated blob space.
-    private static func processFileWorkWithAllocation(
-        queue: Queue<(URLWorkItem, VaultStorage.BlobAllocation)>,
-        entryBuffer: EntryBuffer,
-        config: ImportConfig,
-        masterKey: MasterKey,
-        continuation: AsyncStream<ImportEvent>.Continuation
-    ) async {
-        await entryBuffer.startWorker()
-        defer { Task { await entryBuffer.endWorker() } }
-        
-        while let (item, allocation) = await queue.next() {
-            guard !Task.isCancelled else { return }
-            do {
-                guard let result = try await importFileFromURLWithAllocation(
-                    item: item,
-                    allocation: allocation,
-                    key: config.key,
-                    encryptionKey: config.encryptionKey,
-                    optimizationMode: config.optimizationMode,
-                    masterKey: masterKey
-                ) else {
-                    await entryBuffer.recordFailure()
-                    continue
-                }
-                await entryBuffer.append(entry: result.entry, allocation: result.allocation, file: result.file)
-            } catch {
-                await entryBuffer.recordFailure()
-            }
-        }
     }
 
     /// Import file from URL using pre-allocated blob space (no actor contact).

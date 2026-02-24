@@ -183,14 +183,16 @@ enum ImportIngestor {
             for i in 0..<maxConcurrentImports {
                 group.addTask {
                     await importBuffer.startWorker()
-                    defer { Task { await importBuffer.endWorker() } }
                     
                     var fileIndex = i
                     while fileIndex < importableFiles.count {
                         let file = importableFiles[fileIndex]
                         let allocation = allocations[fileIndex]
 
-                        guard !Task.isCancelled else { return }
+                        guard !Task.isCancelled else {
+                            await importBuffer.endWorker()
+                            return
+                        }
 
                         do {
                             // Decrypt to temp file
@@ -275,6 +277,8 @@ enum ImportIngestor {
 
                         fileIndex += maxConcurrentImports
                     }
+                    
+                    await importBuffer.endWorker()
                 }
             }
 
