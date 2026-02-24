@@ -3,7 +3,7 @@ import AVFoundation
 import UniformTypeIdentifiers
 
 /// Runs import work off MainActor with dedicated worker tasks.
-/// 2 video-priority workers + 1 image-priority worker for photo picker imports.
+/// 2 video-priority workers + 2 image-priority workers = 4 parallel workers.
 /// Workers drain their primary queue first, then steal from the other queue.
 /// Results stream back to MainActor via AsyncStream for real-time UI updates.
 enum ParallelImporter {
@@ -293,31 +293,26 @@ enum ParallelImporter {
 
         guard !Task.isCancelled else { return nil }
 
-        guard let image = UIImage(contentsOfFile: tempImageURL.path) else {
-            throw ImportError.conversionFailed
-        }
-
-        let tempInputURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("jpg")
-
-        guard let jpegData = image.jpegData(compressionQuality: 0.8) else {
-            throw ImportError.conversionFailed
-        }
-        try jpegData.write(to: tempInputURL, options: [.atomic])
-        defer { try? FileManager.default.removeItem(at: tempInputURL) }
-
+        // Pass source file directly to MediaOptimizer — it uses CGImageSource which handles
+        // any image format natively. Avoids the old UIImage → jpegData → disk → re-decode path
+        // that doubled CPU work and peak memory per image.
+        let sourceMimeType = FileUtilities.mimeType(forExtension: tempImageURL.pathExtension)
         let (optimizedURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
-            fileURL: tempInputURL, mimeType: "image/jpeg", mode: optimizationMode
+            fileURL: tempImageURL, mimeType: sourceMimeType, mode: optimizationMode
         )
         defer {
             if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
         }
 
-        let ext = mimeType == "image/heic" ? "heic" : "jpg"
+        let sourceExt = tempImageURL.pathExtension.lowercased()
+        let ext = mimeType == "image/heic" ? "heic" : (sourceExt.isEmpty ? "jpg" : sourceExt)
         let filename = "IMG_\(Date().timeIntervalSince1970)_\(item.originalIndex).\(ext)"
 
-        let thumbnail = FileUtilities.generateThumbnail(fromFileURL: optimizedURL)
+        // autoreleasepool releases CGImage/UIImage temporaries from thumbnail generation
+        // before the async storeFileFromURL call, preventing memory accumulation across workers
+        let thumbnail: Data? = autoreleasepool {
+            FileUtilities.generateThumbnail(fromFileURL: optimizedURL)
+        }
         let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
 
         let fileId = try await VaultStorage.shared.storeFileFromURL(
@@ -490,8 +485,11 @@ enum ParallelImporter {
         }
 
         let time = CMTime(seconds: 0.5, preferredTimescale: 600)
-        if let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) {
-            thumbnail = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.7)
+        // autoreleasepool releases CGImage + UIImage immediately after JPEG encoding
+        autoreleasepool {
+            if let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) {
+                thumbnail = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.7)
+            }
         }
 
         return (thumbnail, duration, creationDate)

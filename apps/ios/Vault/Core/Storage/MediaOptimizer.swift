@@ -13,7 +13,7 @@ private let optimizerLogger = Logger(subsystem: "app.vaultaire.ios", category: "
 ///
 /// Not an actor — all methods operate on temp files with no shared mutable state.
 /// Actor isolation was serializing parallel import workers through a single executor,
-/// defeating the 3-worker concurrency design in ParallelImporter.
+/// defeating the 4-worker concurrency design in ParallelImporter.
 final class MediaOptimizer: Sendable {
     static let shared = MediaOptimizer()
 
@@ -99,76 +99,81 @@ final class MediaOptimizer: Sendable {
             return (fileURL, mimeType, false)
         }
 
-        guard let source = CGImageSourceCreateWithURL(fileURL as CFURL, nil) else {
-            return (fileURL, mimeType, false)
-        }
+        // autoreleasepool ensures CGImageSource, CGImage, and CGImageDestination temporaries
+        // are released immediately. With 4 parallel workers, this prevents ~100-200MB of
+        // accumulated ObjC objects between executor yields.
+        return try autoreleasepool {
+            guard let source = CGImageSourceCreateWithURL(fileURL as CFURL, nil) else {
+                return (fileURL, mimeType, false)
+            }
 
-        // Check image dimensions for potential downsampling
-        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
-        let width = properties?[kCGImagePropertyPixelWidth] as? Int ?? 0
-        let height = properties?[kCGImagePropertyPixelHeight] as? Int ?? 0
-        let maxDimension = max(width, height)
+            // Check image dimensions for potential downsampling
+            let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+            let width = properties?[kCGImagePropertyPixelWidth] as? Int ?? 0
+            let height = properties?[kCGImagePropertyPixelHeight] as? Int ?? 0
+            let maxDimension = max(width, height)
 
-        // Get source image — downsample if > 4096px
-        // Read EXIF orientation to preserve it when writing output
-        let orientation: CGImagePropertyOrientation
-        let cgImage: CGImage
-        if maxDimension > 4096 {
-            let thumbOptions: [CFString: Any] = [
-                kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceCreateThumbnailWithTransform: true,
-                kCGImageSourceThumbnailMaxPixelSize: 4096
+            // Get source image — downsample if > 4096px
+            // Read EXIF orientation to preserve it when writing output
+            let orientation: CGImagePropertyOrientation
+            let cgImage: CGImage
+            if maxDimension > 4096 {
+                let thumbOptions: [CFString: Any] = [
+                    kCGImageSourceCreateThumbnailFromImageAlways: true,
+                    kCGImageSourceCreateThumbnailWithTransform: true,
+                    kCGImageSourceThumbnailMaxPixelSize: 4096
+                ]
+                guard let thumb = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbOptions as CFDictionary) else {
+                    return (fileURL, mimeType, false)
+                }
+                cgImage = thumb
+                // kCGImageSourceCreateThumbnailWithTransform already rotated the pixels,
+                // so mark as .up to avoid double-rotation in the output HEIC.
+                orientation = .up
+            } else {
+                guard let full = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+                    return (fileURL, mimeType, false)
+                }
+                cgImage = full
+                // Full-size path: pixels are unrotated, so preserve original EXIF orientation.
+                orientation = (properties?[kCGImagePropertyOrientation] as? UInt32).flatMap { CGImagePropertyOrientation(rawValue: $0) } ?? .up
+            }
+
+            // Write HEIC to temp file
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension("heic")
+
+            guard let destination = CGImageDestinationCreateWithURL(
+                tempURL as CFURL,
+                AVFileType.heic as CFString,
+                1,
+                nil
+            ) else {
+                return (fileURL, mimeType, false)
+            }
+
+            // Preserve EXIF orientation metadata when writing the output image
+            // Check if image has alpha to optimize file size and memory
+            let hasAlpha = cgImage.alphaInfo != .none && cgImage.alphaInfo != .noneSkipFirst && cgImage.alphaInfo != .noneSkipLast
+            let options: [CFString: Any] = [
+                kCGImageDestinationLossyCompressionQuality: 0.6,
+                kCGImagePropertyOrientation: orientation.rawValue,
+                kCGImagePropertyHasAlpha: hasAlpha
             ]
-            guard let thumb = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbOptions as CFDictionary) else {
+            CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
+
+            guard CGImageDestinationFinalize(destination) else {
+                FileUtilities.cleanupTemporaryFile(at: tempURL)
                 return (fileURL, mimeType, false)
             }
-            cgImage = thumb
-            // kCGImageSourceCreateThumbnailWithTransform already rotated the pixels,
-            // so mark as .up to avoid double-rotation in the output HEIC.
-            orientation = .up
-        } else {
-            guard let full = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
-                return (fileURL, mimeType, false)
-            }
-            cgImage = full
-            // Full-size path: pixels are unrotated, so preserve original EXIF orientation.
-            orientation = (properties?[kCGImagePropertyOrientation] as? UInt32).flatMap { CGImagePropertyOrientation(rawValue: $0) } ?? .up
+
+            let originalSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int64) ?? 0
+            let optimizedSize = (try? FileManager.default.attributesOfItem(atPath: tempURL.path)[.size] as? Int64) ?? 0
+            optimizerLogger.info("Image optimized: \(originalSize) → \(optimizedSize) bytes (\(originalSize > 0 ? Int(100 - (optimizedSize * 100 / originalSize)) : 0)% reduction)")
+
+            return (tempURL, "image/heic", true)
         }
-
-        // Write HEIC to temp file
-        let tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("heic")
-
-        guard let destination = CGImageDestinationCreateWithURL(
-            tempURL as CFURL,
-            AVFileType.heic as CFString,
-            1,
-            nil
-        ) else {
-            return (fileURL, mimeType, false)
-        }
-
-        // Preserve EXIF orientation metadata when writing the output image
-        // Check if image has alpha to optimize file size and memory
-        let hasAlpha = cgImage.alphaInfo != .none && cgImage.alphaInfo != .noneSkipFirst && cgImage.alphaInfo != .noneSkipLast
-        let options: [CFString: Any] = [
-            kCGImageDestinationLossyCompressionQuality: 0.6,
-            kCGImagePropertyOrientation: orientation.rawValue,
-            kCGImagePropertyHasAlpha: hasAlpha
-        ]
-        CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
-
-        guard CGImageDestinationFinalize(destination) else {
-            FileUtilities.cleanupTemporaryFile(at: tempURL)
-            return (fileURL, mimeType, false)
-        }
-
-        let originalSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int64) ?? 0
-        let optimizedSize = (try? FileManager.default.attributesOfItem(atPath: tempURL.path)[.size] as? Int64) ?? 0
-        optimizerLogger.info("Image optimized: \(originalSize) → \(optimizedSize) bytes (\(originalSize > 0 ? Int(100 - (optimizedSize * 100 / originalSize)) : 0)% reduction)")
-
-        return (tempURL, "image/heic", true)
     }
 
     // MARK: - Video Optimization
