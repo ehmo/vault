@@ -324,44 +324,8 @@ final class VaultStorage: @unchecked Sendable {
     /// Finds a blob with enough space (or creates one), opens a FileHandle at the write offset.
     /// Caller is responsible for closing the handle and calling `finalizeBlobWrite` after writing.
     private func allocateBlobSpace(size: Int, index: inout VaultIndex) throws -> BlobWriteResult {
-        var targetBlobIndex: Int? = nil
-        if let blobs = index.blobs {
-            for (i, blob) in blobs.enumerated() {
-                if blob.cursor + size <= blob.capacity {
-                    targetBlobIndex = i
-                    break
-                }
-            }
-        }
-
-        if targetBlobIndex == nil {
-            guard let newBlob = createExpansionBlob() else {
-                throw VaultStorageError.writeError
-            }
-            if index.blobs == nil { index.blobs = [] }
-            index.blobs!.append(newBlob)
-            targetBlobIndex = index.blobs!.count - 1
-        }
-
-        guard let blobIdx = targetBlobIndex, let blobs = index.blobs else {
-            throw VaultStorageError.writeError
-        }
-        let writeOffset = blobs[blobIdx].cursor
-        let targetBlobId = blobs[blobIdx].blobId
-        let targetURL = blobURL(for: targetBlobId, in: index)
-
-        guard let handle = try? FileHandle(forWritingTo: targetURL) else {
-            throw VaultStorageError.writeError
-        }
-
-        try handle.seek(toOffset: UInt64(writeOffset))
-
-        return BlobWriteResult(
-            writeOffset: writeOffset,
-            blobId: targetBlobId,
-            blobIdx: blobIdx,
-            handle: handle
-        )
+        var ephemeralCache = [String: FileHandle]()
+        return try allocateBlobSpace(size: size, index: &index, handleCache: &ephemeralCache)
     }
 
     /// Variant of allocateBlobSpace that reuses cached FileHandles for the same blob.
