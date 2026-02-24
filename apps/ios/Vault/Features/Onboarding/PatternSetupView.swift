@@ -436,29 +436,6 @@ struct PatternSetupView: View {
         }
     }
     
-    private func saveCustomRecoveryPhrase() {
-        guard let key = appState.currentVaultKey else { return }
-        isSaving = true
-
-        Task {
-            let phrase = customPhrase.trimmingCharacters(in: .whitespacesAndNewlines)
-            let result = await coordinator.saveCustomPhrase(phrase, pattern: firstPattern, gridSize: patternState.gridSize, key: key.rawBytes)
-
-            await MainActor.run {
-                isSaving = false
-                switch result {
-                case .success:
-                    onComplete()
-                case .duplicatePattern:
-                    break // Not possible for custom phrase path
-                case .error(let message):
-                    patternSetupLogger.error("Failed to save custom phrase: \(message, privacy: .public)")
-                    errorMessage = "Failed to save recovery phrase. Please try again."
-                }
-            }
-        }
-    }
-
     private func validateCustomPhrase(_ phrase: String) {
         guard !phrase.isEmpty else {
             customPhraseValidation = nil
