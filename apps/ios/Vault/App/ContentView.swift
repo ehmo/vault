@@ -156,7 +156,6 @@ struct ContentView: View {
             #if DEBUG
             if appState.isMaestroTestMode { return }
             #endif
-            if appState.suppressLockForShareSheet { return }
             logger.debug("App entered background, locking vault")
             EmbraceManager.shared.addBreadcrumb(category: "app.locked", data: ["trigger": "background"])
             appState.lockVault()

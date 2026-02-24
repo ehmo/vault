@@ -92,7 +92,6 @@ final class AppState {
     private(set) var vaultName: String = "Vault"
     var pendingImportCount = 0
     var hasPendingImports = false
-    var suppressLockForShareSheet = false
     private(set) var appearanceMode: AppAppearanceMode
 
     /// The UIKit interface style for the current appearance mode.
@@ -385,7 +384,6 @@ final class AppState {
         screenshotDetected = false
         pendingImportCount = 0
         hasPendingImports = false
-        suppressLockForShareSheet = false
 
         Self.logger.debug("Vault locked")
     }

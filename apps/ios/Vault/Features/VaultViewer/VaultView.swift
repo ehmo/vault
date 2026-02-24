@@ -381,12 +381,6 @@ struct VaultView: View {
                 viewModel.checkSharedVaultStatus()
             }
         }
-        .onChange(of: showingPhotoPicker) { _, _ in
-            appState.suppressLockForShareSheet = showingPhotoPicker || showingFilePicker
-        }
-        .onChange(of: showingFilePicker) { _, _ in
-            appState.suppressLockForShareSheet = showingPhotoPicker || showingFilePicker
-        }
         .onChange(of: viewModel.transferManager.status) { _, newStatus in
             if case .importComplete = newStatus {
                 viewModel.loadVault()
