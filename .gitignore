@@ -71,3 +71,10 @@ apps/web/test-results/
 
 # Outputs
 outputs/
+
+# Dolt (beads issue tracker database — managed by Dolt, not git)
+.dolt/
+.doltcfg/
+beads/
+config.yaml
+.beads/dolt-config.log
