@@ -324,6 +324,63 @@ final class MediaOptimizerTests: XCTestCase {
         // If not optimized (e.g., bitrate already low), that's acceptable
     }
 
+    // MARK: - Skip-Transcode Policy Tests
+
+    func testHEVC1080pHighBitrateSkipsTranscode() async throws {
+        // HEVC ≤1080p should always skip, even at high bitrate
+        let videoURL = try await createMinimalVideo(width: 1920, height: 1080, codec: .hevc)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+            fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
+        )
+        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+
+        XCTAssertFalse(wasOptimized, "HEVC ≤1080p should skip transcode regardless of bitrate")
+        XCTAssertEqual(outputURL, videoURL, "Should return original URL when skipping")
+    }
+
+    func testH264StillTranscodes() async throws {
+        // H.264 ≤1080p should still transcode to HEVC
+        let videoURL = try await createMinimalVideo(width: 1280, height: 720, codec: .h264)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+            fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
+        )
+        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+
+        // H.264 should trigger transcoding (may fail on some simulators without HEVC support)
+        if wasOptimized {
+            XCTAssertEqual(mimeType, "video/mp4", "H.264 source should be re-encoded to HEVC MP4")
+        }
+    }
+
+    func testHEVC4KStillTranscodes() async throws {
+        // 4K HEVC should still transcode (needs downscale to 1080p)
+        let videoURL = try await createMinimalVideo(width: 3840, height: 2160, codec: .hevc)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+            fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
+        )
+        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+
+        // 4K should trigger transcoding for downscale
+        if wasOptimized {
+            XCTAssertEqual(mimeType, "video/mp4", "4K HEVC should be downscaled")
+
+            let asset = AVURLAsset(url: outputURL)
+            guard let track = try? await asset.loadTracks(withMediaType: .video).first else {
+                XCTFail("No video track in output")
+                return
+            }
+            let outputSize = try await track.load(.naturalSize)
+            let maxDim = max(outputSize.width, outputSize.height)
+            XCTAssertLessThanOrEqual(maxDim, 1920, "4K should be downscaled to ≤1080p")
+        }
+    }
+
     // MARK: - Video Helper
 
     /// Creates a minimal 1-second video file for testing.
@@ -331,7 +388,8 @@ final class MediaOptimizerTests: XCTestCase {
     ///   - width: Pixel buffer width (default 320)
     ///   - height: Pixel buffer height (default 240)
     ///   - rotated: If true, applies a 90° clockwise rotation transform (simulates portrait recording)
-    private func createMinimalVideo(width: Int = 320, height: Int = 240, rotated: Bool = false) async throws -> URL {
+    ///   - codec: Video codec to use (default .h264)
+    private func createMinimalVideo(width: Int = 320, height: Int = 240, rotated: Bool = false, codec: AVVideoCodecType = .h264) async throws -> URL {
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("mov")
@@ -340,7 +398,7 @@ final class MediaOptimizerTests: XCTestCase {
         let writer = try AVAssetWriter(outputURL: outputURL, fileType: .mov)
 
         let videoSettings: [String: Any] = [
-            AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoCodecKey: codec,
             AVVideoWidthKey: width,
             AVVideoHeightKey: height
         ]

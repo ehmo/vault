@@ -179,10 +179,11 @@ final class MediaOptimizer: Sendable {
     // MARK: - Video Optimization
 
     /// Target bitrate tiers for HEVC encoding (bits per second).
-    /// These deliver excellent mobile viewing quality at dramatically lower file sizes.
-    private static let bitrate1080p = 4_000_000  // 4 Mbps — comparable to streaming HD
-    private static let bitrate720p  = 2_500_000  // 2.5 Mbps
-    private static let bitrateSD    = 1_500_000  // 1.5 Mbps
+    /// Higher targets = less compression work = faster hardware encoding (~30-50% speed gain)
+    /// while still achieving significant reduction vs 4K source footage.
+    private static let bitrate1080p = 8_000_000  // 8 Mbps — fast encode, ~50-70% smaller than 4K source
+    private static let bitrate720p  = 4_000_000  // 4 Mbps
+    private static let bitrateSD    = 2_000_000  // 2 Mbps
     private static let audioBitrate = 128_000    // 128 kbps AAC
 
     private func optimizeVideo(fileURL: URL, mimeType: String) async throws -> (URL, String, Bool) {
@@ -304,10 +305,10 @@ final class MediaOptimizer: Sendable {
         let originalSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int64) ?? 0
         let optimizedSize = (try? FileManager.default.attributesOfItem(atPath: tempURL.path)[.size] as? Int64) ?? 0
 
-        // If optimized file isn't meaningfully smaller (< 10% reduction), skip it
-        if originalSize > 0 && optimizedSize >= Int64(Double(originalSize) * 0.9) {
+        // If optimized file isn't meaningfully smaller (< 20% reduction), skip it — not worth the transcode time
+        if originalSize > 0 && optimizedSize >= Int64(Double(originalSize) * 0.8) {
             try? FileManager.default.removeItem(at: tempURL)
-            optimizerLogger.info("Video transcode yielded < 10% reduction (\(originalSize) → \(optimizedSize)), keeping original")
+            optimizerLogger.info("Video transcode yielded < 20% reduction (\(originalSize) → \(optimizedSize)), keeping original")
             return (fileURL, mimeType, false)
         }
 
@@ -371,8 +372,10 @@ final class MediaOptimizer: Sendable {
         return bitrateSD
     }
 
-    /// Check if video is already compact enough to skip optimization.
-    /// Skips if HEVC, ≤ 1080p, AND estimated bitrate is already ≤ 5 Mbps.
+    /// Check if video is already optimal and can skip transcoding.
+    /// Skips if HEVC and ≤ 1080p — bitrate doesn't matter since re-encoding
+    /// from e.g. 15 Mbps to 8 Mbps yields diminishing savings at massive time cost.
+    /// Only transcode when codec isn't HEVC (need re-encode) or resolution > 1080p (need downscale).
     private func isAlreadyOptimalVideo(_ asset: AVURLAsset) async -> Bool {
         guard let videoTrack = try? await asset.loadTracks(withMediaType: .video).first else {
             return false
@@ -397,17 +400,10 @@ final class MediaOptimizer: Sendable {
         let maxDimension = max(naturalSize.width, naturalSize.height)
         guard maxDimension <= 1920 else { return false }
 
-        // Check bitrate — only skip if already low enough
-        guard let estimatedRate = try? await videoTrack.load(.estimatedDataRate) else {
-            return false
-        }
-        let isLowBitrate = estimatedRate <= 5_000_000 // 5 Mbps threshold
+        let estimatedRate = (try? await videoTrack.load(.estimatedDataRate)) ?? 0
+        optimizerLogger.info("HEVC ≤1080p @ \(Int(estimatedRate / 1000)) kbps — skipping transcode")
 
-        if !isLowBitrate {
-            optimizerLogger.info("HEVC ≤1080p but bitrate \(Int(estimatedRate / 1000)) kbps exceeds threshold, will re-encode")
-        }
-
-        return isLowBitrate
+        return true
     }
 
     // MARK: - Errors
