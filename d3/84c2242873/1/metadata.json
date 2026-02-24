@@ -1,7 +1,9 @@
 {
   "cli_version": "0.4.2",
   "checkpoint_id": "d384c2242873",
+  "session_id": "964aba6a-e272-4b9a-85d9-c0b6d86b1dc1",
   "strategy": "manual-commit",
+  "created_at": "2026-02-24T17:49:22.569525Z",
   "branch": "worktree-clever-frolicking-sun",
   "checkpoints_count": 2,
   "files_touched": [
@@ -27,35 +29,24 @@
     "apps/ios/Tuist/.build/index-build/checkouts/embrace-apple-sdk/Examples/Embrace-tvOS-TestApp/Embrace-tvOS-TestApp.xcodeproj/xcshareddata/xcschemes/Embrace-tvOS-TestApp.xcscheme",
     "apps/ios/Tuist/.build/index-build/checkouts/embrace-apple-sdk/Examples/Embrace-watchOS-TestApp/Embrace-watchOS-TestApp.xcodeproj/project.pbxproj",
     "apps/ios/Vault/App/VaultApp.swift",
-    "apps/ios/Vault/Core/Storage/MediaOptimizer.swift",
-    "apps/ios/Vault/Features/VaultViewer/SecureVideoPlayer.swift",
-    "apps/ios/VaultTests/CloudKitSharingTests.swift",
-    "apps/ios/VaultTests/DuressVaultSharingTests.swift",
-    "apps/ios/VaultTests/LocalVaultRevocationTests.swift",
-    "apps/ios/VaultTests/MediaOptimizerTests.swift",
-    "apps/ios/VaultTests/PatternBoardConsistencyTests.swift"
+    "apps/ios/Vault/Features/VaultViewer/SecureVideoPlayer.swift"
   ],
-  "sessions": [
-    {
-      "metadata": "/d3/84c2242873/0/metadata.json",
-      "transcript": "/d3/84c2242873/0/full.jsonl",
-      "context": "/d3/84c2242873/0/context.md",
-      "content_hash": "/d3/84c2242873/0/content_hash.txt",
-      "prompt": "/d3/84c2242873/0/prompt.txt"
-    },
-    {
-      "metadata": "/d3/84c2242873/1/metadata.json",
-      "transcript": "/d3/84c2242873/1/full.jsonl",
-      "context": "/d3/84c2242873/1/context.md",
-      "content_hash": "/d3/84c2242873/1/content_hash.txt",
-      "prompt": "/d3/84c2242873/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "e11e6ca4-433b-430f-a73d-de6774d29156",
   "token_usage": {
-    "input_tokens": 157,
-    "cache_creation_tokens": 350587,
-    "cache_read_tokens": 14272112,
-    "output_tokens": 6591,
-    "api_call_count": 145
+    "input_tokens": 102,
+    "cache_creation_tokens": 214312,
+    "cache_read_tokens": 8262636,
+    "output_tokens": 5259,
+    "api_call_count": 94
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T17:49:22.403138Z",
+    "agent_lines": 29,
+    "human_added": 1270,
+    "human_modified": 4432,
+    "human_removed": 0,
+    "total_committed": 5731,
+    "agent_percentage": 0.5060198918164369
   }
 }
