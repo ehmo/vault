@@ -440,19 +440,19 @@ final class VaultViewModel {
 
     /// Returns limit info (remaining, selected) if the user hit the free plan cap, nil if import proceeds normally.
     func handleSelectedPhotos(_ results: [PHPickerResult]) -> (remaining: Int, selected: Int)? {
-        vmLogger.info("📸 handleSelectedPhotos called with \(results.count) results")
+        vmLogger.info("handleSelectedPhotos called with \(results.count) results")
         guard !isSharedVault, appState?.currentVaultKey != nil else {
-            vmLogger.warning("❌ handleSelectedPhotos: guard failed - isSharedVault=\(self.isSharedVault), hasKey=\(self.appState?.currentVaultKey != nil)")
+            vmLogger.warning("handleSelectedPhotos: guard failed - isSharedVault=\(self.isSharedVault), hasKey=\(self.appState?.currentVaultKey != nil)")
             return nil
         }
         guard let subscriptionManager else {
-            vmLogger.warning("❌ handleSelectedPhotos: no subscriptionManager")
+            vmLogger.warning("handleSelectedPhotos: no subscriptionManager")
             return nil
         }
 
         if !subscriptionManager.isPremium {
             let remaining = max(0, SubscriptionManager.maxFreeFilesPerVault - self.files.count)
-            vmLogger.info("💰 Free tier check: remaining=\(remaining), files.count=\(self.files.count)")
+            vmLogger.info("Free tier check: remaining=\(remaining), files.count=\(self.files.count)")
             if remaining == 0 {
                 return (0, results.count)
             }
@@ -462,7 +462,7 @@ final class VaultViewModel {
             }
         }
 
-        vmLogger.info("✅ Proceeding with photo import of \(results.count) photos")
+        vmLogger.info("Proceeding with photo import of \(results.count) photos")
         performPhotoImport(results)
         return nil
     }
@@ -824,15 +824,11 @@ final class VaultViewModel {
                             showSelfDestructAlert = true
                         }
                     } catch {
-                        #if DEBUG
-                        print("⚠️ [VaultViewModel] Failed to check for updates: \(error)")
-                        #endif
+                        vmLogger.debug("Failed to check for updates: \(error.localizedDescription, privacy: .public)")
                     }
                 }
             } catch {
-                #if DEBUG
-                print("❌ [VaultViewModel] Failed to check shared vault status: \(error)")
-                #endif
+                vmLogger.debug("Failed to check shared vault status: \(error.localizedDescription, privacy: .public)")
             }
         }
     }
