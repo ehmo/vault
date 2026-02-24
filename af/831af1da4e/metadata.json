@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "af831af1da4e",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Core/Storage/MediaOptimizer.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/af/831af1da4e/0/metadata.json",
+      "transcript": "/af/831af1da4e/0/full.jsonl",
+      "context": "/af/831af1da4e/0/context.md",
+      "content_hash": "/af/831af1da4e/0/content_hash.txt",
+      "prompt": "/af/831af1da4e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 29,
+    "cache_creation_tokens": 75641,
+    "cache_read_tokens": 1609778,
+    "output_tokens": 336,
+    "api_call_count": 25
+  }
+}
