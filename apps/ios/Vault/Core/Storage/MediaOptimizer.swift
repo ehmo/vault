@@ -10,7 +10,11 @@ private let optimizerLogger = Logger(subsystem: "app.vaultaire.ios", category: "
 /// Optimizes media files before vault storage using modern codecs.
 /// Images → HEIC (ImageIO), Videos → HEVC 1080p (AVAssetReader/AVAssetWriter with bitrate control).
 /// Non-media files pass through unchanged.
-actor MediaOptimizer {
+///
+/// Not an actor — all methods operate on temp files with no shared mutable state.
+/// Actor isolation was serializing parallel import workers through a single executor,
+/// defeating the 3-worker concurrency design in ParallelImporter.
+final class MediaOptimizer: Sendable {
     static let shared = MediaOptimizer()
 
     enum Mode: String, Sendable {
@@ -260,14 +264,18 @@ actor MediaOptimizer {
             writer.startWriting()
             writer.startSession(atSourceTime: .zero)
 
-            // Process video and audio tracks concurrently
+            // Process video and audio tracks concurrently.
+            // Per-transcode queues so parallel video workers don't serialize on shared queues.
+            let id = UUID().uuidString.prefix(8)
+            let videoXferQueue = DispatchQueue(label: "app.vaultaire.transcode.video.\(id)")
+            let audioXferQueue = DispatchQueue(label: "app.vaultaire.transcode.audio.\(id)")
             await withTaskGroup(of: Void.self) { group in
                 group.addTask {
-                    await Self.transferSamples(from: videoReaderOutput, to: videoWriterInput)
+                    await Self.transferSamples(from: videoReaderOutput, to: videoWriterInput, on: videoXferQueue)
                 }
                 if let audioOutput = audioReaderOutput, let audioInput = audioWriterInput {
                     group.addTask {
-                        await Self.transferSamples(from: audioOutput, to: audioInput)
+                        await Self.transferSamples(from: audioOutput, to: audioInput, on: audioXferQueue)
                     }
                 }
             }
@@ -304,15 +312,10 @@ actor MediaOptimizer {
         return (tempURL, "video/mp4", true)
     }
 
-    /// Reusable serial queues for sample transfer — one per track type.
-    /// Avoids creating new DispatchQueues per transcode call.
-    private static let videoTransferQueue = DispatchQueue(label: "app.vaultaire.transcode.video")
-    private static let audioTransferQueue = DispatchQueue(label: "app.vaultaire.transcode.audio")
-
     /// Transfer sample buffers from reader output to writer input using the proper callback pattern.
-    private nonisolated static func transferSamples(from output: AVAssetReaderTrackOutput, to input: AVAssetWriterInput) async {
+    /// Each transcode creates its own serial queue so parallel video workers don't serialize.
+    private static func transferSamples(from output: AVAssetReaderTrackOutput, to input: AVAssetWriterInput, on queue: DispatchQueue) async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            let queue = output.mediaType == .audio ? audioTransferQueue : videoTransferQueue
             // AVAssetWriterInput/AVAssetReaderTrackOutput are thread-safe for this callback pattern.
             // The requestMediaDataWhenReady callback is always called on the provided queue serially.
             nonisolated(unsafe) let output = output
