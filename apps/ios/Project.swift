@@ -3,7 +3,7 @@ import ProjectDescription
 // MARK: - Constants
 
 let version = "1.0.2"
-let buildNumber = "152"
+let buildNumber = "153"
 let teamId = "UFV835UGV6"
 let baseBundleId = "app.vaultaire.ios"
 
@@ -90,6 +90,7 @@ let vaultTarget = Target.target(
             "INFOPLIST_KEY_LSApplicationCategoryType": "public.app-category.utilities",
             "INFOPLIST_KEY_NSCameraUsageDescription": "Vaultaire needs camera access to capture photos directly into your secure vault.",
             "INFOPLIST_KEY_NSPhotoLibraryUsageDescription": "Vaultaire needs photo library access to import photos into your secure vault.",
+            "OTHER_LDFLAGS": ["$(inherited)", "-ObjC"],
         ],
         configurations: [
             .debug(

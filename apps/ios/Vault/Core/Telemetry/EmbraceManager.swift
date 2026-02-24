@@ -254,7 +254,16 @@ final class EmbraceManager: @unchecked Sendable {
             return
         }
 
-        let lastRunState = client.lastRunEndState()
+        // Defensive: SDK category methods may not be loaded if -ObjC linker
+        // flag is missing. Never let telemetry crash the app on startup.
+        let lastRunState: LastRunEndState
+        if client.responds(to: Selector(("lastRunEndState"))) {
+            lastRunState = client.lastRunEndState()
+        } else {
+            telemetryLogger.error("[EmbraceManager] lastRunEndState not available — check -ObjC linker flag")
+            lastRunState = .unavailable
+        }
+
         client.log(
             "embrace_started",
             severity: .info,
