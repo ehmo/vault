@@ -138,7 +138,7 @@ struct SecureImageViewer: View {
 
                 if isImage {
                     // Images: load into memory for display
-                    let (_, content) = try VaultStorage.shared.retrieveFile(id: file.id, with: key)
+                    let (_, content) = try await VaultStorage.shared.retrieveFile(id: file.id, with: key)
                     if let uiImage = UIImage(data: content) {
                         await MainActor.run {
                             self.image = uiImage
@@ -149,7 +149,7 @@ struct SecureImageViewer: View {
                 }
 
                 // Non-images (or failed image decode): stream-decrypt to temp file
-                let (_, decryptedURL) = try VaultStorage.shared.retrieveFileToTempURL(id: file.id, with: key)
+                let (_, decryptedURL) = try await VaultStorage.shared.retrieveFileToTempURL(id: file.id, with: key)
                 let rawName = file.filename ?? "file_\(file.id.uuidString)"
                 let filename = FileUtilities.filenameWithExtension(rawName, mimeType: file.mimeType)
                 let tempDir = FileManager.default.temporaryDirectory
@@ -183,7 +183,7 @@ struct SecureImageViewer: View {
         Task {
             do {
                 // Use streaming decryption to avoid 2x memory peak for large files
-                let (_, decryptedURL) = try VaultStorage.shared.retrieveFileToTempURL(id: file.id, with: key)
+                let (_, decryptedURL) = try await VaultStorage.shared.retrieveFileToTempURL(id: file.id, with: key)
                 let rawName = file.filename ?? "Export_\(file.id.uuidString)"
                 let filename = FileUtilities.filenameWithExtension(rawName, mimeType: file.mimeType)
                 let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
@@ -207,7 +207,7 @@ struct SecureImageViewer: View {
 
         Task {
             do {
-                try VaultStorage.shared.deleteFile(id: file.id, with: key)
+                try await VaultStorage.shared.deleteFile(id: file.id, with: key)
             } catch {
                 EmbraceManager.shared.captureError(error)
             }

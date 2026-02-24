@@ -229,7 +229,7 @@ final class iCloudBackupManager: @unchecked Sendable {
     ) async throws -> PendingBackupState {
         onProgress?(.readingVault)
         try Task.checkCancellation()
-        let index = try VaultStorage.shared.loadIndex(with: VaultKey(key))
+        let index = try await VaultStorage.shared.loadIndex(with: VaultKey(key))
 
         let payload = try await packBackupPayloadOffMain(index: index, key: key)
         Self.logger.info("[staging] Payload packed: \(payload.count) bytes")
@@ -1123,7 +1123,7 @@ final class iCloudBackupManager: @unchecked Sendable {
         }
         
         do {
-            let index = try VaultStorage.shared.loadIndex(with: key)
+            let index = try await VaultStorage.shared.loadIndex(with: key)
             let currentFileCount = index.files.count
             let currentTotalSize = index.totalSize
             

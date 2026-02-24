@@ -130,7 +130,7 @@ extension VaultView {
         }
 
         do {
-            let index = try VaultStorage.shared.loadIndex(with: key)
+            let index = try await VaultStorage.shared.loadIndex(with: key)
 
             // Use the stored phrase-derived share key
             guard let shareKeyData = index.shareKeyData else {
@@ -163,9 +163,9 @@ extension VaultView {
             if let newVersion = try? await CloudKitSharingManager.shared.checkForUpdates(
                 shareVaultId: vaultId, currentVersion: 0
             ) {
-                var updatedIndex = try VaultStorage.shared.loadIndex(with: key)
+                var updatedIndex = try await VaultStorage.shared.loadIndex(with: key)
                 updatedIndex.sharedVaultVersion = newVersion
-                try VaultStorage.shared.saveIndex(updatedIndex, with: key)
+                try await VaultStorage.shared.saveIndex(updatedIndex, with: key)
             }
 
             viewModel.updateAvailable = false
@@ -205,7 +205,7 @@ extension VaultView {
                 #endif
                 for removedId in removedIds {
                     if let uuid = UUID(uuidString: removedId) {
-                        try? VaultStorage.shared.deleteFile(id: uuid, with: vaultKey)
+                        try? await VaultStorage.shared.deleteFile(id: uuid, with: vaultKey)
                     }
                 }
             }
@@ -235,7 +235,7 @@ extension VaultView {
                 }
             }
 
-            _ = try VaultStorage.shared.storeFile(
+            _ = try await VaultStorage.shared.storeFile(
                 data: decrypted,
                 filename: file.filename,
                 mimeType: file.mimeType,
@@ -288,7 +288,7 @@ extension VaultView {
 
         // Delete all existing files
         for existingFile in index.files where !existingFile.isDeleted {
-            try? VaultStorage.shared.deleteFile(id: existingFile.fileId, with: vaultKey)
+            try? await VaultStorage.shared.deleteFile(id: existingFile.fileId, with: vaultKey)
         }
 
         // Import all files
@@ -310,7 +310,7 @@ extension VaultView {
                 }
             }
 
-            _ = try VaultStorage.shared.storeFile(
+            _ = try await VaultStorage.shared.storeFile(
                 data: decrypted,
                 filename: file.filename,
                 mimeType: file.mimeType,

@@ -45,18 +45,18 @@ final class FileImporter {
         // Generate thumbnail if it's an image
         let thumbnail = generateThumbnail(from: data, mimeType: mimeType)
 
-        return try storage.storeFile(data: data, filename: filename, mimeType: mimeType, with: key, thumbnailData: thumbnail)
+        return try await storage.storeFile(data: data, filename: filename, mimeType: mimeType, with: key, thumbnailData: thumbnail)
     }
 
-    func importData(_ data: Data, filename: String, mimeType: String, with key: VaultKey) throws -> UUID {
+    func importData(_ data: Data, filename: String, mimeType: String, with key: VaultKey) async throws -> UUID {
         let thumbnail = generateThumbnail(from: data, mimeType: mimeType)
-        return try storage.storeFile(data: data, filename: filename, mimeType: mimeType, with: key, thumbnailData: thumbnail)
+        return try await storage.storeFile(data: data, filename: filename, mimeType: mimeType, with: key, thumbnailData: thumbnail)
     }
 
-    func importImageData(_ imageData: Data, with key: VaultKey) throws -> UUID {
+    func importImageData(_ imageData: Data, with key: VaultKey) async throws -> UUID {
         let filename = "IMG_\(Int(Date().timeIntervalSince1970)).jpg"
         let thumbnail = generateThumbnail(from: imageData, mimeType: "image/jpeg")
-        return try storage.storeFile(data: imageData, filename: filename, mimeType: "image/jpeg", with: key, thumbnailData: thumbnail)
+        return try await storage.storeFile(data: imageData, filename: filename, mimeType: "image/jpeg", with: key, thumbnailData: thumbnail)
     }
 
     // MARK: - MIME Type Detection
@@ -133,14 +133,14 @@ final class FileImporter {
 // MARK: - Live Photo Support
 
 extension FileImporter {
-    func importLivePhoto(imageData: Data, videoData: Data, with key: VaultKey) throws -> (imageId: UUID, videoId: UUID) {
+    func importLivePhoto(imageData: Data, videoData: Data, with key: VaultKey) async throws -> (imageId: UUID, videoId: UUID) {
         let imageFilename = "LIVE_\(Int(Date().timeIntervalSince1970)).jpg"
         let videoFilename = "LIVE_\(Int(Date().timeIntervalSince1970)).mov"
 
         let imageThumbnail = generateThumbnail(from: imageData, mimeType: "image/jpeg")
 
-        let imageId = try storage.storeFile(data: imageData, filename: imageFilename, mimeType: "image/jpeg", with: key, thumbnailData: imageThumbnail)
-        let videoId = try storage.storeFile(data: videoData, filename: videoFilename, mimeType: "video/quicktime", with: key, thumbnailData: nil)
+        let imageId = try await storage.storeFile(data: imageData, filename: imageFilename, mimeType: "image/jpeg", with: key, thumbnailData: imageThumbnail)
+        let videoId = try await storage.storeFile(data: videoData, filename: videoFilename, mimeType: "video/quicktime", with: key, thumbnailData: nil)
 
         return (imageId, videoId)
     }

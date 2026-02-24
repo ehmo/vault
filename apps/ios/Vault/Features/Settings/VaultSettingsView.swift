@@ -325,24 +325,26 @@ struct VaultSettingsView: View {
         let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let key = appState.currentVaultKey else { return }
 
-        do {
-            var index = try VaultStorage.shared.loadIndex(with: key)
-            if trimmed.isEmpty {
-                index.customName = nil
-                if let pattern = appState.currentPattern {
-                    let letters = GridLetterManager.shared.vaultName(for: pattern)
-                    appState.updateVaultName(letters.isEmpty ? "Vault" : "Vault \(letters)")
+        Task {
+            do {
+                var index = try await VaultStorage.shared.loadIndex(with: key)
+                if trimmed.isEmpty {
+                    index.customName = nil
+                    if let pattern = appState.currentPattern {
+                        let letters = GridLetterManager.shared.vaultName(for: pattern)
+                        appState.updateVaultName(letters.isEmpty ? "Vault" : "Vault \(letters)")
+                    } else {
+                        appState.updateVaultName("Vault")
+                    }
                 } else {
-                    appState.updateVaultName("Vault")
+                    let name = String(trimmed.prefix(30))
+                    index.customName = name
+                    appState.updateVaultName(name)
                 }
-            } else {
-                let name = String(trimmed.prefix(30))
-                index.customName = name
-                appState.updateVaultName(name)
+                try await VaultStorage.shared.saveIndex(index, with: key)
+            } catch {
+                vaultSettingsLogger.error("Failed to rename vault: \(error.localizedDescription)")
             }
-            try VaultStorage.shared.saveIndex(index, with: key)
-        } catch {
-            vaultSettingsLogger.error("Failed to rename vault: \(error.localizedDescription)")
         }
     }
 
@@ -353,54 +355,54 @@ struct VaultSettingsView: View {
         }
 
         // Delete all files and the vault index
-        do {
-            let index = try VaultStorage.shared.loadIndex(with: key)
-            for file in index.files where !file.isDeleted {
-                do {
-                    try VaultStorage.shared.deleteFile(id: file.fileId, with: key)
-                } catch {
-                    vaultSettingsLogger.error("Failed to delete file \(file.fileId, privacy: .public): \(error.localizedDescription, privacy: .public)")
-                    EmbraceManager.shared.captureError(error, context: ["action": "deleteFile", "fileId": file.fileId])
+        Task {
+            do {
+                let index = try await VaultStorage.shared.loadIndex(with: key)
+                for file in index.files where !file.isDeleted {
+                    do {
+                        try await VaultStorage.shared.deleteFile(id: file.fileId, with: key)
+                    } catch {
+                        vaultSettingsLogger.error("Failed to delete file \(file.fileId, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                        EmbraceManager.shared.captureError(error, context: ["action": "deleteFile", "fileId": file.fileId])
+                    }
                 }
-            }
 
-            // Revoke any active CloudKit shares to invalidate all recipient copies
-            if let shares = index.activeShares {
-                for share in shares {
-                    Task {
-                        do {
-                            // Revoke the share so recipients can no longer access it
-                            try await CloudKitSharingManager.shared.revokeShare(shareVaultId: share.id)
-                            vaultSettingsLogger.info("Revoked shared vault \(share.id, privacy: .public)")
-                        } catch {
-                            vaultSettingsLogger.error("Failed to revoke shared vault \(share.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
-                            EmbraceManager.shared.captureError(error, context: ["action": "revokeShare", "shareId": share.id])
+                // Revoke any active CloudKit shares to invalidate all recipient copies
+                if let shares = index.activeShares {
+                    for share in shares {
+                        Task {
+                            do {
+                                // Revoke the share so recipients can no longer access it
+                                try await CloudKitSharingManager.shared.revokeShare(shareVaultId: share.id)
+                                vaultSettingsLogger.info("Revoked shared vault \(share.id, privacy: .public)")
+                            } catch {
+                                vaultSettingsLogger.error("Failed to revoke shared vault \(share.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                                EmbraceManager.shared.captureError(error, context: ["action": "revokeShare", "shareId": share.id])
+                            }
                         }
                     }
                 }
-            }
 
-            // If this is a shared vault we joined, mark it as consumed
-            if let isShared = index.isSharedVault, isShared, let vaultId = index.sharedVaultId {
-                Task {
-                    do {
-                        try await CloudKitSharingManager.shared.markShareConsumed(shareVaultId: vaultId)
-                        vaultSettingsLogger.info("Marked shared vault \(vaultId, privacy: .public) as consumed")
-                    } catch {
-                        vaultSettingsLogger.error("Failed to mark shared vault consumed \(vaultId, privacy: .public): \(error.localizedDescription, privacy: .public)")
-                        EmbraceManager.shared.captureError(error, context: ["action": "markShareConsumed", "vaultId": vaultId])
+                // If this is a shared vault we joined, mark it as consumed
+                if let isShared = index.isSharedVault, isShared, let vaultId = index.sharedVaultId {
+                    Task {
+                        do {
+                            try await CloudKitSharingManager.shared.markShareConsumed(shareVaultId: vaultId)
+                            vaultSettingsLogger.info("Marked shared vault \(vaultId, privacy: .public) as consumed")
+                        } catch {
+                            vaultSettingsLogger.error("Failed to mark shared vault consumed \(vaultId, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                            EmbraceManager.shared.captureError(error, context: ["action": "markShareConsumed", "vaultId": vaultId])
+                        }
                     }
                 }
+
+                try VaultStorage.shared.deleteVaultIndex(for: key)
+            } catch {
+                vaultSettingsLogger.error("Delete vault error: \(error.localizedDescription, privacy: .public)")
+                EmbraceManager.shared.captureError(error, context: ["action": "deleteVault"])
             }
 
-            try VaultStorage.shared.deleteVaultIndex(for: key)
-        } catch {
-            vaultSettingsLogger.error("Delete vault error: \(error.localizedDescription, privacy: .public)")
-            EmbraceManager.shared.captureError(error, context: ["action": "deleteVault"])
-        }
-
-        // Clean up recovery data and duress status
-        Task {
+            // Clean up recovery data and duress status
             do {
                 try await RecoveryPhraseManager.shared.deleteRecoveryData(for: key.rawBytes)
             } catch {
@@ -410,10 +412,12 @@ struct VaultSettingsView: View {
             if await DuressHandler.shared.isDuressKey(key) {
                 await DuressHandler.shared.clearDuressVault()
             }
-        }
 
-        appState.lockVault()
-        dismiss()
+            await MainActor.run {
+                appState.lockVault()
+                dismiss()
+            }
+        }
     }
     
     private func regenerateRecoveryPhrase() {
@@ -452,7 +456,7 @@ struct VaultSettingsView: View {
         
         Task {
             do {
-                let result = try VaultStorage.shared.listFilesLightweight(with: key)
+                let result = try await VaultStorage.shared.listFilesLightweight(with: key)
                 let files = result.files
                 let totalSize = files.reduce(0) { $0 + Int64($1.size) }
                 
@@ -461,7 +465,7 @@ struct VaultSettingsView: View {
                 let duressInitiallyEnabled = await DuressHandler.shared.isDuressKey(key)
 
                 // Load sharing info
-                let index = try VaultStorage.shared.loadIndex(with: key)
+                let index = try await VaultStorage.shared.loadIndex(with: key)
                 let shared = index.isSharedVault ?? false
                 let shareCount = index.activeShares?.count ?? 0
                 let activeUploadJobs = await MainActor.run {

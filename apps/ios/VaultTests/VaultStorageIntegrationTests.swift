@@ -23,22 +23,22 @@ final class VaultStorageIntegrationTests: XCTestCase {
 
     // MARK: - Index Round Trip
 
-    func testSaveAndLoadIndexRoundTrip() throws {
+    func testSaveAndLoadIndexRoundTrip() async throws {
         let index = VaultStorage.VaultIndex(files: [], nextOffset: 0, totalSize: 50 * 1024 * 1024)
-        try storage.saveIndex(index, with: testKey)
+        try await storage.saveIndex(index, with: testKey)
 
-        let loaded = try storage.loadIndex(with: testKey)
+        let loaded = try await storage.loadIndex(with: testKey)
         XCTAssertEqual(loaded.files.count, 0)
         XCTAssertEqual(loaded.totalSize, 50 * 1024 * 1024)
     }
 
     // MARK: - Vault Exists
 
-    func testVaultExistsReturnsTrueAfterSave() throws {
+    func testVaultExistsReturnsTrueAfterSave() async throws {
         XCTAssertFalse(storage.vaultExists(for: testKey))
 
         let index = VaultStorage.VaultIndex(files: [], nextOffset: 0, totalSize: 50 * 1024 * 1024)
-        try storage.saveIndex(index, with: testKey)
+        try await storage.saveIndex(index, with: testKey)
 
         XCTAssertTrue(storage.vaultExists(for: testKey))
     }
@@ -51,9 +51,9 @@ final class VaultStorageIntegrationTests: XCTestCase {
 
     // MARK: - Delete Vault Index
 
-    func testDeleteVaultIndex() throws {
+    func testDeleteVaultIndex() async throws {
         let index = VaultStorage.VaultIndex(files: [], nextOffset: 0, totalSize: 50 * 1024 * 1024)
-        try storage.saveIndex(index, with: testKey)
+        try await storage.saveIndex(index, with: testKey)
         XCTAssertTrue(storage.vaultExists(for: testKey))
 
         try storage.deleteVaultIndex(for: testKey)
@@ -62,25 +62,25 @@ final class VaultStorageIntegrationTests: XCTestCase {
 
     // MARK: - File Operations
 
-    func testStoreAndRetrieveFile() throws {
+    func testStoreAndRetrieveFile() async throws {
         // loadIndex auto-creates a proper v3 index with master key
-        let index = try storage.loadIndex(with: testKey)
-        try storage.saveIndex(index, with: testKey)
+        let index = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(index, with: testKey)
 
         let content = Data("test file content".utf8)
-        let fileId = try storage.storeFile(
+        let fileId = try await storage.storeFile(
             data: content, filename: "test.txt", mimeType: "text/plain", with: testKey
         )
 
-        let result = try storage.retrieveFile(id: fileId, with: testKey)
+        let result = try await storage.retrieveFile(id: fileId, with: testKey)
         XCTAssertEqual(result.content, content)
         XCTAssertEqual(result.header.originalFilename, "test.txt")
         XCTAssertEqual(result.header.mimeType, "text/plain")
     }
 
-    func testStoreFromURLAndRetrieveToTempURLStreamingRoundTrip() throws {
-        let index = try storage.loadIndex(with: testKey)
-        try storage.saveIndex(index, with: testKey)
+    func testStoreFromURLAndRetrieveToTempURLStreamingRoundTrip() async throws {
+        let index = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(index, with: testKey)
 
         let payloadSize = VaultCoreConstants.streamingThreshold + (128 * 1024)
         let sourceBytes = Data((0..<payloadSize).map { UInt8($0 % 251) })
@@ -90,14 +90,14 @@ final class VaultStorageIntegrationTests: XCTestCase {
         try sourceBytes.write(to: sourceURL)
         defer { try? FileManager.default.removeItem(at: sourceURL) }
 
-        let fileId = try storage.storeFileFromURL(
+        let fileId = try await storage.storeFileFromURL(
             sourceURL,
             filename: "stream.bin",
             mimeType: "application/octet-stream",
             with: testKey
         )
 
-        let result = try storage.retrieveFileToTempURL(id: fileId, with: testKey)
+        let result = try await storage.retrieveFileToTempURL(id: fileId, with: testKey)
         defer { try? FileManager.default.removeItem(at: result.tempURL) }
 
         XCTAssertEqual(result.header.originalFilename, "stream.bin")
@@ -107,13 +107,13 @@ final class VaultStorageIntegrationTests: XCTestCase {
         XCTAssertEqual(restoredBytes, sourceBytes)
     }
 
-    func testStoreAndListFiles() throws {
-        let index = try storage.loadIndex(with: testKey)
-        try storage.saveIndex(index, with: testKey)
+    func testStoreAndListFiles() async throws {
+        let index = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(index, with: testKey)
 
         var storedIds: [UUID] = []
         for i in 0..<3 {
-            let id = try storage.storeFile(
+            let id = try await storage.storeFile(
                 data: Data("file \(i)".utf8),
                 filename: "file\(i).txt",
                 mimeType: "text/plain",
@@ -122,7 +122,7 @@ final class VaultStorageIntegrationTests: XCTestCase {
             storedIds.append(id)
         }
 
-        let listed = try storage.listFiles(with: testKey)
+        let listed = try await storage.listFiles(with: testKey)
         XCTAssertEqual(listed.count, 3)
 
         let listedIds = Set(listed.map(\.fileId))
@@ -131,40 +131,45 @@ final class VaultStorageIntegrationTests: XCTestCase {
         }
     }
 
-    func testDeleteFile() throws {
-        let index = try storage.loadIndex(with: testKey)
-        try storage.saveIndex(index, with: testKey)
+    func testDeleteFile() async throws {
+        let index = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(index, with: testKey)
 
-        let fileId = try storage.storeFile(
+        let fileId = try await storage.storeFile(
             data: Data("delete me".utf8), filename: "temp.txt", mimeType: "text/plain", with: testKey
         )
-        XCTAssertEqual(try storage.listFiles(with: testKey).count, 1)
+        let countBeforeDelete = try await storage.listFiles(with: testKey).count
+        XCTAssertEqual(countBeforeDelete, 1)
 
-        try storage.deleteFile(id: fileId, with: testKey)
-        XCTAssertEqual(try storage.listFiles(with: testKey).count, 0)
+        try await storage.deleteFile(id: fileId, with: testKey)
+        let countAfterDelete = try await storage.listFiles(with: testKey).count
+        XCTAssertEqual(countAfterDelete, 0)
     }
 
-    func testRetrieveDeletedFileThrows() throws {
-        let index = try storage.loadIndex(with: testKey)
-        try storage.saveIndex(index, with: testKey)
+    func testRetrieveDeletedFileThrows() async throws {
+        let index = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(index, with: testKey)
 
-        let fileId = try storage.storeFile(
+        let fileId = try await storage.storeFile(
             data: Data("gone".utf8), filename: "gone.txt", mimeType: "text/plain", with: testKey
         )
-        try storage.deleteFile(id: fileId, with: testKey)
+        try await storage.deleteFile(id: fileId, with: testKey)
 
-        XCTAssertThrowsError(try storage.retrieveFile(id: fileId, with: testKey)) { error in
+        do {
+            _ = try await storage.retrieveFile(id: fileId, with: testKey)
+            XCTFail("Expected error")
+        } catch {
             XCTAssertEqual(error as? VaultStorageError, .fileNotFound)
         }
     }
 
     // MARK: - Change Vault Key
 
-    func testChangeVaultKey() throws {
-        let index = try storage.loadIndex(with: testKey)
-        try storage.saveIndex(index, with: testKey)
+    func testChangeVaultKey() async throws {
+        let index = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(index, with: testKey)
 
-        let fileId = try storage.storeFile(
+        let fileId = try await storage.storeFile(
             data: Data("survives key change".utf8),
             filename: "persist.txt",
             mimeType: "text/plain",
@@ -174,14 +179,14 @@ final class VaultStorageIntegrationTests: XCTestCase {
         let newKey = VaultKey(CryptoEngine.generateRandomBytes(count: 32)!)
         extraKeys.append(newKey)
 
-        try storage.changeVaultKey(from: testKey, to: newKey)
+        try await storage.changeVaultKey(from: testKey, to: newKey)
 
         // Old key no longer works
         XCTAssertFalse(storage.vaultExists(for: testKey))
 
         // New key finds the vault with the file
         XCTAssertTrue(storage.vaultExists(for: newKey))
-        let result = try storage.retrieveFile(id: fileId, with: newKey)
+        let result = try await storage.retrieveFile(id: fileId, with: newKey)
         XCTAssertEqual(result.content, Data("survives key change".utf8))
     }
 

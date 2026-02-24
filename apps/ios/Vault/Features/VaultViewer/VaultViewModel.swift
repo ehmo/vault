@@ -189,7 +189,7 @@ final class VaultViewModel {
         activeLoadTask?.cancel()
         activeLoadTask = Task.detached(priority: .userInitiated) {
             do {
-                let result = try VaultStorage.shared.listFilesLightweight(with: key)
+                let result = try await VaultStorage.shared.listFilesLightweight(with: key)
                 for entry in result.files {
                     if let encThumb = entry.encryptedThumbnail {
                         await ThumbnailCache.shared.storeEncrypted(id: entry.fileId, data: encThumb)
@@ -261,7 +261,7 @@ final class VaultViewModel {
         activeImportTask?.cancel()
         activeImportTask = Task.detached(priority: .userInitiated) {
             do {
-                try VaultStorage.shared.deleteFiles(ids: idsToDelete, with: key) { deleted in
+                try await VaultStorage.shared.deleteFiles(ids: idsToDelete, with: key) { deleted in
                     Task { @MainActor in
                         guard !Task.isCancelled else { return }
                         self.importProgress = (deleted, count)
@@ -302,7 +302,7 @@ final class VaultViewModel {
 
             for id in idsToExport {
                 guard !Task.isCancelled else { break }
-                guard let result = try? VaultStorage.shared.retrieveFile(id: id, with: key) else { continue }
+                guard let result = try? await VaultStorage.shared.retrieveFile(id: id, with: key) else { continue }
                 let file = filesList.first { $0.id == id }
                 let rawName = file?.filename ?? "Export_\(id.uuidString)"
                 let filename = FileUtilities.filenameWithExtension(rawName, mimeType: file?.mimeType)
@@ -358,7 +358,7 @@ final class VaultViewModel {
         guard let key = appState?.currentVaultKey else { return }
         Task.detached(priority: .userInitiated) {
             do {
-                try VaultStorage.shared.deleteFile(id: id, with: key)
+                try await VaultStorage.shared.deleteFile(id: id, with: key)
                 await MainActor.run {
                     if let idx = self.files.firstIndex(where: { $0.id == id }) {
                         self.files.remove(at: idx)
@@ -404,7 +404,7 @@ final class VaultViewModel {
                 let filename = "IMG_\(Date().timeIntervalSince1970).\(ext)"
                 let thumbnail = FileUtilities.generateThumbnail(fromFileURL: optimizedURL)
 
-                let fileId = try VaultStorage.shared.storeFileFromURL(
+                let fileId = try await VaultStorage.shared.storeFileFromURL(
                     optimizedURL, filename: filename, mimeType: mimeType,
                     with: key, thumbnailData: thumbnail
                 )
@@ -764,7 +764,7 @@ final class VaultViewModel {
 
         Task {
             do {
-                var index = try VaultStorage.shared.loadIndex(with: key)
+                var index = try await VaultStorage.shared.loadIndex(with: key)
 
                 let shared = index.isSharedVault ?? false
                 await MainActor.run {
@@ -801,7 +801,7 @@ final class VaultViewModel {
                     }
 
                     index.openCount = currentOpens
-                    try VaultStorage.shared.saveIndex(index, with: key)
+                    try await VaultStorage.shared.saveIndex(index, with: key)
                     await MainActor.run {
                         hasCountedOpenThisSession = true
                         sharedVaultOpenCount = currentOpens
@@ -840,11 +840,11 @@ final class VaultViewModel {
     func selfDestruct() {
         guard let key = appState?.currentVaultKey else { return }
 
-        do {
-            let index = try VaultStorage.shared.loadIndex(with: key)
+        Task {
+            do {
+                let index = try await VaultStorage.shared.loadIndex(with: key)
 
-            if let vaultId = index.sharedVaultId {
-                Task {
+                if let vaultId = index.sharedVaultId {
                     do {
                         try await CloudKitSharingManager.shared.markShareConsumed(shareVaultId: vaultId)
                     } catch {
@@ -852,23 +852,23 @@ final class VaultViewModel {
                         EmbraceManager.shared.captureError(error, context: ["action": "markShareConsumed", "vaultId": vaultId])
                     }
                 }
-            }
 
-            for file in index.files where !file.isDeleted {
-                do {
-                    try VaultStorage.shared.deleteFile(id: file.fileId, with: key)
-                } catch {
-                    vmLogger.error("Failed to delete file during self-destruct \(file.fileId, privacy: .public): \(error.localizedDescription, privacy: .public)")
-                    EmbraceManager.shared.captureError(error, context: ["action": "deleteFile", "fileId": file.fileId])
+                for file in index.files where !file.isDeleted {
+                    do {
+                        try await VaultStorage.shared.deleteFile(id: file.fileId, with: key)
+                    } catch {
+                        vmLogger.error("Failed to delete file during self-destruct \(file.fileId, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                        EmbraceManager.shared.captureError(error, context: ["action": "deleteFile", "fileId": file.fileId])
+                    }
                 }
+                try VaultStorage.shared.deleteVaultIndex(for: key)
+            } catch {
+                vmLogger.error("Self-destruct error: \(error.localizedDescription, privacy: .public)")
+                EmbraceManager.shared.captureError(error, context: ["action": "selfDestruct"])
             }
-            try VaultStorage.shared.deleteVaultIndex(for: key)
-        } catch {
-            vmLogger.error("Self-destruct error: \(error.localizedDescription, privacy: .public)")
-            EmbraceManager.shared.captureError(error, context: ["action": "selfDestruct"])
-        }
 
-        appState?.lockVault()
+            appState?.lockVault()
+        }
     }
 
     // MARK: - Vault Key Change

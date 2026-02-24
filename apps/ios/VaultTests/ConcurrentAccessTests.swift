@@ -143,7 +143,7 @@ final class ConcurrentAccessTests: XCTestCase {
         // No crash = success. TSAN will flag any data race.
     }
 
-    // MARK: - VaultIndexManager (NSRecursiveLock)
+    // MARK: - VaultIndexManager (Actor)
 
     /// Concurrent load + save on VaultIndexManager using the same key.
     func testConcurrentIndexManagerLoadSave() async throws {
@@ -164,26 +164,26 @@ final class ConcurrentAccessTests: XCTestCase {
         let key = VaultKey(CryptoEngine.generateRandomBytes(count: 32)!)
 
         // Initial load to create index
-        let index = try manager.loadIndex(with: key)
-        try manager.saveIndex(index, with: key)
+        let index = try await manager.loadIndex(with: key)
+        try await manager.saveIndex(index, with: key)
 
         // Hammer concurrent loads and saves
         try await withThrowingTaskGroup(of: Void.self) { group in
             for _ in 0..<20 {
                 group.addTask {
-                    let loaded = try manager.loadIndex(with: key)
+                    let loaded = try await manager.loadIndex(with: key)
                     XCTAssertNotNil(loaded.encryptedMasterKey)
                 }
                 group.addTask {
-                    let loaded = try manager.loadIndex(with: key)
-                    try manager.saveIndex(loaded, with: key)
+                    let loaded = try await manager.loadIndex(with: key)
+                    try await manager.saveIndex(loaded, with: key)
                 }
             }
             try await group.waitForAll()
         }
 
         // Verify consistency after concurrent operations
-        let finalIndex = try manager.loadIndex(with: key)
+        let finalIndex = try await manager.loadIndex(with: key)
         XCTAssertEqual(finalIndex.version, 3)
         XCTAssertNotNil(finalIndex.encryptedMasterKey)
     }
@@ -209,9 +209,9 @@ final class ConcurrentAccessTests: XCTestCase {
         try await withThrowingTaskGroup(of: Void.self) { group in
             for key in keys {
                 group.addTask {
-                    let index = try manager.loadIndex(with: key)
-                    try manager.saveIndex(index, with: key)
-                    let reloaded = try manager.loadIndex(with: key)
+                    let index = try await manager.loadIndex(with: key)
+                    try await manager.saveIndex(index, with: key)
+                    let reloaded = try await manager.loadIndex(with: key)
                     XCTAssertEqual(reloaded.version, 3)
                 }
             }

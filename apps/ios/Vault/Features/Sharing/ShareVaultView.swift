@@ -751,9 +751,9 @@ struct ShareVaultView: View {
 
         do {
             // Persist to index
-            var index = try VaultStorage.shared.loadIndex(with: key)
+            var index = try await VaultStorage.shared.loadIndex(with: key)
             index.activeShares?.removeAll { $0.id == share.id }
-            try VaultStorage.shared.saveIndex(index, with: key)
+            try await VaultStorage.shared.saveIndex(index, with: key)
         } catch {
             shareVaultLogger.error("Failed to update index after revoke: \(error.localizedDescription, privacy: .public)")
         }
@@ -780,10 +780,10 @@ struct ShareVaultView: View {
             }
 
             // Immediately clear local shares so UI feels responsive
-            var index = try VaultStorage.shared.loadIndex(with: key)
+            var index = try await VaultStorage.shared.loadIndex(with: key)
             let sharesToDelete = index.activeShares ?? []
             index.activeShares = nil
-            try VaultStorage.shared.saveIndex(index, with: key)
+            try await VaultStorage.shared.saveIndex(index, with: key)
 
             activeShares = []
             uploadJobs = []
@@ -853,7 +853,7 @@ struct ShareVaultView: View {
 
     private static func loadLocalSnapshot(vaultKey: VaultKey) async throws -> LocalSnapshot {
         try await Task.detached(priority: .userInitiated) {
-            let index = try VaultStorage.shared.loadIndex(with: vaultKey)
+            let index = try await VaultStorage.shared.loadIndex(with: vaultKey)
             let estimatedSize = index.files.filter { !$0.isDeleted }.reduce(0) { $0 + $1.size }
             let shares = index.activeShares ?? []
             // Sort by creation date, newest first (descending order)
@@ -867,7 +867,7 @@ struct ShareVaultView: View {
 
     private static func loadActiveShares(vaultKey: VaultKey) async throws -> [VaultStorage.ShareRecord] {
         try await Task.detached(priority: .utility) {
-            let index = try VaultStorage.shared.loadIndex(with: vaultKey)
+            let index = try await VaultStorage.shared.loadIndex(with: vaultKey)
             let shares = index.activeShares ?? []
             // Sort by creation date, newest first
             return shares.sorted { $0.createdAt > $1.createdAt }
@@ -893,13 +893,13 @@ struct ShareVaultView: View {
 
         do {
             let updatedShares = try await Task.detached(priority: .utility) { () -> [VaultStorage.ShareRecord] in
-                var index = try VaultStorage.shared.loadIndex(with: vaultKey)
+                var index = try await VaultStorage.shared.loadIndex(with: vaultKey)
                 var shares = index.activeShares ?? []
                 shares.removeAll { consumedIds.contains($0.id) }
                 // Sort by creation date, newest first (descending order)
                 shares.sort { $0.createdAt > $1.createdAt }
                 index.activeShares = shares.isEmpty ? nil : shares
-                try VaultStorage.shared.saveIndex(index, with: vaultKey)
+                try await VaultStorage.shared.saveIndex(index, with: vaultKey)
                 return shares
             }.value
 

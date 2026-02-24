@@ -38,12 +38,12 @@ final class VaultViewModelTests: XCTestCase {
 
     func testLoadFilesPopulatesFilesArray() async throws {
         // Create vault with test files
-        let index = try storage.loadIndex(with: testKey)
-        try storage.saveIndex(index, with: testKey)
+        let index = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(index, with: testKey)
 
         // Add files
-        _ = try storage.storeFile(data: Data("content1".utf8), filename: "file1.txt", mimeType: "text/plain", with: testKey)
-        _ = try storage.storeFile(data: Data("content2".utf8), filename: "file2.txt", mimeType: "text/plain", with: testKey)
+        _ = try await storage.storeFile(data: Data("content1".utf8), filename: "file1.txt", mimeType: "text/plain", with: testKey)
+        _ = try await storage.storeFile(data: Data("content2".utf8), filename: "file2.txt", mimeType: "text/plain", with: testKey)
 
         viewModel.loadFiles()
         await viewModel.activeLoadTask?.value
@@ -53,9 +53,9 @@ final class VaultViewModelTests: XCTestCase {
 
     func testToggleSelectionAddsAndRemoves() async throws {
         // Setup
-        let index = try storage.loadIndex(with: testKey)
-        try storage.saveIndex(index, with: testKey)
-        let fileId = try storage.storeFile(data: Data("content".utf8), filename: "file.txt", mimeType: "text/plain", with: testKey)
+        let index = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(index, with: testKey)
+        let fileId = try await storage.storeFile(data: Data("content".utf8), filename: "file.txt", mimeType: "text/plain", with: testKey)
 
         viewModel.loadFiles()
         await viewModel.activeLoadTask?.value
@@ -81,10 +81,10 @@ final class VaultViewModelTests: XCTestCase {
 
     func testSetFileFilterMedia() async throws {
         // Setup with media file
-        let index = try storage.loadIndex(with: testKey)
-        try storage.saveIndex(index, with: testKey)
-        _ = try storage.storeFile(data: Data("image".utf8), filename: "image.jpg", mimeType: "image/jpeg", with: testKey)
-        _ = try storage.storeFile(data: Data("doc".utf8), filename: "doc.pdf", mimeType: "application/pdf", with: testKey)
+        let index = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(index, with: testKey)
+        _ = try await storage.storeFile(data: Data("image".utf8), filename: "image.jpg", mimeType: "image/jpeg", with: testKey)
+        _ = try await storage.storeFile(data: Data("doc".utf8), filename: "doc.pdf", mimeType: "application/pdf", with: testKey)
 
         viewModel.loadFiles()
         await viewModel.activeLoadTask?.value
@@ -275,9 +275,9 @@ final class VaultViewModelTests: XCTestCase {
 
     func testHandleVaultKeyChangeClearsFiles() async throws {
         // Setup with files
-        let index = try storage.loadIndex(with: testKey)
-        try storage.saveIndex(index, with: testKey)
-        _ = try storage.storeFile(data: Data("content".utf8), filename: "file.txt", mimeType: "text/plain", with: testKey)
+        let index = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(index, with: testKey)
+        _ = try await storage.storeFile(data: Data("content".utf8), filename: "file.txt", mimeType: "text/plain", with: testKey)
 
         viewModel.loadFiles()
         await viewModel.activeLoadTask?.value

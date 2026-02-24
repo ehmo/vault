@@ -4,7 +4,7 @@ import XCTest
 
 // MARK: - Mock VaultStorage
 
-private final class MockSyncVaultStorage: VaultStorageProtocol {
+private final class MockSyncVaultStorage: VaultStorageProtocol, @unchecked Sendable {
     // Configurable returns
     var indexToReturn: VaultStorage.VaultIndex?
     var loadIndexError: Error?
@@ -13,7 +13,7 @@ private final class MockSyncVaultStorage: VaultStorageProtocol {
     // Track calls
     var loadIndexCallCount = 0
 
-    func loadIndex(with _: VaultKey) throws -> VaultStorage.VaultIndex {
+    func loadIndex(with _: VaultKey) async throws -> VaultStorage.VaultIndex {
         loadIndexCallCount += 1
         if let error = loadIndexError { throw error }
         guard let index = indexToReturn else {
@@ -22,7 +22,7 @@ private final class MockSyncVaultStorage: VaultStorageProtocol {
         return index
     }
 
-    func saveIndex(_ index: VaultStorage.VaultIndex, with key: VaultKey) throws {
+    func saveIndex(_ index: VaultStorage.VaultIndex, with key: VaultKey) async throws {
         savedIndexes.append((index, key))
         // Also update indexToReturn so subsequent loads see the saved state
         indexToReturn = index
@@ -30,15 +30,15 @@ private final class MockSyncVaultStorage: VaultStorageProtocol {
 
     // MARK: - Unused protocol methods (stubs)
 
-    func storeFile(data _: Data, filename _: String, mimeType _: String, with _: VaultKey, thumbnailData _: Data?, duration _: TimeInterval?, fileId _: UUID?) throws -> UUID {
+    func storeFile(data _: Data, filename _: String, mimeType _: String, with _: VaultKey, thumbnailData _: Data?, duration _: TimeInterval?, fileId _: UUID?) async throws -> UUID {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func storeFileFromURL(_ _: URL, filename _: String, mimeType _: String, with _: VaultKey, thumbnailData _: Data?, duration _: TimeInterval?, fileId _: UUID?, originalDate _: Date?) throws -> UUID {
+    func storeFileFromURL(_ _: URL, filename _: String, mimeType _: String, with _: VaultKey, thumbnailData _: Data?, duration _: TimeInterval?, fileId _: UUID?, originalDate _: Date?) async throws -> UUID {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func retrieveFile(id _: UUID, with _: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
+    func retrieveFile(id _: UUID, with _: VaultKey) async throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
         fatalError("Not used in ShareSyncManager tests")
     }
 
@@ -46,23 +46,23 @@ private final class MockSyncVaultStorage: VaultStorageProtocol {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func retrieveFileToTempURL(id _: UUID, with _: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, tempURL: URL) {
+    func retrieveFileToTempURL(id _: UUID, with _: VaultKey) async throws -> (header: CryptoEngine.EncryptedFileHeader, tempURL: URL) {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func deleteFile(id _: UUID, with _: VaultKey) throws {
+    func deleteFile(id _: UUID, with _: VaultKey) async throws {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func deleteFiles(ids _: Set<UUID>, with _: VaultKey, onProgress _: ((Int) -> Void)?) throws {
+    func deleteFiles(ids _: Set<UUID>, with _: VaultKey, onProgress _: (@Sendable (Int) -> Void)?) async throws {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func listFiles(with _: VaultKey) throws -> [VaultStorage.VaultFileEntry] {
+    func listFiles(with _: VaultKey) async throws -> [VaultStorage.VaultFileEntry] {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func listFilesLightweight(with _: VaultKey) throws -> (masterKey: MasterKey, files: [VaultStorage.LightweightFileEntry]) {
+    func listFilesLightweight(with _: VaultKey) async throws -> (masterKey: MasterKey, files: [VaultStorage.LightweightFileEntry]) {
         fatalError("Not used in ShareSyncManager tests")
     }
 
@@ -70,7 +70,7 @@ private final class MockSyncVaultStorage: VaultStorageProtocol {
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func vaultHasFiles(for _: VaultKey) -> Bool {
+    func vaultHasFiles(for _: VaultKey) async -> Bool {
         fatalError("Not used in ShareSyncManager tests")
     }
 

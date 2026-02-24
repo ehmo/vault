@@ -395,7 +395,7 @@ final class ShareSyncManager {
         // Load index and check for active shares
         let index: VaultStorage.VaultIndex
         do {
-            index = try storage.loadIndex(with: vaultKey)
+            index = try await storage.loadIndex(with: vaultKey)
         } catch {
             syncStatus = .error("Failed to load vault: \(error.localizedDescription)")
             EmbraceManager.shared.captureError(error)
@@ -491,10 +491,10 @@ final class ShareSyncManager {
         // Remove consumed shares from the index
         if !consumedShareIds.isEmpty {
             do {
-                var updatedIndex = try storage.loadIndex(with: vaultKey)
+                var updatedIndex = try await storage.loadIndex(with: vaultKey)
                 let fileCountBefore = updatedIndex.files.filter { !$0.isDeleted }.count
                 updatedIndex.activeShares?.removeAll { consumedShareIds.contains($0.id) }
-                try storage.saveIndex(updatedIndex, with: vaultKey)
+                try await storage.saveIndex(updatedIndex, with: vaultKey)
                 let fileCountAfter = updatedIndex.files.filter { !$0.isDeleted }.count
                 shareSyncLogger.info("Removed \(consumedShareIds.count) consumed shares from index. Files: \(fileCountBefore) -> \(fileCountAfter)")
             } catch {
@@ -505,7 +505,7 @@ final class ShareSyncManager {
         // Batch-update share records in a single index load/save
         if !shareUpdates.isEmpty {
             do {
-                var updatedIndex = try storage.loadIndex(with: vaultKey)
+                var updatedIndex = try await storage.loadIndex(with: vaultKey)
                 let fileCountBefore = updatedIndex.files.filter { !$0.isDeleted }.count
                 for update in shareUpdates {
                     if let idx = updatedIndex.activeShares?.firstIndex(where: { $0.id == update.id }) {
@@ -513,7 +513,7 @@ final class ShareSyncManager {
                         updatedIndex.activeShares?[idx].syncSequence = update.syncSequence
                     }
                 }
-                try storage.saveIndex(updatedIndex, with: vaultKey)
+                try await storage.saveIndex(updatedIndex, with: vaultKey)
                 let fileCountAfter = updatedIndex.files.filter { !$0.isDeleted }.count
                 shareSyncLogger.info("Updated \(shareUpdates.count) share records. Files: \(fileCountBefore) -> \(fileCountAfter)")
             } catch {

@@ -81,7 +81,7 @@ struct SecureVideoPlayer: View {
         Task {
             do {
                 // Decrypt directly to temp file — avoids holding entire decrypted video in memory
-                let (_, tempURL) = try VaultStorage.shared.retrieveFileToTempURL(id: file.id, with: key)
+                let (_, tempURL) = try await VaultStorage.shared.retrieveFileToTempURL(id: file.id, with: key)
 
                 await MainActor.run {
                     self.tempFileURL = tempURL

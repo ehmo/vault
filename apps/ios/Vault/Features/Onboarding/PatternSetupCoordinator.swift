@@ -4,11 +4,11 @@ struct PatternSetupCoordinator {
     var deriveKey: ([Int], Int) async throws -> Data = { pattern, gridSize in
         try await KeyDerivation.deriveKey(from: pattern, gridSize: gridSize)
     }
-    var vaultExists: (Data) -> Bool = { key in
-        VaultStorage.shared.vaultHasFiles(for: VaultKey(key))
+    var vaultExists: (Data) async -> Bool = { key in
+        await VaultStorage.shared.vaultHasFiles(for: VaultKey(key))
     }
-    var saveIndex: (VaultStorage.VaultIndex, Data) throws -> Void = { index, key in
-        try VaultStorage.shared.saveIndex(index, with: VaultKey(key))
+    var saveIndex: (VaultStorage.VaultIndex, Data) async throws -> Void = { index, key in
+        try await VaultStorage.shared.saveIndex(index, with: VaultKey(key))
     }
     var saveRecoveryPhrase: (String, [Int], Int, Data) async throws -> Void = { phrase, pattern, gridSize, key in
         try await RecoveryPhraseManager.shared.saveRecoveryPhrase(
@@ -27,13 +27,13 @@ struct PatternSetupCoordinator {
         do {
             let key = try await deriveKey(pattern, gridSize)
 
-            if vaultExists(key) {
+            if await vaultExists(key) {
                 return .duplicatePattern
             }
 
             // Create empty vault index. loadIndex auto-creates a proper v3 index with master key when none exists.
-            let emptyIndex = try VaultStorage.shared.loadIndex(with: VaultKey(key))
-            try saveIndex(emptyIndex, key)
+            let emptyIndex = try await VaultStorage.shared.loadIndex(with: VaultKey(key))
+            try await saveIndex(emptyIndex, key)
 
             try await saveRecoveryPhrase(phrase, pattern, gridSize, key)
 

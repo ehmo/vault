@@ -174,7 +174,7 @@ enum ImportIngestor {
                                 : file.filename
 
                             // Process thumbnail and store
-                            try storeWithThumbnail(
+                            try await storeWithThumbnail(
                                 batch: batch, file: file, optimizedURL: optimizedURL,
                                 storedFilename: storedFilename, optimizedMimeType: optimizedMimeType,
                                 vaultKey: vaultKey
@@ -236,26 +236,29 @@ enum ImportIngestor {
         storedFilename: String,
         optimizedMimeType: String,
         vaultKey: VaultKey
-    ) throws {
-        try autoreleasepool {
-            var thumbnailData: Data?
+    ) async throws {
+        // Resolve thumbnail inside autoreleasepool so UIImage/CGImage temporaries are released
+        let thumbnailData: Data? = autoreleasepool {
+            var thumb: Data?
             if file.hasThumbnail,
                let encThumb = StagedImportManager.readEncryptedThumbnail(
                    batchId: batch.batchId, fileId: file.fileId
                ) {
-                thumbnailData = try? CryptoEngine.decrypt(encThumb, with: vaultKey.rawBytes)
+                thumb = try? CryptoEngine.decrypt(encThumb, with: vaultKey.rawBytes)
             }
-            if thumbnailData == nil {
-                thumbnailData = generateThumbnailSync(for: optimizedURL, mimeType: optimizedMimeType)
+            if thumb == nil {
+                thumb = generateThumbnailSync(for: optimizedURL, mimeType: optimizedMimeType)
             }
-            _ = try VaultStorage.shared.storeFileFromURL(
-                optimizedURL,
-                filename: storedFilename,
-                mimeType: optimizedMimeType,
-                with: vaultKey,
-                thumbnailData: thumbnailData
-            )
+            return thumb
         }
+        // storeFileFromURL is now async — must be called outside autoreleasepool
+        _ = try await VaultStorage.shared.storeFileFromURL(
+            optimizedURL,
+            filename: storedFilename,
+            mimeType: optimizedMimeType,
+            with: vaultKey,
+            thumbnailData: thumbnailData
+        )
     }
 
     // MARK: - Thumbnail Generation

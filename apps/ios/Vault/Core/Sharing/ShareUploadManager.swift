@@ -486,15 +486,14 @@ final class ShareUploadManager {
         Self.clearPendingUpload(jobId: jobId)
         removeJob(jobId: jobId)
 
-        if let shareVaultId, let vaultKey {
-            removeShareRecord(shareVaultId: shareVaultId, vaultKey: vaultKey)
-        }
-
         teardownBackgroundExecutionIfIdle()
 
         guard let shareVaultId, let vaultKey else { return }
         let capturedCloudKit = cloudKit
         let keyFingerprint = vaultKey.rawBytes.hashValue
+        Task { [weak self] in
+            await self?.removeShareRecord(shareVaultId: shareVaultId, vaultKey: vaultKey)
+        }
         Task.detached(priority: .utility) {
             if cleanupRemote {
                 try? await capturedCloudKit.deleteSharedVault(shareVaultId: shareVaultId)
@@ -535,7 +534,7 @@ final class ShareUploadManager {
 
             let capturedStorage = storage
             let prepTask = Task.detached(priority: .userInitiated) {
-                try Self.buildInitialUploadArtifacts(
+                try await Self.buildInitialUploadArtifacts(
                     jobId: jobId,
                     phrase: phrase,
                     vaultKey: vaultKey,
@@ -654,7 +653,7 @@ final class ShareUploadManager {
                 try syncCache.saveSyncState(syncState)
             }.value
 
-            appendShareRecord(
+            await appendShareRecord(
                 shareVaultId: shareVaultId,
                 policy: policy,
                 shareKeyData: prepared.shareKey.rawBytes,
@@ -746,7 +745,7 @@ final class ShareUploadManager {
                 // was unlocked after the task was created with a nil key.
                 let effectiveKey = vaultKey ?? vaultKeyProvider?()
                 if let effectiveKey {
-                    appendShareRecord(
+                    await appendShareRecord(
                         shareVaultId: state.shareVaultId,
                         policy: state.policy,
                         shareKeyData: state.shareKeyData,
@@ -854,7 +853,7 @@ final class ShareUploadManager {
 
             let effectiveKey2 = vaultKey ?? vaultKeyProvider?()
             if let effectiveKey2 {
-                appendShareRecord(
+                await appendShareRecord(
                     shareVaultId: state.shareVaultId,
                     policy: state.policy,
                     shareKeyData: state.shareKeyData,
@@ -1068,15 +1067,15 @@ final class ShareUploadManager {
         }
     }
 
-    private func removeShareRecord(shareVaultId: String, vaultKey: VaultKey) {
+    private func removeShareRecord(shareVaultId: String, vaultKey: VaultKey) async {
         do {
-            var index = try storage.loadIndex(with: vaultKey)
+            var index = try await storage.loadIndex(with: vaultKey)
             guard var shares = index.activeShares else { return }
             let originalCount = shares.count
             shares.removeAll { $0.id == shareVaultId }
             guard shares.count != originalCount else { return }
             index.activeShares = shares.isEmpty ? nil : shares
-            try storage.saveIndex(index, with: vaultKey)
+            try await storage.saveIndex(index, with: vaultKey)
         } catch {
             Self.logger.error("Failed to remove share record for terminated upload: \(error.localizedDescription, privacy: .public)")
         }
@@ -1087,9 +1086,9 @@ final class ShareUploadManager {
         policy: VaultStorage.SharePolicy,
         shareKeyData: Data,
         vaultKey: VaultKey
-    ) {
+    ) async {
         do {
-            var index = try storage.loadIndex(with: vaultKey)
+            var index = try await storage.loadIndex(with: vaultKey)
             let exists = index.activeShares?.contains(where: { $0.id == shareVaultId }) ?? false
             if !exists {
                 let record = VaultStorage.ShareRecord(
@@ -1104,7 +1103,7 @@ final class ShareUploadManager {
                     index.activeShares = []
                 }
                 index.activeShares?.append(record)
-                try storage.saveIndex(index, with: vaultKey)
+                try await storage.saveIndex(index, with: vaultKey)
             }
         } catch {
             Self.logger.error("Failed to append share record: \(error.localizedDescription, privacy: .public)")
@@ -1242,13 +1241,13 @@ final class ShareUploadManager {
         vaultKey: VaultKey,
         ownerFingerprint: String,
         storage: VaultStorageProtocol = VaultStorage.shared
-    ) throws -> PreparedUploadArtifacts {
+    ) async throws -> PreparedUploadArtifacts {
         try Task.checkCancellation()
 
         let shareKey = ShareKey(try KeyDerivation.deriveShareKey(from: phrase))
         let phraseVaultId = KeyDerivation.shareVaultId(from: phrase)
 
-        let index = try storage.loadIndex(with: vaultKey)
+        let index = try await storage.loadIndex(with: vaultKey)
         guard let encryptedMasterKey = index.encryptedMasterKey else {
             throw VaultStorageError.corruptedData
         }
@@ -1263,10 +1262,34 @@ final class ShareUploadManager {
         let svdfURL = svdfURL(jobId: jobId)
         try prepareJobDirectory(jobId: jobId)
 
-        var pendingTempURLForCleanup: URL?
+        // Pre-retrieve all files to temp URLs (async) so the sync SVDFSerializer
+        // closure can consume them without needing await.
+        struct PreRetrievedFile {
+            let entry: VaultStorage.VaultIndex.VaultFileEntry
+            let header: CryptoEngine.EncryptedFileHeader
+            let plaintextURL: URL
+        }
+
+        var preRetrieved: [PreRetrievedFile] = []
+        preRetrieved.reserveCapacity(activeFiles.count)
+        for entry in activeFiles {
+            try Task.checkCancellation()
+            let (header, plaintextURL) = try await storage.retrieveFileToTempURL(
+                id: entry.fileId,
+                with: vaultKey
+            )
+            preRetrieved.append(PreRetrievedFile(
+                entry: entry,
+                header: header,
+                plaintextURL: plaintextURL
+            ))
+        }
+
+        // Clean up any remaining temp files on early exit
+        var consumedIndices: Set<Int> = []
         defer {
-            if let pendingTempURLForCleanup {
-                try? FileManager.default.removeItem(at: pendingTempURLForCleanup)
+            for (i, file) in preRetrieved.enumerated() where !consumedIndices.contains(i) {
+                try? FileManager.default.removeItem(at: file.plaintextURL)
             }
         }
 
@@ -1275,35 +1298,30 @@ final class ShareUploadManager {
             fileCount: activeFiles.count,
             forEachFile: { i in
                 try Task.checkCancellation()
-                let entry = activeFiles[i]
-                return try autoreleasepool {
-                    let (header, plaintextURL) = try storage.retrieveFileToTempURL(
-                        id: entry.fileId,
-                        with: vaultKey
-                    )
-                    pendingTempURLForCleanup = plaintextURL
+                let retrieved = preRetrieved[i]
+                let entry = retrieved.entry
+                let header = retrieved.header
 
-                    var encryptedThumb: Data? = nil
-                    if let thumbData = entry.thumbnailData {
-                        let decryptedThumb = try CryptoEngine.decrypt(thumbData, with: masterKey)
-                        encryptedThumb = try CryptoEngine.encrypt(decryptedThumb, with: shareKey.rawBytes)
-                    }
-
-                    return SVDFSerializer.StreamingSourceFile(
-                        id: header.fileId,
-                        filename: header.originalFilename,
-                        mimeType: header.mimeType,
-                        originalSize: Int(header.originalSize),
-                        createdAt: header.createdAt,
-                        encryptedThumbnail: encryptedThumb,
-                        plaintextContentURL: plaintextURL,
-                        duration: entry.duration
-                    )
+                var encryptedThumb: Data? = nil
+                if let thumbData = entry.thumbnailData {
+                    let decryptedThumb = try CryptoEngine.decrypt(thumbData, with: masterKey)
+                    encryptedThumb = try CryptoEngine.encrypt(decryptedThumb, with: shareKey.rawBytes)
                 }
+
+                return SVDFSerializer.StreamingSourceFile(
+                    id: header.fileId,
+                    filename: header.originalFilename,
+                    mimeType: header.mimeType,
+                    originalSize: Int(header.originalSize),
+                    createdAt: header.createdAt,
+                    encryptedThumbnail: encryptedThumb,
+                    plaintextContentURL: retrieved.plaintextURL,
+                    duration: entry.duration
+                )
             },
-            didWriteFile: { _, file in
+            didWriteFile: { i, file in
+                consumedIndices.insert(i)
                 try? FileManager.default.removeItem(at: file.plaintextContentURL)
-                pendingTempURLForCleanup = nil
             },
             metadata: metadata,
             shareKey: shareKey.rawBytes

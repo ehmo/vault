@@ -284,7 +284,7 @@ final class ShareImportManager {
                     }
 
                     do {
-                        try autoreleasepool {
+                        let (decrypted, thumbnailData) = try autoreleasepool {
                             let decrypted = try CryptoEngine.decryptStaged(file.encryptedContent, with: shareKey.rawBytes)
                             let thumbnailData = Self.resolveThumbnail(
                                 encryptedThumbnail: file.encryptedThumbnail,
@@ -292,20 +292,21 @@ final class ShareImportManager {
                                 decryptedData: decrypted,
                                 shareKey: shareKey.rawBytes
                             )
-
-                            _ = try VaultStorage.shared.storeFile(
-                                data: decrypted,
-                                filename: file.filename,
-                                mimeType: file.mimeType,
-                                with: capturedPatternKey,
-                                thumbnailData: thumbnailData,
-                                duration: file.duration,
-                                fileId: file.id  // <- Preserve original file ID from shared vault
-                            )
-
-                            // Track successful import
-                            pendingImportState.importedFileIds.append(file.id.uuidString)
+                            return (decrypted, thumbnailData)
                         }
+
+                        _ = try await VaultStorage.shared.storeFile(
+                            data: decrypted,
+                            filename: file.filename,
+                            mimeType: file.mimeType,
+                            with: capturedPatternKey,
+                            thumbnailData: thumbnailData,
+                            duration: file.duration,
+                            fileId: file.id  // <- Preserve original file ID from shared vault
+                        )
+
+                        // Track successful import
+                        pendingImportState.importedFileIds.append(file.id.uuidString)
 
                         // Save progress after EVERY file for crash recovery
                         // Use updatePendingImportState to avoid rewriting vault data (already saved after download)
@@ -353,14 +354,14 @@ final class ShareImportManager {
                 guard !Task.isCancelled else { return }
 
                 // Mark vault index as shared vault
-                var index = try VaultStorage.shared.loadIndex(with: capturedPatternKey)
+                var index = try await VaultStorage.shared.loadIndex(with: capturedPatternKey)
                 index.isSharedVault = true
                 index.sharedVaultId = result.shareVaultId
                 index.sharePolicy = result.policy
                 index.openCount = 0
                 index.shareKeyData = shareKey.rawBytes
                 index.sharedVaultVersion = result.version
-                try VaultStorage.shared.saveIndex(index, with: capturedPatternKey)
+                try await VaultStorage.shared.saveIndex(index, with: capturedPatternKey)
 
                 // Clear pending import since we're done
                 Self.clearPendingImport()

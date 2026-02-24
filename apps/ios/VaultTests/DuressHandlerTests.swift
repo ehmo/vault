@@ -30,9 +30,9 @@ final class DuressHandlerTests: XCTestCase {
         return key
     }
 
-    private func createVaultWithFiles(key: Data, fileCount: Int = 1) throws {
+    private func createVaultWithFiles(key: Data, fileCount: Int = 1) async throws {
         let vaultKey = VaultKey(key)
-        var index = try storage.loadIndex(with: vaultKey)
+        var index = try await storage.loadIndex(with: vaultKey)
         for i in 0..<fileCount {
             let entry = VaultStorage.VaultIndex.VaultFileEntry(
                 fileId: UUID(),
@@ -49,7 +49,7 @@ final class DuressHandlerTests: XCTestCase {
             )
             index.files.append(entry)
         }
-        try storage.saveIndex(index, with: vaultKey)
+        try await storage.saveIndex(index, with: vaultKey)
     }
 
     // MARK: - setAsDuressVault / isDuressKey
@@ -109,9 +109,9 @@ final class DuressHandlerTests: XCTestCase {
         let normalKey1 = makeKey()
         let normalKey2 = makeKey()
 
-        try createVaultWithFiles(key: duressKey, fileCount: 2)
-        try createVaultWithFiles(key: normalKey1, fileCount: 3)
-        try createVaultWithFiles(key: normalKey2, fileCount: 1)
+        try await createVaultWithFiles(key: duressKey, fileCount: 2)
+        try await createVaultWithFiles(key: normalKey1, fileCount: 3)
+        try await createVaultWithFiles(key: normalKey2, fileCount: 1)
 
         try await handler.setAsDuressVault(key: duressKey)
 
@@ -125,13 +125,13 @@ final class DuressHandlerTests: XCTestCase {
         XCTAssertFalse(storage.vaultExists(for: VaultKey(normalKey1)), "Normal vault 1 should be destroyed")
         XCTAssertFalse(storage.vaultExists(for: VaultKey(normalKey2)), "Normal vault 2 should be destroyed")
 
-        let duressIndex = try storage.loadIndex(with: VaultKey(duressKey))
+        let duressIndex = try await storage.loadIndex(with: VaultKey(duressKey))
         XCTAssertEqual(duressIndex.files.count, 2, "Duress vault should retain all files")
     }
 
     func testTriggerDuressClearsDuressDesignation() async throws {
         let duressKey = makeKey()
-        try createVaultWithFiles(key: duressKey)
+        try await createVaultWithFiles(key: duressKey)
         try await handler.setAsDuressVault(key: duressKey)
 
         await handler.triggerDuress(preservingKey: duressKey)
@@ -145,7 +145,7 @@ final class DuressHandlerTests: XCTestCase {
         try await handler.setAsDuressVault(key: duressKey)
 
         let normalKey = makeKey()
-        try createVaultWithFiles(key: normalKey)
+        try await createVaultWithFiles(key: normalKey)
 
         await handler.triggerDuress(preservingKey: duressKey)
 
@@ -157,8 +157,8 @@ final class DuressHandlerTests: XCTestCase {
     func testPerformNuclearWipeDestroysEverything() async throws {
         let key1 = makeKey()
         let key2 = makeKey()
-        try createVaultWithFiles(key: key1)
-        try createVaultWithFiles(key: key2)
+        try await createVaultWithFiles(key: key1)
+        try await createVaultWithFiles(key: key2)
         try await handler.setAsDuressVault(key: key1)
 
         await handler.performNuclearWipe(secure: false)

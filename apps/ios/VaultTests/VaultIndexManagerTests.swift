@@ -44,8 +44,8 @@ final class VaultIndexManagerTests: XCTestCase {
 
     /// Tests that loadIndex creates a proper v3 index with master key for new vaults.
     /// Catches: Using bare VaultIndex() init without master key
-    func testLoadIndexCreatesNewVaultWithMasterKey() throws {
-        let index = try manager.loadIndex(with: testKey)
+    func testLoadIndexCreatesNewVaultWithMasterKey() async throws {
+        let index = try await manager.loadIndex(with: testKey)
 
         XCTAssertEqual(index.version, 3, "New vault should be v3")
         XCTAssertNotNil(index.encryptedMasterKey, "New vault must have encrypted master key")
@@ -54,8 +54,8 @@ final class VaultIndexManagerTests: XCTestCase {
     }
 
     /// Tests that the master key can be extracted and decrypted.
-    func testGetMasterKeyExtractsSuccessfully() throws {
-        let index = try manager.loadIndex(with: testKey)
+    func testGetMasterKeyExtractsSuccessfully() async throws {
+        let index = try await manager.loadIndex(with: testKey)
         let masterKey = try manager.getMasterKey(from: index, vaultKey: testKey)
 
         XCTAssertEqual(masterKey.rawBytes.count, 32, "Master key should be 32 bytes")
@@ -75,9 +75,9 @@ final class VaultIndexManagerTests: XCTestCase {
     // MARK: - Caching
 
     /// Tests that cached index is returned for the same key.
-    func testLoadIndexUsesCachedIndexForSameKey() throws {
-        let index1 = try manager.loadIndex(with: testKey)
-        let index2 = try manager.loadIndex(with: testKey)
+    func testLoadIndexUsesCachedIndexForSameKey() async throws {
+        let index1 = try await manager.loadIndex(with: testKey)
+        let index2 = try await manager.loadIndex(with: testKey)
 
         // Should return same data due to caching (VaultIndex is a struct, so we compare values)
         XCTAssertEqual(index1.files.count, index2.files.count)
@@ -85,32 +85,32 @@ final class VaultIndexManagerTests: XCTestCase {
     }
 
     /// Tests that cache is updated after save.
-    func testSaveIndexUpdatesCache() throws {
-        let index = try manager.loadIndex(with: testKey)
+    func testSaveIndexUpdatesCache() async throws {
+        let index = try await manager.loadIndex(with: testKey)
 
         // Save
-        try manager.saveIndex(index, with: testKey)
+        try await manager.saveIndex(index, with: testKey)
 
         // Load again - should get cached version
-        let cached = try manager.loadIndex(with: testKey)
+        let cached = try await manager.loadIndex(with: testKey)
         XCTAssertNotNil(cached)
     }
 
     /// Tests explicit cache invalidation.
-    func testInvalidateCache() throws {
-        _ = try manager.loadIndex(with: testKey)
+    func testInvalidateCache() async throws {
+        _ = try await manager.loadIndex(with: testKey)
 
-        manager.invalidateCache()
+        await manager.invalidateCache()
 
         // After invalidation, should load from disk (new instance)
-        let index2 = try manager.loadIndex(with: testKey)
+        let index2 = try await manager.loadIndex(with: testKey)
         XCTAssertNotNil(index2)
     }
 
     // MARK: - Migration
 
     /// Tests v1 to v3 migration (through v2).
-    func testLoadIndexMigrationV1ToV3() throws {
+    func testLoadIndexMigrationV1ToV3() async throws {
         // Create v1 index manually
         let v1Index = VaultStorage.VaultIndex(files: [], nextOffset: 0, totalSize: 50 * 1024 * 1024)
         let encoded = try JSONEncoder().encode(v1Index)
@@ -118,7 +118,7 @@ final class VaultIndexManagerTests: XCTestCase {
         try encrypted.write(to: manager.indexURL(for: testKey))
 
         // Load should migrate to v3
-        let migrated = try manager.loadIndex(with: testKey)
+        let migrated = try await manager.loadIndex(with: testKey)
         XCTAssertEqual(migrated.version, 3, "Should migrate through v2 to v3")
         XCTAssertNotNil(migrated.encryptedMasterKey, "Should have master key after migration")
     }
@@ -126,21 +126,24 @@ final class VaultIndexManagerTests: XCTestCase {
     // MARK: - Error Handling
 
     /// Tests that corrupted data throws appropriate error.
-    func testLoadIndexCorruptedDataThrows() throws {
+    func testLoadIndexCorruptedDataThrows() async throws {
         // Write garbage data
         let garbage = Data("not a valid encrypted index".utf8)
         try garbage.write(to: manager.indexURL(for: testKey))
 
-        XCTAssertThrowsError(try manager.loadIndex(with: testKey)) { error in
+        do {
+            _ = try await manager.loadIndex(with: testKey)
+            XCTFail("Expected indexDecryptionFailed error")
+        } catch {
             XCTAssertEqual(error as? VaultStorageError, .indexDecryptionFailed)
         }
     }
 
     /// Tests that wrong key throws decryption error.
-    func testLoadIndexWrongKeyThrows() throws {
+    func testLoadIndexWrongKeyThrows() async throws {
         // Create and persist index with testKey
-        let index = try manager.loadIndex(with: testKey)
-        try manager.saveIndex(index, with: testKey)
+        let index = try await manager.loadIndex(with: testKey)
+        try await manager.saveIndex(index, with: testKey)
 
         // Copy testKey's encrypted file to wrongKey's path so decryption is attempted
         let wrongKey = VaultKey(CryptoEngine.generateRandomBytes(count: 32)!)
@@ -149,9 +152,12 @@ final class VaultIndexManagerTests: XCTestCase {
         try FileManager.default.copyItem(at: srcURL, to: dstURL)
 
         // Invalidate cache so it reads from disk
-        manager.invalidateCache()
+        await manager.invalidateCache()
 
-        XCTAssertThrowsError(try manager.loadIndex(with: wrongKey)) { error in
+        do {
+            _ = try await manager.loadIndex(with: wrongKey)
+            XCTFail("Expected indexDecryptionFailed error")
+        } catch {
             XCTAssertEqual(error as? VaultStorageError, .indexDecryptionFailed)
         }
     }

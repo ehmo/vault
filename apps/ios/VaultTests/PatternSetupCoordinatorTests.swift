@@ -10,8 +10,8 @@ final class PatternSetupCoordinatorTests: XCTestCase {
 
     private func makeCoordinator(
         deriveKey: (([Int], Int) async throws -> Data)? = nil,
-        vaultExists: ((Data) -> Bool)? = nil,
-        saveIndex: ((VaultStorage.VaultIndex, Data) throws -> Void)? = nil,
+        vaultExists: ((Data) async -> Bool)? = nil,
+        saveIndex: ((VaultStorage.VaultIndex, Data) async throws -> Void)? = nil,
         saveRecoveryPhrase: ((String, [Int], Int, Data) async throws -> Void)? = nil
     ) -> PatternSetupCoordinator {
         var coordinator = PatternSetupCoordinator()

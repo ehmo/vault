@@ -273,7 +273,7 @@ struct FullScreenPhotoViewer: View {
             let screenScale = await UIScreen.main.scale
             let uiImage: UIImage? = await Task.detached(priority: .userInitiated) {
                 do {
-                    let (header, content) = try VaultStorage.shared.retrieveFile(id: fileId, with: key)
+                    let (header, content) = try await VaultStorage.shared.retrieveFile(id: fileId, with: key)
                     guard header.mimeType.hasPrefix("image/") else { return nil }
                     return Self.downsampledImage(from: content, maxPixelSize: 1920 * Int(screenScale))
                 } catch {
@@ -349,7 +349,7 @@ struct FullScreenPhotoViewer: View {
         Task.detached(priority: .userInitiated) {
             do {
                 // Use streaming decryption to avoid 2x memory peak for large files
-                let (header, tempURL) = try VaultStorage.shared.retrieveFileToTempURL(id: file.id, with: key)
+                let (header, tempURL) = try await VaultStorage.shared.retrieveFileToTempURL(id: file.id, with: key)
                 let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
                 let ext = (file.filename as NSString?)?.pathExtension ?? header.mimeType.split(separator: "/").last.map(String.init) ?? "bin"
                 let filename = "Export_\(file.id.uuidString).\(ext)"
@@ -369,7 +369,7 @@ struct FullScreenPhotoViewer: View {
 
         Task {
             do {
-                try VaultStorage.shared.deleteFile(id: file.id, with: key)
+                try await VaultStorage.shared.deleteFile(id: file.id, with: key)
             } catch {
                 EmbraceManager.shared.captureError(error)
             }

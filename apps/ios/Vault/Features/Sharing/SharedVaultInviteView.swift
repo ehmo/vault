@@ -357,9 +357,9 @@ struct SharedVaultInviteView: View {
         do {
             let patternKey = try await resolvePatternKey(precomputedPatternKey: precomputedPatternKey)
 
-            if VaultStorage.shared.vaultHasFiles(for: patternKey), !forceOverwrite {
+            if await VaultStorage.shared.vaultHasFiles(for: patternKey), !forceOverwrite {
                 isSettingUpVault = false  // Reset so overwrite confirmation can proceed
-                prepareOverwriteConfirmation(for: patternKey)
+                await prepareOverwriteConfirmation(for: patternKey)
                 return
             }
 
@@ -374,8 +374,8 @@ struct SharedVaultInviteView: View {
 
             // Ensure a proper v3 vault index with encrypted master key + blob metadata.
             // Using loadIndex here keeps shared-invite setup aligned with JoinVaultView.
-            let emptyIndex = try VaultStorage.shared.loadIndex(with: patternKey)
-            try VaultStorage.shared.saveIndex(emptyIndex, with: patternKey)
+            let emptyIndex = try await VaultStorage.shared.loadIndex(with: patternKey)
+            try await VaultStorage.shared.saveIndex(emptyIndex, with: patternKey)
 
             appState.isUnlocked = true
             deepLinkHandler.clearPending()
@@ -398,11 +398,11 @@ struct SharedVaultInviteView: View {
         return VaultKey(keyData)
     }
 
-    private func prepareOverwriteConfirmation(for patternKey: VaultKey) {
+    private func prepareOverwriteConfirmation(for patternKey: VaultKey) async {
         let letters = GridLetterManager.shared.vaultName(for: newPattern)
         existingVaultNameForOverwrite = letters.isEmpty ? "Vault" : "Vault \(letters)"
 
-        if let index = try? VaultStorage.shared.loadIndex(with: patternKey) {
+        if let index = try? await VaultStorage.shared.loadIndex(with: patternKey) {
             existingFileCountForOverwrite = index.files.filter { !$0.isDeleted }.count
         } else {
             existingFileCountForOverwrite = 0

@@ -258,7 +258,7 @@ enum ParallelImporter {
         let metadata = await generateVideoMetadata(from: optimizedURL)
         let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
 
-        let fileId = try VaultStorage.shared.storeFileFromURL(
+        let fileId = try await VaultStorage.shared.storeFileFromURL(
             optimizedURL, filename: filename, mimeType: mimeType,
             with: key, thumbnailData: metadata.thumbnail, duration: metadata.duration,
             originalDate: metadata.creationDate
@@ -321,7 +321,7 @@ enum ParallelImporter {
         let thumbnail = FileUtilities.generateThumbnail(fromFileURL: optimizedURL)
         let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
 
-        let fileId = try VaultStorage.shared.storeFileFromURL(
+        let fileId = try await VaultStorage.shared.storeFileFromURL(
             optimizedURL, filename: filename, mimeType: mimeType,
             with: key, thumbnailData: thumbnail, originalDate: originalDate
         )
@@ -373,7 +373,7 @@ enum ParallelImporter {
             let originalDate = metadata.creationDate ?? resourceOriginalDate
             let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
 
-            let fileId = try VaultStorage.shared.storeFileFromURL(
+            let fileId = try await VaultStorage.shared.storeFileFromURL(
                 optimizedURL, filename: filename, mimeType: mimeType,
                 with: key, thumbnailData: metadata.thumbnail, duration: metadata.duration,
                 originalDate: originalDate
@@ -399,7 +399,7 @@ enum ParallelImporter {
                 ? (FileUtilities.extractImageCreationDate(from: url) ?? resourceOriginalDate)
                 : resourceOriginalDate
 
-            let fileId = try VaultStorage.shared.storeFileFromURL(
+            let fileId = try await VaultStorage.shared.storeFileFromURL(
                 optimizedURL, filename: filename, mimeType: mimeType,
                 with: key, thumbnailData: thumbnail, originalDate: originalDate
             )

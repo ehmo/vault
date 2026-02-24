@@ -31,16 +31,16 @@ final class ShareRoundTripTests: XCTestCase {
 
     // MARK: - Single File Round Trip
 
-    func testShareRoundTripPreservesFileContent() throws {
+    func testShareRoundTripPreservesFileContent() async throws {
         // 1. Owner stores a file
-        let ownerIndex = try storage.loadIndex(with: ownerKey)
-        try storage.saveIndex(ownerIndex, with: ownerKey)
+        let ownerIndex = try await storage.loadIndex(with: ownerKey)
+        try await storage.saveIndex(ownerIndex, with: ownerKey)
 
         let testContent = Data("Hello, this is a secret file for sharing!".utf8)
         let testFilename = "test_share.txt"
         let testMimeType = "text/plain"
 
-        let fileId = try storage.storeFile(
+        let fileId = try await storage.storeFile(
             data: testContent,
             filename: testFilename,
             mimeType: testMimeType,
@@ -53,7 +53,7 @@ final class ShareRoundTripTests: XCTestCase {
         let shareKey = ShareKey(shareKeyData)
 
         // 3. Owner re-encrypts file with share key
-        let index = try storage.loadIndex(with: ownerKey)
+        let index = try await storage.loadIndex(with: ownerKey)
         let masterKey = try getMasterKey(from: index, vaultKey: ownerKey)
 
         guard let fileEntry = index.files.first(where: { $0.fileId == fileId }) else {
@@ -73,10 +73,10 @@ final class ShareRoundTripTests: XCTestCase {
         XCTAssertEqual(recipientDecrypted, testContent, "Recipient decryption should match original")
 
         // 5. Recipient stores in their vault
-        let recipientIndex = try storage.loadIndex(with: recipientKey)
-        try storage.saveIndex(recipientIndex, with: recipientKey)
+        let recipientIndex = try await storage.loadIndex(with: recipientKey)
+        try await storage.saveIndex(recipientIndex, with: recipientKey)
 
-        let recipientFileId = try storage.storeFile(
+        let recipientFileId = try await storage.storeFile(
             data: recipientDecrypted,
             filename: testFilename,
             mimeType: testMimeType,
@@ -84,7 +84,7 @@ final class ShareRoundTripTests: XCTestCase {
         )
 
         // 6. Verify: retrieve from recipient vault and compare
-        let result = try storage.retrieveFile(id: recipientFileId, with: recipientKey)
+        let result = try await storage.retrieveFile(id: recipientFileId, with: recipientKey)
         XCTAssertEqual(result.content, testContent, "Round-trip content should match original")
         XCTAssertEqual(result.header.originalFilename, testFilename)
         XCTAssertEqual(result.header.mimeType, testMimeType)
@@ -92,7 +92,7 @@ final class ShareRoundTripTests: XCTestCase {
 
     // MARK: - Multiple Files
 
-    func testShareRoundTripWithMultipleFiles() throws {
+    func testShareRoundTripWithMultipleFiles() async throws {
         // Store 3 files of different types
         let files: [(data: Data, name: String, mime: String)] = [
             (Data("Document content here".utf8), "doc.txt", "text/plain"),
@@ -100,12 +100,12 @@ final class ShareRoundTripTests: XCTestCase {
             (Data(repeating: 0xAB, count: 512), "data.bin", "application/octet-stream"),
         ]
 
-        let ownerIndex = try storage.loadIndex(with: ownerKey)
-        try storage.saveIndex(ownerIndex, with: ownerKey)
+        let ownerIndex = try await storage.loadIndex(with: ownerKey)
+        try await storage.saveIndex(ownerIndex, with: ownerKey)
 
         var storedIds: [UUID] = []
         for file in files {
-            let id = try storage.storeFile(
+            let id = try await storage.storeFile(
                 data: file.data, filename: file.name, mimeType: file.mime, with: ownerKey
             )
             storedIds.append(id)
@@ -116,7 +116,7 @@ final class ShareRoundTripTests: XCTestCase {
         let shareKey = ShareKey(shareKeyData)
 
         // Re-encrypt all files
-        let index = try storage.loadIndex(with: ownerKey)
+        let index = try await storage.loadIndex(with: ownerKey)
         let masterKey = try getMasterKey(from: index, vaultKey: ownerKey)
 
         var shareEncryptedFiles: [(data: Data, name: String, mime: String)] = []
@@ -133,18 +133,18 @@ final class ShareRoundTripTests: XCTestCase {
         }
 
         // Recipient decrypts and stores all files
-        let recipientIndex = try storage.loadIndex(with: recipientKey)
-        try storage.saveIndex(recipientIndex, with: recipientKey)
+        let recipientIndex = try await storage.loadIndex(with: recipientKey)
+        try await storage.saveIndex(recipientIndex, with: recipientKey)
 
         for (i, shareFile) in shareEncryptedFiles.enumerated() {
             let decrypted = try CryptoEngine.decrypt(shareFile.data, with: shareKey.rawBytes)
             XCTAssertEqual(decrypted, files[i].data, "Recipient decryption of file \(i) should match")
 
-            let recipientId = try storage.storeFile(
+            let recipientId = try await storage.storeFile(
                 data: decrypted, filename: shareFile.name, mimeType: shareFile.mime, with: recipientKey
             )
 
-            let result = try storage.retrieveFile(id: recipientId, with: recipientKey)
+            let result = try await storage.retrieveFile(id: recipientId, with: recipientKey)
             XCTAssertEqual(result.content, files[i].data, "Round-trip file \(i) content should match")
             XCTAssertEqual(result.header.originalFilename, files[i].name)
         }
@@ -152,14 +152,14 @@ final class ShareRoundTripTests: XCTestCase {
 
     // MARK: - Thumbnail Round Trip
 
-    func testShareRoundTripWithThumbnail() throws {
-        let ownerIndex = try storage.loadIndex(with: ownerKey)
-        try storage.saveIndex(ownerIndex, with: ownerKey)
+    func testShareRoundTripWithThumbnail() async throws {
+        let ownerIndex = try await storage.loadIndex(with: ownerKey)
+        try await storage.saveIndex(ownerIndex, with: ownerKey)
 
         let testContent = Data(repeating: 0xDE, count: 2048)
         let thumbnailData = Data(repeating: 0xBE, count: 256)
 
-        let fileId = try storage.storeFile(
+        let fileId = try await storage.storeFile(
             data: testContent,
             filename: "photo.jpg",
             mimeType: "image/jpeg",
@@ -172,7 +172,7 @@ final class ShareRoundTripTests: XCTestCase {
         let shareKey = ShareKey(shareKeyData)
 
         // Re-encrypt content and thumbnail
-        let index = try storage.loadIndex(with: ownerKey)
+        let index = try await storage.loadIndex(with: ownerKey)
         let masterKey = try getMasterKey(from: index, vaultKey: ownerKey)
 
         guard let entry = index.files.first(where: { $0.fileId == fileId }) else {
@@ -202,10 +202,10 @@ final class ShareRoundTripTests: XCTestCase {
         XCTAssertEqual(recipientThumb, thumbnailData, "Thumbnail round-trip should match")
 
         // Recipient stores
-        let recipientIndex = try storage.loadIndex(with: recipientKey)
-        try storage.saveIndex(recipientIndex, with: recipientKey)
+        let recipientIndex = try await storage.loadIndex(with: recipientKey)
+        try await storage.saveIndex(recipientIndex, with: recipientKey)
 
-        let recipientFileId = try storage.storeFile(
+        let recipientFileId = try await storage.storeFile(
             data: recipientContent,
             filename: "photo.jpg",
             mimeType: "image/jpeg",
@@ -213,7 +213,7 @@ final class ShareRoundTripTests: XCTestCase {
             thumbnailData: recipientThumb
         )
 
-        let result = try storage.retrieveFile(id: recipientFileId, with: recipientKey)
+        let result = try await storage.retrieveFile(id: recipientFileId, with: recipientKey)
         XCTAssertEqual(result.content, testContent, "Content round-trip should match")
     }
 

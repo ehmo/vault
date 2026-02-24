@@ -482,7 +482,7 @@ struct ChangePatternView: View {
                 // Pattern valid — don't show feedback yet (avoids brief flash before transition)
                 do {
                     let newKey = try await KeyDerivation.deriveKey(from: pattern, gridSize: patternState.gridSize)
-                    let hasFiles = VaultStorage.shared.vaultHasFiles(for: VaultKey(newKey))
+                    let hasFiles = await VaultStorage.shared.vaultHasFiles(for: VaultKey(newKey))
 
                     await MainActor.run {
                         if hasFiles {
@@ -558,7 +558,7 @@ struct ChangePatternView: View {
                 let newKey = try await KeyDerivation.deriveKey(from: flow.newPattern, gridSize: patternState.gridSize)
 
                 // Change the vault key
-                try VaultStorage.shared.changeVaultKey(from: currentKey, to: VaultKey(newKey))
+                try await VaultStorage.shared.changeVaultKey(from: currentKey, to: VaultKey(newKey))
 
                 // Update app state with new key and pattern
                 await MainActor.run {

@@ -73,7 +73,7 @@ actor DuressHandler {
         // 5. The duress pattern will still derive the same key
         
         // 1. Load and backup the duress vault's index data before destruction
-        guard let duressIndex = try? storage.loadIndex(with: VaultKey(duressKey)) else {
+        guard let duressIndex = try? await storage.loadIndex(with: VaultKey(duressKey)) else {
             Self.logger.error("Could not load duress vault index")
             await destroyAllNonDuressData(duressKey: nil)
             return

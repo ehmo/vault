@@ -31,25 +31,25 @@ final class VaultFullChainTests: XCTestCase {
         testKeys.append(key)
     }
 
-    private func initializeVault(with key: VaultKey) throws {
-        let index = try storage.loadIndex(with: key)
-        try storage.saveIndex(index, with: key)
+    private func initializeVault(with key: VaultKey) async throws {
+        let index = try await storage.loadIndex(with: key)
+        try await storage.saveIndex(index, with: key)
     }
 
     // MARK: - Full Chain: Pattern -> Key -> Store -> Retrieve
 
-    func testFullChainPatternToFile() throws {
+    func testFullChainPatternToFile() async throws {
         // 1. Create a pattern and derive key
         let pattern = [0, 1, 6, 7, 12, 13]
         let key = deriveTestKey(from: pattern)
         registerKey(key)
 
         // 2. Initialize vault
-        try initializeVault(with: key)
+        try await initializeVault(with: key)
 
         // 3. Store a file
         let content = Data("Hello from the full chain test!".utf8)
-        let fileId = try storage.storeFile(
+        let fileId = try await storage.storeFile(
             data: content,
             filename: "chain_test.txt",
             mimeType: "text/plain",
@@ -57,22 +57,22 @@ final class VaultFullChainTests: XCTestCase {
         )
 
         // 4. Retrieve and verify
-        let result = try storage.retrieveFile(id: fileId, with: key)
+        let result = try await storage.retrieveFile(id: fileId, with: key)
         XCTAssertEqual(result.content, content, "Retrieved content should match stored content")
         XCTAssertEqual(result.header.originalFilename, "chain_test.txt")
         XCTAssertEqual(result.header.mimeType, "text/plain")
     }
 
-    func testFullChainWithThumbnail() throws {
+    func testFullChainWithThumbnail() async throws {
         let pattern = [0, 5, 10, 11, 12, 13]
         let key = deriveTestKey(from: pattern)
         registerKey(key)
 
-        try initializeVault(with: key)
+        try await initializeVault(with: key)
 
         let content = Data("image data placeholder".utf8)
         let thumbnail = Data("thumbnail placeholder".utf8)
-        let fileId = try storage.storeFile(
+        let fileId = try await storage.storeFile(
             data: content,
             filename: "photo.jpg",
             mimeType: "image/jpeg",
@@ -81,7 +81,7 @@ final class VaultFullChainTests: XCTestCase {
         )
 
         // Verify the file is listed with thumbnail
-        let listed = try storage.listFiles(with: key)
+        let listed = try await storage.listFiles(with: key)
         XCTAssertEqual(listed.count, 1)
 
         let entry = listed.first!
@@ -93,18 +93,18 @@ final class VaultFullChainTests: XCTestCase {
                        "Decrypted thumbnail in listing should match original")
     }
 
-    func testFullChainStoreMultipleRetrieveAll() throws {
+    func testFullChainStoreMultipleRetrieveAll() async throws {
         let pattern = [0, 1, 2, 7, 12, 17]
         let key = deriveTestKey(from: pattern)
         registerKey(key)
 
-        try initializeVault(with: key)
+        try await initializeVault(with: key)
 
         // Store 3 files
         var storedIds: [UUID] = []
         let filenames = ["doc1.txt", "doc2.txt", "doc3.txt"]
         for (i, filename) in filenames.enumerated() {
-            let id = try storage.storeFile(
+            let id = try await storage.storeFile(
                 data: Data("content \(i)".utf8),
                 filename: filename,
                 mimeType: "text/plain",
@@ -114,7 +114,7 @@ final class VaultFullChainTests: XCTestCase {
         }
 
         // List and verify all 3 are present
-        let listed = try storage.listFiles(with: key)
+        let listed = try await storage.listFiles(with: key)
         XCTAssertEqual(listed.count, 3, "All 3 files should be listed")
 
         let listedIds = Set(listed.map(\.fileId))
@@ -130,45 +130,46 @@ final class VaultFullChainTests: XCTestCase {
         }
     }
 
-    func testFullChainDeleteReducesFileCount() throws {
+    func testFullChainDeleteReducesFileCount() async throws {
         let pattern = [0, 5, 6, 11, 16, 21]
         let key = deriveTestKey(from: pattern)
         registerKey(key)
 
-        try initializeVault(with: key)
+        try await initializeVault(with: key)
 
         // Store 2 files
-        let id1 = try storage.storeFile(
+        let id1 = try await storage.storeFile(
             data: Data("file one".utf8),
             filename: "one.txt",
             mimeType: "text/plain",
             with: key
         )
-        let _ = try storage.storeFile(
+        let _ = try await storage.storeFile(
             data: Data("file two".utf8),
             filename: "two.txt",
             mimeType: "text/plain",
             with: key
         )
 
-        XCTAssertEqual(try storage.listFiles(with: key).count, 2)
+        let fileCount = try await storage.listFiles(with: key).count
+        XCTAssertEqual(fileCount, 2)
 
         // Delete one file
-        try storage.deleteFile(id: id1, with: key)
+        try await storage.deleteFile(id: id1, with: key)
 
-        let remaining = try storage.listFiles(with: key)
+        let remaining = try await storage.listFiles(with: key)
         XCTAssertEqual(remaining.count, 1, "Only 1 file should remain after deletion")
         XCTAssertEqual(remaining.first?.filename, "two.txt")
     }
 
-    func testWrongKeyCannotRetrieve() throws {
+    func testWrongKeyCannotRetrieve() async throws {
         let pattern1 = [0, 1, 2, 3, 4, 9]
         let key1 = deriveTestKey(from: pattern1)
         registerKey(key1)
 
-        try initializeVault(with: key1)
+        try await initializeVault(with: key1)
 
-        let fileId = try storage.storeFile(
+        let fileId = try await storage.storeFile(
             data: Data("secret".utf8),
             filename: "secret.txt",
             mimeType: "text/plain",
@@ -183,7 +184,10 @@ final class VaultFullChainTests: XCTestCase {
         // The wrong key should either fail to load the index or fail to decrypt the file.
         // loadIndex with key2 creates a new empty vault (different index file),
         // so retrieveFile should throw fileNotFound.
-        XCTAssertThrowsError(try storage.retrieveFile(id: fileId, with: key2)) { error in
+        do {
+            _ = try await storage.retrieveFile(id: fileId, with: key2)
+            XCTFail("Expected error when retrieving with wrong key")
+        } catch {
             XCTAssertEqual(error as? VaultStorageError, .fileNotFound,
                            "Wrong key should not find the file (different vault index)")
         }

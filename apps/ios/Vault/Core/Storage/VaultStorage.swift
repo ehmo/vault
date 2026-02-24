@@ -31,10 +31,9 @@ enum VaultStorageError: Error, LocalizedError {
 }
 
 /// CONCURRENCY: Not an actor because blocking file I/O would starve the cooperative
-/// thread pool. `blobReady` race is benign: `ensureBlobReady()` uses `initQueue.sync`
-/// as a barrier. Callers serialize at a higher level (`@MainActor` views, single
-/// `Task.detached`). Full actor refactor deferred to future work.
-final class VaultStorage {
+/// thread pool. Index serialization is handled by the VaultIndexManager actor.
+/// `@unchecked Sendable` because mutable state (`blobReady`) is protected by `initQueue`.
+final class VaultStorage: @unchecked Sendable {
     private static let logger = Logger(subsystem: "com.vaultaire.vault", category: "storage")
     static let shared = VaultStorage()
 
@@ -110,12 +109,12 @@ final class VaultStorage {
 
     // MARK: - Index Delegation
 
-    func loadIndex(with key: VaultKey) throws -> VaultIndex {
-        return try indexManager.loadIndex(with: key)
+    func loadIndex(with key: VaultKey) async throws -> VaultIndex {
+        return try await indexManager.loadIndex(with: key)
     }
 
-    func saveIndex(_ index: VaultIndex, with key: VaultKey) throws {
-        try indexManager.saveIndex(index, with: key)
+    func saveIndex(_ index: VaultIndex, with key: VaultKey) async throws {
+        try await indexManager.saveIndex(index, with: key)
     }
 
     private func getMasterKey(from index: VaultIndex, vaultKey: VaultKey) throws -> MasterKey {
@@ -427,14 +426,12 @@ final class VaultStorage {
 
     // MARK: - File Operations
 
-    func storeFile(data: Data, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, duration: TimeInterval? = nil, fileId: UUID? = nil) throws -> UUID {
+    func storeFile(data: Data, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, duration: TimeInterval? = nil, fileId: UUID? = nil) async throws -> UUID {
         let span = EmbraceManager.shared.startTransaction(name: "storage.store_file", operation: "storage.store_file")
         span.setTag(value: "\(data.count / 1024)", key: "fileSizeKB")
         span.setTag(value: mimeType, key: "mimeType")
 
         ensureBlobReady()
-        indexManager.indexLock.lock()
-        defer { indexManager.indexLock.unlock() }
         Self.logger.debug("storeFile called")
         Self.logger.debug("filename: \(filename, privacy: .public), size: \(data.count, privacy: .public) bytes")
         Self.logger.debug("mimeType: \(mimeType, privacy: .public)")
@@ -444,56 +441,55 @@ final class VaultStorage {
             Self.logger.debug("Using provided fileId: \(providedId.uuidString, privacy: .public)")
         }
 
-        var index = try loadIndex(with: key)
+        let resultId: UUID = try await indexManager.withTransaction(key: key) { index, masterKey in
+            let fileCount = index.files.count
+            let nextOff = index.nextOffset
+            Self.logger.debug("Current index loaded. Files: \(fileCount, privacy: .public), nextOffset: \(nextOff, privacy: .public)")
 
-        Self.logger.debug("Current index loaded. Files: \(index.files.count, privacy: .public), nextOffset: \(index.nextOffset, privacy: .public)")
+            // Encrypt the file with MASTER KEY (not vault key)
+            let encryptedFile = try CryptoEngine.encryptFile(
+                data: data,
+                filename: filename,
+                mimeType: mimeType,
+                with: masterKey,
+                fileId: fileId
+            )
 
-        // Get the master key for encrypting file data
-        let masterKey = try getMasterKey(from: index, vaultKey: key)
+            let fileData = encryptedFile.encryptedContent
+            let fileSize = fileData.count
 
-        // Encrypt the file with MASTER KEY (not vault key)
-        let encryptedFile = try CryptoEngine.encryptFile(
-            data: data,
-            filename: filename,
-            mimeType: mimeType,
-            with: masterKey,  // <- Use master key here
-            fileId: fileId   // <- Preserve original file ID if provided
-        )
+            let blobWrite = try self.allocateBlobSpace(size: fileSize, index: &index)
+            defer { try? blobWrite.handle.close() }
 
-        let fileData = encryptedFile.encryptedContent
-        let fileSize = fileData.count
+            blobWrite.handle.write(fileData)
 
-        let blobWrite = try allocateBlobSpace(size: fileSize, index: &index)
-        defer { try? blobWrite.handle.close() }
+            // Encrypt thumbnail with MASTER KEY if provided
+            var encryptedThumbnail: Data? = nil
+            if let thumbnail = thumbnailData {
+                encryptedThumbnail = try? CryptoEngine.encrypt(thumbnail, with: masterKey)
+            }
 
-        blobWrite.handle.write(fileData)
+            self.finalizeBlobWrite(size: fileSize, result: blobWrite, index: &index)
 
-        // Encrypt thumbnail with MASTER KEY if provided
-        var encryptedThumbnail: Data? = nil
-        if let thumbnail = thumbnailData {
-            encryptedThumbnail = try? CryptoEngine.encrypt(thumbnail, with: masterKey)
+            let entry = VaultIndex.VaultFileEntry(
+                fileId: encryptedFile.header.fileId,
+                offset: blobWrite.writeOffset,
+                size: fileSize,
+                encryptedHeaderPreview: fileData.prefix(64),
+                isDeleted: false,
+                thumbnailData: encryptedThumbnail,
+                mimeType: mimeType,
+                filename: filename,
+                blobId: blobWrite.blobId == "primary" ? nil : blobWrite.blobId,
+                createdAt: Date(),
+                duration: duration
+            )
+            index.files.append(entry)
+
+            return encryptedFile.header.fileId
         }
-
-        finalizeBlobWrite(size: fileSize, result: blobWrite, index: &index)
-
-        let entry = VaultIndex.VaultFileEntry(
-            fileId: encryptedFile.header.fileId,
-            offset: blobWrite.writeOffset,
-            size: fileSize,
-            encryptedHeaderPreview: fileData.prefix(64),
-            isDeleted: false,
-            thumbnailData: encryptedThumbnail,
-            mimeType: mimeType,
-            filename: filename,
-            blobId: blobWrite.blobId == "primary" ? nil : blobWrite.blobId,
-            createdAt: Date(),
-            duration: duration
-        )
-        index.files.append(entry)
-
-        try saveIndex(index, with: key)
         span.finish(status: .ok)
-        return encryptedFile.header.fileId
+        return resultId
     }
 
     /// Store multiple files in a single index load/save cycle.
@@ -505,55 +501,52 @@ final class VaultStorage {
         let thumbnailData: Data?
     }
 
-    func storeFiles(_ files: [FileToStore], with key: VaultKey, onProgress: ((Int) -> Void)? = nil) throws -> [UUID] {
+    func storeFiles(_ files: [FileToStore], with key: VaultKey, onProgress: (@Sendable (Int) -> Void)? = nil) async throws -> [UUID] {
         ensureBlobReady()
-        indexManager.indexLock.lock()
-        defer { indexManager.indexLock.unlock() }
 
-        var index = try loadIndex(with: key)
-        let masterKey = try getMasterKey(from: index, vaultKey: key)
-        var storedIds: [UUID] = []
-        var handleCache: [String: FileHandle] = [:]
-        defer { handleCache.values.forEach { try? $0.close() } }
+        let storedIds: [UUID] = try await indexManager.withTransaction(key: key) { index, masterKey in
+            var ids: [UUID] = []
+            var handleCache: [String: FileHandle] = [:]
+            defer { handleCache.values.forEach { try? $0.close() } }
 
-        for (i, file) in files.enumerated() {
-            let encryptedFile = try CryptoEngine.encryptFile(
-                data: file.data, filename: file.filename, mimeType: file.mimeType, with: masterKey
-            )
-            let fileData = encryptedFile.encryptedContent
-            let fileSize = fileData.count
+            for (i, file) in files.enumerated() {
+                let encryptedFile = try CryptoEngine.encryptFile(
+                    data: file.data, filename: file.filename, mimeType: file.mimeType, with: masterKey
+                )
+                let fileData = encryptedFile.encryptedContent
+                let fileSize = fileData.count
 
-            let blobWrite = try allocateBlobSpace(size: fileSize, index: &index, handleCache: &handleCache)
+                let blobWrite = try self.allocateBlobSpace(size: fileSize, index: &index, handleCache: &handleCache)
 
-            blobWrite.handle.write(fileData)
+                blobWrite.handle.write(fileData)
 
-            var encryptedThumbnail: Data? = nil
-            if let thumbnail = file.thumbnailData {
-                encryptedThumbnail = try? CryptoEngine.encrypt(thumbnail, with: masterKey)
+                var encryptedThumbnail: Data? = nil
+                if let thumbnail = file.thumbnailData {
+                    encryptedThumbnail = try? CryptoEngine.encrypt(thumbnail, with: masterKey)
+                }
+
+                self.finalizeBlobWrite(size: fileSize, result: blobWrite, index: &index)
+
+                let entry = VaultIndex.VaultFileEntry(
+                    fileId: encryptedFile.header.fileId,
+                    offset: blobWrite.writeOffset,
+                    size: fileSize,
+                    encryptedHeaderPreview: fileData.prefix(64),
+                    isDeleted: false,
+                    thumbnailData: encryptedThumbnail,
+                    mimeType: file.mimeType,
+                    filename: file.filename,
+                    blobId: blobWrite.blobId == "primary" ? nil : blobWrite.blobId,
+                    createdAt: Date()
+                )
+                index.files.append(entry)
+                ids.append(encryptedFile.header.fileId)
+
+                onProgress?(i + 1)
             }
 
-            finalizeBlobWrite(size: fileSize, result: blobWrite, index: &index)
-
-            let entry = VaultIndex.VaultFileEntry(
-                fileId: encryptedFile.header.fileId,
-                offset: blobWrite.writeOffset,
-                size: fileSize,
-                encryptedHeaderPreview: fileData.prefix(64),
-                isDeleted: false,
-                thumbnailData: encryptedThumbnail,
-                mimeType: file.mimeType,
-                filename: file.filename,
-                blobId: blobWrite.blobId == "primary" ? nil : blobWrite.blobId,
-                createdAt: Date()
-            )
-            index.files.append(entry)
-            storedIds.append(encryptedFile.header.fileId)
-
-            onProgress?(i + 1)
+            return ids
         }
-
-        // Save index once for all files
-        try saveIndex(index, with: key)
 
         Self.logger.info("Batch stored \(storedIds.count, privacy: .public) files")
 
@@ -562,78 +555,75 @@ final class VaultStorage {
 
     /// Store a file from a URL without loading the entire raw content into memory.
     /// Uses streaming encryption for large files (VCSE for files > 1MB).
-    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, duration: TimeInterval? = nil, fileId: UUID? = nil, originalDate: Date? = nil) throws -> UUID {
+    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, duration: TimeInterval? = nil, fileId: UUID? = nil, originalDate: Date? = nil) async throws -> UUID {
         ensureBlobReady()
-        indexManager.indexLock.lock()
-        defer { indexManager.indexLock.unlock() }
 
-        var index = try loadIndex(with: key)
-        let masterKey = try getMasterKey(from: index, vaultKey: key)
+        let resultId: UUID = try await indexManager.withTransaction(key: key) { index, masterKey in
+            // Build header (small — stays in memory)
+            let actualFileId = fileId ?? UUID()
+            let originalFileSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int) ?? 0
+            let header = CryptoEngine.EncryptedFileHeader(
+                fileId: actualFileId,
+                originalFilename: filename,
+                mimeType: mimeType,
+                originalSize: UInt64(originalFileSize),
+                createdAt: Date()
+            )
+            let encryptedHeader = try CryptoEngine.encrypt(header.serialize(), with: masterKey)
 
-        // Build header (small — stays in memory)
-        let actualFileId = fileId ?? UUID()
-        let originalFileSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int) ?? 0
-        let header = CryptoEngine.EncryptedFileHeader(
-            fileId: actualFileId,
-            originalFilename: filename,
-            mimeType: mimeType,
-            originalSize: UInt64(originalFileSize),
-            createdAt: Date()
-        )
-        let encryptedHeader = try CryptoEngine.encrypt(header.serialize(), with: masterKey)
+            // Calculate total size WITHOUT loading the file into memory
+            let encContentSize = CryptoEngine.encryptedContentSize(forFileOfSize: originalFileSize)
+            let totalSize = 4 + encryptedHeader.count + encContentSize
 
-        // Calculate total size WITHOUT loading the file into memory
-        let encContentSize = CryptoEngine.encryptedContentSize(forFileOfSize: originalFileSize)
-        let totalSize = 4 + encryptedHeader.count + encContentSize
+            let blobWrite = try self.allocateBlobSpace(size: totalSize, index: &index)
+            defer { try? blobWrite.handle.close() }
 
-        let blobWrite = try allocateBlobSpace(size: totalSize, index: &index)
-        defer { try? blobWrite.handle.close() }
+            // Write header to blob
+            var headerSize = UInt32(encryptedHeader.count)
+            let headerSizeData = Data(bytes: &headerSize, count: 4)
+            blobWrite.handle.write(headerSizeData)
+            blobWrite.handle.write(encryptedHeader)
 
-        // Write header to blob
-        var headerSize = UInt32(encryptedHeader.count)
-        let headerSizeData = Data(bytes: &headerSize, count: 4)
-        blobWrite.handle.write(headerSizeData)
-        blobWrite.handle.write(encryptedHeader)
+            // Stream-encrypt content directly to blob — peak memory: ~256KB
+            try CryptoEngine.encryptFileStreamingToHandle(from: fileURL, to: blobWrite.handle, with: masterKey)
 
-        // Stream-encrypt content directly to blob — peak memory: ~256KB
-        try CryptoEngine.encryptFileStreamingToHandle(from: fileURL, to: blobWrite.handle, with: masterKey)
+            // Build header preview for index (first 64 bytes of on-disk format)
+            var headerPreview = Data()
+            headerPreview.append(headerSizeData)
+            headerPreview.append(encryptedHeader.prefix(60))
 
-        // Build header preview for index (first 64 bytes of on-disk format)
-        var headerPreview = Data()
-        headerPreview.append(headerSizeData)
-        headerPreview.append(encryptedHeader.prefix(60))
+            var encryptedThumbnail: Data? = nil
+            if let thumbnail = thumbnailData {
+                encryptedThumbnail = try? CryptoEngine.encrypt(thumbnail, with: masterKey)
+            }
 
-        var encryptedThumbnail: Data? = nil
-        if let thumbnail = thumbnailData {
-            encryptedThumbnail = try? CryptoEngine.encrypt(thumbnail, with: masterKey)
+            self.finalizeBlobWrite(size: totalSize, result: blobWrite, index: &index)
+
+            let entry = VaultIndex.VaultFileEntry(
+                fileId: actualFileId,
+                offset: blobWrite.writeOffset,
+                size: totalSize,
+                encryptedHeaderPreview: headerPreview,
+                isDeleted: false,
+                thumbnailData: encryptedThumbnail,
+                mimeType: mimeType,
+                filename: filename,
+                blobId: blobWrite.blobId == "primary" ? nil : blobWrite.blobId,
+                createdAt: Date(),
+                duration: duration,
+                originalDate: originalDate
+            )
+            index.files.append(entry)
+
+            return actualFileId
         }
-
-        finalizeBlobWrite(size: totalSize, result: blobWrite, index: &index)
-
-        let entry = VaultIndex.VaultFileEntry(
-            fileId: actualFileId,
-            offset: blobWrite.writeOffset,
-            size: totalSize,
-            encryptedHeaderPreview: headerPreview,
-            isDeleted: false,
-            thumbnailData: encryptedThumbnail,
-            mimeType: mimeType,
-            filename: filename,
-            blobId: blobWrite.blobId == "primary" ? nil : blobWrite.blobId,
-            createdAt: Date(),
-            duration: duration,
-            originalDate: originalDate
-        )
-        index.files.append(entry)
-
-        try saveIndex(index, with: key)
-        return actualFileId
+        return resultId
     }
 
-    func retrieveFile(id: UUID, with key: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
+    func retrieveFile(id: UUID, with key: VaultKey) async throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
         let span = EmbraceManager.shared.startTransaction(name: "storage.retrieve_file", operation: "storage.retrieve_file")
         ensureBlobReady()
-        let index = try loadIndex(with: key)
+        let index = try await loadIndex(with: key)
 
         // Get the master key for decrypting file data
         let masterKey = try getMasterKey(from: index, vaultKey: key)
@@ -672,9 +662,9 @@ final class VaultStorage {
 
     /// Retrieves and decrypts a file directly to a temp URL, minimizing peak memory.
     /// For VCSE-encrypted content, stream-decrypts in 256KB chunks (~512KB peak).
-    func retrieveFileToTempURL(id: UUID, with key: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, tempURL: URL) {
+    func retrieveFileToTempURL(id: UUID, with key: VaultKey) async throws -> (header: CryptoEngine.EncryptedFileHeader, tempURL: URL) {
         ensureBlobReady()
-        let index = try loadIndex(with: key)
+        let index = try await loadIndex(with: key)
         let masterKey = try getMasterKey(from: index, vaultKey: key)
 
         guard let entry = index.files.first(where: { $0.fileId == id && !$0.isDeleted }) else {
@@ -739,110 +729,103 @@ final class VaultStorage {
         return (header, tempURL)
     }
 
-    func deleteFile(id: UUID, with key: VaultKey) throws {
+    func deleteFile(id: UUID, with key: VaultKey) async throws {
         ensureBlobReady()
-        indexManager.indexLock.lock()
-        defer { indexManager.indexLock.unlock() }
-        var index = try loadIndex(with: key)
 
-        guard let entryIndex = index.files.firstIndex(where: { $0.fileId == id && !$0.isDeleted }) else {
-            throw VaultStorageError.fileNotFound
+        try await indexManager.withTransaction(key: key) { index, _ in
+            guard let entryIndex = index.files.firstIndex(where: { $0.fileId == id && !$0.isDeleted }) else {
+                throw VaultStorageError.fileNotFound
+            }
+
+            let entry = index.files[entryIndex]
+
+            // Securely overwrite the file data with random bytes in the correct blob
+            let targetURL = self.blobURL(for: entry.blobId, in: index)
+            guard let handle = try? FileHandle(forWritingTo: targetURL) else {
+                throw VaultStorageError.writeError
+            }
+            defer { try? handle.close() }
+
+            try handle.seek(toOffset: UInt64(entry.offset))
+            guard let randomData = CryptoEngine.generateRandomBytes(count: entry.size) else {
+                throw VaultStorageError.secureOverwriteFailed
+            }
+            handle.write(randomData)
+
+            // Mark as deleted in index
+            index.files[entryIndex] = VaultIndex.VaultFileEntry(
+                fileId: entry.fileId,
+                offset: entry.offset,
+                size: entry.size,
+                encryptedHeaderPreview: entry.encryptedHeaderPreview,
+                isDeleted: true,
+                thumbnailData: entry.thumbnailData,
+                mimeType: entry.mimeType,
+                filename: entry.filename,
+                blobId: entry.blobId,
+                createdAt: entry.createdAt,
+                duration: entry.duration,
+                originalDate: entry.originalDate
+            )
         }
-
-        let entry = index.files[entryIndex]
-
-        // Securely overwrite the file data with random bytes in the correct blob
-        let targetURL = blobURL(for: entry.blobId, in: index)
-        guard let handle = try? FileHandle(forWritingTo: targetURL) else {
-            throw VaultStorageError.writeError
-        }
-        defer { try? handle.close() }
-
-        try handle.seek(toOffset: UInt64(entry.offset))
-        guard let randomData = CryptoEngine.generateRandomBytes(count: entry.size) else {
-            throw VaultStorageError.secureOverwriteFailed
-        }
-        handle.write(randomData)
-
-        // Mark as deleted in index
-        index.files[entryIndex] = VaultIndex.VaultFileEntry(
-            fileId: entry.fileId,
-            offset: entry.offset,
-            size: entry.size,
-            encryptedHeaderPreview: entry.encryptedHeaderPreview,
-            isDeleted: true,
-            thumbnailData: entry.thumbnailData,
-            mimeType: entry.mimeType,
-            filename: entry.filename,
-            blobId: entry.blobId,
-            createdAt: entry.createdAt,
-            duration: entry.duration,
-            originalDate: entry.originalDate
-        )
-
-        try saveIndex(index, with: key)
     }
 
     /// Delete multiple files in a single index load/save cycle.
     /// Calls `onProgress` after each file is securely overwritten (on the calling thread).
-    func deleteFiles(ids: Set<UUID>, with key: VaultKey, onProgress: ((Int) -> Void)? = nil) throws {
+    func deleteFiles(ids: Set<UUID>, with key: VaultKey, onProgress: (@Sendable (Int) -> Void)? = nil) async throws {
         ensureBlobReady()
-        indexManager.indexLock.lock()
-        defer { indexManager.indexLock.unlock() }
-        var index = try loadIndex(with: key)
 
-        // Group entries by blob to reuse file handles (nil blobId = "primary")
-        var entriesByBlob: [String: [(arrayIndex: Int, entry: VaultIndex.VaultFileEntry)]] = [:]
-        for (arrayIndex, entry) in index.files.enumerated() {
-            guard ids.contains(entry.fileId), !entry.isDeleted else { continue }
-            let effectiveBlobId = entry.blobId ?? "primary"
-            entriesByBlob[effectiveBlobId, default: []].append((arrayIndex, entry))
-        }
+        try await indexManager.withTransaction(key: key) { index, _ in
+            // Group entries by blob to reuse file handles (nil blobId = "primary")
+            var entriesByBlob: [String: [(arrayIndex: Int, entry: VaultIndex.VaultFileEntry)]] = [:]
+            for (arrayIndex, entry) in index.files.enumerated() {
+                guard ids.contains(entry.fileId), !entry.isDeleted else { continue }
+                let effectiveBlobId = entry.blobId ?? "primary"
+                entriesByBlob[effectiveBlobId, default: []].append((arrayIndex, entry))
+            }
 
-        var deletedCount = 0
+            var deletedCount = 0
 
-        for (blobId, entries) in entriesByBlob {
-            let targetURL = blobURL(for: blobId, in: index)
-            guard let handle = try? FileHandle(forWritingTo: targetURL) else { continue }
-            defer { try? handle.close() }
+            for (blobId, entries) in entriesByBlob {
+                let targetURL = self.blobURL(for: blobId, in: index)
+                guard let handle = try? FileHandle(forWritingTo: targetURL) else { continue }
+                defer { try? handle.close() }
 
-            for (arrayIndex, entry) in entries {
-                // Securely overwrite file data with random bytes
-                try handle.seek(toOffset: UInt64(entry.offset))
-                guard let randomData = CryptoEngine.generateRandomBytes(count: entry.size) else {
-                    throw VaultStorageError.secureOverwriteFailed
+                for (arrayIndex, entry) in entries {
+                    // Securely overwrite file data with random bytes
+                    try handle.seek(toOffset: UInt64(entry.offset))
+                    guard let randomData = CryptoEngine.generateRandomBytes(count: entry.size) else {
+                        throw VaultStorageError.secureOverwriteFailed
+                    }
+                    handle.write(randomData)
+
+                    // Mark as deleted in index
+                    index.files[arrayIndex] = VaultIndex.VaultFileEntry(
+                        fileId: entry.fileId,
+                        offset: entry.offset,
+                        size: entry.size,
+                        encryptedHeaderPreview: entry.encryptedHeaderPreview,
+                        isDeleted: true,
+                        thumbnailData: entry.thumbnailData,
+                        mimeType: entry.mimeType,
+                        filename: entry.filename,
+                        blobId: entry.blobId,
+                        createdAt: entry.createdAt,
+                        duration: entry.duration,
+                        originalDate: entry.originalDate
+                    )
+
+                    deletedCount += 1
+                    onProgress?(deletedCount)
                 }
-                handle.write(randomData)
-
-                // Mark as deleted in index
-                index.files[arrayIndex] = VaultIndex.VaultFileEntry(
-                    fileId: entry.fileId,
-                    offset: entry.offset,
-                    size: entry.size,
-                    encryptedHeaderPreview: entry.encryptedHeaderPreview,
-                    isDeleted: true,
-                    thumbnailData: entry.thumbnailData,
-                    mimeType: entry.mimeType,
-                    filename: entry.filename,
-                    blobId: entry.blobId,
-                    createdAt: entry.createdAt,
-                    duration: entry.duration,
-                    originalDate: entry.originalDate
-                )
-
-                deletedCount += 1
-                onProgress?(deletedCount)
             }
         }
-
-        // Save index once for all deletions
-        try saveIndex(index, with: key)
     }
 
-    func listFiles(with key: VaultKey) throws -> [VaultFileEntry] {
+    func listFiles(with key: VaultKey) async throws -> [VaultFileEntry] {
         let span = EmbraceManager.shared.startTransaction(name: "storage.list_files", operation: "storage.list_files")
         defer { span.finish(status: .ok) }
-        let index = try loadIndex(with: key)
+        let index = try await loadIndex(with: key)
 
         // Get the master key for decrypting thumbnails
         let masterKey = try getMasterKey(from: index, vaultKey: key)
@@ -886,11 +869,11 @@ final class VaultStorage {
 
     /// Returns the master key and file entries without decrypting thumbnails.
     /// Use this for lazy thumbnail loading — thumbnails are decrypted on-demand per cell.
-    func listFilesLightweight(with key: VaultKey) throws -> (masterKey: MasterKey, files: [LightweightFileEntry]) {
+    func listFilesLightweight(with key: VaultKey) async throws -> (masterKey: MasterKey, files: [LightweightFileEntry]) {
         let span = EmbraceManager.shared.startTransaction(name: "storage.list_files_lightweight", operation: "storage.list_files_lightweight")
         defer { span.finish(status: .ok) }
 
-        let index = try loadIndex(with: key)
+        let index = try await loadIndex(with: key)
         let masterKey = try getMasterKey(from: index, vaultKey: key)
 
         let entries = index.files.filter { !$0.isDeleted }.map { entry in
@@ -930,81 +913,21 @@ final class VaultStorage {
 
     /// Returns true only when a vault index exists AND contains at least one non-deleted file.
     /// Use this for collision checks where overwriting an empty vault is acceptable.
-    func vaultHasFiles(for key: VaultKey) -> Bool {
+    func vaultHasFiles(for key: VaultKey) async -> Bool {
         guard vaultExists(for: key) else { return false }
-        guard let index = try? loadIndex(with: key) else { return false }
+        guard let index = try? await loadIndex(with: key) else { return false }
         return index.files.contains(where: { !$0.isDeleted })
     }
 
     /// Change the vault key (pattern) without re-encrypting files
     /// This is extremely fast because we only re-encrypt the master key, not the file data
-    func changeVaultKey(from oldKey: VaultKey, to newKey: VaultKey) throws {
-        indexManager.indexLock.lock()
-        defer { indexManager.indexLock.unlock() }
+    func changeVaultKey(from oldKey: VaultKey, to newKey: VaultKey) async throws {
         Self.logger.debug("Changing vault key (pattern change)")
         Self.logger.debug("Old key hash: \(oldKey.rawBytes.hashValue, privacy: .private)")
         Self.logger.debug("New key hash: \(newKey.rawBytes.hashValue, privacy: .private)")
 
-        // Check if new key would overwrite an existing vault with actual files
-        if vaultHasFiles(for: newKey) {
-            Self.logger.error("Cannot change to this pattern - vault with files already exists!")
-            throw VaultStorageError.vaultAlreadyExists
-        }
-        // Clean up empty vault index at target key if it exists
-        if vaultExists(for: newKey) {
-            try? deleteVaultIndex(for: newKey)
-        }
+        try await indexManager.changeKey(from: oldKey, to: newKey)
 
-        // 1. Load index with old key
-        let index = try loadIndex(with: oldKey)
-
-        Self.logger.debug("Index loaded with old key. Files: \(index.files.count, privacy: .public)")
-
-        // 2. Decrypt master key with old vault key
-        let masterKey = try getMasterKey(from: index, vaultKey: oldKey)
-
-        Self.logger.debug("Master key decrypted with old vault key")
-
-        // 3. Re-encrypt master key with NEW vault key
-        let newEncryptedMasterKey = try CryptoEngine.encrypt(masterKey.rawBytes, with: newKey)
-
-        Self.logger.debug("Master key re-encrypted with new vault key")
-
-        // 4. Copy index and replace only the master key (future-proof — new fields are preserved)
-        var newIndex = index
-        newIndex.encryptedMasterKey = newEncryptedMasterKey
-
-        // 5. Write-ahead: save new index to temp file, verify, then move into place
-        let newIndexURL = indexManager.indexURL(for: newKey)
-        let tempURL = newIndexURL.appendingPathExtension("tmp")
-
-        // Encode and encrypt
-        let encoded = try JSONEncoder().encode(newIndex)
-        let encrypted = try CryptoEngine.encrypt(encoded, with: newKey)
-        try encrypted.write(to: tempURL, options: [.atomic, .completeFileProtection])
-
-        // Verify: read back and decrypt to confirm integrity
-        let readBack = try Data(contentsOf: tempURL)
-        let decrypted = try CryptoEngine.decrypt(readBack, with: newKey)
-        let verified = try JSONDecoder().decode(VaultIndex.self, from: decrypted)
-        guard verified.files.count == newIndex.files.count,
-              verified.encryptedMasterKey == newEncryptedMasterKey else {
-            try? fileManager.removeItem(at: tempURL)
-            throw VaultStorageError.corruptedData
-        }
-
-        // Atomic move temp -> final (replaces if exists)
-        if fileManager.fileExists(atPath: newIndexURL.path) {
-            try fileManager.removeItem(at: newIndexURL)
-        }
-        try fileManager.moveItem(at: tempURL, to: newIndexURL)
-
-        Self.logger.debug("New index verified and moved into place")
-
-        // 6. Delete old index file (safe — new index is confirmed on disk)
-        try deleteVaultIndex(for: oldKey)
-
-        Self.logger.debug("Old index deleted")
         Self.logger.info("Vault key change complete! No files were re-encrypted.")
     }
 
@@ -1013,13 +936,13 @@ final class VaultStorage {
     func deleteVaultIndex(for key: VaultKey) throws {
         let url = indexManager.indexURL(for: key)
 
-        // Invalidate cache for this key
-        indexManager.invalidateCache(for: key)
-
         if fileManager.fileExists(atPath: url.path) {
             Self.logger.debug("Deleting vault index file")
             try fileManager.removeItem(at: url)
         }
+
+        // Fire-and-forget cache invalidation on the actor
+        Task { await indexManager.invalidateCache(for: key) }
     }
 
     /// Quick wipe: delete all index files + keychain items. Keys gone = data unrecoverable.
@@ -1027,8 +950,8 @@ final class VaultStorage {
         ensureBlobReady()
         Self.logger.warning("Destroying all vault data!")
 
-        // Invalidate cached index
-        indexManager.invalidateCache()
+        // Fire-and-forget cache invalidation on the actor
+        Task { await indexManager.invalidateCache() }
 
         // Delete ALL index files (all vaults) — without keys, blob data is unrecoverable
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -1139,10 +1062,8 @@ final class VaultStorage {
 
     /// Reclaim deleted space by copying live files to fresh blobs.
     /// Returns the updated index.
-    func compactBlobs(with key: VaultKey) throws -> VaultIndex {
-        indexManager.indexLock.lock()
-        defer { indexManager.indexLock.unlock() }
-        var index = try loadIndex(with: key)
+    func compactBlobs(with key: VaultKey) async throws -> VaultIndex {
+        var index = try await loadIndex(with: key)
         let masterKey = try getMasterKey(from: index, vaultKey: key)
         _ = masterKey // Silence unused warning — masterKey needed if we re-encrypt; here we copy raw
 
@@ -1273,7 +1194,7 @@ final class VaultStorage {
         index.blobs = newBlobs
         index.nextOffset = primaryCursor
 
-        try saveIndex(index, with: key)
+        try await saveIndex(index, with: key)
 
         Self.logger.info("Compaction complete. \(newFiles.count, privacy: .public) files in \(newBlobs.count, privacy: .public) blob(s)")
 

@@ -335,29 +335,31 @@ final class AppState {
     /// Shared post-unlock setup: index loading, staged import cleanup, and upload resume.
     /// Called by both unlockWithPattern and unlockWithKey to eliminate duplication.
     private func performPostUnlockSetup(key: Data, transaction: SpanHandle) {
-        let indexSpan = EmbraceManager.shared.startSpan(parent: transaction, operation: "storage.index_load", description: "Load vault index")
-        if let index = try? VaultStorage.shared.loadIndex(with: VaultKey(key)) {
-            isSharedVault = index.isSharedVault ?? false
-            if let custom = index.customName, !custom.isEmpty {
-                vaultName = custom
+        Task {
+            let indexSpan = EmbraceManager.shared.startSpan(parent: transaction, operation: "storage.index_load", description: "Load vault index")
+            if let index = try? await VaultStorage.shared.loadIndex(with: VaultKey(key)) {
+                isSharedVault = index.isSharedVault ?? false
+                if let custom = index.customName, !custom.isEmpty {
+                    vaultName = custom
+                }
+                let fileCount = index.files.filter { !$0.isDeleted }.count
+                transaction.setTag(value: "\(fileCount)", key: "fileCount")
             }
-            let fileCount = index.files.filter { !$0.isDeleted }.count
-            transaction.setTag(value: "\(fileCount)", key: "fileCount")
+            indexSpan.finish()
+
+            StagedImportManager.cleanupExpiredBatches()
+            StagedImportManager.cleanupOrphans()
+
+            let fingerprint = KeyDerivation.keyFingerprint(from: key)
+            let pending = StagedImportManager.pendingBatches(for: fingerprint)
+            if !pending.isEmpty {
+                pendingImportCount = pending.reduce(0) { $0 + $1.files.count }
+                hasPendingImports = true
+            }
+
+            ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "vault_unlocked")
+            transaction.finish(status: .ok)
         }
-        indexSpan.finish()
-
-        StagedImportManager.cleanupExpiredBatches()
-        StagedImportManager.cleanupOrphans()
-
-        let fingerprint = KeyDerivation.keyFingerprint(from: key)
-        let pending = StagedImportManager.pendingBatches(for: fingerprint)
-        if !pending.isEmpty {
-            pendingImportCount = pending.reduce(0) { $0 + $1.files.count }
-            hasPendingImports = true
-        }
-
-        ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "vault_unlocked")
-        transaction.finish(status: .ok)
     }
 
     func updateVaultName(_ name: String) {
@@ -414,19 +416,23 @@ final class AppState {
 
         // Clear vault if requested (for tests that need empty state)
         if ProcessInfo.processInfo.arguments.contains("-MAESTRO_CLEAR_VAULT") {
-            // loadIndex auto-creates a proper v3 index with master key when none exists
-            let emptyIndex = try? VaultStorage.shared.loadIndex(with: testVaultKey)
-            if let emptyIndex {
-                try? VaultStorage.shared.saveIndex(emptyIndex, with: testVaultKey)
+            Task {
+                // loadIndex auto-creates a proper v3 index with master key when none exists
+                let emptyIndex = try? await VaultStorage.shared.loadIndex(with: testVaultKey)
+                if let emptyIndex {
+                    try? await VaultStorage.shared.saveIndex(emptyIndex, with: testVaultKey)
+                }
             }
         }
 
         // Initialize empty vault if needed
         if !VaultStorage.shared.vaultExists(for: testVaultKey) {
-            // loadIndex auto-creates a proper v3 index with master key when none exists
-            let emptyIndex = try? VaultStorage.shared.loadIndex(with: testVaultKey)
-            if let emptyIndex {
-                try? VaultStorage.shared.saveIndex(emptyIndex, with: testVaultKey)
+            Task {
+                // loadIndex auto-creates a proper v3 index with master key when none exists
+                let emptyIndex = try? await VaultStorage.shared.loadIndex(with: testVaultKey)
+                if let emptyIndex {
+                    try? await VaultStorage.shared.saveIndex(emptyIndex, with: testVaultKey)
+                }
             }
         }
 
@@ -445,41 +451,43 @@ final class AppState {
 
     /// Seeds the vault with dummy test files for Maestro flows that need files present.
     private func seedTestFiles(key: VaultKey) {
-        // Check if files already exist to avoid duplicates on re-launch
-        guard let index = try? VaultStorage.shared.loadIndex(with: key),
-              index.files.filter({ !$0.isDeleted }).isEmpty else {
-            return
-        }
+        Task {
+            // Check if files already exist to avoid duplicates on re-launch
+            guard let index = try? await VaultStorage.shared.loadIndex(with: key),
+                  index.files.filter({ !$0.isDeleted }).isEmpty else {
+                return
+            }
 
-        // Create a small 2x2 red JPEG (minimal valid image data)
-        let size = CGSize(width: 100, height: 100)
-        let renderer = UIGraphicsImageRenderer(size: size)
-        let jpegData = renderer.jpegData(withCompressionQuality: 0.8) { ctx in
-            UIColor.red.setFill()
-            ctx.fill(CGRect(origin: .zero, size: size))
-        }
-        let pngData = renderer.pngData { ctx in
-            UIColor.blue.setFill()
-            ctx.fill(CGRect(origin: .zero, size: size))
-        }
+            // Create a small 2x2 red JPEG (minimal valid image data)
+            let size = CGSize(width: 100, height: 100)
+            let renderer = UIGraphicsImageRenderer(size: size)
+            let jpegData = renderer.jpegData(withCompressionQuality: 0.8) { ctx in
+                UIColor.red.setFill()
+                ctx.fill(CGRect(origin: .zero, size: size))
+            }
+            let pngData = renderer.pngData { ctx in
+                UIColor.blue.setFill()
+                ctx.fill(CGRect(origin: .zero, size: size))
+            }
 
-        // Store test files in the vault
-        let _ = try? VaultStorage.shared.storeFile(
-            data: jpegData,
-            filename: "test_photo_1.jpg",
-            mimeType: "image/jpeg",
-            with: key,
-            thumbnailData: jpegData
-        )
-        let _ = try? VaultStorage.shared.storeFile(
-            data: pngData,
-            filename: "test_photo_2.png",
-            mimeType: "image/png",
-            with: key,
-            thumbnailData: pngData
-        )
+            // Store test files in the vault
+            let _ = try? await VaultStorage.shared.storeFile(
+                data: jpegData,
+                filename: "test_photo_1.jpg",
+                mimeType: "image/jpeg",
+                with: key,
+                thumbnailData: jpegData
+            )
+            let _ = try? await VaultStorage.shared.storeFile(
+                data: pngData,
+                filename: "test_photo_2.png",
+                mimeType: "image/png",
+                with: key,
+                thumbnailData: pngData
+            )
 
-        Self.logger.debug("Seeded 2 test files into vault")
+            Self.logger.debug("Seeded 2 test files into vault")
+        }
     }
     #endif
 }

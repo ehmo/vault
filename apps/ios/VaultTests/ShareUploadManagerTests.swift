@@ -4,46 +4,46 @@ import XCTest
 
 // MARK: - Mock Implementations
 
-private final class MockUploadVaultStorage: VaultStorageProtocol {
+private final class MockUploadVaultStorage: VaultStorageProtocol, @unchecked Sendable {
     var indexToReturn = VaultStorage.VaultIndex(files: [], nextOffset: 0, totalSize: 0)
     var savedIndexes: [(VaultStorage.VaultIndex, VaultKey)] = []
     var shouldThrowOnLoad = false
     var shouldThrowOnSave = false
 
-    func loadIndex(with _: VaultKey) throws -> VaultStorage.VaultIndex {
+    func loadIndex(with _: VaultKey) async throws -> VaultStorage.VaultIndex {
         if shouldThrowOnLoad { throw VaultStorageError.corruptedData }
         return indexToReturn
     }
 
-    func saveIndex(_ index: VaultStorage.VaultIndex, with key: VaultKey) throws {
+    func saveIndex(_ index: VaultStorage.VaultIndex, with key: VaultKey) async throws {
         if shouldThrowOnSave { throw VaultStorageError.corruptedData }
         savedIndexes.append((index, key))
         indexToReturn = index
     }
 
-    func storeFile(data _: Data, filename _: String, mimeType _: String, with _: VaultKey, thumbnailData _: Data?, duration _: TimeInterval?, fileId _: UUID?) throws -> UUID { UUID() }
-    func storeFileFromURL(_ _: URL, filename _: String, mimeType _: String, with _: VaultKey, thumbnailData _: Data?, duration _: TimeInterval?, fileId _: UUID?, originalDate _: Date?) throws -> UUID { UUID() }
-    func retrieveFile(id _: UUID, with _: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
+    func storeFile(data _: Data, filename _: String, mimeType _: String, with _: VaultKey, thumbnailData _: Data?, duration _: TimeInterval?, fileId _: UUID?) async throws -> UUID { UUID() }
+    func storeFileFromURL(_ _: URL, filename _: String, mimeType _: String, with _: VaultKey, thumbnailData _: Data?, duration _: TimeInterval?, fileId _: UUID?, originalDate _: Date?) async throws -> UUID { UUID() }
+    func retrieveFile(id _: UUID, with _: VaultKey) async throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
         throw VaultStorageError.corruptedData
     }
     func retrieveFileContent(entry _: VaultStorage.VaultIndex.VaultFileEntry, index _: VaultStorage.VaultIndex, masterKey _: MasterKey) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
         throw VaultStorageError.corruptedData
     }
-    func retrieveFileToTempURL(id _: UUID, with _: VaultKey) throws -> (header: CryptoEngine.EncryptedFileHeader, tempURL: URL) {
+    func retrieveFileToTempURL(id _: UUID, with _: VaultKey) async throws -> (header: CryptoEngine.EncryptedFileHeader, tempURL: URL) {
         throw VaultStorageError.corruptedData
     }
-    func deleteFile(id _: UUID, with _: VaultKey) throws {
+    func deleteFile(id _: UUID, with _: VaultKey) async throws {
         // No-op: test stub
     }
-    func deleteFiles(ids _: Set<UUID>, with _: VaultKey, onProgress _: ((Int) -> Void)?) throws {
+    func deleteFiles(ids _: Set<UUID>, with _: VaultKey, onProgress _: (@Sendable (Int) -> Void)?) async throws {
         // No-op: test stub
     }
-    func listFiles(with _: VaultKey) throws -> [VaultStorage.VaultFileEntry] { [] }
-    func listFilesLightweight(with _: VaultKey) throws -> (masterKey: MasterKey, files: [VaultStorage.LightweightFileEntry]) {
+    func listFiles(with _: VaultKey) async throws -> [VaultStorage.VaultFileEntry] { [] }
+    func listFilesLightweight(with _: VaultKey) async throws -> (masterKey: MasterKey, files: [VaultStorage.LightweightFileEntry]) {
         (MasterKey(Data(repeating: 0, count: 32)), [])
     }
     func vaultExists(for _: VaultKey) -> Bool { true }
-    func vaultHasFiles(for _: VaultKey) -> Bool { false }
+    func vaultHasFiles(for _: VaultKey) async -> Bool { false }
     func deleteVaultIndex(for _: VaultKey) throws {
         // No-op: test stub
     }
@@ -236,7 +236,7 @@ final class ShareUploadManagerTests: XCTestCase {
 
     // MARK: - 5. Remove Share Record Updates Index
 
-    func testRemoveShareRecordUpdatesIndex() {
+    func testRemoveShareRecordUpdatesIndex() async throws {
         let vaultKey = VaultKey(Data(repeating: 0xDD, count: 32))
 
         // Set up an index with share records
@@ -280,6 +280,9 @@ final class ShareUploadManagerTests: XCTestCase {
 
         sut.terminateUpload(jobId: jobId, vaultKey: vaultKey, cleanupRemote: false)
 
+        // Wait for the fire-and-forget removeShareRecord Task to complete
+        try await Task.sleep(nanoseconds: 100_000_000)
+
         XCTAssertFalse(mockStorage.savedIndexes.isEmpty, "Index should have been saved")
 
         let savedIndex = mockStorage.savedIndexes.last!.0
@@ -290,7 +293,7 @@ final class ShareUploadManagerTests: XCTestCase {
 
     // MARK: - 6. Append Share Record via Mock Storage
 
-    func testAppendShareRecordUpdatesIndex() throws {
+    func testAppendShareRecordUpdatesIndex() async throws {
         let vaultKey = VaultKey(Data(repeating: 0xEE, count: 32))
 
         // Start with an index that has no shares
@@ -300,7 +303,7 @@ final class ShareUploadManagerTests: XCTestCase {
         XCTAssertNil(mockStorage.indexToReturn.activeShares)
 
         // Exercise the same pattern as appendShareRecord (private) uses
-        var mutableIndex = try XCTUnwrap(try? mockStorage.loadIndex(with: vaultKey))
+        var mutableIndex = try await mockStorage.loadIndex(with: vaultKey)
         XCTAssertNil(mutableIndex.activeShares)
 
         let newRecord = VaultStorage.ShareRecord(
@@ -316,9 +319,9 @@ final class ShareUploadManagerTests: XCTestCase {
             mutableIndex.activeShares = []
         }
         mutableIndex.activeShares?.append(newRecord)
-        try mockStorage.saveIndex(mutableIndex, with: vaultKey)
+        try await mockStorage.saveIndex(mutableIndex, with: vaultKey)
 
-        let reloaded = try mockStorage.loadIndex(with: vaultKey)
+        let reloaded = try await mockStorage.loadIndex(with: vaultKey)
         XCTAssertEqual(reloaded.activeShares?.count, 1)
         XCTAssertEqual(reloaded.activeShares?.first?.id, "appended-share")
     }
