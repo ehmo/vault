@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "d384c2242873",
+  "session_id": "433a2bb4-1f34-4f30-b684-1a2f63e21f5a",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-24T17:40:48.249728Z",
+  "branch": "worktree-clever-frolicking-sun",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/ios/Vault/Core/Storage/MediaOptimizer.swift",
+    "apps/ios/VaultTests/CloudKitSharingTests.swift",
+    "apps/ios/VaultTests/DuressVaultSharingTests.swift",
+    "apps/ios/VaultTests/LocalVaultRevocationTests.swift",
+    "apps/ios/VaultTests/MediaOptimizerTests.swift",
+    "apps/ios/VaultTests/PatternBoardConsistencyTests.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "b95c6ded-532c-4afe-b51a-f22d0163a016",
+  "checkpoint_transcript_start": 2805,
+  "transcript_lines_at_start": 2805,
+  "token_usage": {
+    "input_tokens": 55,
+    "cache_creation_tokens": 136275,
+    "cache_read_tokens": 6009476,
+    "output_tokens": 1332,
+    "api_call_count": 51
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T17:40:47.998835Z",
+    "agent_lines": 0,
+    "human_added": 29,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 29,
+    "agent_percentage": 0
+  }
+}
