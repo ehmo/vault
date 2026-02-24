@@ -1,0 +1,12 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+When I am listening to any audio and open the vault app the audio pauses. I assume because vault hijacks the audio. We should not do so until user either opens the camera or plays an audio/video file. Research it and fix it
+
+### Prompt 2
+
+Commit to git and merge to main
+

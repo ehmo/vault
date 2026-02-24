@@ -3,11 +3,13 @@
   "checkpoint_id": "469c7b4dee4b",
   "strategy": "manual-commit",
   "branch": "worktree-clever-frolicking-sun",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "apps/ios/Vault/App/VaultApp.swift",
     "apps/ios/Vault/Core/Telemetry/AnalyticsManager.swift",
-    "apps/ios/Vault/Core/Telemetry/EmbraceManager.swift"
+    "apps/ios/Vault/Core/Telemetry/EmbraceManager.swift",
+    "apps/ios/Vault/Features/Camera/CameraManager.swift",
+    "apps/ios/Vault/Features/VaultViewer/SecureVideoPlayer.swift"
   ],
   "sessions": [
     {
@@ -16,13 +18,20 @@
       "context": "/46/9c7b4dee4b/0/context.md",
       "content_hash": "/46/9c7b4dee4b/0/content_hash.txt",
       "prompt": "/46/9c7b4dee4b/0/prompt.txt"
+    },
+    {
+      "metadata": "/46/9c7b4dee4b/1/metadata.json",
+      "transcript": "/46/9c7b4dee4b/1/full.jsonl",
+      "context": "/46/9c7b4dee4b/1/context.md",
+      "content_hash": "/46/9c7b4dee4b/1/content_hash.txt",
+      "prompt": "/46/9c7b4dee4b/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 44,
-    "cache_creation_tokens": 42185,
-    "cache_read_tokens": 1697877,
-    "output_tokens": 1431,
-    "api_call_count": 32
+    "input_tokens": 89,
+    "cache_creation_tokens": 136814,
+    "cache_read_tokens": 4752906,
+    "output_tokens": 2350,
+    "api_call_count": 73
   }
 }

@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "469c7b4dee4b",
+  "session_id": "4422b25e-3c2a-473d-81d8-685a21b7b545",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-24T20:34:29.861568Z",
+  "branch": "worktree-clever-frolicking-sun",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Features/Camera/CameraManager.swift",
+    "apps/ios/Vault/Features/VaultViewer/SecureVideoPlayer.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "dd80369e-6d9a-4bd8-abcb-07138488b804",
+  "token_usage": {
+    "input_tokens": 45,
+    "cache_creation_tokens": 94629,
+    "cache_read_tokens": 3055029,
+    "output_tokens": 919,
+    "api_call_count": 41
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T20:34:29.801469Z",
+    "agent_lines": 24,
+    "human_added": 5702,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 5726,
+    "agent_percentage": 0.41914076143905
+  }
+}
