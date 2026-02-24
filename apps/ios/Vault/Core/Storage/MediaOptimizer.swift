@@ -8,7 +8,9 @@ import os.log
 private let optimizerLogger = Logger(subsystem: "app.vaultaire.ios", category: "MediaOptimizer")
 
 /// Optimizes media files before vault storage using modern codecs.
-/// Images → HEIC (ImageIO), Videos → HEVC 1080p (AVAssetReader/AVAssetWriter with bitrate control).
+/// Images → HEIC (ImageIO). Videos → HEVC 1080p via two paths:
+/// - AVAssetExportSession for HEVC 4K→1080p downscale (fast hardware path)
+/// - AVAssetReader/Writer for non-HEVC→HEVC codec change (sample-buffer path)
 /// Non-media files pass through unchanged.
 ///
 /// Not an actor — all methods operate on temp files with no shared mutable state.
@@ -20,6 +22,13 @@ final class MediaOptimizer: Sendable {
     enum Mode: String, Sendable {
         case optimized
         case original
+    }
+
+    /// Determines which optimization path to use for a video.
+    enum VideoOptimizationStrategy: Sendable, Equatable {
+        case skip           // Already optimal (HEVC ≤1080p)
+        case exportSession  // HEVC >1080p — fast hardware downscale
+        case readerWriter   // Non-HEVC — codec change via sample buffers
     }
 
     /// Returns (outputURL, outputMimeType, wasOptimized).
@@ -188,13 +197,56 @@ final class MediaOptimizer: Sendable {
 
     private func optimizeVideo(fileURL: URL, mimeType: String) async throws -> (URL, String, Bool) {
         let asset = AVURLAsset(url: fileURL)
+        let strategy = await videoOptimizationStrategy(for: asset)
 
-        // Check if already compact enough — skip if bitrate is already low
-        if await isAlreadyOptimalVideo(asset) {
+        switch strategy {
+        case .skip:
             optimizerLogger.info("Video already optimal, skipping")
             return (fileURL, mimeType, false)
+
+        case .exportSession:
+            optimizerLogger.info("HEVC >1080p — using AVAssetExportSession for fast downscale")
+            if let result = await optimizeVideoWithExportSession(fileURL: fileURL, mimeType: mimeType, asset: asset) {
+                return result
+            }
+            // ExportSession failed — fall back to reader/writer
+            optimizerLogger.warning("ExportSession unavailable, falling back to AVAssetReader/Writer")
+            return try await optimizeVideoWithReaderWriter(fileURL: fileURL, mimeType: mimeType, asset: asset)
+
+        case .readerWriter:
+            return try await optimizeVideoWithReaderWriter(fileURL: fileURL, mimeType: mimeType, asset: asset)
+        }
+    }
+
+    /// Fast downscale path using AVAssetExportSession with hardware-accelerated HEVC 1080p preset.
+    /// Returns nil if the preset is incompatible or export fails (caller should fall back to reader/writer).
+    private func optimizeVideoWithExportSession(fileURL: URL, mimeType: String, asset: AVURLAsset) async -> (URL, String, Bool)? {
+        guard let session = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetHEVC1920x1080) else {
+            return nil
         }
 
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("mp4")
+
+        session.outputURL = tempURL
+        session.outputFileType = .mp4
+        session.shouldOptimizeForNetworkUse = true
+
+        await session.export()
+
+        guard session.status == .completed else {
+            try? FileManager.default.removeItem(at: tempURL)
+            let errorDesc = session.error?.localizedDescription ?? "unknown"
+            optimizerLogger.error("ExportSession failed: \(errorDesc, privacy: .public)")
+            return nil
+        }
+
+        return applyThresholdCheck(originalURL: fileURL, optimizedURL: tempURL, originalMimeType: mimeType, label: "ExportSession")
+    }
+
+    /// Codec-change path using AVAssetReader/Writer with explicit bitrate and HEVC encoding.
+    private func optimizeVideoWithReaderWriter(fileURL: URL, mimeType: String, asset: AVURLAsset) async throws -> (URL, String, Bool) {
         guard let videoTrack = try? await asset.loadTracks(withMediaType: .video).first else {
             return (fileURL, mimeType, false)
         }
@@ -302,20 +354,24 @@ final class MediaOptimizer: Sendable {
             return (fileURL, mimeType, false)
         }
 
-        let originalSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int64) ?? 0
-        let optimizedSize = (try? FileManager.default.attributesOfItem(atPath: tempURL.path)[.size] as? Int64) ?? 0
+        return applyThresholdCheck(originalURL: fileURL, optimizedURL: tempURL, originalMimeType: mimeType, label: "transcode")
+    }
 
-        // If optimized file isn't meaningfully smaller (< 20% reduction), skip it — not worth the transcode time
+    /// Checks if the optimized file achieved at least 20% size reduction.
+    /// Returns the original if reduction is insufficient, or the optimized result.
+    private func applyThresholdCheck(originalURL: URL, optimizedURL: URL, originalMimeType: String, label: String) -> (URL, String, Bool) {
+        let originalSize = (try? FileManager.default.attributesOfItem(atPath: originalURL.path)[.size] as? Int64) ?? 0
+        let optimizedSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int64) ?? 0
+
         if originalSize > 0 && optimizedSize >= Int64(Double(originalSize) * 0.8) {
-            try? FileManager.default.removeItem(at: tempURL)
-            optimizerLogger.info("Video transcode yielded < 20% reduction (\(originalSize) → \(optimizedSize)), keeping original")
-            return (fileURL, mimeType, false)
+            try? FileManager.default.removeItem(at: optimizedURL)
+            optimizerLogger.info("\(label, privacy: .public) yielded < 20% reduction (\(originalSize) → \(optimizedSize)), keeping original")
+            return (originalURL, originalMimeType, false)
         }
 
         let reduction = originalSize > 0 ? Int(100 - (optimizedSize * 100 / originalSize)) : 0
-        optimizerLogger.info("Video optimized: \(originalSize) → \(optimizedSize) bytes (\(reduction)% reduction)")
-
-        return (tempURL, "video/mp4", true)
+        optimizerLogger.info("Video optimized via \(label, privacy: .public): \(originalSize) → \(optimizedSize) bytes (\(reduction)% reduction)")
+        return (optimizedURL, "video/mp4", true)
     }
 
     /// Transfer sample buffers from reader output to writer input using the proper callback pattern.
@@ -372,38 +428,42 @@ final class MediaOptimizer: Sendable {
         return bitrateSD
     }
 
-    /// Check if video is already optimal and can skip transcoding.
-    /// Skips if HEVC and ≤ 1080p — bitrate doesn't matter since re-encoding
-    /// from e.g. 15 Mbps to 8 Mbps yields diminishing savings at massive time cost.
-    /// Only transcode when codec isn't HEVC (need re-encode) or resolution > 1080p (need downscale).
-    private func isAlreadyOptimalVideo(_ asset: AVURLAsset) async -> Bool {
+    /// Determines the optimization strategy for a video based on its codec and resolution.
+    /// - skip: HEVC ≤1080p — already optimal
+    /// - exportSession: HEVC >1080p — downscale via hardware-accelerated ExportSession
+    /// - readerWriter: non-HEVC — codec change via sample-buffer pipeline
+    func videoOptimizationStrategy(for asset: AVURLAsset) async -> VideoOptimizationStrategy {
         guard let videoTrack = try? await asset.loadTracks(withMediaType: .video).first else {
-            return false
+            return .skip
         }
 
         // Check codec
         guard let formatDescriptions = try? await videoTrack.load(.formatDescriptions),
               let desc = formatDescriptions.first else {
-            return false
+            return .skip
         }
 
         let mediaSubType = CMFormatDescriptionGetMediaSubType(desc)
         // 'hvc1' FourCC = HEVC
         let isHEVC = mediaSubType == 0x68766331
 
-        guard isHEVC else { return false }
-
         // Check resolution
         guard let naturalSize = try? await videoTrack.load(.naturalSize) else {
-            return false
+            return .skip
         }
         let maxDimension = max(naturalSize.width, naturalSize.height)
-        guard maxDimension <= 1920 else { return false }
 
-        let estimatedRate = (try? await videoTrack.load(.estimatedDataRate)) ?? 0
-        optimizerLogger.info("HEVC ≤1080p @ \(Int(estimatedRate / 1000)) kbps — skipping transcode")
-
-        return true
+        if isHEVC {
+            if maxDimension <= 1920 {
+                let estimatedRate = (try? await videoTrack.load(.estimatedDataRate)) ?? 0
+                optimizerLogger.info("HEVC ≤1080p @ \(Int(estimatedRate / 1000)) kbps — skipping transcode")
+                return .skip
+            } else {
+                return .exportSession
+            }
+        } else {
+            return .readerWriter
+        }
     }
 
     // MARK: - Errors

@@ -19,7 +19,7 @@
       disablePerformanceAntipatternChecker = "YES"
       launchStyle = "0"
       useCustomWorkingDirectory = "YES"
-      customWorkingDirectory = "/Users/nan/Work/ai/vault/apps/ios"
+      customWorkingDirectory = "/Users/nan/Work/ai/vault/.claude/worktrees/clever-frolicking-sun/apps/ios"
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"

@@ -529,6 +529,96 @@ final class MediaOptimizerTests: XCTestCase {
         }
     }
 
+    // MARK: - VideoOptimizationStrategy Tests
+
+    func testStrategySkipForHEVC1080p() async throws {
+        let videoURL = try await createMinimalVideo(width: 1920, height: 1080, codec: .hevc)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        let asset = AVURLAsset(url: videoURL)
+        let strategy = await MediaOptimizer.shared.videoOptimizationStrategy(for: asset)
+        XCTAssertEqual(strategy, .skip, "HEVC ≤1080p should return .skip")
+    }
+
+    func testStrategySkipForHEVC720p() async throws {
+        let videoURL = try await createMinimalVideo(width: 1280, height: 720, codec: .hevc)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        let asset = AVURLAsset(url: videoURL)
+        let strategy = await MediaOptimizer.shared.videoOptimizationStrategy(for: asset)
+        XCTAssertEqual(strategy, .skip, "HEVC 720p should return .skip")
+    }
+
+    func testStrategyExportSessionForHEVC4K() async throws {
+        let videoURL = try await createMinimalVideo(width: 3840, height: 2160, codec: .hevc)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        let asset = AVURLAsset(url: videoURL)
+        let strategy = await MediaOptimizer.shared.videoOptimizationStrategy(for: asset)
+        XCTAssertEqual(strategy, .exportSession, "HEVC >1080p should return .exportSession")
+    }
+
+    func testStrategyReaderWriterForH264() async throws {
+        let videoURL = try await createMinimalVideo(width: 1280, height: 720, codec: .h264)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        let asset = AVURLAsset(url: videoURL)
+        let strategy = await MediaOptimizer.shared.videoOptimizationStrategy(for: asset)
+        XCTAssertEqual(strategy, .readerWriter, "H.264 should return .readerWriter")
+    }
+
+    func testStrategyReaderWriterForH264At4K() async throws {
+        let videoURL = try await createMinimalVideo(width: 3840, height: 2160, codec: .h264)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        let asset = AVURLAsset(url: videoURL)
+        let strategy = await MediaOptimizer.shared.videoOptimizationStrategy(for: asset)
+        XCTAssertEqual(strategy, .readerWriter, "H.264 4K should return .readerWriter (codec change, not just downscale)")
+    }
+
+    func testStrategySkipForHEVCPortrait1080p() async throws {
+        let videoURL = try await createMinimalVideo(width: 1920, height: 1080, rotated: true, codec: .hevc)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        let asset = AVURLAsset(url: videoURL)
+        let strategy = await MediaOptimizer.shared.videoOptimizationStrategy(for: asset)
+        XCTAssertEqual(strategy, .skip, "Portrait HEVC ≤1080p should return .skip")
+    }
+
+    // MARK: - ExportSession Path Integration
+
+    func testExportSessionPathProducesValidHEVCOutput() async throws {
+        // HEVC 4K should use ExportSession path and produce valid 1080p output
+        let videoURL = try await createMinimalVideo(width: 3840, height: 2160, codec: .hevc)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+            fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
+        )
+        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+
+        if wasOptimized {
+            XCTAssertEqual(mimeType, "video/mp4")
+            XCTAssertEqual(outputURL.pathExtension, "mp4")
+            XCTAssertTrue(FileManager.default.fileExists(atPath: outputURL.path))
+
+            // Verify output is HEVC
+            let asset = AVURLAsset(url: outputURL)
+            guard let track = try? await asset.loadTracks(withMediaType: .video).first,
+                  let fmtDescs = try? await track.load(.formatDescriptions),
+                  let desc = fmtDescs.first else {
+                XCTFail("No video track or format description in output")
+                return
+            }
+            let subType = CMFormatDescriptionGetMediaSubType(desc)
+            XCTAssertEqual(subType, 0x68766331, "Output should be HEVC (hvc1)")
+
+            let outputSize = try await track.load(.naturalSize)
+            let maxDim = max(outputSize.width, outputSize.height)
+            XCTAssertLessThanOrEqual(maxDim, 1920, "ExportSession should downscale to ≤1080p")
+        }
+    }
+
     // MARK: - Video Helper
 
     /// Creates a minimal 1-second video file for testing.
