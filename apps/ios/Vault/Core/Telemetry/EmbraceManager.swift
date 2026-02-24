@@ -78,7 +78,6 @@ final class EmbraceManager: @unchecked Sendable {
 
     // MARK: - Start / Stop
 
-    @MainActor
     func start() {
         guard !self.isStarted else { return }
         self.isStarted = true
@@ -87,7 +86,7 @@ final class EmbraceManager: @unchecked Sendable {
             return
         }
         do {
-            // Embrace enforces queue preconditions during setup; run on MainActor.
+            // Embrace enforces main-thread preconditions during setup.
             try Embrace
                 .setup(options: Embrace.Options(
                     appId: "ehz4q"
@@ -102,7 +101,6 @@ final class EmbraceManager: @unchecked Sendable {
         }
     }
 
-    @MainActor
     func stop() {
         guard self.isStarted else { return }
         // Embrace has no close/stop API — it runs for the app's lifetime.

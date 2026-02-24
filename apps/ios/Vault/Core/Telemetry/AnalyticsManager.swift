@@ -14,36 +14,28 @@ final class AnalyticsManager {
 
     func startIfEnabled() {
         guard isEnabled else { return }
-        runOnMain {
+        DispatchQueue.main.async {
             EmbraceManager.shared.start()
+        }
+        DispatchQueue.global(qos: .utility).async {
             TelemetryManager.shared.start()
         }
     }
 
     func setEnabled(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: Self.key)
-        runOnMain {
-            if enabled {
+        if enabled {
+            DispatchQueue.main.async {
                 EmbraceManager.shared.start()
-                TelemetryManager.shared.start()
-            } else {
-                EmbraceManager.shared.stop()
-                TelemetryManager.shared.stop()
             }
-        }
-    }
-
-    private func runOnMain(_ block: @escaping @MainActor () -> Void) {
-        if Thread.isMainThread {
-            MainActor.assumeIsolated {
-                block()
+            DispatchQueue.global(qos: .utility).async {
+                TelemetryManager.shared.start()
             }
         } else {
-            DispatchQueue.main.sync {
-                MainActor.assumeIsolated {
-                    block()
-                }
+            DispatchQueue.main.async {
+                EmbraceManager.shared.stop()
             }
+            TelemetryManager.shared.stop()
         }
     }
 }

@@ -571,19 +571,20 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
         // Eagerly init VaultStorage so blob existence check (and potential background
         // blob creation on first launch) overlaps with the user drawing their pattern.
-        // Deferred to next run loop tick to avoid blocking the main thread synchronously.
-        DispatchQueue.main.async {
+        // Dispatched to background — only does fileExists/contentsOfDirectory disk I/O.
+        DispatchQueue.global(qos: .utility).async {
             _ = VaultStorage.shared
         }
 
-        // Start telemetry after first frame renders to keep it off the launch critical path.
-        // Embrace SDK setup triggers KSCrash init, watchdog threads, and synchronous disk I/O.
-        DispatchQueue.main.async {
-            AnalyticsManager.shared.startIfEnabled()
-        }
+        // Start telemetry — AnalyticsManager handles its own dispatching internally
+        // (Embrace on main, TelemetryDeck on background).
+        AnalyticsManager.shared.startIfEnabled()
 
-        // Write notification icon to app group so the share extension can use it
-        LocalNotificationManager.shared.warmNotificationIcon()
+        // Write notification icon to app group so the share extension can use it.
+        // Dispatched to background — does fileExists check + JPEG encode + file write.
+        DispatchQueue.global(qos: .utility).async {
+            LocalNotificationManager.shared.warmNotificationIcon()
+        }
 
         // Register once at launch so iOS can wake the app to continue pending uploads/backups.
         ShareUploadManager.shared.registerBackgroundProcessingTask()
