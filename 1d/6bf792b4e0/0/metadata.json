@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "1d6bf792b4e0",
+  "session_id": "3b413f7f-9000-43f8-8c33-35a62d836bda",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-24T03:37:43.763614Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/ios/Vault/Core/Storage/ImportIngestor.swift",
+    "apps/ios/Vault/Core/Storage/VaultIndexManager.swift",
+    "apps/ios/Vault/Core/Storage/VaultStorage.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift",
+    "apps/ios/VaultTests/VaultIndexManagerTests.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "52b2f545-8d1c-402e-8780-39d046d94d50",
+  "token_usage": {
+    "input_tokens": 47,
+    "cache_creation_tokens": 207196,
+    "cache_read_tokens": 4578463,
+    "output_tokens": 2491,
+    "api_call_count": 41
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T03:37:43.645361Z",
+    "agent_lines": 199,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 199,
+    "agent_percentage": 100
+  }
+}
