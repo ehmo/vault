@@ -13,7 +13,7 @@ set -euo pipefail
 #   ./scripts/deploy-phone.sh --launch                    # Deploy to device 1
 #   ./scripts/deploy-phone.sh --launch --device 2       # Deploy to device 2
 
-PROJECT="apps/ios/Vault.xcodeproj"
+WORKSPACE="apps/ios/Vault.xcworkspace"
 SCHEME="Vault"
 DERIVED_DATA="/tmp/VaultDevice"
 BUNDLE_ID="app.vaultaire.ios"
@@ -66,7 +66,7 @@ cd "$REPO_ROOT"
 
 echo "==> Building Debug for device $DEVICE_NUM ($DEVICE_NAME)..."
 xcodebuild build \
-	-project "$PROJECT" \
+	-workspace "$WORKSPACE" \
 	-scheme "$SCHEME" \
 	-configuration Debug \
 	-destination "platform=iOS,name=$DEVICE_NAME" \

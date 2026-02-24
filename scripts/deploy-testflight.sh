@@ -7,7 +7,7 @@ set -euo pipefail
 #   --bump  Auto-increment CURRENT_PROJECT_VERSION before building
 #
 # Config:
-PROJECT="apps/ios/Vault.xcodeproj"
+WORKSPACE="apps/ios/Vault.xcworkspace"
 SCHEME="Vault"
 TEAM_ID="UFV835UGV6"
 ASC_APP_ID="6758529311"
@@ -18,16 +18,21 @@ EXPORT_PLIST="/tmp/VaultExportOptions.plist"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-PBXPROJ="$PROJECT/project.pbxproj"
+TUIST_PROJECT_SWIFT="apps/ios/Project.swift"
+PBXPROJ="apps/ios/Vault.xcodeproj/project.pbxproj"
 
 # --- Bump build number if requested ---
 if [[ "${1:-}" == "--bump" ]]; then
-  CURRENT=$(grep -m1 'CURRENT_PROJECT_VERSION' "$PBXPROJ" | sed 's/[^0-9]//g')
+  CURRENT=$(grep -m1 'buildNumber = ' "$TUIST_PROJECT_SWIFT" | sed 's/[^0-9]//g')
   NEXT=$((CURRENT + 1))
   echo "==> Bumping build number: $CURRENT -> $NEXT"
-  sed -i '' "s/CURRENT_PROJECT_VERSION = $CURRENT;/CURRENT_PROJECT_VERSION = $NEXT;/g" "$PBXPROJ"
+  # Update Project.swift (source of truth)
+  sed -i '' "s/let buildNumber = \"$CURRENT\"/let buildNumber = \"$NEXT\"/" "$TUIST_PROJECT_SWIFT"
+  # Regenerate Xcode project from Tuist manifests
+  echo "==> Regenerating Xcode project..."
+  (cd apps/ios && tuist generate --no-open)
 else
-  NEXT=$(grep -m1 'CURRENT_PROJECT_VERSION' "$PBXPROJ" | sed 's/[^0-9]//g')
+  NEXT=$(grep -m1 'buildNumber = ' "$TUIST_PROJECT_SWIFT" | sed 's/[^0-9]//g')
   echo "==> Using existing build number: $NEXT"
 fi
 
@@ -51,7 +56,7 @@ EOF
 echo "==> Archiving (Release)..."
 rm -rf "$ARCHIVE_PATH" "$EXPORT_PATH"
 xcodebuild clean archive \
-  -project "$PROJECT" \
+  -workspace "$WORKSPACE" \
   -scheme "$SCHEME" \
   -configuration Release \
   -archivePath "$ARCHIVE_PATH" \

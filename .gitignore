@@ -27,6 +27,10 @@ Pods/
 .swiftpm/
 Package.resolved
 
+# Tuist
+Tuist/.build/
+Derived/
+
 # Carthage
 Carthage/Build/
 

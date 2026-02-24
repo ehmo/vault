@@ -1,0 +1,546 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Scheme
+   LastUpgradeVersion = "1010"
+   version = "1.3">
+   <BuildAction
+      parallelizeBuildables = "YES"
+      buildImplicitDependencies = "YES">
+      <BuildActionEntries>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "8A96A1AD80D167A6A9C91591"
+               BuildableName = "EmbraceAtomicsShim.framework"
+               BlueprintName = "EmbraceAtomicsShim"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/EmbraceIO/EmbraceIO.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "8E07802203884E2CE0A41143"
+               BuildableName = "EmbraceCaptureService.framework"
+               BlueprintName = "EmbraceCaptureService"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/EmbraceIO/EmbraceIO.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "39A37881C0FB1D7491537C30"
+               BuildableName = "EmbraceCommonInternal.framework"
+               BlueprintName = "EmbraceCommonInternal"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/EmbraceIO/EmbraceIO.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "B1692ACBEA881CF37E44AFEC"
+               BuildableName = "EmbraceConfigInternal.framework"
+               BlueprintName = "EmbraceConfigInternal"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/EmbraceIO/EmbraceIO.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "E3952CFA04D77225684E74A2"
+               BuildableName = "EmbraceConfiguration.framework"
+               BlueprintName = "EmbraceConfiguration"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/EmbraceIO/EmbraceIO.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "19625299841DFCA817ECBB9C"
+               BuildableName = "EmbraceCore.framework"
+               BlueprintName = "EmbraceCore"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/EmbraceIO/EmbraceIO.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "1AD19FDF31DD273190297F43"
+               BuildableName = "EmbraceCoreDataInternal.framework"
+               BlueprintName = "EmbraceCoreDataInternal"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/EmbraceIO/EmbraceIO.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "141FE94B8E53ED9DA8CA9CCC"
+               BuildableName = "EmbraceCrash.framework"
+               BlueprintName = "EmbraceCrash"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/EmbraceIO/EmbraceIO.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "9E275FEA8ED92FB22AD62A50"
+               BuildableName = "EmbraceIO.framework"
+               BlueprintName = "EmbraceIO"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/EmbraceIO/EmbraceIO.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "EA07C2DDE53874D071B3A49E"
+               BuildableName = "EmbraceIO_EmbraceCore.bundle"
+               BlueprintName = "EmbraceIO_EmbraceCore"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/EmbraceIO/EmbraceIO.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "E4D8A69B2654094724AA9606"
+               BuildableName = "EmbraceKSCrashBacktraceSupport.framework"
+               BlueprintName = "EmbraceKSCrashBacktraceSupport"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/EmbraceIO/EmbraceIO.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "9146B0F9E939BF68F683E6BE"
+               BuildableName = "EmbraceOTelInternal.framework"
+               BlueprintName = "EmbraceOTelInternal"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/EmbraceIO/EmbraceIO.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "07C4FBD5D497F8D4C3C3F14C"
+               BuildableName = "EmbraceObjCUtilsInternal.framework"
+               BlueprintName = "EmbraceObjCUtilsInternal"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/EmbraceIO/EmbraceIO.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "FDB7E3FB22E62117C8BF26BD"
+               BuildableName = "EmbraceSemantics.framework"
+               BlueprintName = "EmbraceSemantics"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/EmbraceIO/EmbraceIO.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "5171EFB31B347A69B74862F2"
+               BuildableName = "EmbraceStorageInternal.framework"
+               BlueprintName = "EmbraceStorageInternal"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/EmbraceIO/EmbraceIO.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "E9E94D22B0E5BE821A3FD23D"
+               BuildableName = "EmbraceUploadInternal.framework"
+               BlueprintName = "EmbraceUploadInternal"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/EmbraceIO/EmbraceIO.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "48E2806771E11413F504D8E9"
+               BuildableName = "KSCrashCore.framework"
+               BlueprintName = "KSCrashCore"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/KSCrash/KSCrash.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "6EF9926F6C892BE4988B38A3"
+               BuildableName = "KSCrashDemangleFilter.framework"
+               BlueprintName = "KSCrashDemangleFilter"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/KSCrash/KSCrash.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "2DCAE312DB8A8162D6A25899"
+               BuildableName = "KSCrashRecording.framework"
+               BlueprintName = "KSCrashRecording"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/KSCrash/KSCrash.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "55D61B85130BEBBE677AC315"
+               BuildableName = "KSCrashRecordingCore.framework"
+               BlueprintName = "KSCrashRecordingCore"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/KSCrash/KSCrash.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "27448599E53E4C360EE0D13C"
+               BuildableName = "KSCrash_KSCrashCore.bundle"
+               BlueprintName = "KSCrash_KSCrashCore"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/KSCrash/KSCrash.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "DD5CCE0046156AEFDE861560"
+               BuildableName = "KSCrash_KSCrashDemangleFilter.bundle"
+               BlueprintName = "KSCrash_KSCrashDemangleFilter"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/KSCrash/KSCrash.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "971CA8FE37F663A39D8A0621"
+               BuildableName = "KSCrash_KSCrashRecording.bundle"
+               BlueprintName = "KSCrash_KSCrashRecording"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/KSCrash/KSCrash.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "CDBC2383A90C00FAC6048783"
+               BuildableName = "KSCrash_KSCrashRecordingCore.bundle"
+               BlueprintName = "KSCrash_KSCrashRecordingCore"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/KSCrash/KSCrash.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "53BA569D2D1EC822735C2C65"
+               BuildableName = "OpenTelemetryApi.framework"
+               BlueprintName = "OpenTelemetryApi"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/opentelemetry-swift-core/opentelemetry-swift-core.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "CA37C3BB58EF537A4DF89910"
+               BuildableName = "OpenTelemetrySdk.framework"
+               BlueprintName = "OpenTelemetrySdk"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/opentelemetry-swift-core/opentelemetry-swift-core.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "378EFA48B616ECDED4DB93E8"
+               BuildableName = "ShareExtension.appex"
+               BlueprintName = "ShareExtension"
+               ReferencedContainer = "container:Vault.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "74B7445381F116BC7BA65E33"
+               BuildableName = "TelemetryDeck.framework"
+               BlueprintName = "TelemetryDeck"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/TelemetryDeck/TelemetryDeck.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "A8E56D427EA926150020D21A"
+               BuildableName = "TelemetryDeck_TelemetryDeck.bundle"
+               BlueprintName = "TelemetryDeck_TelemetryDeck"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/TelemetryDeck/TelemetryDeck.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "DDB44E800EA1C34592858BFF"
+               BuildableName = "Vault.app"
+               BlueprintName = "Vault"
+               ReferencedContainer = "container:Vault.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "F978F7C937ADF5C2D227E8B8"
+               BuildableName = "VaultTests.xctest"
+               BlueprintName = "VaultTests"
+               ReferencedContainer = "container:Vault.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "358E83BDB67C5EE8B78D4AB6"
+               BuildableName = "VaultUITests.xctest"
+               BlueprintName = "VaultUITests"
+               ReferencedContainer = "container:Vault.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "227D417C9336CB38D87E5EE8"
+               BuildableName = "ViewInspector.framework"
+               BlueprintName = "ViewInspector"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/ViewInspector/ViewInspector.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+      </BuildActionEntries>
+   </BuildAction>
+   <TestAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      shouldUseLaunchSchemeArgsEnv = "YES">
+      <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "F978F7C937ADF5C2D227E8B8"
+               BuildableName = "VaultTests.xctest"
+               BlueprintName = "VaultTests"
+               ReferencedContainer = "container:Vault.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "358E83BDB67C5EE8B78D4AB6"
+               BuildableName = "VaultUITests.xctest"
+               BlueprintName = "VaultUITests"
+               ReferencedContainer = "container:Vault.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+      </Testables>
+   </TestAction>
+   <LaunchAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      launchStyle = "0"
+      useCustomWorkingDirectory = "NO"
+      ignoresPersistentStateOnLaunch = "NO"
+      debugDocumentVersioning = "YES"
+      debugServiceExtension = "internal"
+      allowLocationSimulation = "YES">
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "8A96A1AD80D167A6A9C91591"
+            BuildableName = "EmbraceAtomicsShim.framework"
+            BlueprintName = "EmbraceAtomicsShim"
+            ReferencedContainer = "container:Tuist/.build/tuist-derived/EmbraceIO/EmbraceIO.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
+   </LaunchAction>
+   <ProfileAction
+      buildConfiguration = "Release"
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      savedToolIdentifier = ""
+      useCustomWorkingDirectory = "NO"
+      debugDocumentVersioning = "YES">
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "8A96A1AD80D167A6A9C91591"
+            BuildableName = "EmbraceAtomicsShim.framework"
+            BlueprintName = "EmbraceAtomicsShim"
+            ReferencedContainer = "container:Tuist/.build/tuist-derived/EmbraceIO/EmbraceIO.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
+   </ProfileAction>
+   <AnalyzeAction
+      buildConfiguration = "Debug">
+   </AnalyzeAction>
+   <ArchiveAction
+      buildConfiguration = "Release"
+      revealArchiveInOrganizer = "YES">
+   </ArchiveAction>
+</Scheme>
