@@ -506,6 +506,7 @@ final class VaultViewModel {
 
             // Launch parallel workers off MainActor
             let workerTask = Task.detached(priority: .userInitiated) {
+                await VaultStorage.shared.beginImportBatch()
                 await ParallelImporter.runPhotoImport(
                     videoWork: videoWork,
                     imageWork: imageWork,
@@ -514,6 +515,11 @@ final class VaultViewModel {
                     config: .init(key: key, encryptionKey: encryptionKey, optimizationMode: optimizationMode),
                     continuation: continuation
                 )
+                do {
+                    try await VaultStorage.shared.endImportBatch(key: key)
+                } catch {
+                    vmLogger.error("Failed to flush import batch: \(error.localizedDescription, privacy: .public)")
+                }
                 continuation.finish()
             }
 
@@ -627,6 +633,7 @@ final class VaultViewModel {
             guard let self else { return }
 
             let workerTask = Task.detached(priority: .userInitiated) {
+                await VaultStorage.shared.beginImportBatch()
                 await ParallelImporter.runFileImport(
                     videoWork: videoWork,
                     otherWork: otherWork,
@@ -635,6 +642,11 @@ final class VaultViewModel {
                     config: .init(key: key, encryptionKey: encryptionKey, optimizationMode: optimizationMode),
                     continuation: continuation
                 )
+                do {
+                    try await VaultStorage.shared.endImportBatch(key: key)
+                } catch {
+                    vmLogger.error("Failed to flush import batch: \(error.localizedDescription, privacy: .public)")
+                }
                 continuation.finish()
             }
 

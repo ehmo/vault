@@ -107,6 +107,19 @@ final class VaultStorage: @unchecked Sendable {
         }
     }
 
+    // MARK: - Batch Import
+
+    /// Begin a batch import — defers per-file index saves for bulk throughput.
+    /// Must be paired with endImportBatch(key:) when the import completes.
+    func beginImportBatch() async {
+        await indexManager.beginBatch()
+    }
+
+    /// End a batch import — persists all accumulated index changes to disk.
+    func endImportBatch(key: VaultKey) async throws {
+        try await indexManager.endBatch(key: key)
+    }
+
     // MARK: - Index Delegation
 
     func loadIndex(with key: VaultKey) async throws -> VaultIndex {

@@ -18,6 +18,15 @@ actor VaultIndexManager {
     private var cachedIndex: VaultStorage.VaultIndex?
     private var cachedIndexFingerprint: String?
 
+    // Batch mode — defers per-file index persistence for bulk import throughput.
+    // Without batching, every storeFileFromURL serializes a full JSON encode + encrypt +
+    // atomic write of the entire index (which includes inline thumbnails and can be 20-50MB).
+    // For 100 files, that's 100 saves × 2-5 seconds each = minutes of overhead.
+    // Batching defers saves and flushes every N mutations, reducing 100 saves to ~5.
+    private var batchDepth = 0
+    private var mutationsSinceFlush = 0
+    private static let batchFlushInterval = 20
+
     // Properties from VaultStorage context
     private let documentsURL: URL
     private let blobFileName: String
@@ -202,10 +211,48 @@ actor VaultIndexManager {
         }
     }
 
+    // MARK: - Batch Mode
+
+    /// Begin a batch scope. Index mutations accumulate in the in-memory cache;
+    /// disk persistence is deferred until endBatch() or the flush interval is reached.
+    func beginBatch() {
+        batchDepth += 1
+        mutationsSinceFlush = 0
+        indexLogger.info("beginBatch (depth=\(self.batchDepth))")
+    }
+
+    /// End the outermost batch scope, persisting any accumulated changes to disk.
+    func endBatch(key: VaultKey) throws {
+        guard batchDepth > 0 else { return }
+        batchDepth -= 1
+        if batchDepth == 0, let index = cachedIndex {
+            indexLogger.info("endBatch: flushing \(self.mutationsSinceFlush) deferred mutations")
+            try saveIndex(index, with: key)
+            mutationsSinceFlush = 0
+        }
+    }
+
+    /// Persists the index immediately or defers based on batch mode + flush interval.
+    private func persistOrDefer(_ index: VaultStorage.VaultIndex, key: VaultKey) throws {
+        if batchDepth > 0 {
+            cachedIndex = index
+            cachedIndexFingerprint = keyFingerprint(key)
+            mutationsSinceFlush += 1
+            if mutationsSinceFlush >= Self.batchFlushInterval {
+                indexLogger.info("Batch flush at \(self.mutationsSinceFlush) mutations")
+                try saveIndex(index, with: key)
+                mutationsSinceFlush = 0
+            }
+        } else {
+            try saveIndex(index, with: key)
+        }
+    }
+
     // MARK: - Transactions
 
     /// Execute a compound operation (load → mutate → save) under actor isolation.
     /// Prevents interleaving with other index operations.
+    /// In batch mode, defers disk persistence (saves every N mutations).
     func withTransaction<T: Sendable>(
         key: VaultKey,
         body: @Sendable (inout VaultStorage.VaultIndex, MasterKey) throws -> T
@@ -213,7 +260,7 @@ actor VaultIndexManager {
         var index = try loadIndex(with: key)
         let masterKey = try getMasterKey(from: index, vaultKey: key)
         let result = try body(&index, masterKey)
-        try saveIndex(index, with: key)
+        try persistOrDefer(index, key: key)
         return result
     }
 
@@ -224,7 +271,7 @@ actor VaultIndexManager {
     ) throws -> T {
         var index = try loadIndex(with: key)
         let result = try body(&index)
-        try saveIndex(index, with: key)
+        try persistOrDefer(index, key: key)
         return result
     }
 

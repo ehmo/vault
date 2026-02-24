@@ -128,6 +128,7 @@ enum ImportIngestor {
         let progressInterval: TimeInterval = 0.5
         var lastProgressUpdate = Date()
 
+        await VaultStorage.shared.beginImportBatch()
         await withTaskGroup(of: Void.self) { group in
             var inFlight = 0
             var fileIndex = 0
@@ -218,6 +219,12 @@ enum ImportIngestor {
                     }
                 }
             }
+        }
+
+        do {
+            try await VaultStorage.shared.endImportBatch(key: vaultKey)
+        } catch {
+            importIngestorLogger.error("Failed to flush import batch: \(error.localizedDescription, privacy: .public)")
         }
 
         let skipped = await state.skipped

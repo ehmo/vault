@@ -180,4 +180,122 @@ final class VaultIndexManagerTests: XCTestCase {
 
         XCTAssertNotEqual(fp1, fp2, "Different keys should have different fingerprints")
     }
+
+    // MARK: - Batch Mode
+
+    /// Reads the index directly from disk, bypassing the actor cache.
+    private func readIndexFromDisk() throws -> VaultStorage.VaultIndex {
+        let url = manager.indexURL(for: testKey)
+        let encrypted = try Data(contentsOf: url)
+        let decrypted = try CryptoEngine.decrypt(encrypted, with: testKey.rawBytes)
+        return try JSONDecoder().decode(VaultStorage.VaultIndex.self, from: decrypted)
+    }
+
+    /// Helper: run one withTransaction that appends a dummy file entry.
+    private func appendDummyFile(offset: Int = 0) async throws {
+        _ = try await manager.withTransaction(key: testKey) { (index: inout VaultStorage.VaultIndex, _: MasterKey) -> Bool in
+            let entry = VaultStorage.VaultIndex.VaultFileEntry(
+                fileId: UUID(), offset: offset, size: 100,
+                encryptedHeaderPreview: Data(repeating: 0xAA, count: 64),
+                isDeleted: false, thumbnailData: nil, mimeType: "image/jpeg",
+                filename: "test.jpg", blobId: nil, createdAt: Date()
+            )
+            index.files.append(entry)
+            return true
+        }
+    }
+
+    /// Tests that withTransaction does NOT write to disk during batch mode.
+    func testBatchModeDefersDiskPersistence() async throws {
+        // Seed the index on disk so we can detect whether it changes
+        _ = try await manager.loadIndex(with: testKey)
+        try await manager.saveIndex(
+            try await manager.loadIndex(with: testKey), with: testKey
+        )
+        let diskBefore = try readIndexFromDisk()
+        XCTAssertEqual(diskBefore.files.count, 0)
+
+        // Begin batch and mutate the index
+        await manager.beginBatch()
+        try await appendDummyFile()
+
+        // Disk should NOT have changed (save was deferred)
+        let diskAfter = try readIndexFromDisk()
+        XCTAssertEqual(diskAfter.files.count, 0, "Batch mode should defer disk writes")
+
+        // But the in-memory cache should have the new file
+        let cached = try await manager.loadIndex(with: testKey)
+        XCTAssertEqual(cached.files.count, 1, "Cache should reflect the mutation")
+
+        // End batch — now it should flush to disk
+        try await manager.endBatch(key: testKey)
+        let diskFlushed = try readIndexFromDisk()
+        XCTAssertEqual(diskFlushed.files.count, 1, "endBatch should persist to disk")
+    }
+
+    /// Tests that periodic flush triggers at the configured interval (20).
+    func testBatchModePeriodicFlush() async throws {
+        _ = try await manager.loadIndex(with: testKey)
+        try await manager.saveIndex(
+            try await manager.loadIndex(with: testKey), with: testKey
+        )
+
+        await manager.beginBatch()
+
+        // Add 19 files — should NOT trigger a flush
+        for i in 0..<19 {
+            try await appendDummyFile(offset: i * 100)
+        }
+        let diskAt19 = try readIndexFromDisk()
+        XCTAssertEqual(diskAt19.files.count, 0, "Should not have flushed at 19 mutations")
+
+        // The 20th mutation triggers the periodic flush
+        try await appendDummyFile(offset: 1900)
+
+        let diskAt20 = try readIndexFromDisk()
+        XCTAssertEqual(diskAt20.files.count, 20, "Periodic flush should persist at 20 mutations")
+
+        try await manager.endBatch(key: testKey)
+    }
+
+    /// Tests that outside batch mode, withTransaction saves immediately (no regression).
+    func testNonBatchModeSavesImmediately() async throws {
+        _ = try await manager.loadIndex(with: testKey)
+
+        try await appendDummyFile()
+
+        // Should be on disk immediately (no batch mode)
+        let fromDisk = try readIndexFromDisk()
+        XCTAssertEqual(fromDisk.files.count, 1, "Non-batch mode should save to disk immediately")
+    }
+
+    /// Tests that endBatch is a no-op when not in batch mode.
+    func testEndBatchWithoutBeginIsNoOp() async throws {
+        _ = try await manager.loadIndex(with: testKey)
+        // Should not throw
+        try await manager.endBatch(key: testKey)
+    }
+
+    /// Tests that nested batch scopes work correctly.
+    func testNestedBatchScopes() async throws {
+        _ = try await manager.loadIndex(with: testKey)
+        try await manager.saveIndex(
+            try await manager.loadIndex(with: testKey), with: testKey
+        )
+
+        await manager.beginBatch()
+        await manager.beginBatch() // nested
+
+        try await appendDummyFile()
+
+        // Inner endBatch should NOT flush (depth goes from 2 to 1)
+        try await manager.endBatch(key: testKey)
+        let diskInner = try readIndexFromDisk()
+        XCTAssertEqual(diskInner.files.count, 0, "Inner endBatch should not flush")
+
+        // Outer endBatch should flush (depth goes from 1 to 0)
+        try await manager.endBatch(key: testKey)
+        let diskOuter = try readIndexFromDisk()
+        XCTAssertEqual(diskOuter.files.count, 1, "Outer endBatch should flush")
+    }
 }
