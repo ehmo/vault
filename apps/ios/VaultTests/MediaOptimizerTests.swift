@@ -325,23 +325,131 @@ final class MediaOptimizerTests: XCTestCase {
     }
 
     // MARK: - Skip-Transcode Policy Tests
+    //
+    // These tests verify the video optimization skip/transcode policy:
+    //   SKIP:      HEVC codec + resolution ≤1080p (any bitrate)
+    //   TRANSCODE: non-HEVC codec (any resolution) OR HEVC >1080p (downscale)
 
-    func testHEVC1080pHighBitrateSkipsTranscode() async throws {
-        // HEVC ≤1080p should always skip, even at high bitrate
+    // -- HEVC ≤1080p → always skip --
+
+    func testHEVC1080pSkipsTranscode() async throws {
         let videoURL = try await createMinimalVideo(width: 1920, height: 1080, codec: .hevc)
         defer { try? FileManager.default.removeItem(at: videoURL) }
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let (outputURL, _, wasOptimized) = try await MediaOptimizer.shared.optimize(
             fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
         )
         defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
 
-        XCTAssertFalse(wasOptimized, "HEVC ≤1080p should skip transcode regardless of bitrate")
-        XCTAssertEqual(outputURL, videoURL, "Should return original URL when skipping")
+        XCTAssertFalse(wasOptimized, "HEVC 1080p should skip transcode")
+        XCTAssertEqual(outputURL, videoURL, "Skipped video must return original URL")
     }
 
-    func testH264StillTranscodes() async throws {
-        // H.264 ≤1080p should still transcode to HEVC
+    func testHEVC720pSkipsTranscode() async throws {
+        let videoURL = try await createMinimalVideo(width: 1280, height: 720, codec: .hevc)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        let (outputURL, _, wasOptimized) = try await MediaOptimizer.shared.optimize(
+            fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
+        )
+        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+
+        XCTAssertFalse(wasOptimized, "HEVC 720p should skip transcode")
+        XCTAssertEqual(outputURL, videoURL)
+    }
+
+    func testHEVCSubSDSkipsTranscode() async throws {
+        let videoURL = try await createMinimalVideo(width: 480, height: 360, codec: .hevc)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        let (outputURL, _, wasOptimized) = try await MediaOptimizer.shared.optimize(
+            fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
+        )
+        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+
+        XCTAssertFalse(wasOptimized, "HEVC sub-SD should skip transcode")
+        XCTAssertEqual(outputURL, videoURL)
+    }
+
+    func testHEVCPortrait1080pSkipsTranscode() async throws {
+        // Portrait: sensor captures 1920x1080 natural with 90° rotation
+        // naturalSize is 1920x1080, maxDimension=1920 ≤ 1920 → skip
+        let videoURL = try await createMinimalVideo(width: 1920, height: 1080, rotated: true, codec: .hevc)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        let (outputURL, _, wasOptimized) = try await MediaOptimizer.shared.optimize(
+            fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
+        )
+        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+
+        XCTAssertFalse(wasOptimized, "Portrait HEVC ≤1080p should skip transcode")
+        XCTAssertEqual(outputURL, videoURL)
+    }
+
+    /// Regression guard: creates HEVC video with random-noise pixels so the encoder
+    /// produces high bitrate (>5 Mbps). The old code had a 5 Mbps threshold that would
+    /// have forced transcoding; the new code skips regardless of bitrate.
+    func testHEVCHighBitrateAboveOldThresholdStillSkips() async throws {
+        let videoURL = try await createMinimalVideo(width: 640, height: 480, codec: .hevc, highEntropy: true)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        // Verify the test video actually has high bitrate for the regression guard to be meaningful
+        let asset = AVURLAsset(url: videoURL)
+        if let track = try? await asset.loadTracks(withMediaType: .video).first,
+           let rate = try? await track.load(.estimatedDataRate) {
+            if rate <= 5_000_000 {
+                XCTFail("Test video bitrate \(Int(rate / 1000)) kbps is ≤5 Mbps — regression guard is not meaningful (need random noise to exceed old threshold)")
+            }
+        }
+
+        let (outputURL, _, wasOptimized) = try await MediaOptimizer.shared.optimize(
+            fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
+        )
+        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+
+        XCTAssertFalse(wasOptimized, "HEVC ≤1080p must skip transcode even at high bitrate")
+        XCTAssertEqual(outputURL, videoURL)
+    }
+
+    // -- Skipped video contract: caller-facing guarantees --
+
+    func testSkippedVideoPreservesOriginalMimeType() async throws {
+        let videoURL = try await createMinimalVideo(width: 640, height: 480, codec: .hevc)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        let (_, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+            fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
+        )
+
+        XCTAssertFalse(wasOptimized)
+        XCTAssertEqual(mimeType, "video/quicktime",
+                       "Skipped video must preserve original mime type, not convert to video/mp4")
+    }
+
+    func testSkippedVideoPreservesMp4MimeType() async throws {
+        // An already-optimal .mp4 HEVC file should keep its video/mp4 mime
+        let videoURL = try await createMinimalVideo(width: 640, height: 480, codec: .hevc)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        let (_, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+            fileURL: videoURL, mimeType: "video/mp4", mode: .optimized
+        )
+
+        XCTAssertFalse(wasOptimized)
+        XCTAssertEqual(mimeType, "video/mp4",
+                       "Skipped video must preserve whatever mime type was passed in")
+    }
+
+    func testFilenameUnchangedWhenVideoSkipped() {
+        // When wasOptimized is false, callers don't call updatedFilename.
+        // Verify the helper returns the original for non-mp4/heic mime types.
+        let result = MediaOptimizer.updatedFilename("VID_001.mov", newMimeType: "video/quicktime")
+        XCTAssertEqual(result, "VID_001.mov", "Filename should be unchanged for non-mp4 mime type")
+    }
+
+    // -- Non-HEVC → must transcode --
+
+    func testH264At720pTriggersTranscode() async throws {
         let videoURL = try await createMinimalVideo(width: 1280, height: 720, codec: .h264)
         defer { try? FileManager.default.removeItem(at: videoURL) }
 
@@ -350,14 +458,32 @@ final class MediaOptimizerTests: XCTestCase {
         )
         defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
 
-        // H.264 should trigger transcoding (may fail on some simulators without HEVC support)
+        // H.264 should trigger transcoding (may be discarded by threshold for tiny test videos)
         if wasOptimized {
             XCTAssertEqual(mimeType, "video/mp4", "H.264 source should be re-encoded to HEVC MP4")
+            XCTAssertNotEqual(outputURL, videoURL, "Transcoded video should be a new temp file")
+            XCTAssertEqual(outputURL.pathExtension, "mp4")
         }
     }
 
-    func testHEVC4KStillTranscodes() async throws {
-        // 4K HEVC should still transcode (needs downscale to 1080p)
+    func testH264At1080pTriggersTranscode() async throws {
+        let videoURL = try await createMinimalVideo(width: 1920, height: 1080, codec: .h264)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+            fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
+        )
+        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+
+        if wasOptimized {
+            XCTAssertEqual(mimeType, "video/mp4", "H.264 1080p should be transcoded to HEVC MP4")
+            XCTAssertNotEqual(outputURL, videoURL)
+        }
+    }
+
+    // -- HEVC >1080p → must transcode (downscale) --
+
+    func testHEVC4KTriggersTranscodeAndDownscales() async throws {
         let videoURL = try await createMinimalVideo(width: 3840, height: 2160, codec: .hevc)
         defer { try? FileManager.default.removeItem(at: videoURL) }
 
@@ -366,9 +492,8 @@ final class MediaOptimizerTests: XCTestCase {
         )
         defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
 
-        // 4K should trigger transcoding for downscale
         if wasOptimized {
-            XCTAssertEqual(mimeType, "video/mp4", "4K HEVC should be downscaled")
+            XCTAssertEqual(mimeType, "video/mp4", "4K HEVC should be transcoded")
 
             let asset = AVURLAsset(url: outputURL)
             guard let track = try? await asset.loadTracks(withMediaType: .video).first else {
@@ -378,6 +503,29 @@ final class MediaOptimizerTests: XCTestCase {
             let outputSize = try await track.load(.naturalSize)
             let maxDim = max(outputSize.width, outputSize.height)
             XCTAssertLessThanOrEqual(maxDim, 1920, "4K should be downscaled to ≤1080p")
+            // Verify aspect ratio preserved: 3840:2160 = 16:9, output should also be 16:9
+            XCTAssertEqual(Int(outputSize.width), 1920)
+            XCTAssertEqual(Int(outputSize.height), 1080)
+        }
+    }
+
+    // -- Transcoded video contract --
+
+    func testTranscodedVideoOutputIsMp4WithNewURL() async throws {
+        // Use default H.264 320x240 — small, fast transcode
+        let videoURL = try await createMinimalVideo()
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+            fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
+        )
+        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+
+        if wasOptimized {
+            XCTAssertNotEqual(outputURL, videoURL, "Transcoded output must be a different file")
+            XCTAssertEqual(mimeType, "video/mp4", "Transcoded output must be MP4")
+            XCTAssertEqual(outputURL.pathExtension, "mp4")
+            XCTAssertTrue(FileManager.default.fileExists(atPath: outputURL.path))
         }
     }
 
@@ -389,7 +537,8 @@ final class MediaOptimizerTests: XCTestCase {
     ///   - height: Pixel buffer height (default 240)
     ///   - rotated: If true, applies a 90° clockwise rotation transform (simulates portrait recording)
     ///   - codec: Video codec to use (default .h264)
-    private func createMinimalVideo(width: Int = 320, height: Int = 240, rotated: Bool = false, codec: AVVideoCodecType = .h264) async throws -> URL {
+    ///   - highEntropy: If true, fills frames with random noise (incompressible → high bitrate output)
+    private func createMinimalVideo(width: Int = 320, height: Int = 240, rotated: Bool = false, codec: AVVideoCodecType = .h264, highEntropy: Bool = false) async throws -> URL {
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("mov")
@@ -436,16 +585,21 @@ final class MediaOptimizerTests: XCTestCase {
 
             CVPixelBufferLockBaseAddress(buffer, [])
             if let baseAddress = CVPixelBufferGetBaseAddress(buffer) {
-                // Fill with a color gradient per frame
                 let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
-                let ptr = baseAddress.assumingMemoryBound(to: UInt8.self)
-                for y in 0..<height {
-                    for x in 0..<width {
-                        let offset = y * bytesPerRow + x * 4
-                        ptr[offset] = 255 // A
-                        ptr[offset + 1] = UInt8(i * 8 % 256) // R
-                        ptr[offset + 2] = UInt8(x * 255 / width) // G
-                        ptr[offset + 3] = UInt8(y * 255 / height) // B
+                if highEntropy {
+                    // Random noise — incompressible content forces high encoder bitrate
+                    arc4random_buf(baseAddress, height * bytesPerRow)
+                } else {
+                    // Fill with a color gradient per frame
+                    let ptr = baseAddress.assumingMemoryBound(to: UInt8.self)
+                    for y in 0..<height {
+                        for x in 0..<width {
+                            let offset = y * bytesPerRow + x * 4
+                            ptr[offset] = 255 // A
+                            ptr[offset + 1] = UInt8(i * 8 % 256) // R
+                            ptr[offset + 2] = UInt8(x * 255 / width) // G
+                            ptr[offset + 3] = UInt8(y * 255 / height) // B
+                        }
                     }
                 }
             }
