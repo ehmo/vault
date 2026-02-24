@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "9cf0a61a55d1",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Core/Sharing/ShareUploadManager.swift",
+    "apps/ios/Vault/Core/Storage/VaultIndexManager.swift",
+    "apps/ios/Vault/Core/Storage/VaultStorage.swift",
+    "apps/ios/Vault/Core/Storage/VaultStorageProtocol.swift",
+    "apps/ios/VaultTests/ShareUploadManagerTests.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9c/f0a61a55d1/0/metadata.json",
+      "transcript": "/9c/f0a61a55d1/0/full.jsonl",
+      "context": "/9c/f0a61a55d1/0/context.md",
+      "content_hash": "/9c/f0a61a55d1/0/content_hash.txt",
+      "prompt": "/9c/f0a61a55d1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 622,
+    "cache_creation_tokens": 422641,
+    "cache_read_tokens": 10908437,
+    "output_tokens": 9556,
+    "api_call_count": 103
+  }
+}

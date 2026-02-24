@@ -1,0 +1,386 @@
+Implement the following plan:
+
+# VAULT-4ce: Convert VaultIndexManager to Swift Actor
+
+## Context
+
+VaultIndexManager is a `final class` using `NSRecursiveLock` for thread safety. It's accessed from @MainActor views, Task.detached workers, and share extension simultaneously. Converting to actor replaces manual lock management with compiler-enforced isolation. The 7 compound operations in VaultStorage that externally grab `indexManager.indexLock` will use a `withTransaction` method that holds actor isolation for entire load-work-save cycles.
+
+Project: iOS 17.0, `SWIFT_STRICT_CONCURRENCY = complete`, Swift 5.
+
+## Approach
+
+- VaultIndexManager → `actor` with custom `DispatchSerialQueue` executor (keeps blob I/O off cooperative pool)
+- `withTransaction` method for atomic compound operations (load → mutate → save under single actor isolation)
+- VaultStorage → `@unchecked Sendable` (not an actor — blocking blob I/O would starve cooperative pool)
+- VaultStorageProtocol → `async throws`
+- Pure functions (`indexURL`, `keyFingerprint`) → `nonisolated`
+- Set-once closures (`readGlobalCursor`, `cursorFooterOffset`) → `nonisolated(unsafe)`
+
+## Implementation Steps
+
+### 1. VaultIndexManager.swift — Actor conversion
+
+- `final class` → `actor`
+- Remove `NSRecursiveLock` (`indexLock` property + all lock/unlock calls)
+- Add custom serial executor:
+  ```swift
+  private let executor = DispatchSerialQueue(label: "vault.index.actor")
+  nonisolated var unownedExecutor: UnownedSerialExecutor { executor.asUnownedSerialExecutor() }
+  ```
+- Merge `loadIndex`/`performLoadIndex` and `saveIndex`/`performSaveIndex` (no more public/private split for reentrancy)
+- Mark `nonisolated`: `indexURL(for:)`, `keyFingerprint(_:)`, `getMasterKey(from:vaultKey:)`
+- Mark closures `nonisolated(unsafe) var ... : @Sendable () -> Int`
+- Add `withTransaction` methods:
+  ```swift
+  func withTransaction<T: Sendable>(key:, body: @Sendable (inout VaultIndex, MasterKey) throws -> T) throws -> T
+  func withTransaction<T: Sendable>(key:, body: @Sendable (inout VaultIndex) throws -> T) throws -> T
+  ```
+
+### 2. VaultStorage.swift — Async + @unchecked Sendable
+
+- Add `@unchecked Sendable` conformance
+- Make delegation wrappers (`loadIndex`, `saveIndex`, `getMasterKey`) `async throws`
+- Convert 7 compound operations to `async throws` + `withTransaction`:
+  - `storeFile` → `async throws`, body in `withTransaction`
+  - `storeFiles` → `async throws`, body in `withTransaction`
+  - `storeFileFromURL` → `async throws`, body in `withTransaction`
+  - `deleteFile` → `async throws`, body in `withTransaction`
+  - `deleteFiles` → `async throws`, body in `withTransaction`
+  - `changeVaultKey` → `async throws`, dedicated actor method (loads old key, saves new key)
+  - `compactBlobs` → `async throws`, body in `withTransaction`
+- Make read-only operations async: `retrieveFile`, `retrieveFileToTempURL`, `listFiles`, `listFilesLightweight`, `vaultHasFiles`, `deleteVaultIndex`, `destroyAllVaultData`
+- Remove all `indexManager.indexLock.lock()`/`unlock()` calls
+
+### 3. VaultStorageProtocol.swift — Async protocol
+
+- All methods → `async throws`
+- Update default parameter extensions
+- Add `withIndexTransaction` to protocol
+
+### 4. Test Mocks — Async conformance
+
+- `MockSyncVaultStorage` (ShareSyncManagerTests.swift) → async methods
+- `MockUploadVaultStorage` (ShareUploadManagerTests.swift) → async methods
+- `VaultIndexManagerTests.swift` → async test methods with `await`
+- `ConcurrentAccessTests.swift` → update for async API
+
+### 5. Call Site Migration (~40 sites, add `await`)
+
+**Already async (mechanical `await` addition):**
+- VaultApp.swift, VaultViewModel.swift, VaultView+SharedVault.swift
+- ShareVaultView.swift, ShareImportManager.swift, ShareUploadManager.swift
+- ShareSyncManager.swift, DuressHandler.swift, iCloudBackupManager.swift
+- PatternSetupCoordinator.swift
+
+**Load+modify+save sequences → upgrade to `withIndexTransaction`:**
+- ShareSyncManager (sync shared vaults), ShareUploadManager (share records)
+- ShareVaultView (revoke/stop sharing), VaultSettingsView (rename)
+- VaultViewModel (openCount), VaultView+SharedVault (version update)
+- SharedVaultInviteView, JoinVaultView, ShareImportManager
+
+**Sync callers needing Task wrapping:**
+- VaultSettingsView.renameVault/deleteVault (sync closures)
+- SharedVaultInviteView/JoinVaultView (sync contexts)
+
+## changeVaultKey Special Handling
+
+Doesn't fit standard `withTransaction` (loads old key, saves new key). Options:
+1. Dedicated `changeKey(from:to:)` method on VaultIndexManager actor — keeps write-ahead verify logic under actor isolation
+2. Sequential actor calls from VaultStorage — actor serialization prevents interleaving
+
+Recommend option 1: move the index-level logic into VaultIndexManager. VaultStorage calls `await indexManager.changeKey(from:to:)` and passes `vaultExists`/`deleteVaultIndex` as `@Sendable` closures.
+
+## Verification
+
+1. `xcodebuild build` — zero errors
+2. `xcodebuild test` — all existing tests pass
+3. Concurrency warnings — review any new strict concurrency diagnostics
+4. Manual test: unlock vault, store file, delete file, change pattern — all work
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.claude/projects/-Users-nan-Work-ai-vault/d2248a9a-ec47-48eb-b0ca-e26f9ee7292b.jsonl
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Session Start**: System reminders loaded including Beads workflow context, CLAUDE.md files with project instructions for the Vaultaire iOS app + website monorepo.
+
+2. **User Request**: The user asked to implement a detailed plan titled "VAULT-4ce: Convert VaultIndexManager to Swift Actor". This is a comprehensive refactoring plan to convert VaultIndexManager from a `final class` using `NSRecursiveLock` to a Swift `actor` with custom executor, and update all dependent code.
+
+3. **Initial File Discovery**: I tried to read VaultIndexManager.swift, VaultStorage.swift, and VaultStorageProtocol.swift at incorrect paths (`apps/ios/Vault/Storage/`). Files were not found.
+
+4. **Correct Path Discovery**: Used Glob to find the correct paths under `apps/ios/Vault/Core/Storage/`.
+
+5. **Core Files Read**: Successfully read all three core files:
+   - VaultIndexManager.swift (244 lines) - the class to convert to actor
+   - VaultStorage.swift (1282 lines) - the main storage class that delegates to VaultIndexManager
+   - VaultStorageProtocol.swift (47 lines) - protocol for testability
+
+6. **Call Site Discovery**: Used Grep to find all files that reference VaultStorage methods:
+   - 26 source files in apps/ios/Vault/
+   - 12 test files in apps/ios/VaultTests/
+   - 2 test files with mock implementations (ShareSyncManagerTests, ShareUploadManagerTests)
+
+7. **Task Tracking Setup**: Updated beads task #242 to in_progress, created 6 subtasks (#245-#250) to track the work.
+
+8. **Reading Call Site Files**: Read the major call site files:
+   - ShareSyncManager.swift (951 lines) - @MainActor, uses storage.loadIndex/saveIndex in async contexts
+   - ShareUploadManager.swift (1366 lines) - @MainActor, uses storage.loadIndex/saveIndex in both sync and async contexts
+   - ShareImportManager.swift (581 lines) - @MainActor, calls VaultStorage.shared.storeFile and loadIndex/saveIndex
+   - VaultViewModel.swift (914 lines) - @MainActor, calls various VaultStorage methods from Task.detached
+   - ShareVaultView.swift (951 lines) - SwiftUI view with loadIndex/saveIndex in Task.detached
+   - VaultSettingsView.swift (528 lines) - SwiftUI view with sync loadIndex/saveIndex calls (renameVault, deleteVault)
+   - SharedVaultInviteView.swift (431 lines) - SwiftUI view with vaultHasFiles, loadIndex, saveIndex, deleteVaultIndex
+   - JoinVaultView.swift (465 lines) - SwiftUI view similar to SharedVaultInviteView
+
+9. **Additional File Reads**:
+   - VaultIndexTypes.swift (134 lines) - VaultIndex, VaultFileEntry, BlobDescriptor, ShareRecord, SharePolicy - all already Sendable
+   - DuressHandler.swift (213 lines) - already an actor, calls storage.loadIndex, destroyAllIndexesExcept, destroyAllVaultData
+   - iCloudBackupManager.swift (1548 lines) - @unchecked Sendable, calls VaultStorage.shared.loadIndex
+   - PatternSetupCoordinator.swift (55 lines) - struct with closures wrapping VaultStorage calls
+
+**Key Design Decisions from the Plan:**
+- VaultIndexManager → `actor` with custom `DispatchSerialQueue` executor (keeps blob I/O off cooperative pool)
+- `withTransaction` method for atomic compound operations (load → mutate → save under single actor isolation)
+- VaultStorage → `@unchecked Sendable` (not an actor)
+- VaultStorageProtocol → `async throws`
+- Pure functions (`indexURL`, `keyFingerprint`, `getMasterKey`) → `nonisolated`
+- Set-once closures → `nonisolated(unsafe)`
+- `changeVaultKey` → dedicated `changeKey(from:to:)` method on actor
+
+**No code has been written yet** - the session has been entirely reading and understanding the codebase. The assistant was in the process of reading all files to understand the full scope before starting implementation.
+
+**Important findings from the read files:**
+- VaultIndex and all nested types are already `Sendable` (confirmed in VaultIndexTypes.swift)
+- DuressHandler is already an actor
+- iCloudBackupManager is already `@unchecked Sendable`
+- The `indexLock` is only referenced in VaultStorage.swift (not externally)
+- ShareSyncManager.buildIncrementalSharedVaultData and ShareUploadManager.buildInitialUploadArtifacts are `nonisolated static` functions that call `storage.loadIndex` and `storage.retrieveFileContent`/`retrieveFileToTempURL` synchronously - these will need to become async
+- PatternSetupCoordinator uses closures that wrap VaultStorage calls - these closures will need to become async
+
+Let me enumerate all files that need changes:
+1. VaultIndexManager.swift - actor conversion
+2. VaultStorage.swift - async + @unchecked Sendable
+3. VaultStorageProtocol.swift - async protocol
+4. ~24 source files need `await` added
+5. ~12 test files need async updates
+
+Summary:
+1. Primary Request and Intent:
+   The user asked to implement a detailed plan titled "VAULT-4ce: Convert VaultIndexManager to Swift Actor". This is a large-scale refactoring of the Vaultaire iOS app's storage layer to replace manual `NSRecursiveLock` thread safety with compiler-enforced Swift actor isolation. The plan has 5 implementation steps: (1) Convert VaultIndexManager to actor, (2) Update VaultStorage for async + @unchecked Sendable, (3) Update VaultStorageProtocol to async, (4) Update test mocks, (5) Migrate ~40 call sites. The user provided a reference to a previous plan-mode transcript at `/Users/nan/.claude/projects/-Users-nan-Work-ai-vault/d2248a9a-ec47-48eb-b0ca-e26f9ee7292b.jsonl`.
+
+2. Key Technical Concepts:
+   - Swift `actor` with custom `DispatchSerialQueue` executor (keeps blocking blob I/O off cooperative thread pool)
+   - `withTransaction` pattern for atomic load→mutate→save under actor isolation
+   - `@unchecked Sendable` for VaultStorage (blocking blob I/O would starve cooperative pool if it were an actor)
+   - `nonisolated` for pure functions (indexURL, keyFingerprint, getMasterKey)
+   - `nonisolated(unsafe)` for set-once closures (readGlobalCursor, cursorFooterOffset)
+   - `async throws` protocol methods replacing synchronous lock-based API
+   - `@Sendable` closures for withTransaction body parameters
+   - Dedicated `changeKey(from:to:)` actor method for vault key changes (doesn't fit standard withTransaction)
+   - iOS 17.0 target, `SWIFT_STRICT_CONCURRENCY = complete`, Swift 5
+
+3. Files and Code Sections:
+
+   - **`apps/ios/Vault/Core/Storage/VaultIndexManager.swift`** (244 lines)
+     - THE file being converted from `final class` to `actor`
+     - Currently uses `NSRecursiveLock` (`indexLock` property) with lock/unlock calls
+     - Has public/private split: `loadIndex`/`performLoadIndex` and `saveIndex`/`performSaveIndex` (to be merged)
+     - Pure functions to mark `nonisolated`: `indexURL(for:)`, `keyFingerprint(_:)`, `getMasterKey(from:vaultKey:)`
+     - Set-once closures: `readGlobalCursor`, `cursorFooterOffset`
+     - Cache: `cachedIndex`, `cachedIndexFingerprint`
+     - Migration logic in `migrateToV3` and within `performLoadIndex`
+     ```swift
+     final class VaultIndexManager {
+         let indexLock = NSRecursiveLock()
+         private var cachedIndex: VaultStorage.VaultIndex?
+         private var cachedIndexFingerprint: String?
+         var readGlobalCursor: () -> Int = { 0 }
+         var cursorFooterOffset: () -> Int = { 0 }
+         // ...
+     }
+     ```
+
+   - **`apps/ios/Vault/Core/Storage/VaultStorage.swift`** (1282 lines)
+     - Main storage class, singleton pattern, delegates index operations to VaultIndexManager
+     - Currently `final class`, needs `@unchecked Sendable`
+     - Has 7 compound operations using external `indexManager.indexLock.lock()`/`unlock()`:
+       - `storeFile` (line 430-497)
+       - `storeFiles` (line 508-561)
+       - `storeFileFromURL` (line 565-631)
+       - `deleteFile` (line 742-784)
+       - `deleteFiles` (line 788-840)
+       - `changeVaultKey` (line 941-1009)
+       - `compactBlobs` (line 1142-1281)
+     - Read-only operations: `retrieveFile`, `retrieveFileToTempURL`, `retrieveFileContent`, `listFiles`, `listFilesLightweight`
+     - Other operations: `vaultExists`, `vaultHasFiles`, `deleteVaultIndex`, `destroyAllVaultData`, `destroyAllIndexesExcept`, `secureWipeAllBlobs`
+     - The `indexLock` is only accessed externally from VaultStorage.swift (confirmed by grep)
+
+   - **`apps/ios/Vault/Core/Storage/VaultStorageProtocol.swift`** (47 lines)
+     - Protocol for testability, all methods currently synchronous `throws`
+     - Has default parameter value extensions
+     - Conformance: `extension VaultStorage: VaultStorageProtocol {}`
+     ```swift
+     protocol VaultStorageProtocol {
+         func loadIndex(with key: VaultKey) throws -> VaultStorage.VaultIndex
+         func saveIndex(_ index: VaultStorage.VaultIndex, with key: VaultKey) throws
+         func storeFile(...) throws -> UUID
+         // ... all sync throws
+     }
+     ```
+
+   - **`apps/ios/Vault/Core/Storage/VaultIndexTypes.swift`** (134 lines)
+     - Defines `VaultStorage.VaultIndex`, `VaultFileEntry`, `BlobDescriptor`, `ShareRecord`, `SharePolicy`
+     - **All types already conform to `Sendable`** - no changes needed
+     ```swift
+     struct VaultIndex: Codable, Sendable { ... }
+     struct VaultFileEntry: Codable, Sendable { ... }
+     struct BlobDescriptor: Codable, Sendable { ... }
+     struct ShareRecord: Codable, Identifiable, Sendable { ... }
+     struct SharePolicy: Codable, Equatable, Sendable { ... }
+     ```
+
+   - **`apps/ios/Vault/Core/Sharing/ShareSyncManager.swift`** (951 lines)
+     - `@MainActor @Observable final class`
+     - `performSync` calls `storage.loadIndex` and `storage.saveIndex` in async context (lines 398, 494, 497, 508, 516)
+     - `buildIncrementalSharedVaultData` is `nonisolated private static` - calls `storage.retrieveFileContent` synchronously (will need to become async)
+     - `reencryptFileForShare` is `nonisolated private static` - calls `storage.retrieveFileContent` (will need async)
+
+   - **`apps/ios/Vault/Core/Sharing/ShareUploadManager.swift`** (1366 lines)
+     - `@MainActor @Observable final class`
+     - `removeShareRecord` (line 1071-1083) - sync context, calls `storage.loadIndex`/`saveIndex`
+     - `appendShareRecord` (line 1085-1112) - sync context, calls `storage.loadIndex`/`saveIndex`
+     - `buildInitialUploadArtifacts` (line 1239-1324) - `nonisolated static`, calls `storage.loadIndex` and `storage.retrieveFileToTempURL` synchronously
+
+   - **`apps/ios/Vault/Core/Sharing/ShareImportManager.swift`** (581 lines)
+     - `@MainActor @Observable final class`
+     - Calls `VaultStorage.shared.storeFile` (line 296) in async Task
+     - Calls `VaultStorage.shared.loadIndex`/`saveIndex` (lines 356-363) in async Task
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift`** (914 lines)
+     - `@MainActor @Observable final class`
+     - `loadFiles` calls `listFilesLightweight` in Task.detached (line 192)
+     - `batchDelete` calls `deleteFiles` in Task.detached (line 264)
+     - `batchExport` calls `retrieveFile` in Task.detached (line 305)
+     - `deleteFileById` calls `deleteFile` in Task.detached (line 361)
+     - `handleCapturedImage` calls `storeFileFromURL` in Task.detached (line 407)
+     - `checkSharedVaultStatus` calls `loadIndex`/`saveIndex` in Task (lines 767, 804)
+     - `selfDestruct` calls `loadIndex`, `deleteFile`, `deleteVaultIndex` synchronously (lines 844-866)
+
+   - **`apps/ios/Vault/Features/Sharing/ShareVaultView.swift`** (951 lines)
+     - SwiftUI struct
+     - `loadLocalSnapshot` static func calls `VaultStorage.shared.loadIndex` in Task.detached (line 856)
+     - `loadActiveShares` static func calls `VaultStorage.shared.loadIndex` in Task.detached (line 870)
+     - `revokeShare` calls `VaultStorage.shared.loadIndex`/`saveIndex` synchronously (lines 754-756)
+     - `stopAllSharing` calls `VaultStorage.shared.loadIndex`/`saveIndex` synchronously (lines 783-786)
+     - `reconcileConsumedShares` calls `loadIndex`/`saveIndex` in Task.detached (lines 896-902)
+
+   - **`apps/ios/Vault/Features/Settings/VaultSettingsView.swift`** (528 lines)
+     - SwiftUI struct
+     - `renameVault` calls `loadIndex`/`saveIndex` synchronously (lines 329-343)
+     - `deleteVault` calls `loadIndex`, `deleteFile`, `deleteVaultIndex` synchronously (lines 357-396)
+     - `loadVaultStatistics` calls `listFilesLightweight`/`loadIndex` in Task (lines 455-464)
+
+   - **`apps/ios/Vault/Features/Sharing/SharedVaultInviteView.swift`** (431 lines)
+     - SwiftUI struct
+     - `setupSharedVault` calls `vaultHasFiles`, `loadIndex`, `saveIndex`, `deleteVaultIndex` (lines 360-378, 416-421)
+     - `prepareOverwriteConfirmation` calls `loadIndex` synchronously (line 405)
+
+   - **`apps/ios/Vault/Features/Sharing/JoinVaultView.swift`** (465 lines)
+     - SwiftUI struct
+     - `setupSharedVault` calls `vaultHasFiles`, `loadIndex`, `saveIndex`, `deleteVaultIndex` (lines 350-369, 408-412)
+     - `prepareOverwriteConfirmation` calls `loadIndex` synchronously (line 397)
+
+   - **`apps/ios/Vault/Core/Security/DuressHandler.swift`** (213 lines)
+     - Already an `actor`
+     - `triggerDuress` calls `storage.loadIndex` (line 76) and `storage.destroyAllIndexesExcept` (line 105)
+     - `destroyAllNonDuressData` calls `storage.destroyAllIndexesExcept` (line 177) and `storage.destroyAllVaultData` (line 180)
+     - `performNuclearWipe` calls `storage.destroyAllVaultData` (line 198) and `storage.secureWipeAllBlobs` (line 202)
+
+   - **`apps/ios/Vault/Core/Storage/iCloudBackupManager.swift`** (1548 lines)
+     - Already `@unchecked Sendable`
+     - `stageBackupToDisk` calls `VaultStorage.shared.loadIndex` (line 232)
+     - `checkIfBackupIsStale` calls `VaultStorage.shared.loadIndex` (line 1126)
+
+   - **`apps/ios/Vault/Features/Onboarding/PatternSetupCoordinator.swift`** (55 lines)
+     - Struct with closure-based DI
+     - `vaultExists` closure calls `VaultStorage.shared.vaultHasFiles` (line 8)
+     - `saveIndex` closure calls `VaultStorage.shared.saveIndex` (line 10)
+     - `savePattern` calls `VaultStorage.shared.loadIndex` directly (line 35)
+     - These closures need to become async
+
+   - **Additional files identified but not yet read** (from grep results):
+     - VaultApp.swift, VaultView+Grid.swift, VaultView+SharedVault.swift, ParallelImporter.swift
+     - ChangePatternView.swift, PatternLockView.swift, ImportIngestor.swift
+     - SecureImageViewer.swift, FullScreenPhotoViewer.swift, FileImporter.swift, SecureVideoPlayer.swift
+     - SecureDelete.swift
+     - Test files: VaultIndexManagerTests, ConcurrentAccessTests, ShareSyncManagerTests, ShareUploadManagerTests, and 8 others
+
+4. Errors and Fixes:
+   - **File path error**: Initially tried to read files at `apps/ios/Vault/Storage/` but the correct path is `apps/ios/Vault/Core/Storage/`. Fixed by using Glob to discover correct paths.
+   - **Rate limit on Explore agent**: First Task agent call hit API rate limit. Recovered by using direct Grep/Glob calls instead.
+   - **ShareExtension path error**: Tried to grep in `apps/ios/ShareExtension` which doesn't exist. Non-critical, just meant no additional call sites there.
+
+5. Problem Solving:
+   - Identified all ~40 call sites that need `await` addition across 26 source files and 12 test files
+   - Confirmed VaultIndex and all nested types are already `Sendable` (no changes needed to VaultIndexTypes.swift)
+   - Confirmed `indexLock` is only accessed externally from VaultStorage.swift (only 1 file has `indexManager.indexLock` references)
+   - Identified that `nonisolated static` functions in ShareSyncManager and ShareUploadManager call storage methods synchronously and will need to become async
+   - Identified that PatternSetupCoordinator's closure-based DI pattern needs closures to become async
+   - Identified sync contexts in SwiftUI views (renameVault, deleteVault, revokeShare, stopAllSharing, prepareOverwriteConfirmation) that need Task wrapping
+
+6. All User Messages:
+   - "Implement the following plan: [full VAULT-4ce plan with 5 implementation steps, context, approach, verification criteria, and changeVaultKey special handling recommendation]"
+   - The user provided no additional messages or feedback - this has been a single-request session focused on reading/understanding the codebase before implementation.
+
+7. Pending Tasks (from TaskList):
+   - #245 [pending] Convert VaultIndexManager from class to actor
+   - #246 [pending] Update VaultStorage for async + @unchecked Sendable
+   - #247 [pending] Update VaultStorageProtocol to async throws
+   - #248 [pending] Update test mocks for async conformance
+   - #249 [pending] Migrate ~40 call sites to add await
+   - #250 [pending] Build and verify zero errors
+   - #242 [in_progress] VAULT-4ce: Convert VaultIndexManager to actor (beads issue)
+
+8. Current Work:
+   The session has been entirely focused on **reading and understanding the codebase** before beginning implementation. All core files and major call sites have been read. No code changes have been written yet. The assistant was in the process of reading the last batch of files (DuressHandler.swift, iCloudBackupManager.swift, PatternSetupCoordinator.swift, VaultIndexTypes.swift) when the summary was requested. The full design has been analyzed in the assistant's thinking:
+
+   **VaultIndexManager actor design:**
+   - `final class` → `actor`
+   - Remove `NSRecursiveLock` (indexLock property + all lock/unlock calls)
+   - Add custom serial executor: `private let serialQueue = DispatchSerialQueue(label: "vault.index.actor")` with `nonisolated var unownedExecutor`
+   - Merge `loadIndex`/`performLoadIndex` and `saveIndex`/`performSaveIndex`
+   - Mark `nonisolated`: `indexURL(for:)`, `keyFingerprint(_:)`, `getMasterKey(from:vaultKey:)`
+   - Mark closures `nonisolated(unsafe) var readGlobalCursor: @Sendable () -> Int`
+   - Add two `withTransaction` overloads (with/without MasterKey)
+   - Add `changeKey(from:to:vaultHasFiles:vaultExists:deleteVaultIndex:)` method
+
+   **VaultStorage design:**
+   - Add `@unchecked Sendable`
+   - `loadIndex`/`saveIndex` → `async throws` (delegate to actor)
+   - `getMasterKey` stays sync (actor method is nonisolated)
+   - 7 compound ops → `async throws` using `await indexManager.withTransaction`
+   - Read-only ops → `async throws`
+   - Remove all `indexManager.indexLock.lock()`/`unlock()` calls
+
+   **VaultStorageProtocol design:**
+   - All methods → `async throws` (except `vaultExists` stays sync, `retrieveFileContent` stays sync)
+   - Protocol gets `: Sendable` requirement
+   - Default parameter extensions updated for async
+
+9. Optional Next Step:
+   Begin implementing the core actor conversion, starting with **Task #245: Convert VaultIndexManager from class to actor**. This is the first step in the plan: "VaultIndexManager.swift — Actor conversion". Write the new VaultIndexManager.swift with actor declaration, custom executor, merged load/save methods, nonisolated pure functions, nonisolated(unsafe) closures, withTransaction methods, and changeKey method. Then proceed to Task #247 (VaultStorageProtocol), Task #246 (VaultStorage), Task #249 (call sites), Task #248 (test mocks), and finally Task #250 (build verification).
+
+   The user's explicit request was: "Implement the following plan: # VAULT-4ce: Convert VaultIndexManager to Swift Actor" with the full 5-step implementation plan. All reading is complete; implementation should begin now.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+commit this and push
