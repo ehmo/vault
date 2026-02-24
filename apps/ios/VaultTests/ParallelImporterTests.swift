@@ -143,6 +143,46 @@ final class ParallelImporterTests: XCTestCase {
 
     // MARK: - testRunWorkers_WorkStealing
 
+    /// Runs a work-stealing worker configuration: 2 workers on primary→secondary, 1 on secondary→primary.
+    private static func runWorkStealingWorkers(
+        primaryQueue: ParallelImporter.Queue<Int>,
+        secondaryQueue: ParallelImporter.Queue<Int>,
+        continuation: AsyncStream<ParallelImporter.ImportEvent>.Continuation
+    ) async {
+        let process: @Sendable (Int) async throws -> VaultFileItem = { item in
+            try await Task.sleep(for: .milliseconds(100))
+            return VaultFileItem(
+                id: UUID(), size: item,
+                mimeType: "text/plain", filename: "item\(item).txt"
+            )
+        }
+
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<2 {
+                group.addTask {
+                    await ParallelImporter.runWorkers(
+                        queues: [(primaryQueue, 1), (secondaryQueue, 0)],
+                        process: process, continuation: continuation
+                    )
+                    await ParallelImporter.runWorkers(
+                        queues: [(secondaryQueue, 1)],
+                        process: process, continuation: continuation
+                    )
+                }
+            }
+            group.addTask {
+                await ParallelImporter.runWorkers(
+                    queues: [(secondaryQueue, 1)],
+                    process: process, continuation: continuation
+                )
+                await ParallelImporter.runWorkers(
+                    queues: [(primaryQueue, 1)],
+                    process: process, continuation: continuation
+                )
+            }
+        }
+    }
+
     /// Verifies that workers steal from a second queue after draining their primary queue.
     /// Two workers on queue A (2 items each) + one worker on queue B (6 items).
     /// Without stealing: queue B takes 6 × 100ms = 600ms (1 worker).
@@ -158,61 +198,11 @@ final class ParallelImporterTests: XCTestCase {
         let start = ContinuousClockInstant.now
 
         let workerTask = Task {
-            await withTaskGroup(of: Void.self) { group in
-                // 2 workers: primary queue first, then steal from secondary
-                for _ in 0..<2 {
-                    group.addTask {
-                        await ParallelImporter.runWorkers(
-                            queues: [(primaryQueue, 1), (secondaryQueue, 0)],
-                            process: { @Sendable item in
-                                try await Task.sleep(for: .milliseconds(100))
-                                return VaultFileItem(
-                                    id: UUID(), size: item,
-                                    mimeType: "text/plain", filename: "item\(item).txt"
-                                )
-                            },
-                            continuation: continuation
-                        )
-                        // After primary queue drained, steal from secondary
-                        await ParallelImporter.runWorkers(
-                            queues: [(secondaryQueue, 1)],
-                            process: { @Sendable item in
-                                try await Task.sleep(for: .milliseconds(100))
-                                return VaultFileItem(
-                                    id: UUID(), size: item,
-                                    mimeType: "text/plain", filename: "item\(item).txt"
-                                )
-                            },
-                            continuation: continuation
-                        )
-                    }
-                }
-                // 1 worker: secondary queue first, then steal from primary
-                group.addTask {
-                    await ParallelImporter.runWorkers(
-                        queues: [(secondaryQueue, 1)],
-                        process: { @Sendable item in
-                            try await Task.sleep(for: .milliseconds(100))
-                            return VaultFileItem(
-                                id: UUID(), size: item,
-                                mimeType: "text/plain", filename: "item\(item).txt"
-                            )
-                        },
-                        continuation: continuation
-                    )
-                    await ParallelImporter.runWorkers(
-                        queues: [(primaryQueue, 1)],
-                        process: { @Sendable item in
-                            try await Task.sleep(for: .milliseconds(100))
-                            return VaultFileItem(
-                                id: UUID(), size: item,
-                                mimeType: "text/plain", filename: "item\(item).txt"
-                            )
-                        },
-                        continuation: continuation
-                    )
-                }
-            }
+            await Self.runWorkStealingWorkers(
+                primaryQueue: primaryQueue,
+                secondaryQueue: secondaryQueue,
+                continuation: continuation
+            )
             continuation.finish()
         }
 
