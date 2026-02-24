@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "6ee7bf647bc1",
+  "strategy": "manual-commit",
+  "branch": "worktree-clever-frolicking-sun",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Tuist/.build/checkouts/embrace-apple-sdk/Examples/Benchmarks/Benchmarks.xcodeproj/project.pbxproj",
+    "apps/ios/Tuist/.build/checkouts/embrace-apple-sdk/Examples/Benchmarks/Benchmarks.xcodeproj/xcshareddata/xcbaselines/2A7143CF2E79E41600CCE829.xcbaseline/E59D7395-A687-4EB5-B658-4E1801CFE759.plist",
+    "apps/ios/Tuist/.build/checkouts/embrace-apple-sdk/Examples/Benchmarks/Benchmarks.xcodeproj/xcshareddata/xcbaselines/2A7143CF2E79E41600CCE829.xcbaseline/Info.plist",
+    "apps/ios/Tuist/.build/checkouts/embrace-apple-sdk/Examples/Benchmarks/Benchmarks.xcodeproj/xcshareddata/xcschemes/Benchmarks.xcscheme",
+    "apps/ios/Tuist/.build/checkouts/embrace-apple-sdk/Examples/Benchmarks/Benchmarks.xcworkspace/contents.xcworkspacedata",
+    "apps/ios/Tuist/.build/checkouts/embrace-apple-sdk/Examples/Benchmarks/Benchmarks.xcworkspace/xcshareddata/swiftpm/Package.resolved",
+    "apps/ios/Tuist/.build/checkouts/embrace-apple-sdk/Examples/BrandGame-CocoaPods/BrandGame.xcodeproj/project.pbxproj",
+    "apps/ios/Tuist/.build/checkouts/embrace-apple-sdk/Examples/BrandGame-CocoaPods/BrandGame.xcodeproj/xcshareddata/xcschemes/BrandGame.xcscheme",
+    "apps/ios/Tuist/.build/checkouts/embrace-apple-sdk/Examples/BrandGame-CocoaPods/BrandGame.xcworkspace/contents.xcworkspacedata",
+    "apps/ios/Tuist/.build/checkouts/embrace-apple-sdk/Examples/Embrace-tvOS-TestApp/Embrace-tvOS-TestApp.xcodeproj/project.pbxproj",
+    "apps/ios/Tuist/.build/checkouts/embrace-apple-sdk/Examples/Embrace-tvOS-TestApp/Embrace-tvOS-TestApp.xcodeproj/xcshareddata/xcschemes/Embrace-tvOS-TestApp.xcscheme",
+    "apps/ios/Tuist/.build/checkouts/embrace-apple-sdk/Examples/Embrace-watchOS-TestApp/Embrace-watchOS-TestApp.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Core/Storage/MediaOptimizer.swift",
+    "apps/ios/VaultTests/CloudKitSharingTests.swift",
+    "apps/ios/VaultTests/DuressVaultSharingTests.swift",
+    "apps/ios/VaultTests/LocalVaultRevocationTests.swift",
+    "apps/ios/VaultTests/MediaOptimizerTests.swift",
+    "apps/ios/VaultTests/PatternBoardConsistencyTests.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/6e/e7bf647bc1/0/metadata.json",
+      "transcript": "/6e/e7bf647bc1/0/full.jsonl",
+      "context": "/6e/e7bf647bc1/0/context.md",
+      "content_hash": "/6e/e7bf647bc1/0/content_hash.txt",
+      "prompt": "/6e/e7bf647bc1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 159,
+    "cache_creation_tokens": 200207,
+    "cache_read_tokens": 15275599,
+    "output_tokens": 2427,
+    "api_call_count": 149
+  }
+}
