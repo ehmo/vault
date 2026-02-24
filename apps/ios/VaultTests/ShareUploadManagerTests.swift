@@ -22,7 +22,7 @@ private final class MockUploadVaultStorage: VaultStorageProtocol, @unchecked Sen
     }
 
     func storeFile(data _: Data, filename _: String, mimeType _: String, with _: VaultKey, thumbnailData _: Data?, duration _: TimeInterval?, fileId _: UUID?) async throws -> UUID { UUID() }
-    func storeFileFromURL(_ _: URL, filename _: String, mimeType _: String, with _: VaultKey, thumbnailData _: Data?, duration _: TimeInterval?, fileId _: UUID?, originalDate _: Date?) async throws -> UUID { UUID() }
+    func storeFileFromURL(_: URL, filename _: String, mimeType _: String, with _: VaultKey, options _: FileStoreOptions) async throws -> UUID { UUID() }
     func retrieveFile(id _: UUID, with _: VaultKey) async throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
         throw VaultStorageError.corruptedData
     }

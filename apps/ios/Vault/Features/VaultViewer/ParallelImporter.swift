@@ -260,8 +260,7 @@ enum ParallelImporter {
 
         let fileId = try await VaultStorage.shared.storeFileFromURL(
             optimizedURL, filename: filename, mimeType: mimeType,
-            with: key, thumbnailData: metadata.thumbnail, duration: metadata.duration,
-            originalDate: metadata.creationDate
+            with: key, options: FileStoreOptions(thumbnailData: metadata.thumbnail, duration: metadata.duration, originalDate: metadata.creationDate)
         )
 
         let encThumb = metadata.thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }
@@ -375,8 +374,7 @@ enum ParallelImporter {
 
             let fileId = try await VaultStorage.shared.storeFileFromURL(
                 optimizedURL, filename: filename, mimeType: mimeType,
-                with: key, thumbnailData: metadata.thumbnail, duration: metadata.duration,
-                originalDate: originalDate
+                with: key, options: FileStoreOptions(thumbnailData: metadata.thumbnail, duration: metadata.duration, originalDate: originalDate)
             )
 
             let encThumb = metadata.thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: encryptionKey) }

@@ -291,7 +291,7 @@
         const lightHero = document.getElementById("hero-logo-light");
 
         const buildUniversalInviteUrl = () => {
-          const url = new URL(window.location.href);
+          const url = new URL(globalThis.location.href);
           url.protocol = "https:";
           url.host = "vaultaire.app";
           if (url.pathname === "/s/index.html") url.pathname = "/s";
@@ -300,7 +300,7 @@
         };
 
         const buildCustomSchemeInviteUrl = () => {
-          const token = window.location.hash ? window.location.hash.slice(1) : "";
+          const token = globalThis.location.hash ? globalThis.location.hash.slice(1) : "";
           if (!token) return "vaultaire://s";
           return `vaultaire://s?p=${encodeURIComponent(token)}#${token}`;
         };
@@ -331,12 +331,12 @@
           const fallbackTimer = globalThis.setTimeout(() => {
             document.removeEventListener("visibilitychange", onVisibilityChange);
             if (document.visibilityState === "visible") {
-              window.location.assign(fallbackUrl);
+              globalThis.location.assign(fallbackUrl);
             }
           }, 900);
           this._pushCleanup(() => globalThis.clearTimeout(fallbackTimer));
 
-          window.location.assign(schemeUrl);
+          globalThis.location.assign(schemeUrl);
         };
 
         syncHeroLogo(this.isDark);

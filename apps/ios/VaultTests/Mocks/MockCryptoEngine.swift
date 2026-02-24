@@ -8,12 +8,12 @@ final class MockCryptoEngine: CryptoEngineProtocol {
     var encryptResult: Result<Data, Error> = .success(Data())
     var decryptResult: Result<Data, Error> = .success(Data())
 
-    func encrypt(_ data: Data, with key: Data) throws -> Data {
+    func encrypt(_: Data, with _: Data) throws -> Data {
         encryptCallCount += 1
         return try encryptResult.get()
     }
 
-    func decrypt(_ encryptedData: Data, with key: Data) throws -> Data {
+    func decrypt(_: Data, with _: Data) throws -> Data {
         decryptCallCount += 1
         return try decryptResult.get()
     }

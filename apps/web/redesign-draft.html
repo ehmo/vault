@@ -1735,7 +1735,7 @@
             const themeToggle = document.getElementById('theme-toggle');
             const themeIcon = document.getElementById('theme-icon');
             const themeLabel = document.getElementById('theme-label');
-            const preferred = window.matchMedia('(prefers-color-scheme: dark)');
+            const preferred = globalThis.matchMedia('(prefers-color-scheme: dark)');
             const savedTheme = localStorage.getItem('vaultaire-theme');
             const hasUserOverride = savedTheme === 'dark' || savedTheme === 'light';
 
@@ -1749,9 +1749,9 @@
                     return `rgba(204, 195, 248, ${alpha})`;
                 }
 
-                const r = parseInt(fullHex.slice(0, 2), 16);
-                const g = parseInt(fullHex.slice(2, 4), 16);
-                const b = parseInt(fullHex.slice(4, 6), 16);
+                const r = Number.parseInt(fullHex.slice(0, 2), 16);
+                const g = Number.parseInt(fullHex.slice(2, 4), 16);
+                const b = Number.parseInt(fullHex.slice(4, 6), 16);
                 return `rgba(${r}, ${g}, ${b}, ${alpha})`;
             };
 

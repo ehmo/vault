@@ -320,13 +320,7 @@ struct PatternSetupView: View {
                         // No-op: dismiss handled by SwiftUI
                     }
                     Button("Yes, I've saved it") {
-                        if useCustomPhrase {
-                            // For custom phrases, the phrase was already saved during pattern creation.
-                            // We just need to complete the flow.
-                            onComplete()
-                        } else {
-                            onComplete()
-                        }
+                        onComplete()
                     }
                 } message: {
                     Text("This recovery phrase will NEVER be shown again. Make sure you've written it down and stored it safely.")

@@ -41,7 +41,7 @@ final class DuressVaultSharingTests: XCTestCase {
     
     // MARK: - Duress + Sharing Tests
     
-    func testDuressTrigger_RevokesAllActiveShares() async throws {
+    func testDuressTriggerRevokesAllActiveShares() async throws {
         // Scenario: User 1 has 2 vaults, both shared with User 2
         // User 1 triggers duress on vault 1
         // Both shares should be revoked
@@ -98,7 +98,7 @@ final class DuressVaultSharingTests: XCTestCase {
         }
     }
     
-    func testDuressTrigger_PreservesDuressVaultShare() async throws {
+    func testDuressTriggerPreservesDuressVaultShare() async throws {
         // Scenario: User 1 sets vault A as duress vault and shares it
         // User 1 also shares vault B
         // When duress is triggered on vault A, vault B's share is revoked but vault A's share remains
@@ -149,7 +149,7 @@ final class DuressVaultSharingTests: XCTestCase {
         }
     }
     
-    func testDuressTrigger_User2CannotAccessAfterRevocation() async throws {
+    func testDuressTriggerUser2CannotAccessAfterRevocation() async throws {
         // Complete flow test:
         // 1. User 1 shares vault with User 2
         // 2. User 2 accepts and has local copy
@@ -202,7 +202,7 @@ final class DuressVaultSharingTests: XCTestCase {
         }
     }
     
-    func testDuressTrigger_WithoutShares_DestroysOnlyLocalData() async throws {
+    func testDuressTriggerWithoutSharesDestroysOnlyLocalData() async throws {
         // Test that duress works correctly even when there are no active shares
         // Should just destroy local data without trying to revoke anything
         
@@ -279,7 +279,7 @@ final class DuressSharingIntegrationTests: XCTestCase {
 @MainActor
 final class DuressSharingSecurityTests: XCTestCase {
     
-    func testDuressRevocation_HappensBeforeDataDestruction() async throws {
+    func testDuressRevocationHappensBeforeDataDestruction() async throws {
         // Critical security test: shares must be revoked BEFORE local data is destroyed
         // Otherwise if revocation fails, User 2 might still have access while User 1's data is gone
         
@@ -293,14 +293,14 @@ final class DuressSharingSecurityTests: XCTestCase {
         XCTAssertTrue(true, "Code review confirms revocation happens before data destruction")
     }
     
-    func testDuressRevocation_ContinuesOnFailure() async throws {
+    func testDuressRevocationContinuesOnFailure() async throws {
         // If one share revocation fails, should continue revoking others
         // This is implemented via the do-catch inside the loop in revokeActiveShares(from:)
 
         XCTAssertTrue(true, "Code review confirms revocation continues even if individual shares fail")
     }
 
-    func testDuressVaultShare_AlsoRevoked() async throws {
+    func testDuressVaultShareAlsoRevoked() async throws {
         // The duress vault's shares are also revoked since it's the only
         // decryptable index. Non-duress indexes are encrypted (no key available)
         // and destroyed separately.

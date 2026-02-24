@@ -42,7 +42,7 @@ final class LocalVaultRevocationTests: XCTestCase {
     
     // MARK: - Local Access Revocation Tests
     
-    func testOpenSharedVault_Revoked_TriggersSelfDestruct() async throws {
+    func testOpenSharedVaultRevokedTriggersSelfDestruct() async throws {
         // 1. Create and set up a shared vault locally (simulating User 2 already accepted)
         let shareKey = try ShareKey(Data(repeating: 0x40, count: 32))
         let policy = VaultStorage.SharePolicy()
@@ -95,7 +95,7 @@ final class LocalVaultRevocationTests: XCTestCase {
         _ = try? await CloudKitSharingManager.shared.publicDatabase.deleteRecord(withID: manifestRecordId)
     }
     
-    func testLocalVaultFiles_RevokedShare_CanBeDeleted() async throws {
+    func testLocalVaultFilesRevokedShareCanBeDeleted() async throws {
         // This test verifies the selfDestruct mechanism works
         // When the UI detects revocation via checkForUpdates, it calls selfDestruct()
         
@@ -134,7 +134,7 @@ final class LocalVaultRevocationTests: XCTestCase {
         _ = try? await CloudKitSharingManager.shared.publicDatabase.deleteRecord(withID: manifestRecordId)
     }
     
-    func testVaultStatusCheck_ExpiredShare_TriggersSelfDestruct() async throws {
+    func testVaultStatusCheckExpiredShareTriggersSelfDestruct() async throws {
         // Test that expired shares also trigger self-destruct (similar flow to revoked)
         let shareKey = try ShareKey(Data(repeating: 0x42, count: 32))
         let expiredDate = Date().addingTimeInterval(-3600) // 1 hour ago
@@ -162,7 +162,7 @@ final class LocalVaultRevocationTests: XCTestCase {
         _ = try? await CloudKitSharingManager.shared.publicDatabase.deleteRecord(withID: manifestRecordId)
     }
     
-    func testVaultStatusCheck_MaxOpensExceeded_TriggersSelfDestruct() async throws {
+    func testVaultStatusCheckMaxOpensExceededTriggersSelfDestruct() async throws {
         // Test that max opens exceeded also triggers self-destruct
         let shareKey = try ShareKey(Data(repeating: 0x43, count: 32))
         let policy = VaultStorage.SharePolicy(expiresAt: nil, maxOpens: 5, allowScreenshots: false, allowDownloads: true)
@@ -250,7 +250,7 @@ final class LocalVaultRevocationTests: XCTestCase {
 @MainActor
 final class VaultStatusCheckVerificationTests: XCTestCase {
     
-    func testCheckSharedVaultStatus_DetectsRevocation() async throws {
+    func testCheckSharedVaultStatusDetectsRevocation() async throws {
         // This test verifies the actual implementation in VaultViewModel
         // The checkSharedVaultStatus() method should:
         // 1. Load the vault index
@@ -272,7 +272,7 @@ final class VaultStatusCheckVerificationTests: XCTestCase {
         XCTAssertTrue(true, "Code review confirms revocation check exists in VaultViewModel.checkSharedVaultStatus()")
     }
     
-    func testSelfDestruct_DeletesAllLocalFiles() async throws {
+    func testSelfDestructDeletesAllLocalFiles() async throws {
         // Verifies selfDestruct() implementation at VaultViewModel.swift:834-859:
         // 1. Marks share as consumed
         // 2. Deletes all files from vault

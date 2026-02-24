@@ -358,10 +358,6 @@ footer {
   margin-top: 6px;
   border-top: 1px solid color-mix(in srgb, var(--text) 8%, transparent 92%);
   font-size: 0.82rem;
-}
-
-.footer-features,
-.footer-compare {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px 14px;

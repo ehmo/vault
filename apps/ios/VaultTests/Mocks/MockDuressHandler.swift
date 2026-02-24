@@ -30,7 +30,7 @@ actor MockDuressHandler: DuressHandlerProtocol {
         lastTriggerKey = duressKey
     }
 
-    func performNuclearWipe(secure: Bool) async {
+    func performNuclearWipe(secure _: Bool) async {
         nuclearWipeCallCount += 1
         duressFingerprint = nil
     }

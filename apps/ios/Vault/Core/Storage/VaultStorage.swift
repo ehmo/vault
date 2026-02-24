@@ -555,12 +555,12 @@ final class VaultStorage: @unchecked Sendable {
 
     /// Store a file from a URL without loading the entire raw content into memory.
     /// Uses streaming encryption for large files (VCSE for files > 1MB).
-    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, duration: TimeInterval? = nil, fileId: UUID? = nil, originalDate: Date? = nil) async throws -> UUID {
+    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, options: FileStoreOptions = FileStoreOptions()) async throws -> UUID {
         ensureBlobReady()
 
         let resultId: UUID = try await indexManager.withTransaction(key: key) { index, masterKey in
             // Build header (small — stays in memory)
-            let actualFileId = fileId ?? UUID()
+            let actualFileId = options.fileId ?? UUID()
             let originalFileSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int) ?? 0
             let header = CryptoEngine.EncryptedFileHeader(
                 fileId: actualFileId,
@@ -593,7 +593,7 @@ final class VaultStorage: @unchecked Sendable {
             headerPreview.append(encryptedHeader.prefix(60))
 
             var encryptedThumbnail: Data? = nil
-            if let thumbnail = thumbnailData {
+            if let thumbnail = options.thumbnailData {
                 encryptedThumbnail = try? CryptoEngine.encrypt(thumbnail, with: masterKey)
             }
 
@@ -610,8 +610,8 @@ final class VaultStorage: @unchecked Sendable {
                 filename: filename,
                 blobId: blobWrite.blobId == "primary" ? nil : blobWrite.blobId,
                 createdAt: Date(),
-                duration: duration,
-                originalDate: originalDate
+                duration: options.duration,
+                originalDate: options.originalDate
             )
             index.files.append(entry)
 

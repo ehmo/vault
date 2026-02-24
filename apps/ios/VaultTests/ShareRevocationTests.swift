@@ -44,7 +44,7 @@ final class ShareRevocationTests: XCTestCase {
     
     // MARK: - Revocation Check Tests
     
-    func testAcceptInvite_RevokedShare_ShowsError() async throws {
+    func testAcceptInviteRevokedShareShowsError() async throws {
         // 1. Create a share
         let shareKey = try ShareKey(Data(repeating: 0x10, count: 32))
         let policy = VaultStorage.SharePolicy()
@@ -72,7 +72,7 @@ final class ShareRevocationTests: XCTestCase {
         }
     }
     
-    func testAcceptInvite_RevokedShare_CannotProceed() async throws {
+    func testAcceptInviteRevokedShareCannotProceed() async throws {
         // This test simulates the UI flow when a revoked share is accepted
         
         // 1. Create a mock view model scenario
@@ -96,7 +96,7 @@ final class ShareRevocationTests: XCTestCase {
         await fulfillment(of: [expectation], timeout: 5.0)
     }
     
-    func testAcceptInvite_AvailableShare_CanProceed() async throws {
+    func testAcceptInviteAvailableShareCanProceed() async throws {
         // 1. Create a share (not revoked)
         let shareKey = try ShareKey(Data(repeating: 0x11, count: 32))
         let policy = VaultStorage.SharePolicy()
@@ -116,7 +116,7 @@ final class ShareRevocationTests: XCTestCase {
         XCTAssertEqual(result, .success(()), "Available share should return success")
     }
     
-    func testDownloadSharedVault_Revoked_ThrowsError() async throws {
+    func testDownloadSharedVaultRevokedThrowsError() async throws {
         // 1. Create and revoke a share
         let shareKey = try ShareKey(Data(repeating: 0x12, count: 32))
         let policy = VaultStorage.SharePolicy()
@@ -148,7 +148,7 @@ final class ShareRevocationTests: XCTestCase {
     
     // MARK: - Real-time Verification Tests
     
-    func testInviteFlow_TimingAttack_PreventsAcceptance() async throws {
+    func testInviteFlowTimingAttackPreventsAcceptance() async throws {
         // This tests the scenario where:
         // 1. User 2 opens invite screen (share is available)
         // 2. User 1 revokes share
@@ -187,7 +187,7 @@ final class ShareRevocationTests: XCTestCase {
     
     // MARK: - Mock Tests for UI Flow
     
-    func testMockInviteAcceptance_RevokedShare_UpdatesModeToError() async throws {
+    func testMockInviteAcceptanceRevokedShareUpdatesModeToError() async throws {
         // Test the UI state change when a revoked share is detected
         let mockClient = MockCloudKitSharingClient()
         mockClient.shouldFailWithError = .revoked
@@ -203,7 +203,7 @@ final class ShareRevocationTests: XCTestCase {
         }
     }
     
-    func testMockInviteAcceptance_AvailableShare_ProceedsToPatternSetup() async throws {
+    func testMockInviteAcceptanceAvailableShareProceedsToPatternSetup() async throws {
         // Test the UI state change when an available share is confirmed
         let mockClient = MockCloudKitSharingClient()
         mockClient.shouldFailWithError = nil
@@ -228,7 +228,7 @@ final class ShareRevocationTests: XCTestCase {
 @MainActor
 final class ShareRevocationIntegrationTests: XCTestCase {
     
-    func testFullRevocationFlow_EndToEnd() async throws {
+    func testFullRevocationFlowEndToEnd() async throws {
         let phrase = "integration test phrase for revocation"
         let shareKey = try ShareKey(Data(repeating: 0x20, count: 32))
         let policy = VaultStorage.SharePolicy()
@@ -283,7 +283,7 @@ final class ShareRevocationIntegrationTests: XCTestCase {
 @MainActor
 final class ShareRevocationPerformanceTests: XCTestCase {
     
-    func testRevocationCheck_Performance() async throws {
+    func testRevocationCheckPerformance() async throws {
         let phrase = "performance test revocation"
         let shareKey = try ShareKey(Data(repeating: 0x30, count: 32))
         let policy = VaultStorage.SharePolicy()

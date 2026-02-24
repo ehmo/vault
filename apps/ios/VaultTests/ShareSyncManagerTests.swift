@@ -34,7 +34,7 @@ private final class MockSyncVaultStorage: VaultStorageProtocol, @unchecked Senda
         fatalError("Not used in ShareSyncManager tests")
     }
 
-    func storeFileFromURL(_ _: URL, filename _: String, mimeType _: String, with _: VaultKey, thumbnailData _: Data?, duration _: TimeInterval?, fileId _: UUID?, originalDate _: Date?) async throws -> UUID {
+    func storeFileFromURL(_: URL, filename _: String, mimeType _: String, with _: VaultKey, options _: FileStoreOptions) async throws -> UUID {
         fatalError("Not used in ShareSyncManager tests")
     }
 

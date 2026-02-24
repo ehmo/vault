@@ -21,8 +21,10 @@ final class PatternBoardConsistencyTests: XCTestCase {
 
     // MARK: - PatternSetupView Tests
 
-    func testPatternSetupView_CenteredGridLayout() throws {
-        let view = PatternSetupView(onComplete: {})
+    func testPatternSetupViewCenteredGridLayout() throws {
+        let view = PatternSetupView(onComplete: {
+            // No-op for test
+        })
             .environment(AppState())
 
         let inspect = try view.inspect()
@@ -35,8 +37,10 @@ final class PatternBoardConsistencyTests: XCTestCase {
         XCTAssertEqual(frame.height, expectedGridSize, "Pattern grid height should be consistent")
     }
 
-    func testPatternSetupView_FixedFeedbackArea() throws {
-        let view = PatternSetupView(onComplete: {})
+    func testPatternSetupViewFixedFeedbackArea() throws {
+        let view = PatternSetupView(onComplete: {
+            // No-op for test
+        })
             .environment(AppState())
 
         let inspect = try view.inspect()
@@ -54,8 +58,10 @@ final class PatternBoardConsistencyTests: XCTestCase {
         XCTAssertEqual(minHeight, expectedFeedbackHeight, "Feedback area should have fixed minHeight to prevent layout shift")
     }
 
-    func testPatternSetupView_FixedSubtitleHeight() throws {
-        let view = PatternSetupView(onComplete: {})
+    func testPatternSetupViewFixedSubtitleHeight() throws {
+        let view = PatternSetupView(onComplete: {
+            // No-op for test
+        })
             .environment(AppState())
 
         let inspect = try view.inspect()
@@ -67,13 +73,15 @@ final class PatternBoardConsistencyTests: XCTestCase {
         XCTAssertEqual(minHeight, expectedSubtitleMinHeight, "Subtitle should have fixed minHeight")
     }
 
-    func testPatternSetupView_ValidationFeedbackShown() throws {
-        var view = PatternSetupView(onComplete: {})
+    func testPatternSetupViewValidationFeedbackShown() throws {
+        var view = PatternSetupView(onComplete: {
+            // No-op for test
+        })
             .environment(AppState())
 
         // Simulate entering an invalid pattern (less than 6 dots)
         let inspect = try view.inspect()
-        let grid = try inspect.find(PatternGridView.self)
+        _ = try inspect.find(PatternGridView.self)
 
         // Pattern with only 2 dots should show validation error
         // Note: This would need PatternGridView to expose state for testing
@@ -84,7 +92,7 @@ final class PatternBoardConsistencyTests: XCTestCase {
 
     // MARK: - ChangePatternView Tests
 
-    func testChangePatternView_CenteredGridLayout() throws {
+    func testChangePatternViewCenteredGridLayout() throws {
         let appState = AppState()
         // Simulate unlocked state with pattern
         appState.isUnlocked = true
@@ -102,7 +110,7 @@ final class PatternBoardConsistencyTests: XCTestCase {
         XCTAssertEqual(frame.height, expectedGridSize, "Pattern grid height should be consistent")
     }
 
-    func testChangePatternView_TryAgainButtonCentered() throws {
+    func testChangePatternViewTryAgainButtonCentered() throws {
         // Test that Try Again button is centered in confirm step
         let appState = AppState()
         appState.isUnlocked = true
@@ -126,7 +134,7 @@ final class PatternBoardConsistencyTests: XCTestCase {
         }
     }
 
-    func testChangePatternView_BlueNoticeNotTruncated() throws {
+    func testChangePatternViewBlueNoticeNotTruncated() throws {
         let appState = AppState()
         appState.isUnlocked = true
         appState.unlockedWithRecoveryPhrase = true // This shows the blue notice
@@ -152,7 +160,7 @@ final class PatternBoardConsistencyTests: XCTestCase {
         XCTAssertEqual(lineLimit, 2, "Notice text should allow up to 2 lines")
     }
 
-    func testChangePatternView_SkipVerificationOnlyWithRecoveryPhrase() throws {
+    func testChangePatternViewSkipVerificationOnlyWithRecoveryPhrase() throws {
         let appState = AppState()
 
         // Case 1: Unlocked with pattern - should NOT skip verification
@@ -182,12 +190,14 @@ final class PatternBoardConsistencyTests: XCTestCase {
 
     // MARK: - Pattern Grid Consistency Tests
 
-    func testAllPatternScreens_UseSameGridSize() throws {
+    func testAllPatternScreensUseSameGridSize() throws {
         let appState = AppState()
         appState.isUnlocked = true
 
         // Test PatternSetupView
-        let setupView = PatternSetupView(onComplete: {})
+        let setupView = PatternSetupView(onComplete: {
+            // No-op for test
+        })
             .environment(appState)
         let setupInspect = try setupView.inspect()
         let setupGrid = try setupInspect.find(PatternGridView.self)
@@ -204,12 +214,14 @@ final class PatternBoardConsistencyTests: XCTestCase {
         XCTAssertEqual(setupFrame.height, changeFrame.height, "All pattern grids should have same height")
     }
 
-    func testAllPatternScreens_HaveFixedFeedbackArea() throws {
+    func testAllPatternScreensHaveFixedFeedbackArea() throws {
         let appState = AppState()
         appState.isUnlocked = true
 
         // Test PatternSetupView
-        let setupView = PatternSetupView(onComplete: {})
+        let setupView = PatternSetupView(onComplete: {
+            // No-op for test
+        })
             .environment(appState)
         let setupInspect = try setupView.inspect()
 
@@ -237,7 +249,7 @@ final class PatternBoardConsistencyTests: XCTestCase {
 
     // MARK: - Error Message Consistency Tests
 
-    func testPatternScreens_ErrorMessageStyling() throws {
+    func testPatternScreensErrorMessageStyling() throws {
         let appState = AppState()
         appState.isUnlocked = true
 
@@ -257,7 +269,7 @@ final class PatternBoardConsistencyTests: XCTestCase {
 
     // MARK: - Accessibility Tests
 
-    func testPatternBoard_AccessibilityIdentifiers() throws {
+    func testPatternBoardAccessibilityIdentifiers() throws {
         let appState = AppState()
         appState.isUnlocked = true
 
@@ -278,7 +290,7 @@ final class PatternBoardConsistencyTests: XCTestCase {
 
     // MARK: - Layout Stability Tests
 
-    func testPatternBoard_NoLayoutShiftOnError() throws {
+    func testPatternBoardNoLayoutShiftOnError() throws {
         // This test verifies that when an error appears, the pattern board
         // doesn't jump or shift position
 
@@ -292,7 +304,6 @@ final class PatternBoardConsistencyTests: XCTestCase {
 
         // Get initial position of pattern grid
         let grid = try inspect.find(PatternGridView.self)
-        let initialFrame = try grid.fixedWidthAndHeight()
 
         // Verify grid has Spacer above and below for centering
         let parentVStack = try grid.parentView(ofType: VStack<VSpacer>.self)

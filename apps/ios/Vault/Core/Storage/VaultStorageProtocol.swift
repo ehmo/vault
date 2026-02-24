@@ -1,5 +1,20 @@
 import Foundation
 
+/// Optional metadata for file store operations, bundling optional parameters.
+struct FileStoreOptions: Sendable {
+    var thumbnailData: Data?
+    var duration: TimeInterval?
+    var fileId: UUID?
+    var originalDate: Date?
+
+    init(thumbnailData: Data? = nil, duration: TimeInterval? = nil, fileId: UUID? = nil, originalDate: Date? = nil) {
+        self.thumbnailData = thumbnailData
+        self.duration = duration
+        self.fileId = fileId
+        self.originalDate = originalDate
+    }
+}
+
 /// Protocol abstracting VaultStorage for testability.
 /// Covers the public API surface used by ShareSyncManager, ShareUploadManager, and other consumers.
 protocol VaultStorageProtocol: Sendable {
@@ -11,7 +26,7 @@ protocol VaultStorageProtocol: Sendable {
     // MARK: - File Operations
 
     func storeFile(data: Data, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data?, duration: TimeInterval?, fileId: UUID?) async throws -> UUID
-    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data?, duration: TimeInterval?, fileId: UUID?, originalDate: Date?) async throws -> UUID
+    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, options: FileStoreOptions) async throws -> UUID
     func retrieveFile(id: UUID, with key: VaultKey) async throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data)
     func retrieveFileContent(entry: VaultStorage.VaultIndex.VaultFileEntry, index: VaultStorage.VaultIndex, masterKey: MasterKey) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data)
     func retrieveFileToTempURL(id: UUID, with key: VaultKey) async throws -> (header: CryptoEngine.EncryptedFileHeader, tempURL: URL)
@@ -35,8 +50,8 @@ extension VaultStorageProtocol {
         try await storeFile(data: data, filename: filename, mimeType: mimeType, with: key, thumbnailData: thumbnailData, duration: nil, fileId: fileId)
     }
 
-    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, fileId: UUID? = nil, originalDate: Date? = nil) async throws -> UUID {
-        try await storeFileFromURL(fileURL, filename: filename, mimeType: mimeType, with: key, thumbnailData: thumbnailData, duration: nil, fileId: fileId, originalDate: originalDate)
+    func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, thumbnailData: Data? = nil, originalDate: Date? = nil) async throws -> UUID {
+        try await storeFileFromURL(fileURL, filename: filename, mimeType: mimeType, with: key, options: FileStoreOptions(thumbnailData: thumbnailData, originalDate: originalDate))
     }
 
     func deleteFiles(ids: Set<UUID>, with key: VaultKey) async throws {

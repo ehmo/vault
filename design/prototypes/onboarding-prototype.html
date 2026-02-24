@@ -939,9 +939,16 @@
           feedback.innerHTML = '';
         }, 800);
       } else {
-        // Confirm step - go to recovery
-        feedback.innerHTML = '<span style="color: #22c55e; font-weight: 600;">✓ Pattern confirmed!</span>';
-        setTimeout(() => goTo('recovery'), 800);
+        // Confirm step - compare with first pattern
+        const matches = selectedDots.length === firstPattern.length &&
+          selectedDots.every((dot, i) => dot === firstPattern[i]);
+        if (matches) {
+          feedback.innerHTML = '<span style="color: #22c55e; font-weight: 600;">✓ Pattern confirmed!</span>';
+          setTimeout(() => goTo('recovery'), 800);
+        } else {
+          feedback.innerHTML = '<span style="color: #ef4444; font-weight: 600;">✗ Patterns don\'t match. Try again.</span>';
+          setTimeout(() => { resetPatternUI(); feedback.innerHTML = ''; }, 1200);
+        }
       }
     }
   }

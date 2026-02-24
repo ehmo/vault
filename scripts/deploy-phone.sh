@@ -57,7 +57,7 @@ elif [[ "$DEVICE_NUM" == "2" ]]; then
 	DEVICE_UDID="$DEVICE2_UDID"
 	DEVICE_NAME="$DEVICE2_NAME"
 else
-	echo "ERROR: Invalid device number. Use 1 or 2."
+	echo "ERROR: Invalid device number. Use 1 or 2." >&2
 	exit 1
 fi
 
