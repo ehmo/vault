@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "0029e692ac34",
+  "strategy": "manual-commit",
+  "branch": "worktree-humble-plotting-journal",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Core/Storage/VaultStorage.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/00/29e692ac34/0/metadata.json",
+      "transcript": "/00/29e692ac34/0/full.jsonl",
+      "context": "/00/29e692ac34/0/context.md",
+      "content_hash": "/00/29e692ac34/0/content_hash.txt",
+      "prompt": "/00/29e692ac34/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 48,
+    "cache_creation_tokens": 90075,
+    "cache_read_tokens": 2898453,
+    "output_tokens": 873,
+    "api_call_count": 46
+  }
+}

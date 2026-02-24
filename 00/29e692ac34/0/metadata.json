@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "0029e692ac34",
+  "session_id": "e24a70de-746f-4075-acc0-5d2c2da5e724",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-24T07:13:58.082428Z",
+  "branch": "worktree-humble-plotting-journal",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Core/Storage/VaultStorage.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "f79da72c-870c-4f75-9a2f-280c87417586",
+  "token_usage": {
+    "input_tokens": 48,
+    "cache_creation_tokens": 90075,
+    "cache_read_tokens": 2898453,
+    "output_tokens": 873,
+    "api_call_count": 46
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T07:13:57.958512Z",
+    "agent_lines": 67,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 67,
+    "agent_percentage": 100
+  }
+}
