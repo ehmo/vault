@@ -98,30 +98,9 @@ enum SVDFSerializer {
             ))
         }
 
-        // Encrypt and append manifest
-        let manifestJSON = try JSONEncoder().encode(manifest)
-        let encryptedManifest = try CryptoEngine.encrypt(manifestJSON, with: shareKey)
-        let manifestOffset = output.count
-        output.append(encryptedManifest)
-
-        // Encrypt and append metadata
-        let metadataJSON = try JSONEncoder().encode(metadata)
-        let encryptedMetadata = try CryptoEngine.encrypt(metadataJSON, with: shareKey)
-        let metadataOffset = output.count
-        output.append(encryptedMetadata)
-
-        let headerFileCount = try checkedUInt32(files.count, field: "fileCount")
-        let headerManifestSize = try checkedUInt32(encryptedManifest.count, field: "manifestSize")
-        let headerMetadataSize = try checkedUInt32(encryptedMetadata.count, field: "metadataSize")
-
-        // Write header
-        writeHeader(
-            into: &output,
-            fileCount: headerFileCount,
-            manifestOffset: UInt64(manifestOffset),
-            manifestSize: headerManifestSize,
-            metadataOffset: UInt64(metadataOffset),
-            metadataSize: headerMetadataSize
+        try writeEncryptedTrailer(
+            manifest: manifest, metadata: metadata,
+            shareKey: shareKey, fileCount: files.count, into: &output
         )
 
         return (output, manifest)
@@ -173,34 +152,10 @@ enum SVDFSerializer {
             fileIds.append(file.id.uuidString)
         }
 
-        // Encrypt and write manifest
-        let manifestJSON = try JSONEncoder().encode(manifest)
-        let encryptedManifest = try CryptoEngine.encrypt(manifestJSON, with: shareKey)
-        let manifestOffset = handle.offsetInFile
-        handle.write(encryptedManifest)
-
-        // Encrypt and write metadata
-        let metadataJSON = try JSONEncoder().encode(metadata)
-        let encryptedMetadata = try CryptoEngine.encrypt(metadataJSON, with: shareKey)
-        let metadataOffset = handle.offsetInFile
-        handle.write(encryptedMetadata)
-
-        let headerFileCount = try checkedUInt32(fileCount, field: "fileCount")
-        let headerManifestSize = try checkedUInt32(encryptedManifest.count, field: "manifestSize")
-        let headerMetadataSize = try checkedUInt32(encryptedMetadata.count, field: "metadataSize")
-
-        // Seek back and write the real header
-        handle.seek(toFileOffset: 0)
-        var headerData = Data(count: headerSize)
-        writeHeader(
-            into: &headerData,
-            fileCount: headerFileCount,
-            manifestOffset: UInt64(manifestOffset),
-            manifestSize: headerManifestSize,
-            metadataOffset: UInt64(metadataOffset),
-            metadataSize: headerMetadataSize
+        try writeEncryptedTrailer(
+            manifest: manifest, metadata: metadata,
+            shareKey: shareKey, fileCount: fileCount, to: handle
         )
-        handle.write(headerData)
 
         return (manifest, fileIds)
     }
@@ -245,34 +200,10 @@ enum SVDFSerializer {
             didWriteFile?(i, file)
         }
 
-        // Encrypt and write manifest
-        let manifestJSON = try JSONEncoder().encode(manifest)
-        let encryptedManifest = try CryptoEngine.encrypt(manifestJSON, with: shareKey)
-        let manifestOffset = handle.offsetInFile
-        handle.write(encryptedManifest)
-
-        // Encrypt and write metadata
-        let metadataJSON = try JSONEncoder().encode(metadata)
-        let encryptedMetadata = try CryptoEngine.encrypt(metadataJSON, with: shareKey)
-        let metadataOffset = handle.offsetInFile
-        handle.write(encryptedMetadata)
-
-        let headerFileCount = try checkedUInt32(fileCount, field: "fileCount")
-        let headerManifestSize = try checkedUInt32(encryptedManifest.count, field: "manifestSize")
-        let headerMetadataSize = try checkedUInt32(encryptedMetadata.count, field: "metadataSize")
-
-        // Seek back and write the real header
-        handle.seek(toFileOffset: 0)
-        var headerData = Data(count: headerSize)
-        writeHeader(
-            into: &headerData,
-            fileCount: headerFileCount,
-            manifestOffset: UInt64(manifestOffset),
-            manifestSize: headerManifestSize,
-            metadataOffset: UInt64(metadataOffset),
-            metadataSize: headerMetadataSize
+        try writeEncryptedTrailer(
+            manifest: manifest, metadata: metadata,
+            shareKey: shareKey, fileCount: fileCount, to: handle
         )
-        handle.write(headerData)
 
         return (manifest, fileIds)
     }
@@ -353,34 +284,10 @@ enum SVDFSerializer {
 
         let activeCount = manifest.filter { !$0.deleted }.count
 
-        // Encrypt and write manifest
-        let manifestJSON = try JSONEncoder().encode(manifest)
-        let encryptedManifest = try CryptoEngine.encrypt(manifestJSON, with: shareKey)
-        let manifestOffset = outHandle.offsetInFile
-        outHandle.write(encryptedManifest)
-
-        // Encrypt and write metadata
-        let metadataJSON = try JSONEncoder().encode(metadata)
-        let encryptedMetadata = try CryptoEngine.encrypt(metadataJSON, with: shareKey)
-        let metadataOffset = outHandle.offsetInFile
-        outHandle.write(encryptedMetadata)
-
-        let headerFileCount = try checkedUInt32(activeCount, field: "fileCount")
-        let headerManifestSize = try checkedUInt32(encryptedManifest.count, field: "manifestSize")
-        let headerMetadataSize = try checkedUInt32(encryptedMetadata.count, field: "metadataSize")
-
-        // Seek back and write the real header
-        outHandle.seek(toFileOffset: 0)
-        var headerOut = Data(count: headerSize)
-        writeHeader(
-            into: &headerOut,
-            fileCount: headerFileCount,
-            manifestOffset: UInt64(manifestOffset),
-            manifestSize: headerManifestSize,
-            metadataOffset: UInt64(metadataOffset),
-            metadataSize: headerMetadataSize
+        try writeEncryptedTrailer(
+            manifest: manifest, metadata: metadata,
+            shareKey: shareKey, fileCount: activeCount, to: outHandle
         )
-        outHandle.write(headerOut)
 
         return manifest
     }
@@ -442,30 +349,9 @@ enum SVDFSerializer {
 
         let activeCount = manifest.filter { !$0.deleted }.count
 
-        // Encrypt and append manifest
-        let manifestJSON = try JSONEncoder().encode(manifest)
-        let encryptedManifest = try CryptoEngine.encrypt(manifestJSON, with: shareKey)
-        let manifestOffset = output.count
-        output.append(encryptedManifest)
-
-        // Encrypt and append metadata
-        let metadataJSON = try JSONEncoder().encode(metadata)
-        let encryptedMetadata = try CryptoEngine.encrypt(metadataJSON, with: shareKey)
-        let metadataOffset = output.count
-        output.append(encryptedMetadata)
-
-        let headerFileCount = try checkedUInt32(activeCount, field: "fileCount")
-        let headerManifestSize = try checkedUInt32(encryptedManifest.count, field: "manifestSize")
-        let headerMetadataSize = try checkedUInt32(encryptedMetadata.count, field: "metadataSize")
-
-        // Rewrite header
-        writeHeader(
-            into: &output,
-            fileCount: headerFileCount,
-            manifestOffset: UInt64(manifestOffset),
-            manifestSize: headerManifestSize,
-            metadataOffset: UInt64(metadataOffset),
-            metadataSize: headerMetadataSize
+        try writeEncryptedTrailer(
+            manifest: manifest, metadata: metadata,
+            shareKey: shareKey, fileCount: activeCount, into: &output
         )
 
         return (output, manifest)
@@ -806,6 +692,67 @@ enum SVDFSerializer {
             encryptedThumbnail: thumb,
             duration: duration
         )
+    }
+
+    // MARK: - Encrypted Trailer (Manifest + Metadata + Header)
+
+    /// Encrypts and appends manifest + metadata to a Data buffer, then writes the header.
+    private static func writeEncryptedTrailer(
+        manifest: [FileManifestEntry],
+        metadata: SharedVaultData.SharedVaultMetadata,
+        shareKey: Data,
+        fileCount: Int,
+        into output: inout Data
+    ) throws {
+        let manifestJSON = try JSONEncoder().encode(manifest)
+        let encryptedManifest = try CryptoEngine.encrypt(manifestJSON, with: shareKey)
+        let manifestOffset = output.count
+        output.append(encryptedManifest)
+
+        let metadataJSON = try JSONEncoder().encode(metadata)
+        let encryptedMetadata = try CryptoEngine.encrypt(metadataJSON, with: shareKey)
+        let metadataOffset = output.count
+        output.append(encryptedMetadata)
+
+        writeHeader(
+            into: &output,
+            fileCount: try checkedUInt32(fileCount, field: "fileCount"),
+            manifestOffset: UInt64(manifestOffset),
+            manifestSize: try checkedUInt32(encryptedManifest.count, field: "manifestSize"),
+            metadataOffset: UInt64(metadataOffset),
+            metadataSize: try checkedUInt32(encryptedMetadata.count, field: "metadataSize")
+        )
+    }
+
+    /// Encrypts and writes manifest + metadata to a FileHandle, then seeks back and writes the header.
+    private static func writeEncryptedTrailer(
+        manifest: [FileManifestEntry],
+        metadata: SharedVaultData.SharedVaultMetadata,
+        shareKey: Data,
+        fileCount: Int,
+        to handle: FileHandle
+    ) throws {
+        let manifestJSON = try JSONEncoder().encode(manifest)
+        let encryptedManifest = try CryptoEngine.encrypt(manifestJSON, with: shareKey)
+        let manifestOffset = handle.offsetInFile
+        handle.write(encryptedManifest)
+
+        let metadataJSON = try JSONEncoder().encode(metadata)
+        let encryptedMetadata = try CryptoEngine.encrypt(metadataJSON, with: shareKey)
+        let metadataOffset = handle.offsetInFile
+        handle.write(encryptedMetadata)
+
+        handle.seek(toFileOffset: 0)
+        var headerData = Data(count: headerSize)
+        writeHeader(
+            into: &headerData,
+            fileCount: try checkedUInt32(fileCount, field: "fileCount"),
+            manifestOffset: UInt64(manifestOffset),
+            manifestSize: try checkedUInt32(encryptedManifest.count, field: "manifestSize"),
+            metadataOffset: UInt64(metadataOffset),
+            metadataSize: try checkedUInt32(encryptedMetadata.count, field: "metadataSize")
+        )
+        handle.write(headerData)
     }
 
     // MARK: - Header Writing
