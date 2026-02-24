@@ -108,107 +108,54 @@ enum ImportIngestor {
         // Parallel processing with concurrency control
         let maxConcurrentImports = min(4, ProcessInfo.processInfo.processorCount)
 
-        await VaultStorage.shared.beginImportBatch()
-
-        // PHASE 1: Pre-allocate blob space for all importable files
-        let importableFiles = batch.files.filter { file in
-            StagedImportManager.encryptedFileURL(batchId: batch.batchId, fileId: file.fileId) != nil
-        }
-
-        guard !importableFiles.isEmpty else {
-            return (0, 0, 0, nil)
-        }
-
-        // Get master key and allocate space (single actor call)
-        let sizes = importableFiles.map { $0.encryptedSize }
-        let (allocations, masterKey): ([VaultStorage.BlobAllocation], MasterKey)
-        do {
-            (allocations, masterKey) = try await VaultStorage.shared.allocateBatchSpaceWithMasterKey(
-                sizes: sizes,
-                key: vaultKey
-            )
-        } catch {
-            importIngestorLogger.error("Failed to allocate batch space: \(error.localizedDescription, privacy: .public)")
-            return (0, importableFiles.count, importableFiles.count, error.localizedDescription)
-        }
-
-        // PHASE 2: Parallel workers decrypt, optimize, and prepare entries
-        actor ImportBuffer {
-            var entries: [VaultStorage.PreparedEntry] = []
-            var allocations: [VaultStorage.BlobAllocation] = []
+        actor BatchState {
             var imported = 0
+            var skipped = 0
             var failed = 0
-            var lastError: Error?
-            var activeWorkers = 0
-            var workersFinished = false
-
-            func startWorker() { activeWorkers += 1 }
-            func endWorker() {
-                activeWorkers -= 1
-                if activeWorkers == 0 { workersFinished = true }
-            }
-            func allWorkersFinished() -> Bool { return workersFinished && activeWorkers == 0 }
-
-            func append(entry: VaultStorage.PreparedEntry, allocation: VaultStorage.BlobAllocation) {
-                entries.append(entry)
-                allocations.append(allocation)
-            }
+            var failureReason: String?
+            var processed = 0
 
             func recordImported() { imported += 1 }
-            func recordFailed(error: Error?) {
+            func recordSkipped() { skipped += 1 }
+            func recordFailed(reason: String?) {
                 failed += 1
-                if let error = error { lastError = error }
+                if let reason { failureReason = reason }
             }
-
-            func getBatch() -> (entries: [VaultStorage.PreparedEntry], allocations: [VaultStorage.BlobAllocation]) {
-                let result = (entries, allocations)
-                entries.removeAll()
-                allocations.removeAll()
-                return result
-            }
-
-            func getAll() -> (entries: [VaultStorage.PreparedEntry], allocations: [VaultStorage.BlobAllocation], imported: Int, failed: Int, lastError: Error?) {
-                return (entries, allocations, imported, failed, lastError)
-            }
-
-            var count: Int { entries.count }
+            func incrementProcessed() { processed += 1 }
         }
 
-        let importBuffer = ImportBuffer()
+        let state = BatchState()
         let progressInterval: TimeInterval = 0.5
         var lastProgressUpdate = Date()
 
+        await VaultStorage.shared.beginImportBatch()
         await withTaskGroup(of: Void.self) { group in
-            // Launch parallel workers
-            for i in 0..<maxConcurrentImports {
-                group.addTask {
-                    await importBuffer.startWorker()
-                    
-                    var fileIndex = i
-                    while fileIndex < importableFiles.count {
-                        let file = importableFiles[fileIndex]
-                        let allocation = allocations[fileIndex]
+            var inFlight = 0
+            var fileIndex = 0
+            let files = batch.files
 
-                        guard !Task.isCancelled else {
-                            await importBuffer.endWorker()
+            func addTasksUpToLimit() {
+                while inFlight < maxConcurrentImports && fileIndex < files.count {
+                    let file = files[fileIndex]
+                    fileIndex += 1
+                    inFlight += 1
+
+                    group.addTask {
+                        // Check if file was already imported
+                        guard let encryptedFileURL = StagedImportManager.encryptedFileURL(
+                            batchId: batch.batchId,
+                            fileId: file.fileId
+                        ) else {
+                            await state.recordSkipped()
+                            await state.incrementProcessed()
                             return
                         }
 
                         do {
                             // Decrypt to temp file
-                            guard let encryptedFileURL = StagedImportManager.encryptedFileURL(
-                                batchId: batch.batchId,
-                                fileId: file.fileId
-                            ) else {
-                                await importBuffer.recordFailed(error: nil)
-                                fileIndex += maxConcurrentImports
-                                continue
-                            }
-
                             let tempURL = FileManager.default.temporaryDirectory
                                 .appendingPathComponent("\(file.fileId.uuidString)_import")
                                 .appendingPathExtension(URL(string: file.filename)?.pathExtension ?? "dat")
-
                             try CryptoEngine.decryptStagedFileToURL(
                                 from: encryptedFileURL,
                                 to: tempURL,
@@ -227,147 +174,51 @@ enum ImportIngestor {
                                 ? MediaOptimizer.updatedFilename(file.filename, newMimeType: optimizedMimeType)
                                 : file.filename
 
-                            // Generate thumbnail
-                            let thumbnailData: Data? = autoreleasepool {
-                                if optimizedMimeType.hasPrefix("image/") {
-                                    return FileUtilities.generateThumbnail(fromFileURL: optimizedURL)
-                                } else if optimizedMimeType.hasPrefix("video/") {
-                                    let asset = AVAsset(url: optimizedURL)
-                                    let generator = AVAssetImageGenerator(asset: asset)
-                                    generator.appliesPreferredTrackTransform = true
-                                    generator.maximumSize = CGSize(width: 400, height: 400)
-                                    let time = CMTime(seconds: 0.5, preferredTimescale: 600)
-                                    guard let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) else { return nil }
-                                    return UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.7)
-                                }
-                                return nil
-                            }
-
-                            // Use existing thumbnail if available
-                            let finalThumbnail: Data? = thumbnailData ?? (file.hasThumbnail
-                                ? StagedImportManager.readEncryptedThumbnail(batchId: batch.batchId, fileId: file.fileId)
-                                    .flatMap { try? CryptoEngine.decrypt($0, with: vaultKey.rawBytes) }
-                                : nil)
-
-                            // Prepare entry (no actor contact)
-                            let preparedEntry = try VaultStorage.shared.prepareFileEntry(
-                                fileURL: optimizedURL,
-                                filename: storedFilename,
-                                mimeType: optimizedMimeType,
-                                thumbnailData: finalThumbnail,
-                                duration: nil,
-                                originalDate: nil,
-                                masterKey: masterKey,
-                                allocation: allocation
+                            // Process thumbnail and store
+                            try await storeWithThumbnail(
+                                batch: batch, file: file, optimizedURL: optimizedURL,
+                                storedFilename: storedFilename, optimizedMimeType: optimizedMimeType,
+                                vaultKey: vaultKey
                             )
 
-                            await importBuffer.append(entry: preparedEntry, allocation: allocation)
-                            await importBuffer.recordImported()
-
-                            // Cleanup
                             if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
                             try? FileManager.default.removeItem(at: tempURL)
+
                             StagedImportManager.deleteEncryptedFile(batchId: batch.batchId, fileId: file.fileId)
 
+                            await state.recordImported()
                             importIngestorLogger.info("Imported file: \(file.filename, privacy: .public)")
                         } catch {
-                            await importBuffer.recordFailed(error: error)
+                            await state.recordFailed(reason: error.localizedDescription)
                             importIngestorLogger.error("Failed to import \(file.fileId, privacy: .public): \(error.localizedDescription, privacy: .public)")
                         }
 
-                        fileIndex += maxConcurrentImports
-                    }
-                    
-                    await importBuffer.endWorker()
-                }
-            }
-
-            // Batch commit coordinator - waits for all workers to finish
-            group.addTask {
-                var committedCount = 0
-                let totalFiles = importableFiles.count
-
-                while true {
-                    try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
-
-                    let count = await importBuffer.count
-                    let workersFinished = await importBuffer.allWorkersFinished()
-                    
-                    // Commit batch if we have enough
-                    if count >= 20 {
-                        let (entries, allocs) = await importBuffer.getBatch()
-                        guard !entries.isEmpty else { continue }
-
-                        do {
-                            try await VaultStorage.shared.commitEntries(entries, allocations: allocs, key: vaultKey)
-                            committedCount += entries.count
-                            importIngestorLogger.info("Batch committed: \(entries.count) files, total: \(committedCount)/\(totalFiles)")
-                        } catch {
-                            importIngestorLogger.error("Batch commit failed: \(error.localizedDescription, privacy: .public)")
-                        }
-                    }
-
-                    // Update progress
-                    let totalImported = await importBuffer.imported
-                    let totalFailed = await importBuffer.failed
-                    if totalImported + totalFailed > 0 {
-                        let now = Date()
-                        if now.timeIntervalSince(lastProgressUpdate) >= progressInterval {
-                            lastProgressUpdate = now
-                            if let onProgress = onProgress {
-                                await onProgress(ImportProgress(
-                                    completed: min(completedOffset + totalImported + totalFailed, totalImportable),
-                                    total: totalImportable
-                                ))
-                            }
-                        }
-                    }
-
-                    // Exit condition: all workers finished AND buffer is empty
-                    if workersFinished && count == 0 {
-                        importIngestorLogger.info("Coordinator exiting: all workers finished, buffer empty, committed: \(committedCount)/\(totalFiles)")
-                        break
-                    }
-                    
-                    // Final commit: workers finished but we still have items
-                    if workersFinished && count > 0 && count < 20 {
-                        let (entries, allocs) = await importBuffer.getBatch()
-                        guard !entries.isEmpty else { continue }
-
-                        do {
-                            try await VaultStorage.shared.commitEntries(entries, allocations: allocs, key: vaultKey)
-                            committedCount += entries.count
-                            importIngestorLogger.info("Final batch committed: \(entries.count) files, total: \(committedCount)/\(totalFiles)")
-                        } catch {
-                            importIngestorLogger.error("Final batch commit failed: \(error.localizedDescription, privacy: .public)")
-                        }
-                        break
+                        await state.incrementProcessed()
                     }
                 }
             }
-        }
 
-        // Final commit of any remaining entries (should be empty if coordinator worked correctly)
-        let (entries, allocs, imported, failed, lastError) = await importBuffer.getAll()
-        if !entries.isEmpty {
-            do {
-                try await VaultStorage.shared.commitEntries(entries, allocations: allocs, key: vaultKey)
-                importIngestorLogger.info("Final cleanup commit: \(entries.count) files")
-            } catch {
-                importIngestorLogger.error("Final cleanup commit failed: \(error.localizedDescription, privacy: .public)")
+            addTasksUpToLimit()
+
+            for await _ in group {
+                inFlight -= 1
+                addTasksUpToLimit()
+
+                // Throttled progress updates
+                let now = Date()
+                let processed = await state.processed
+                if now.timeIntervalSince(lastProgressUpdate) >= progressInterval || processed == files.count {
+                    lastProgressUpdate = now
+                    if totalImportable > 0, let onProgress {
+                        await onProgress(
+                            ImportProgress(
+                                completed: min(completedOffset + processed, totalImportable),
+                                total: totalImportable
+                            )
+                        )
+                    }
+                }
             }
-        }
-
-        // Note: Handles are closed by commitEntries when it commits entries
-        // If there were uncommitted entries above, commitEntries closed those handles
-        // No additional handle cleanup needed here
-
-        // Final progress update
-        if let onProgress = onProgress {
-            await onProgress(ImportProgress(
-                completed: min(completedOffset + imported + failed, totalImportable),
-                total: totalImportable
-            ))
         }
 
         do {
@@ -376,10 +227,12 @@ enum ImportIngestor {
             importIngestorLogger.error("Failed to flush import batch: \(error.localizedDescription, privacy: .public)")
         }
 
-        // Extract failure reason from last error
-        let failureReason = lastError?.localizedDescription
+        let skipped = await state.skipped
+        if skipped > 0 {
+            importIngestorLogger.info("Batch \(batch.batchId, privacy: .public): skipped \(skipped) already-imported files")
+        }
 
-        return (imported, failed, imported + failed, failureReason)
+        return (await state.imported, await state.failed, await state.processed, await state.failureReason)
     }
 
     /// Resolves thumbnail data and stores the file inside an autoreleasepool.

@@ -86,9 +86,7 @@
 		39EACFAB2F29EDB600FA7EC2 /* DURESS_VAULT_IMPROVEMENTS.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACFAA2F29EDB600FA7EC2 /* DURESS_VAULT_IMPROVEMENTS.md */; };
 		39EACFAD2F2AC5C500FA7EC2 /* GridLetterManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39EACFAC2F2AC5C500FA7EC2 /* GridLetterManager.swift */; };
 		4A6C9551CFFB7FE1FBD76656 /* BackgroundTaskCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEC907F96E35D0E22AC676B0 /* BackgroundTaskCoordinator.swift */; };
-		57F0C56BFEB92A570C4FA992 /* ScatterGatherRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E8E5F18E1FC5897FE40B6B0 /* ScatterGatherRegressionTests.swift */; };
 		6D5554047A7544D7954CEF9B /* EmbraceIO in Frameworks */ = {isa = PBXBuildFile; productRef = E8320F0CD52C4885B07B350E /* EmbraceIO */; };
-		8CDE44BF006D2B950D36BA2D /* ScatterGatherImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC30652D8EC548525688EBA7 /* ScatterGatherImportTests.swift */; };
 		97AEE2E08179AC87ED7B2E05 /* SecureEnclaveProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D00CF0C2AAF369530BECF95 /* SecureEnclaveProtocol.swift */; };
 		A1B2C3D4E5F64789A1B2C3D4 /* TelemetryDeck in Frameworks */ = {isa = PBXBuildFile; productRef = F1E2D3C4B5A647890123ABCD /* TelemetryDeck */; };
 		ASV000001 /* AppearanceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ASV000000 /* AppearanceSettingsView.swift */; };
@@ -117,6 +115,7 @@
 		ICB000001 /* iCloudBackupBackgroundTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ICB000000 /* iCloudBackupBackgroundTests.swift */; };
 		ILM00001 /* InactivityLockManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ILM00000 /* InactivityLockManagerTests.swift */; };
 		IOT000001 /* ImportOptimizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = IOT000000 /* ImportOptimizationTests.swift */; };
+		IST000001 /* ImportStreamingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = IST000000 /* ImportStreamingTests.swift */; };
 		KT0000001 /* KeyTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = KT0000000 /* KeyTypes.swift */; };
 		KT0000002 /* KeyTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = KT0000000 /* KeyTypes.swift */; };
 		MO0000001 /* MediaOptimizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = MO0000000 /* MediaOptimizer.swift */; };
@@ -317,7 +316,6 @@
 		088000000000 /* Vault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Vault.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0CE72BFB1F9DC0A608226E67 /* PixelLoader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PixelLoader.swift; path = Vault/UI/Components/PixelLoader.swift; sourceTree = "<group>"; };
 		0E3F143060289D413F983227 /* MockDuressHandler.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MockDuressHandler.swift; sourceTree = "<group>"; };
-		2E8E5F18E1FC5897FE40B6B0 /* ScatterGatherRegressionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ScatterGatherRegressionTests.swift; sourceTree = "<group>"; };
 		33B83E548553CC4F470D2263 /* CKRetryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CKRetryTests.swift; sourceTree = "<group>"; };
 		3873FC4BF8488F235F0CA711 /* MockSecureEnclave.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MockSecureEnclave.swift; sourceTree = "<group>"; };
 		392ACAC62F3FB9140059878A /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Products.storekit; sourceTree = "<group>"; };
@@ -334,7 +332,6 @@
 		435D82F116747714733356AF /* MockCryptoEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MockCryptoEngine.swift; sourceTree = "<group>"; };
 		A5B3287CCF2A1DE71141BCF8 /* PixelLoader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PixelLoader.swift; sourceTree = "<group>"; };
 		ASV000000 /* AppearanceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsView.swift; sourceTree = "<group>"; };
-		BC30652D8EC548525688EBA7 /* ScatterGatherImportTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ScatterGatherImportTests.swift; sourceTree = "<group>"; };
 		BT0000000 /* BackgroundTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTaskTests.swift; sourceTree = "<group>"; };
 		CAT00000 /* ConcurrentAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConcurrentAccessTests.swift; sourceTree = "<group>"; };
 		CFE2A0A331634E6BA32AFB2C /* CryptoEngineProtocol.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CryptoEngineProtocol.swift; sourceTree = "<group>"; };
@@ -359,6 +356,7 @@
 		ICB000000 /* iCloudBackupBackgroundTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iCloudBackupBackgroundTests.swift; sourceTree = "<group>"; };
 		ILM00000 /* InactivityLockManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InactivityLockManagerTests.swift; sourceTree = "<group>"; };
 		IOT000000 /* ImportOptimizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportOptimizationTests.swift; sourceTree = "<group>"; };
+		IST000000 /* ImportStreamingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportStreamingTests.swift; sourceTree = "<group>"; };
 		KT0000000 /* KeyTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyTypes.swift; sourceTree = "<group>"; };
 		MO0000000 /* MediaOptimizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaOptimizer.swift; sourceTree = "<group>"; };
 		MO0000002 /* MediaOptimizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaOptimizerTests.swift; sourceTree = "<group>"; };
@@ -862,6 +860,7 @@
 				VVM000002 /* VaultViewModelTests.swift */,
 				PIT000000 /* ParallelImporterTests.swift */,
 				IOT000000 /* ImportOptimizationTests.swift */,
+				IST000000 /* ImportStreamingTests.swift */,
 				DRST00000 /* DragRowSelectorTests.swift */,
 				BT0000000 /* BackgroundTaskTests.swift */,
 				SQ0000000 /* SonarQubeRulesTests.swift */,
@@ -882,8 +881,6 @@
 				SVB00000 /* SharedVaultBannerTests.swift */,
 				33B83E548553CC4F470D2263 /* CKRetryTests.swift */,
 				0B27133903E733FCFF850379 /* Mocks */,
-				BC30652D8EC548525688EBA7 /* ScatterGatherImportTests.swift */,
-				2E8E5F18E1FC5897FE40B6B0 /* ScatterGatherRegressionTests.swift */,
 			);
 			path = VaultTests;
 			sourceTree = "<group>";
@@ -1311,6 +1308,7 @@
 				VVM000003 /* VaultViewModelTests.swift in Sources */,
 				PIT000001 /* ParallelImporterTests.swift in Sources */,
 				IOT000001 /* ImportOptimizationTests.swift in Sources */,
+				IST000001 /* ImportStreamingTests.swift in Sources */,
 				DRST00001 /* DragRowSelectorTests.swift in Sources */,
 				BT0000001 /* BackgroundTaskTests.swift in Sources */,
 				SQ0000001 /* SonarQubeRulesTests.swift in Sources */,
@@ -1333,8 +1331,6 @@
 				EC9A42DC3E3E0A62FAD9A4AD /* MockCryptoEngine.swift in Sources */,
 				F2002A91D88DEF375F696115 /* MockSecureEnclave.swift in Sources */,
 				C41D34F489875A0DB585E634 /* MockDuressHandler.swift in Sources */,
-				8CDE44BF006D2B950D36BA2D /* ScatterGatherImportTests.swift in Sources */,
-				57F0C56BFEB92A570C4FA992 /* ScatterGatherRegressionTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
