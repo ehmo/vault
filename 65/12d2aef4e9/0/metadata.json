@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "6512d2aef4e9",
+  "session_id": "b023693b-fe95-4773-b8a2-861026bcb4ad",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-24T04:41:29.369883Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Features/VaultViewer/ParallelImporter.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "90e4fb31-df27-4a4b-8325-efe628b22acc",
+  "checkpoint_transcript_start": 1834,
+  "transcript_lines_at_start": 1834,
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 7814,
+    "cache_read_tokens": 1042656,
+    "output_tokens": 335,
+    "api_call_count": 14
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T04:41:29.148053Z",
+    "agent_lines": 0,
+    "human_added": 5,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 5,
+    "agent_percentage": 0
+  }
+}
