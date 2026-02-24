@@ -42,7 +42,6 @@ final class SubscriptionManager {
         set {
             UserDefaults.standard.set(newValue, forKey: Self.premiumOverrideKey)
             isPremium = newValue
-            Self.isPremiumSnapshot = newValue
             UserDefaults(suiteName: VaultCoreConstants.appGroupIdentifier)?
                 .set(newValue, forKey: VaultCoreConstants.isPremiumKey)
         }
@@ -64,7 +63,6 @@ final class SubscriptionManager {
         // Apply testing override on launch
         if UserDefaults.standard.bool(forKey: Self.premiumOverrideKey) {
             isPremium = true
-            Self.isPremiumSnapshot = true
         }
 
         Task {
@@ -198,8 +196,6 @@ final class SubscriptionManager {
         let hasPurchase = !purchasedProductIDs.isEmpty
         let hasOverride = UserDefaults.standard.bool(forKey: Self.premiumOverrideKey)
         isPremium = hasPurchase || hasOverride
-        Self.isPremiumSnapshot = isPremium
-
         UserDefaults(suiteName: VaultCoreConstants.appGroupIdentifier)?
             .set(isPremium, forKey: VaultCoreConstants.isPremiumKey)
 
@@ -236,6 +232,4 @@ final class SubscriptionManager {
         isPremium
     }
 
-    /// Thread-safe snapshot of premium status for non-MainActor callers (e.g. VaultStorage).
-    nonisolated(unsafe) static var isPremiumSnapshot: Bool = false
 }
