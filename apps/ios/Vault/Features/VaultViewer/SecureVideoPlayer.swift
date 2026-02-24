@@ -2,20 +2,26 @@ import SwiftUI
 import AVKit
 import AVFoundation
 
-/// Configures AVAudioSession for video playback once, on first use.
-/// Deferred from app launch to avoid blocking the launch critical path
-/// (~5s AudioSession subsystem spin observed in Instruments).
-private enum AudioSessionSetup {
-    private static let once: Void = {
+/// Manages AVAudioSession for video playback.
+/// Only activates the session right before playback starts, and deactivates when done
+/// so other apps' audio (e.g. Music) is not interrupted by merely opening the app.
+private enum AudioSessionManager {
+    static func activate() {
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [])
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
-            print("Failed to configure audio session: \(error.localizedDescription)")
+            print("Failed to activate audio session: \(error.localizedDescription)")
         }
-    }()
+    }
 
-    static func ensureConfigured() { _ = once }
+    static func deactivate() {
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        } catch {
+            // Expected to fail if no other audio to resume — safe to ignore
+        }
+    }
 }
 
 struct SecureVideoPlayer: View {
@@ -95,8 +101,6 @@ struct SecureVideoPlayer: View {
             return
         }
 
-        AudioSessionSetup.ensureConfigured()
-
         Task {
             do {
                 // Decrypt directly to temp file — avoids holding entire decrypted video in memory
@@ -117,6 +121,7 @@ struct SecureVideoPlayer: View {
                         }
                     }
                     
+                    AudioSessionManager.activate()
                     newPlayer.play()
                     self.isPlaying = true
                     self.isLoading = false
@@ -133,16 +138,19 @@ struct SecureVideoPlayer: View {
     private func cleanup() {
         // Report playback stopped
         InactivityLockManager.shared.videoPlaybackStopped()
-        
+
         // Remove time observer
         if let observer = timeObserver, let player = player {
             player.removeTimeObserver(observer)
             timeObserver = nil
         }
-        
+
         // Stop playback
         player?.pause()
         player = nil
+
+        // Relinquish audio session so other apps' audio can resume
+        AudioSessionManager.deactivate()
 
         // Securely delete temp file
         if let tempURL = tempFileURL {

@@ -57,7 +57,10 @@ final class CameraManager: NSObject, @unchecked Sendable {
 
     override init() {
         super.init()
-        // Don't set preset here - will be set during configuration
+        // Prevent the capture session from reconfiguring the shared audio session.
+        // This camera only captures photos (no audio input), so there is no reason
+        // for it to interrupt other apps' audio (e.g. Music) when the camera opens.
+        session.automaticallyConfiguresApplicationAudioSession = false
     }
 
     deinit {
