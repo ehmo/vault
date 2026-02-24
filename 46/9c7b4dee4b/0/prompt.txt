@@ -1,0 +1,97 @@
+Implement the following plan:
+
+# Performance: Move non-essential launch work off main thread
+
+## Context
+
+Time Profiler trace shows the main thread is blocked for ~31ms after the first frame renders (t=536ms) by Embrace SDK setup, and additional work (VaultStorage init, notification icon warm, TelemetryDeck init) runs synchronously on main during `didFinishLaunchingWithOptions`. While no hangs were detected, this delays touch responsiveness in the early interactive window.
+
+Embrace SDK **requires** main thread (`setup()`, `start()`, `stop()` all throw `EmbraceSetupError.invalidThread`) — this is non-negotiable. But other work currently forced onto main has no reason to be there.
+
+## Changes
+
+### 1. `AnalyticsManager.swift` — Split Embrace (main) from TelemetryDeck (background)
+
+**Current**: `startIfEnabled()` → `runOnMain { EmbraceManager.start(); TelemetryManager.start() }`
+
+**New**: Keep `EmbraceManager.start()` on main (required). Move `TelemetryManager.start()` to background. Remove the generic `runOnMain` helper.
+
+```swift
+func startIfEnabled() {
+    guard isEnabled else { return }
+    DispatchQueue.main.async {
+        EmbraceManager.shared.start()
+    }
+    DispatchQueue.global(qos: .utility).async {
+        TelemetryManager.shared.start()
+    }
+}
+
+func setEnabled(_ enabled: Bool) {
+    UserDefaults.standard.set(enabled, forKey: Self.key)
+    if enabled {
+        DispatchQueue.main.async {
+            EmbraceManager.shared.start()
+        }
+        DispatchQueue.global(qos: .utility).async {
+            TelemetryManager.shared.start()
+        }
+    } else {
+        DispatchQueue.main.async {
+            EmbraceManager.shared.stop()
+        }
+        TelemetryManager.shared.stop()
+    }
+}
+```
+
+Remove `runOnMain(_:)` entirely.
+
+### 2. `VaultApp.swift` (AppDelegate) — Move VaultStorage + notification icon off main
+
+**Lines 575-577**: Change `DispatchQueue.main.async` to `DispatchQueue.global(qos: .utility).async` for VaultStorage.
+
+**Lines 581-583**: Remove `DispatchQueue.main.async` wrapper — `AnalyticsManager.startIfEnabled()` now handles its own dispatching internally.
+
+**Line 586**: Wrap `warmNotificationIcon()` in `DispatchQueue.global(qos: .utility).async` — it does `fileExists` check + JPEG encode + file write.
+
+### 3. `EmbraceManager.swift` — Remove `@MainActor` annotations
+
+The `@MainActor` on `start()` and `stop()` is redundant since:
+- `AnalyticsManager` now explicitly dispatches to `DispatchQueue.main`
+- The Embrace SDK itself throws if not on main thread (defense in depth)
+
+Remove `@MainActor` from both methods to avoid forcing callers through `await`.
+
+## Files to modify
+
+| File | Change |
+|------|--------|
+| `apps/ios/Vault/Core/Telemetry/AnalyticsManager.swift` | Split dispatch, remove `runOnMain` |
+| `apps/ios/Vault/App/VaultApp.swift` | Move VaultStorage + icon to bg, simplify analytics call |
+| `apps/ios/Vault/Core/Telemetry/EmbraceManager.swift` | Remove `@MainActor` from `start()`/`stop()` |
+
+## What this saves
+
+- **VaultStorage.shared init** off main → removes disk I/O (`fileExists`, `contentsOfDirectory`)
+- **TelemetryDeck init** off main → removes `NSISO8601DateFormatter` creation (~5ms)
+- **warmNotificationIcon** off main → removes JPEG encode + file write on first launch
+- Embrace stays on main (unavoidable) but no longer drags TelemetryDeck with it
+
+## Verification
+
+1. Build: `./scripts/deploy-phone.sh`
+2. Run Time Profiler on the build — confirm main thread no longer shows TelemetryDeck or VaultStorage frames
+3. Verify analytics still works: toggle analytics on/off in settings, confirm Embrace dashboard receives data
+4. Verify crash reporting: force a crash, confirm it appears in Embrace
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Push to git
+
+---
+
+Merge
