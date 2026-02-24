@@ -504,10 +504,10 @@ final class VaultViewModel {
         activeImportTask = Task(priority: .userInitiated) { [weak self] in
             guard let self else { return }
 
-            // Launch parallel workers off MainActor
+            // Launch parallel workers off MainActor using scatter-gather for maximum performance
             let workerTask = Task.detached(priority: .userInitiated) {
                 await VaultStorage.shared.beginImportBatch()
-                await ParallelImporter.runPhotoImport(
+                await ParallelImporter.runPhotoImportScatterGather(
                     videoWork: videoWork,
                     imageWork: imageWork,
                     videoWorkerCount: videoWorkerCount,
@@ -634,7 +634,7 @@ final class VaultViewModel {
 
             let workerTask = Task.detached(priority: .userInitiated) {
                 await VaultStorage.shared.beginImportBatch()
-                await ParallelImporter.runFileImport(
+                await ParallelImporter.runFileImportScatterGather(
                     videoWork: videoWork,
                     otherWork: otherWork,
                     videoWorkerCount: videoWorkerCount,

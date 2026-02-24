@@ -1,5 +1,7 @@
 {
-  "database": "beads.db",
+  "database": "dolt",
   "jsonl_export": "issues.jsonl",
-  "dolt_database": "beads"
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "beads_VAULT"
 }

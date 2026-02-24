@@ -134,6 +134,20 @@ final class VaultStorage: @unchecked Sendable {
         return try indexManager.getMasterKey(from: index, vaultKey: vaultKey)
     }
 
+    // MARK: - Transaction API
+
+    /// Pre-allocate blob space and get master key in a single transaction.
+    /// Convenience method for scatter-gather import setup.
+    func allocateBatchSpaceWithMasterKey(
+        sizes: [Int],
+        key: VaultKey
+    ) async throws -> (allocations: [BlobAllocation], masterKey: MasterKey) {
+        return try await indexManager.withTransaction(key: key) { index, masterKey in
+            let allocations = try allocateBatchSpace(sizes: sizes, index: &index)
+            return (allocations, masterKey)
+        }
+    }
+
     // MARK: - Blob Initialization
 
     private func initializeBlobIfNeeded() {
@@ -595,6 +609,185 @@ final class VaultStorage: @unchecked Sendable {
             return actualFileId
         }
         return resultId
+    }
+
+    // MARK: - Scatter-Gather Import API
+
+    /// Pre-allocated blob space for parallel file writes.
+    /// Returned by `allocateBatchSpace`, consumed by `prepareFileEntry`.
+    struct BlobAllocation: Sendable {
+        let blobId: String
+        let offset: Int
+        let size: Int
+        let handle: FileHandle
+    }
+
+    /// Result of preparing a file entry (runs in parallel, no actor contact).
+    /// Contains everything needed to append to the index in a batch commit.
+    struct PreparedEntry: Sendable {
+        let entry: VaultIndex.VaultFileEntry
+        let encryptedThumbnail: Data?
+        let thumbnailPlaintext: Data?  // For thumbnail cache (not stored in index)
+    }
+
+    /// Pre-allocate blob space for a batch of files.
+    /// Must be called under actor isolation (inside withTransaction or during batch setup).
+    /// Returns allocations that can be used by parallel workers.
+    func allocateBatchSpace(sizes: [Int], index: inout VaultIndex) throws -> [BlobAllocation] {
+        var allocations: [BlobAllocation] = []
+        var handleCache: [String: FileHandle] = [:]
+        defer {
+            // Close handles that weren't transferred to allocations
+            for (blobId, handle) in handleCache {
+                if !allocations.contains(where: { $0.blobId == blobId && $0.handle === handle }) {
+                    try? handle.close()
+                }
+            }
+        }
+
+        for size in sizes {
+            let blobWrite = try allocateBlobSpace(size: size, index: &index, handleCache: &handleCache)
+            allocations.append(BlobAllocation(
+                blobId: blobWrite.blobId,
+                offset: blobWrite.writeOffset,
+                size: size,
+                handle: blobWrite.handle
+            ))
+        }
+
+        return allocations
+    }
+
+    /// Phase 1: Prepare entry data in parallel (no actor serialization).
+    /// Encrypts file, writes to blob at pre-allocated offset, builds entry object.
+    /// Does NOT touch the index — entry is returned for batch commit.
+    /// 
+    /// - Parameters:
+    ///   - fileURL: Source file URL
+    ///   - filename: Final filename for the entry
+    ///   - mimeType: MIME type of the file
+    ///   - thumbnailData: Optional thumbnail data
+    ///   - duration: Optional video duration
+    ///   - originalDate: Optional original creation date
+    ///   - masterKey: Master key for encryption
+    ///   - allocation: Pre-allocated blob space from `allocateBatchSpace`
+    /// - Returns: Prepared entry ready for batch commit
+    func prepareFileEntry(
+        fileURL: URL,
+        filename: String,
+        mimeType: String,
+        thumbnailData: Data?,
+        duration: TimeInterval?,
+        originalDate: Date?,
+        masterKey: MasterKey,
+        allocation: BlobAllocation
+    ) throws -> PreparedEntry {
+        // Build header (small — stays in memory)
+        let fileId = UUID()
+        let originalFileSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int) ?? 0
+        let header = CryptoEngine.EncryptedFileHeader(
+            fileId: fileId,
+            originalFilename: filename,
+            mimeType: mimeType,
+            originalSize: UInt64(originalFileSize),
+            createdAt: Date()
+        )
+        let encryptedHeader = try CryptoEngine.encrypt(header.serialize(), with: masterKey)
+
+        // Calculate total size
+        let encContentSize = CryptoEngine.encryptedContentSize(forFileOfSize: originalFileSize)
+        let totalSize = 4 + encryptedHeader.count + encContentSize
+
+        guard totalSize <= allocation.size else {
+            throw VaultStorageError.writeError
+        }
+
+        // Write header and encrypted content at the pre-allocated offset
+        let handle = allocation.handle
+        try handle.seek(toOffset: UInt64(allocation.offset))
+
+        var headerSize = UInt32(encryptedHeader.count)
+        let headerSizeData = Data(bytes: &headerSize, count: 4)
+        handle.write(headerSizeData)
+        handle.write(encryptedHeader)
+
+        // Stream-encrypt content directly to blob
+        try CryptoEngine.encryptFileStreamingToHandle(from: fileURL, to: handle, with: masterKey)
+
+        // Build header preview for index (first 64 bytes of on-disk format)
+        var headerPreview = Data()
+        headerPreview.append(headerSizeData)
+        headerPreview.append(encryptedHeader.prefix(60))
+
+        // Encrypt thumbnail with master key
+        let encryptedThumbnail: Data? = thumbnailData.flatMap { try? CryptoEngine.encrypt($0, with: masterKey) }
+
+        let entry = VaultIndex.VaultFileEntry(
+            fileId: fileId,
+            offset: allocation.offset,
+            size: totalSize,
+            encryptedHeaderPreview: headerPreview,
+            isDeleted: false,
+            thumbnailData: encryptedThumbnail,
+            mimeType: mimeType,
+            filename: filename,
+            blobId: allocation.blobId == "primary" ? nil : allocation.blobId,
+            createdAt: Date(),
+            duration: duration,
+            originalDate: originalDate
+        )
+
+        return PreparedEntry(
+            entry: entry,
+            encryptedThumbnail: encryptedThumbnail,
+            thumbnailPlaintext: thumbnailData
+        )
+    }
+
+    /// Phase 2: Batch commit prepared entries to the index.
+    /// Single actor call for multiple entries — minimizes serialization overhead.
+    /// Also updates blob cursors and closes file handles.
+    func commitEntries(
+        _ entries: [PreparedEntry],
+        allocations: [BlobAllocation],
+        key: VaultKey
+    ) async throws {
+        // Update blob cursors in the index based on allocations
+        var index = try await indexManager.loadIndex(with: key)
+
+        for allocation in allocations {
+            let newCursor = allocation.offset + allocation.size
+            if allocation.blobId == "primary" {
+                index.nextOffset = newCursor
+                writeGlobalCursor(newCursor)
+            } else if let blobIdx = index.blobs?.firstIndex(where: { $0.blobId == allocation.blobId }) {
+                index.blobs![blobIdx].cursor = newCursor
+            }
+        }
+
+        // Add all entries to the index
+        let vaultEntries = entries.map { $0.entry }
+        index.files.append(contentsOf: vaultEntries)
+
+        // Save the index
+        try await indexManager.saveIndex(index, with: key)
+
+        // Close all file handles
+        for allocation in allocations {
+            try? allocation.handle.close()
+        }
+
+        // Update thumbnail cache for each entry
+        for entry in entries {
+            if let thumb = entry.thumbnailPlaintext {
+                let fileId = entry.entry.fileId
+                // Encrypt with vault key for thumbnail cache
+                let encThumb = try? CryptoEngine.encrypt(thumb, with: key.rawBytes)
+                if let encThumb {
+                    await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
+                }
+            }
+        }
     }
 
     func retrieveFile(id: UUID, with key: VaultKey) async throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {

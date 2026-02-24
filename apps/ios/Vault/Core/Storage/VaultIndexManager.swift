@@ -248,6 +248,14 @@ actor VaultIndexManager {
         }
     }
 
+    /// Append multiple entries to the index in a single transaction.
+    /// Used by scatter-gather import to batch commit entries prepared by parallel workers.
+    func addEntries(_ entries: [VaultStorage.VaultIndex.VaultFileEntry], key: VaultKey) throws {
+        var index = try loadIndex(with: key)
+        index.files.append(contentsOf: entries)
+        try persistOrDefer(index, key: key)
+    }
+
     // MARK: - Transactions
 
     /// Execute a compound operation (load → mutate → save) under actor isolation.
