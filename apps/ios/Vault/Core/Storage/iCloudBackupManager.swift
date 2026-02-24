@@ -1309,39 +1309,19 @@ final class iCloudBackupManager: @unchecked Sendable {
     
     /// Registers the background processing task for iCloud backup resume
     func registerBackgroundProcessingTask() {
-        let identifier = Self.backgroundBackupTaskIdentifier
-        let success = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: nil) { task in
-            guard let processingTask = task as? BGProcessingTask else {
-                task.setTaskCompleted(success: false)
-                return
-            }
-            Task { @MainActor in
-                Self.shared.handleBackgroundProcessingTask(processingTask)
-            }
-        }
-        
-        if success {
-            Self.logger.info("[bg-task] Registered \(identifier, privacy: .public)")
-        } else {
-            Self.logger.error("[bg-task] Failed to register \(identifier, privacy: .public)")
+        BackgroundTaskCoordinator.register(
+            identifier: Self.backgroundBackupTaskIdentifier
+        ) { task in
+            Self.shared.handleBackgroundProcessingTask(task)
         }
     }
-    
+
     /// Schedules a background task to resume interrupted backup
     func scheduleBackgroundResumeTask(earliestIn seconds: TimeInterval = 15) {
-        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.backgroundBackupTaskIdentifier)
-        
-        let request = BGProcessingTaskRequest(identifier: Self.backgroundBackupTaskIdentifier)
-        request.requiresNetworkConnectivity = true
-        request.requiresExternalPower = false
-        request.earliestBeginDate = Date(timeIntervalSinceNow: seconds)
-        
-        do {
-            try BGTaskScheduler.shared.submit(request)
-            Self.logger.info("[bg-task] Scheduled backup resume task in ~\(Int(seconds))s")
-        } catch {
-            Self.logger.error("[bg-task] Failed to schedule backup resume task: \(error.localizedDescription, privacy: .public)")
-        }
+        BackgroundTaskCoordinator.schedule(
+            identifier: Self.backgroundBackupTaskIdentifier,
+            earliestIn: seconds
+        )
     }
     
     /// Handles the background processing task execution.

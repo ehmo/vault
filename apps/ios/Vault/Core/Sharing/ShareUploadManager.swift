@@ -293,40 +293,19 @@ final class ShareUploadManager {
     }
 
     func registerBackgroundProcessingTask() {
-        let identifier = Self.backgroundResumeTaskIdentifier
-        let success = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: nil) { task in
-            guard let processingTask = task as? BGProcessingTask else {
-                task.setTaskCompleted(success: false)
-                return
-            }
-            Task { @MainActor in
-                ShareUploadManager.shared.handleBackgroundProcessingTask(processingTask)
-            }
-        }
-
-        if success {
-            Self.logger.info("[bg-task] Registered \(identifier, privacy: .public)")
-        } else {
-            Self.logger.error("[bg-task] Failed to register \(identifier, privacy: .public)")
+        BackgroundTaskCoordinator.register(
+            identifier: Self.backgroundResumeTaskIdentifier
+        ) { task in
+            ShareUploadManager.shared.handleBackgroundProcessingTask(task)
         }
     }
 
     func scheduleBackgroundResumeTask(earliestIn seconds: TimeInterval = 15) {
         guard hasPendingUpload else { return }
-
-        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.backgroundResumeTaskIdentifier)
-
-        let request = BGProcessingTaskRequest(identifier: Self.backgroundResumeTaskIdentifier)
-        request.requiresNetworkConnectivity = true
-        request.requiresExternalPower = false
-        request.earliestBeginDate = Date(timeIntervalSinceNow: seconds)
-
-        do {
-            try BGTaskScheduler.shared.submit(request)
-            Self.logger.info("[bg-task] Scheduled upload resume task in ~\(Int(seconds))s")
-        } catch {
-            Self.logger.error("[bg-task] Failed to schedule resume task: \(error.localizedDescription, privacy: .public)")
-        }
+        BackgroundTaskCoordinator.schedule(
+            identifier: Self.backgroundResumeTaskIdentifier,
+            earliestIn: seconds
+        )
     }
 
     func startBackgroundUpload(

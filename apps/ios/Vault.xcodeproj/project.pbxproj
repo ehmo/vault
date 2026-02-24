@@ -85,6 +85,7 @@
 		39EACFA92F29E64000FA7EC2 /* VAULT_COLLISION_PROTECTION.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACFA82F29E64000FA7EC2 /* VAULT_COLLISION_PROTECTION.md */; };
 		39EACFAB2F29EDB600FA7EC2 /* DURESS_VAULT_IMPROVEMENTS.md in Resources */ = {isa = PBXBuildFile; fileRef = 39EACFAA2F29EDB600FA7EC2 /* DURESS_VAULT_IMPROVEMENTS.md */; };
 		39EACFAD2F2AC5C500FA7EC2 /* GridLetterManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39EACFAC2F2AC5C500FA7EC2 /* GridLetterManager.swift */; };
+		4A6C9551CFFB7FE1FBD76656 /* BackgroundTaskCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEC907F96E35D0E22AC676B0 /* BackgroundTaskCoordinator.swift */; };
 		6D5554047A7544D7954CEF9B /* EmbraceIO in Frameworks */ = {isa = PBXBuildFile; productRef = E8320F0CD52C4885B07B350E /* EmbraceIO */; };
 		97AEE2E08179AC87ED7B2E05 /* SecureEnclaveProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D00CF0C2AAF369530BECF95 /* SecureEnclaveProtocol.swift */; };
 		A1B2C3D4E5F64789A1B2C3D4 /* TelemetryDeck in Frameworks */ = {isa = PBXBuildFile; productRef = F1E2D3C4B5A647890123ABCD /* TelemetryDeck */; };
@@ -345,6 +346,7 @@
 		DRST00000 /* DragRowSelectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragRowSelectorTests.swift; sourceTree = "<group>"; };
 		DTT00000 /* DynamicTypeTruncationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicTypeTruncationTests.swift; sourceTree = "<group>"; };
 		EB0000000 /* EncryptedBlobTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedBlobTests.swift; sourceTree = "<group>"; };
+		EEC907F96E35D0E22AC676B0 /* BackgroundTaskCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BackgroundTaskCoordinator.swift; sourceTree = "<group>"; };
 		FC0000000 /* VaultFullChainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFullChainTests.swift; sourceTree = "<group>"; };
 		FOP00001 /* FileOperationProgressCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationProgressCard.swift; sourceTree = "<group>"; };
 		FOPT0000 /* FileOperationProgressCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationProgressCardTests.swift; sourceTree = "<group>"; };
@@ -522,6 +524,7 @@
 				SE000000C /* VaultCoreConstants.swift */,
 				UT0000000 /* IdleTimerManager.swift */,
 				UT0000002 /* InactivityLockManager.swift */,
+				EEC907F96E35D0E22AC676B0 /* BackgroundTaskCoordinator.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -1240,6 +1243,7 @@
 				E9196E156CB93B2C41B18ED1 /* CryptoEngineProtocol.swift in Sources */,
 				97AEE2E08179AC87ED7B2E05 /* SecureEnclaveProtocol.swift in Sources */,
 				22DD9E83F9369BC07B60E669 /* DuressHandlerProtocol.swift in Sources */,
+				4A6C9551CFFB7FE1FBD76656 /* BackgroundTaskCoordinator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1495,7 +1499,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 141;
+				CURRENT_PROJECT_VERSION = 143;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = UFV835UGV6;
@@ -1537,7 +1541,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 141;
+				CURRENT_PROJECT_VERSION = 143;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = UFV835UGV6;
@@ -1576,7 +1580,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 141;
+				CURRENT_PROJECT_VERSION = 143;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
@@ -1608,7 +1612,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 141;
+				CURRENT_PROJECT_VERSION = 143;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
@@ -1640,7 +1644,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 141;
+				CURRENT_PROJECT_VERSION = 143;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1657,7 +1661,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 141;
+				CURRENT_PROJECT_VERSION = 143;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1673,7 +1677,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 141;
+				CURRENT_PROJECT_VERSION = 143;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1689,7 +1693,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 141;
+				CURRENT_PROJECT_VERSION = 143;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;

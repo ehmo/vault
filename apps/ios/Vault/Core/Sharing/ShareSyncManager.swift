@@ -190,41 +190,19 @@ final class ShareSyncManager {
     // MARK: - Background Task Registration
 
     func registerBackgroundProcessingTask() {
-        let identifier = "app.vaultaire.ios.share-sync.resume"
-        let success = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: nil) { task in
-            guard let processingTask = task as? BGProcessingTask else {
-                task.setTaskCompleted(success: false)
-                return
-            }
-            Task { @MainActor in
-                ShareSyncManager.shared.handleBackgroundProcessingTask(processingTask)
-            }
-        }
-
-        if success {
-            shareSyncLogger.info("[bg-task] Registered \(identifier, privacy: .public)")
-        } else {
-            shareSyncLogger.error("[bg-task] Failed to register \(identifier, privacy: .public)")
+        BackgroundTaskCoordinator.register(
+            identifier: "app.vaultaire.ios.share-sync.resume"
+        ) { task in
+            ShareSyncManager.shared.handleBackgroundProcessingTask(task)
         }
     }
 
     func scheduleBackgroundResumeTask(earliestIn seconds: TimeInterval = 15) {
         guard hasPendingSyncs else { return }
-
-        let identifier = "app.vaultaire.ios.share-sync.resume"
-        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier)
-
-        let request = BGProcessingTaskRequest(identifier: identifier)
-        request.requiresNetworkConnectivity = true
-        request.requiresExternalPower = false
-        request.earliestBeginDate = Date(timeIntervalSinceNow: seconds)
-
-        do {
-            try BGTaskScheduler.shared.submit(request)
-            shareSyncLogger.info("[bg-task] Scheduled sync resume task in ~\(Int(seconds))s")
-        } catch {
-            shareSyncLogger.error("[bg-task] Failed to schedule sync resume task: \(error.localizedDescription, privacy: .public)")
-        }
+        BackgroundTaskCoordinator.schedule(
+            identifier: "app.vaultaire.ios.share-sync.resume",
+            earliestIn: seconds
+        )
     }
 
     private func handleBackgroundProcessingTask(_ task: BGProcessingTask) {
@@ -259,35 +237,37 @@ final class ShareSyncManager {
                 task.setTaskCompleted(success: false)
                 return
             }
-
-            // Filter out shares already being resumed
-            let idsToResume: [String] = await MainActor.run {
-                pendingIds.filter { self.resumeTasks[$0] == nil }
-            }
-
-            await withTaskGroup(of: Void.self) { group in
-                var running = 0
-                var idIndex = 0
-
-                while idIndex < idsToResume.count || !group.isEmpty {
-                    while running < Self.maxConcurrentSyncs && idIndex < idsToResume.count {
-                        let shareVaultId = idsToResume[idIndex]
-                        idIndex += 1
-                        running += 1
-
-                        group.addTask { [weak self, capturedCloudKit] in
-                            await self?.trackAndUpload(shareVaultId: shareVaultId, cloudKit: capturedCloudKit)
-                        }
-                    }
-                    if !group.isEmpty {
-                        await group.next()
-                        running -= 1
-                    }
-                }
-            }
-
+            await self.resumePendingSyncs(pendingIds: pendingIds, cloudKit: capturedCloudKit)
             shareSyncLogger.info("[bg-task] All pending sync uploads completed")
             task.setTaskCompleted(success: true)
+        }
+    }
+
+    /// Filters and uploads pending syncs with bounded concurrency.
+    private func resumePendingSyncs(pendingIds: [String], cloudKit: CloudKitSharingClient) async {
+        let idsToResume = await MainActor.run {
+            pendingIds.filter { self.resumeTasks[$0] == nil }
+        }
+
+        await withTaskGroup(of: Void.self) { group in
+            var running = 0
+            var idIndex = 0
+
+            while idIndex < idsToResume.count || !group.isEmpty {
+                while running < Self.maxConcurrentSyncs && idIndex < idsToResume.count {
+                    let shareVaultId = idsToResume[idIndex]
+                    idIndex += 1
+                    running += 1
+
+                    group.addTask { [weak self, cloudKit] in
+                        await self?.trackAndUpload(shareVaultId: shareVaultId, cloudKit: cloudKit)
+                    }
+                }
+                if !group.isEmpty {
+                    await group.next()
+                    running -= 1
+                }
+            }
         }
     }
 
