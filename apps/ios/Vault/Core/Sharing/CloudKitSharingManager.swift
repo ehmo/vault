@@ -128,11 +128,10 @@ final class CloudKitSharingManager {
     func checkPhraseAvailability(phrase: String) async -> Result<Void, CloudKitSharingError> {
         let phraseVaultId = Self.vaultId(from: phrase)
         let recordId = CKRecord.ID(recordName: phraseVaultId)
-        
-        // Try direct record fetch first
+
         do {
             let manifest = try await publicDatabase.record(for: recordId)
-            
+
             if let claimed = manifest["claimed"] as? Bool, claimed {
                 return .failure(.alreadyClaimed)
             }
@@ -141,33 +140,13 @@ final class CloudKitSharingManager {
             }
             return .success(())
         } catch let error as CKError where error.code == .unknownItem {
-            // Record doesn't exist - fall through to query method as backup
-        } catch {
-            // Fall through to query method
-        }
-        
-        // Query-based fetch backup method
-        let predicate = NSPredicate(format: "recordID == %@", recordId)
-        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
-        
-        do {
-            let results = try await publicDatabase.records(matching: query)
-            guard let match = results.matchResults.first else {
-                return .failure(.vaultNotFound)
-            }
-            
-            let manifest = try match.1.get()
-            
-            if let claimed = manifest["claimed"] as? Bool, claimed {
-                return .failure(.alreadyClaimed)
-            }
-            if let revoked = manifest["revoked"] as? Bool, revoked {
-                return .failure(.revoked)
-            }
-            return .success(())
-        } catch let error as CKError where error.code == .unknownItem {
+            Self.logger.info("Phrase availability check: record not found for \(phraseVaultId, privacy: .public)")
             return .failure(.vaultNotFound)
+        } catch let error as CKError {
+            Self.logger.error("Phrase availability check failed with CKError: \(error.localizedDescription, privacy: .public)")
+            return .failure(.networkError)
         } catch {
+            Self.logger.error("Phrase availability check failed: \(error.localizedDescription, privacy: .public)")
             return .failure(.networkError)
         }
     }
