@@ -334,6 +334,16 @@ final class VaultStorage: @unchecked Sendable {
         let handle: FileHandle
     }
 
+    /// Pre-computed allocation info from Phase 1 (actor) for Phase 2 (parallel I/O).
+    /// Returned across actor boundary so all fields must be Sendable.
+    private struct WriteAllocation: Sendable {
+        let masterKey: MasterKey
+        let writeOffset: Int
+        let blobId: String
+        let encryptedHeader: Data
+        let totalSize: Int
+    }
+
     /// Finds a blob with enough space (or creates one), opens a FileHandle at the write offset.
     /// Caller is responsible for closing the handle and calling `finalizeBlobWrite` after writing.
     private func allocateBlobSpace(size: Int, index: inout VaultIndex) throws -> BlobWriteResult {
@@ -535,10 +545,13 @@ final class VaultStorage: @unchecked Sendable {
     func storeFileFromURL(_ fileURL: URL, filename: String, mimeType: String, with key: VaultKey, options: FileStoreOptions = FileStoreOptions()) async throws -> UUID {
         ensureBlobReady()
 
-        let resultId: UUID = try await indexManager.withTransaction(key: key) { index, masterKey in
-            // Build header (small — stays in memory)
-            let actualFileId = options.fileId ?? UUID()
-            let originalFileSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int) ?? 0
+        let actualFileId = options.fileId ?? UUID()
+        let originalFileSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int) ?? 0
+
+        // ── Phase 1: Quick actor touch — master key + allocate blob space (~1ms) ──
+        // Builds header, reserves blob space by advancing cursor, then releases the actor.
+        // Concurrent workers get non-overlapping regions because cursor advances are serialized.
+        let alloc: WriteAllocation = try await indexManager.withTransaction(key: key) { index, masterKey in
             let header = CryptoEngine.EncryptedFileHeader(
                 fileId: actualFileId,
                 originalFilename: filename,
@@ -548,53 +561,68 @@ final class VaultStorage: @unchecked Sendable {
             )
             let encryptedHeader = try CryptoEngine.encrypt(header.serialize(), with: masterKey)
 
-            // Calculate total size WITHOUT loading the file into memory
             let encContentSize = CryptoEngine.encryptedContentSize(forFileOfSize: originalFileSize)
             let totalSize = 4 + encryptedHeader.count + encContentSize
 
             let blobWrite = try self.allocateBlobSpace(size: totalSize, index: &index)
-            defer { try? blobWrite.handle.close() }
-
-            // Write header to blob
-            var headerSize = UInt32(encryptedHeader.count)
-            let headerSizeData = Data(bytes: &headerSize, count: 4)
-            blobWrite.handle.write(headerSizeData)
-            blobWrite.handle.write(encryptedHeader)
-
-            // Stream-encrypt content directly to blob — peak memory: ~256KB
-            try CryptoEngine.encryptFileStreamingToHandle(from: fileURL, to: blobWrite.handle, with: masterKey)
-
-            // Build header preview for index (first 64 bytes of on-disk format)
-            var headerPreview = Data()
-            headerPreview.append(headerSizeData)
-            headerPreview.append(encryptedHeader.prefix(60))
-
-            var encryptedThumbnail: Data? = nil
-            if let thumbnail = options.thumbnailData {
-                encryptedThumbnail = try? CryptoEngine.encrypt(thumbnail, with: masterKey)
-            }
-
             self.finalizeBlobWrite(size: totalSize, result: blobWrite, index: &index)
+            try? blobWrite.handle.close()
 
-            let entry = VaultIndex.VaultFileEntry(
-                fileId: actualFileId,
-                offset: blobWrite.writeOffset,
-                size: totalSize,
-                encryptedHeaderPreview: headerPreview,
-                isDeleted: false,
-                thumbnailData: encryptedThumbnail,
-                mimeType: mimeType,
-                filename: filename,
-                blobId: blobWrite.blobId == "primary" ? nil : blobWrite.blobId,
-                createdAt: Date(),
-                duration: options.duration,
-                originalDate: options.originalDate
+            return WriteAllocation(
+                masterKey: masterKey,
+                writeOffset: blobWrite.writeOffset,
+                blobId: blobWrite.blobId,
+                encryptedHeader: encryptedHeader,
+                totalSize: totalSize
             )
-            index.files.append(entry)
-
-            return actualFileId
         }
-        return resultId
+
+        // ── Phase 2: Parallel work — encrypt + write to blob (NO actor, ~300ms-5s) ──
+        // Multiple workers execute this simultaneously on their own reserved blob regions.
+        let targetURL = blobURL(for: alloc.blobId)
+        guard let handle = try? FileHandle(forWritingTo: targetURL) else {
+            throw VaultStorageError.writeError
+        }
+        defer { try? handle.close() }
+
+        try handle.seek(toOffset: UInt64(alloc.writeOffset))
+
+        var headerSize = UInt32(alloc.encryptedHeader.count)
+        let headerSizeData = Data(bytes: &headerSize, count: 4)
+        handle.write(headerSizeData)
+        handle.write(alloc.encryptedHeader)
+
+        try CryptoEngine.encryptFileStreamingToHandle(from: fileURL, to: handle, with: alloc.masterKey)
+
+        // Build header preview for index (first 64 bytes of on-disk format)
+        var headerPreview = Data()
+        headerPreview.append(headerSizeData)
+        headerPreview.append(alloc.encryptedHeader.prefix(60))
+
+        var encryptedThumbnail: Data? = nil
+        if let thumbnail = options.thumbnailData {
+            encryptedThumbnail = try? CryptoEngine.encrypt(thumbnail, with: alloc.masterKey)
+        }
+
+        let entry = VaultIndex.VaultFileEntry(
+            fileId: actualFileId,
+            offset: alloc.writeOffset,
+            size: alloc.totalSize,
+            encryptedHeaderPreview: headerPreview,
+            isDeleted: false,
+            thumbnailData: encryptedThumbnail,
+            mimeType: mimeType,
+            filename: filename,
+            blobId: alloc.blobId == "primary" ? nil : alloc.blobId,
+            createdAt: Date(),
+            duration: options.duration,
+            originalDate: options.originalDate
+        )
+
+        // ── Phase 3: Quick actor touch — append entry to index (~1ms) ──
+        try await indexManager.addEntries([entry], key: key)
+
+        return actualFileId
     }
 
     func retrieveFile(id: UUID, with key: VaultKey) async throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
