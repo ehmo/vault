@@ -4,7 +4,25 @@ import CryptoKit
 import os.log
 import Network
 
-enum CloudKitSharingError: Error, LocalizedError {
+enum CloudKitSharingError: Error, LocalizedError, Equatable {
+    static func == (lhs: CloudKitSharingError, rhs: CloudKitSharingError) -> Bool {
+        switch (lhs, rhs) {
+        case (.notAvailable, .notAvailable),
+             (.uploadFailed, .uploadFailed),
+             (.downloadFailed, .downloadFailed),
+             (.vaultNotFound, .vaultNotFound),
+             (.encryptionFailed, .encryptionFailed),
+             (.decryptionFailed, .decryptionFailed),
+             (.invalidData, .invalidData),
+             (.alreadyClaimed, .alreadyClaimed),
+             (.revoked, .revoked),
+             (.networkError, .networkError):
+            return true
+        default:
+            return false
+        }
+    }
+
     case notAvailable
     case uploadFailed(Error)
     case downloadFailed(Error)

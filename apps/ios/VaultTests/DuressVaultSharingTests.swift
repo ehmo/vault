@@ -32,10 +32,11 @@ final class DuressVaultSharingTests: XCTestCase {
     }
     
     private func cleanupTestRecords() async {
+        let db = CKContainer.default().publicCloudDatabase
         for phrase in [testPhrase1, testPhrase2] {
             let vaultId = CloudKitSharingManager.vaultId(from: phrase)
             let recordId = CKRecord.ID(recordName: vaultId)
-            _ = try? await CloudKitSharingManager.shared.publicDatabase.deleteRecord(withID: recordId)
+            _ = try? await db.deleteRecord(withID: recordId)
         }
     }
     
@@ -74,8 +75,8 @@ final class DuressVaultSharingTests: XCTestCase {
         // Verify both shares are available
         let result1 = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: testPhrase1)
         let result2 = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: testPhrase2)
-        XCTAssertEqual(result1, .success(()))
-        XCTAssertEqual(result2, .success(()))
+        if case .failure(let e) = result1 { XCTFail("Expected success for share 1, got \(e)") }
+        if case .failure(let e) = result2 { XCTFail("Expected success for share 2, got \(e)") }
         
         // Simulate duress trigger - revoke shares
         try await CloudKitSharingManager.shared.revokeShare(shareVaultId: testShareVaultId1)
@@ -138,7 +139,7 @@ final class DuressVaultSharingTests: XCTestCase {
         
         // Verify duress vault share is still available
         let duressResult = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: testPhrase1)
-        XCTAssertEqual(duressResult, .success(()), "Duress vault share should remain available")
+        if case .failure(let e) = duressResult { XCTFail("Duress vault share should remain available, got \(e)") }
         
         // Verify normal vault share is revoked
         let normalResult = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: testPhrase2)
@@ -172,7 +173,7 @@ final class DuressVaultSharingTests: XCTestCase {
         
         // Step 2: User 2 checks availability (simulates accepting)
         let initialCheck = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: testPhrase1)
-        XCTAssertEqual(initialCheck, .success(()))
+        if case .failure(let e) = initialCheck { XCTFail("Expected initial check to succeed, got \(e)") }
         
         // Step 3: User 1 triggers duress (revokes share)
         try await CloudKitSharingManager.shared.revokeShare(shareVaultId: testShareVaultId1)
@@ -240,7 +241,7 @@ final class DuressSharingIntegrationTests: XCTestCase {
         
         // 2. Verify share is available
         var availability = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: phrase)
-        XCTAssertEqual(availability, .success(()))
+        if case .failure(let e) = availability { XCTFail("Expected share to be available, got \(e)") }
         
         // 3. User 2 "accepts" share (availability check passes)
         // In real app, this would create local vault copy
@@ -270,7 +271,7 @@ final class DuressSharingIntegrationTests: XCTestCase {
         
         // Cleanup
         let recordId = CKRecord.ID(recordName: phraseVaultId)
-        _ = try? await CloudKitSharingManager.shared.publicDatabase.deleteRecord(withID: recordId)
+        _ = try? await CKContainer.default().publicCloudDatabase.deleteRecord(withID: recordId)
     }
 }
 

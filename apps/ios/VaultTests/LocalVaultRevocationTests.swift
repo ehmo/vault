@@ -34,7 +34,7 @@ final class LocalVaultRevocationTests: XCTestCase {
         let recordId = CKRecord.ID(recordName: vaultId)
         
         do {
-            _ = try await CloudKitSharingManager.shared.publicDatabase.deleteRecord(withID: recordId)
+            _ = try await CKContainer.default().publicCloudDatabase.deleteRecord(withID: recordId)
         } catch {
             // Record might not exist
         }
@@ -62,7 +62,7 @@ final class LocalVaultRevocationTests: XCTestCase {
         
         // 3. Verify the CloudKit record is marked as revoked
         let manifestRecordId = CKRecord.ID(recordName: phraseVaultId)
-        let manifest = try await CloudKitSharingManager.shared.publicDatabase.record(for: manifestRecordId)
+        let manifest = try await CKContainer.default().publicCloudDatabase.record(for: manifestRecordId)
         
         let isRevoked = manifest["revoked"] as? Bool ?? false
         XCTAssertTrue(isRevoked, "Manifest should be marked as revoked in CloudKit")
@@ -92,7 +92,7 @@ final class LocalVaultRevocationTests: XCTestCase {
         }
         
         // Cleanup
-        _ = try? await CloudKitSharingManager.shared.publicDatabase.deleteRecord(withID: manifestRecordId)
+        _ = try? await CKContainer.default().publicCloudDatabase.deleteRecord(withID: manifestRecordId)
     }
     
     func testLocalVaultFilesRevokedShareCanBeDeleted() async throws {
@@ -131,7 +131,7 @@ final class LocalVaultRevocationTests: XCTestCase {
         
         // Cleanup
         let manifestRecordId = CKRecord.ID(recordName: phraseVaultId)
-        _ = try? await CloudKitSharingManager.shared.publicDatabase.deleteRecord(withID: manifestRecordId)
+        _ = try? await CKContainer.default().publicCloudDatabase.deleteRecord(withID: manifestRecordId)
     }
     
     func testVaultStatusCheckExpiredShareTriggersSelfDestruct() async throws {
@@ -152,14 +152,14 @@ final class LocalVaultRevocationTests: XCTestCase {
         
         // Verify expiration is detected
         let manifestRecordId = CKRecord.ID(recordName: phraseVaultId)
-        let manifest = try await CloudKitSharingManager.shared.publicDatabase.record(for: manifestRecordId)
+        let manifest = try await CKContainer.default().publicCloudDatabase.record(for: manifestRecordId)
         
         // The policy is encrypted in the manifest, but checkSharedVaultStatus() 
         // decrypts it and checks expiration
         XCTAssertNotNil(manifest["policy"], "Manifest should have policy attached")
         
         // Cleanup
-        _ = try? await CloudKitSharingManager.shared.publicDatabase.deleteRecord(withID: manifestRecordId)
+        _ = try? await CKContainer.default().publicCloudDatabase.deleteRecord(withID: manifestRecordId)
     }
     
     func testVaultStatusCheckMaxOpensExceededTriggersSelfDestruct() async throws {
@@ -184,7 +184,7 @@ final class LocalVaultRevocationTests: XCTestCase {
         
         // Cleanup
         let manifestRecordId = CKRecord.ID(recordName: phraseVaultId)
-        _ = try? await CloudKitSharingManager.shared.publicDatabase.deleteRecord(withID: manifestRecordId)
+        _ = try? await CKContainer.default().publicCloudDatabase.deleteRecord(withID: manifestRecordId)
     }
     
     // MARK: - Integration Tests
@@ -209,7 +209,7 @@ final class LocalVaultRevocationTests: XCTestCase {
         
         // Step 2: Verify share is available (User 2 could accept)
         var availability = await CloudKitSharingManager.shared.checkPhraseAvailability(phrase: testPhrase)
-        XCTAssertEqual(availability, .success(()))
+        if case .failure(let e) = availability { XCTFail("Expected share to be available, got \(e)") }
         
         // Step 3: User 1 revokes
         try await CloudKitSharingManager.shared.revokeShare(shareVaultId: vaultId)
@@ -241,7 +241,7 @@ final class LocalVaultRevocationTests: XCTestCase {
         
         // Cleanup
         let recordId = CKRecord.ID(recordName: phraseVaultId)
-        _ = try? await CloudKitSharingManager.shared.publicDatabase.deleteRecord(withID: recordId)
+        _ = try? await CKContainer.default().publicCloudDatabase.deleteRecord(withID: recordId)
     }
 }
 
