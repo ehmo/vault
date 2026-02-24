@@ -307,8 +307,13 @@ enum ParallelImporter {
             if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
         }
 
-        let sourceExt = tempImageURL.pathExtension.lowercased()
-        let ext = mimeType == "image/heic" ? "heic" : (sourceExt.isEmpty ? "jpg" : sourceExt)
+        let ext: String
+        if mimeType == "image/heic" {
+            ext = "heic"
+        } else {
+            let sourceExt = tempImageURL.pathExtension.lowercased()
+            ext = sourceExt.isEmpty ? "jpg" : sourceExt
+        }
         let filename = "IMG_\(Date().timeIntervalSince1970)_\(item.originalIndex).\(ext)"
 
         // autoreleasepool releases CGImage/UIImage temporaries from thumbnail generation
