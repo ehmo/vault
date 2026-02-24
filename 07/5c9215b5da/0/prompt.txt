@@ -1,0 +1,53 @@
+Implement the following plan:
+
+# Plan: Speed up video import by skipping unnecessary transcoding
+
+## Context
+Single 335MB video takes 82 seconds to import. The bottleneck is HEVC re-encoding at 4 Mbps. Most iPhone videos are already HEVC at 1080p — they just have higher bitrate (8-25 Mbps). Re-encoding these from 15 Mbps to 4 Mbps yields diminishing storage savings at massive time cost.
+
+AVAssetExportSession was considered but has no bitrate control — keeping manual AVAssetReader/Writer.
+
+## Changes
+
+### File: `apps/ios/Vault/Core/Storage/MediaOptimizer.swift`
+
+**1. `isAlreadyOptimalVideo` — skip HEVC ≤1080p regardless of bitrate**
+
+Remove the 5 Mbps bitrate check. If video is HEVC + ≤1080p → skip. Period.
+
+Only transcode when:
+- Source is NOT HEVC (e.g. H.264) → must re-encode to HEVC
+- Source is >1080p (e.g. 4K) → must downscale
+
+**2. Raise target bitrates for videos that DO need transcoding**
+
+```
+bitrate1080p: 4_000_000 → 8_000_000  (8 Mbps — faster encode, still ~50-70% smaller than 4K source)
+bitrate720p:  2_500_000 → 4_000_000  (4 Mbps)
+bitrateSD:    1_500_000 → 2_000_000  (2 Mbps)
+```
+
+Higher target = less compression work = faster hardware encoding (~30-50% speed gain).
+
+**3. Raise the "not worth it" threshold from 10% to 20%**
+
+Line 308: If optimized file isn't 20% smaller, skip — not worth the transcode time.
+
+### File: `apps/ios/VaultTests/MediaOptimizerTests.swift`
+
+Add tests:
+- HEVC ≤1080p at high bitrate (15 Mbps) → skipped (no re-encode)
+- H.264 ≤1080p → still transcodes to HEVC
+- 4K HEVC → still transcodes (downscale)
+
+## Verification
+1. Build: `xcodebuild build -project apps/ios/Vault.xcodeproj -scheme Vault -destination 'platform=iOS Simulator,name=iPhone 16'`
+2. Tests: `xcodebuild test -project apps/ios/Vault.xcodeproj -scheme Vault -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:VaultTests/MediaOptimizerTests`
+3. Manual: Deploy to phone, import same 100 files, measure time
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've aletered or impacted. When you are satisfied with the results, write comprehensive not shallow tests thaat verify this implementation going forward and catch any changes to the behavior.
