@@ -3,7 +3,6 @@ import UserNotifications
 import CryptoKit
 import os.log
 import QuartzCore
-import AVFoundation
 
 enum AppAppearanceMode: String, CaseIterable {
     case system
@@ -499,9 +498,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         _ _: UIApplication,
         willFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        // Start telemetry as early as possible for startup instrumentation.
-        AnalyticsManager.shared.startIfEnabled()
-
         // Force the app-wide tint to our AccentColor asset. On iOS 26+,
         // the Liquid Glass system can override Color.accentColor with its
         // own automatic tinting; setting the UIKit tint ensures consistency.
@@ -560,15 +556,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
 
-        // Configure audio session to allow video playback with sound
-        // This enables audio even when the device is in silent mode
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [])
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            print("Failed to configure audio session: \(error.localizedDescription)")
-        }
-
         #if DEBUG
         // Disable animations for faster XCUITest execution
         if ProcessInfo.processInfo.arguments.contains("-XCUITEST_MODE") {
@@ -584,7 +571,16 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
         // Eagerly init VaultStorage so blob existence check (and potential background
         // blob creation on first launch) overlaps with the user drawing their pattern.
-        _ = VaultStorage.shared
+        // Deferred to next run loop tick to avoid blocking the main thread synchronously.
+        DispatchQueue.main.async {
+            _ = VaultStorage.shared
+        }
+
+        // Start telemetry after first frame renders to keep it off the launch critical path.
+        // Embrace SDK setup triggers KSCrash init, watchdog threads, and synchronous disk I/O.
+        DispatchQueue.main.async {
+            AnalyticsManager.shared.startIfEnabled()
+        }
 
         // Write notification icon to app group so the share extension can use it
         LocalNotificationManager.shared.warmNotificationIcon()

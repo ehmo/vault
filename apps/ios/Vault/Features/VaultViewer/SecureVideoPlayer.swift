@@ -1,5 +1,22 @@
 import SwiftUI
 import AVKit
+import AVFoundation
+
+/// Configures AVAudioSession for video playback once, on first use.
+/// Deferred from app launch to avoid blocking the launch critical path
+/// (~5s AudioSession subsystem spin observed in Instruments).
+private enum AudioSessionSetup {
+    private static let once: Void = {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [])
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("Failed to configure audio session: \(error.localizedDescription)")
+        }
+    }()
+
+    static func ensureConfigured() { _ = once }
+}
 
 struct SecureVideoPlayer: View {
     let file: VaultFileItem
@@ -77,6 +94,8 @@ struct SecureVideoPlayer: View {
             isLoading = false
             return
         }
+
+        AudioSessionSetup.ensureConfigured()
 
         Task {
             do {
