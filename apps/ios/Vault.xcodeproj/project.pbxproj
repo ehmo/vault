@@ -122,6 +122,7 @@
 		PBT00001 /* PerformanceBenchmarkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PBT00000 /* PerformanceBenchmarkTests.swift */; };
 		PI0000001 /* ParallelImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = PI0000000 /* ParallelImporter.swift */; };
 		PIT000001 /* ParallelImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PIT000000 /* ParallelImporterTests.swift */; };
+		IOT000001 /* ImportOptimizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = IOT000000 /* ImportOptimizationTests.swift */; };
 		PV0000001 /* PatternValidationStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PV0000000 /* PatternValidationStateTests.swift */; };
 		SB0000001 /* SecureBytes.swift in Sources */ = {isa = PBXBuildFile; fileRef = SB0000000 /* SecureBytes.swift */; };
 		SB0000002 /* SecureBytes.swift in Sources */ = {isa = PBXBuildFile; fileRef = SB0000000 /* SecureBytes.swift */; };
@@ -360,6 +361,7 @@
 		PBT00000 /* PerformanceBenchmarkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceBenchmarkTests.swift; sourceTree = "<group>"; };
 		PI0000000 /* ParallelImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParallelImporter.swift; sourceTree = "<group>"; };
 		PIT000000 /* ParallelImporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParallelImporterTests.swift; sourceTree = "<group>"; };
+		IOT000000 /* ImportOptimizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportOptimizationTests.swift; sourceTree = "<group>"; };
 		PV0000000 /* PatternValidationStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidationStateTests.swift; sourceTree = "<group>"; };
 		SB0000000 /* SecureBytes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureBytes.swift; sourceTree = "<group>"; };
 		SBT00000 /* SecureBytesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureBytesTests.swift; sourceTree = "<group>"; };
@@ -855,6 +857,7 @@
 				VIM0000002 /* VaultIndexManagerTests.swift */,
 				VVM000002 /* VaultViewModelTests.swift */,
 				PIT000000 /* ParallelImporterTests.swift */,
+				IOT000000 /* ImportOptimizationTests.swift */,
 				DRST00000 /* DragRowSelectorTests.swift */,
 				BT0000000 /* BackgroundTaskTests.swift */,
 				SQ0000000 /* SonarQubeRulesTests.swift */,
@@ -1301,6 +1304,7 @@
 				VIM0000003 /* VaultIndexManagerTests.swift in Sources */,
 				VVM000003 /* VaultViewModelTests.swift in Sources */,
 				PIT000001 /* ParallelImporterTests.swift in Sources */,
+				IOT000001 /* ImportOptimizationTests.swift in Sources */,
 				DRST00001 /* DragRowSelectorTests.swift in Sources */,
 				BT0000001 /* BackgroundTaskTests.swift in Sources */,
 				SQ0000001 /* SonarQubeRulesTests.swift in Sources */,
@@ -1499,7 +1503,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 145;
+				CURRENT_PROJECT_VERSION = 146;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = UFV835UGV6;
@@ -1541,7 +1545,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 145;
+				CURRENT_PROJECT_VERSION = 146;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = UFV835UGV6;
@@ -1580,7 +1584,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 145;
+				CURRENT_PROJECT_VERSION = 146;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
@@ -1612,7 +1616,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 145;
+				CURRENT_PROJECT_VERSION = 146;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
@@ -1644,7 +1648,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 145;
+				CURRENT_PROJECT_VERSION = 146;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1661,7 +1665,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 145;
+				CURRENT_PROJECT_VERSION = 146;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1677,7 +1681,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 145;
+				CURRENT_PROJECT_VERSION = 146;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1693,7 +1697,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 145;
+				CURRENT_PROJECT_VERSION = 146;
 				DEVELOPMENT_TEAM = UFV835UGV6;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;

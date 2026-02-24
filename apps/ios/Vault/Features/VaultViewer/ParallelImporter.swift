@@ -296,7 +296,10 @@ enum ParallelImporter {
         // Pass source file directly to MediaOptimizer — it uses CGImageSource which handles
         // any image format natively. Avoids the old UIImage → jpegData → disk → re-decode path
         // that doubled CPU work and peak memory per image.
-        let sourceMimeType = FileUtilities.mimeType(forExtension: tempImageURL.pathExtension)
+        // Fall back to image/jpeg for uncommon formats (WebP, TIFF, BMP, DNG, etc.) where
+        // FileUtilities returns application/octet-stream — we know it's an image from PHPicker.
+        let detectedMime = FileUtilities.mimeType(forExtension: tempImageURL.pathExtension)
+        let sourceMimeType = detectedMime.hasPrefix("image/") ? detectedMime : "image/jpeg"
         let (optimizedURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
             fileURL: tempImageURL, mimeType: sourceMimeType, mode: optimizationMode
         )
