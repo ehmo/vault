@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Security Architecture: The Full Technical Stack | Vaultaire</title>
-  <meta name="description" content="Explore Vaultaire's complete cryptographic stack: AES-256-GCM, Argon2id key derivation, ChaCha20 metadata protection, Secure Enclave integration, and zero-knowledge architecture. Every layer explained.">
-  <meta name="keywords" content="encryption architecture, AES-256-GCM, Argon2id, ChaCha20, zero-knowledge encryption, Secure Enclave, iOS security, encrypted vault app, cryptographic stack, per-file IV">
+  <meta name="description" content="Explore Vaultaire's complete cryptographic stack: AES-256-GCM, PBKDF2 key derivation, ChaCha20 metadata protection, Secure Enclave integration, and zero-knowledge architecture. Every layer explained.">
+  <meta name="keywords" content="encryption architecture, AES-256-GCM, PBKDF2, ChaCha20, zero-knowledge encryption, Secure Enclave, iOS security, encrypted vault app, cryptographic stack, per-file IV">
   <meta property="og:title" content="Security Architecture: The Full Technical Stack">
   <meta property="og:description" content="Seven layers of cryptography, zero trust required. A deep dive into every cipher, protocol, and design decision that makes Vaultaire unbreakable.">
   <meta property="og:type" content="article">
@@ -34,7 +34,7 @@
     "@context": "https://schema.org",
     "@type": "Article",
     "headline": "Security Architecture: The Full Technical Stack",
-    "description": "A comprehensive guide to Vaultaire's cryptographic architecture: AES-256-GCM, Argon2id, ChaCha20, zero-knowledge design, and hardware-backed key management.",
+    "description": "A comprehensive guide to Vaultaire's cryptographic architecture: AES-256-GCM, PBKDF2, ChaCha20, zero-knowledge design, and hardware-backed key management.",
     "author": {
       "@type": "Organization",
       "name": "Vaultaire"
@@ -99,9 +99,9 @@
         <!-- Section 1: Overview -->
         <h2>The Cryptographic Stack</h2>
 
-        <p>Most security apps pick one encryption algorithm and call it a day. Vaultaire uses six distinct cryptographic mechanisms working in concert, each chosen for a specific threat model. File contents are encrypted with one cipher. Metadata is encrypted with another. Keys are derived through a memory-hard function. Hardware security stores the result. And a zero-knowledge architecture ensures that even the people who built Vaultaire cannot access your data.</p>
+        <p>Most security apps pick one encryption algorithm and call it a day. Vaultaire uses six distinct cryptographic mechanisms working in concert, each chosen for a specific threat model. File contents are encrypted with one cipher. Metadata is encrypted with another. Keys are derived through a computationally expensive function. Hardware security stores the result. And a zero-knowledge architecture ensures that even the people who built Vaultaire cannot access your data.</p>
 
-        <p>This is not complexity for its own sake. Each layer addresses a different attack surface. AES-256-GCM handles bulk file encryption because it is fast and hardware-accelerated on Apple silicon. ChaCha20 protects metadata because it is constant-time and resistant to cache-timing attacks. Argon2id derives keys because it punishes GPU-based cracking rigs. The Secure Enclave stores key material because software-only protection is not enough when someone has physical access to your device.</p>
+        <p>This is not complexity for its own sake. Each layer addresses a different attack surface. AES-256-GCM handles bulk file encryption because it is fast and hardware-accelerated on Apple silicon. ChaCha20 protects metadata because it is constant-time and resistant to cache-timing attacks. PBKDF2 derives keys through hundreds of thousands of iterations, making brute-force attacks computationally prohibitive. The Secure Enclave stores key material because software-only protection is not enough when someone has physical access to your device.</p>
 
         <p>Together, these layers form a defense-in-depth architecture. An attacker would need to break multiple independent cryptographic primitives simultaneously &mdash; a scenario that sits firmly in the realm of the mathematically impossible.</p>
 
@@ -123,18 +123,18 @@
 
         <p>The authentication piece is critical. GCM generates a cryptographic tag for every encrypted file. This tag acts as a tamper seal. If even a single bit of the ciphertext is modified &mdash; whether by a malicious actor or a corrupted disk sector &mdash; the authentication tag will not match, and decryption will fail. You do not get corrupted data. You get a clear signal that something is wrong. This property is called authenticated encryption, and it prevents an entire class of attacks where an adversary modifies encrypted data to manipulate the decrypted output.</p>
 
-        <!-- Section 3: Argon2id -->
-        <h2>Argon2id: Key Derivation</h2>
+        <!-- Section 3: PBKDF2 -->
+        <h2>PBKDF2: Key Derivation</h2>
 
-        <p>Your encryption key does not come from nowhere. It is derived from your pattern (or secret phrase) through a key derivation function &mdash; an algorithm specifically designed to turn a human-provided input into a cryptographic key. Vaultaire uses Argon2id, the winner of the Password Hashing Competition and the current state of the art in key derivation.</p>
+        <p>Your encryption key does not come from nowhere. It is derived from your pattern (or secret phrase) through a key derivation function &mdash; an algorithm specifically designed to turn a human-provided input into a cryptographic key. Vaultaire uses PBKDF2 (Password-Based Key Derivation Function 2) with HMAC-SHA512, a NIST-recommended standard used across government and financial systems worldwide.</p>
 
-        <h3>Why Not PBKDF2 or bcrypt?</h3>
+        <h3>How PBKDF2 Protects Your Pattern</h3>
 
-        <p>Older key derivation functions like PBKDF2 and bcrypt have a critical weakness: they are CPU-bound. Their difficulty is measured in iterations &mdash; how many times the hash function runs. This makes them vulnerable to GPU-based attacks. A modern graphics card has thousands of cores optimized for parallel computation. An attacker with a rack of GPUs can test millions of PBKDF2 hashes per second, effectively neutralizing the computational cost.</p>
+        <p>The core idea behind PBKDF2 is deliberate slowness. It takes your pattern and runs it through hundreds of thousands of rounds of cryptographic hashing. Each round takes a tiny fraction of a second. For you, drawing your pattern and waiting for decryption is nearly instantaneous. For an attacker trying to guess patterns by brute force, that fraction of a second multiplies by every single guess.</p>
 
-        <p>Argon2id takes a fundamentally different approach. It is <strong>memory-hard</strong>. Each key derivation requires a configurable amount of RAM &mdash; Vaultaire uses parameters that demand significant memory per operation. GPUs have fast cores but limited per-core memory. Filling that memory for every single guess makes GPU attacks orders of magnitude more expensive. A cracking rig that could test millions of PBKDF2 guesses per second might manage only hundreds with Argon2id.</p>
+        <p>Vaultaire configures PBKDF2 with a high iteration count specifically calibrated for modern hardware. At these parameters, each key derivation attempt takes meaningful computational work. An attacker trying a billion pattern guesses would need years of continuous computation &mdash; for a <em>single</em> vault. And that assumes they know the salt, which is unique to each vault and stored on your device.</p>
 
-        <p>The &ldquo;id&rdquo; in Argon2id refers to its hybrid design. It combines Argon2i (optimized for resistance to side-channel attacks) and Argon2d (optimized for resistance to GPU cracking). This gives you the best of both: protection against hardware-based brute force <em>and</em> protection against timing attacks on the derivation process itself.</p>
+        <p>Every vault gets its own cryptographically random salt. This means two users who happen to draw the same pattern will produce completely different encryption keys. Precomputed lookup tables (rainbow tables) are useless because the salt makes each vault&rsquo;s key derivation unique. The attacker must start from scratch for every vault they target.</p>
 
         <div class="stat-row">
           <div class="stat-card">
@@ -214,8 +214,8 @@
             </div>
             <div class="flow-arrow">&rarr;</div>
             <div class="flow-step">
-              <div class="flow-step-box">Argon2id</div>
-              <div class="flow-step-label">Memory-hard KDF</div>
+              <div class="flow-step-box">PBKDF2</div>
+              <div class="flow-step-label">High-iteration KDF</div>
             </div>
             <div class="flow-arrow">&rarr;</div>
             <div class="flow-step">
@@ -239,7 +239,7 @@
 
         <ul>
           <li><strong>Encryption keys are overwritten.</strong> The memory locations holding key material are filled with zeros, then random data, then zeros again. This is not a simple deallocation &mdash; the memory is actively wiped to prevent recovery.</li>
-          <li><strong>Derived key material is purged.</strong> Intermediate values from the Argon2id computation, temporary buffers, and any cached decrypted data are zeroed out.</li>
+          <li><strong>Derived key material is purged.</strong> Intermediate values from the PBKDF2 computation, temporary buffers, and any cached decrypted data are zeroed out.</li>
           <li><strong>Secure Enclave keys are invalidated.</strong> The key references in the Secure Enclave are marked for destruction, ensuring they cannot be reused without re-deriving from the pattern.</li>
           <li><strong>Decrypted thumbnails and previews are cleared.</strong> Any cached image data in memory is overwritten before the app fully closes.</li>
         </ul>
@@ -258,9 +258,9 @@
           </details>
 
           <details class="feature-faq-item">
-            <summary>Why use Argon2id instead of PBKDF2?</summary>
+            <summary>Why use PBKDF2 for key derivation?</summary>
             <div class="faq-answer">
-              <p>PBKDF2 relies on repeated hashing, which can be massively parallelized on GPUs. A single modern GPU can test millions of PBKDF2 hashes per second. Argon2id requires large amounts of memory per computation, which GPUs cannot efficiently provide. This makes cracking attempts orders of magnitude more expensive. Argon2id won the 2015 Password Hashing Competition specifically because it addresses this class of attack.</p>
+              <p>PBKDF2 with HMAC-SHA512 is a NIST-recommended standard with decades of proven security analysis. Combined with Vaultaire&rsquo;s high iteration count and per-vault random salts, brute-force attacks require years of computation per vault. PBKDF2 is implemented natively in Apple&rsquo;s CommonCrypto framework, avoiding third-party dependencies and ensuring the key derivation runs in hardened, audited system code.</p>
             </div>
           </details>
 

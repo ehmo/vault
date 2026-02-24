@@ -6,6 +6,7 @@
 @import "./pages/legal.css";
 @import "./pages/invite.css";
 @import "./pages/features.css";
+@import "./pages/not-found.css";
 
 @theme {
   /* Vaultaire design tokens (matching iOS app) */

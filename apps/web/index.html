@@ -317,7 +317,7 @@
                         <span class="feature-hub-card-icon" aria-hidden="true">&#x1f6e1;&#xfe0f;</span>
                         <div class="feature-hub-card-content">
                             <h2>Security Architecture</h2>
-                            <p>AES-256-GCM file encryption, Argon2id key derivation, ChaCha20 metadata protection, and zero-knowledge design. The full technical stack.</p>
+                            <p>AES-256-GCM file encryption, PBKDF2 key derivation, ChaCha20 metadata protection, and zero-knowledge design. The full technical stack.</p>
                             <span class="learn-more">Learn More &rarr;</span>
                         </div>
                     </a>
@@ -372,7 +372,7 @@
                         <p class="tech-lead">We don&rsquo;t trust servers. We trust math.</p>
                         <ul>
                             <li><strong>AES-256-GCM</strong> file encryption</li>
-                            <li><strong>Argon2id</strong> key derivation</li>
+                            <li><strong>PBKDF2</strong> key derivation</li>
                             <li><strong>ChaCha20</strong> stream cipher for metadata</li>
                             <li><strong>Zero-Knowledge</strong> architecture</li>
                         </ul>
@@ -381,7 +381,7 @@
                         <div class="code-block">
                             <span class="code-key">const</span> vaultConfig = {<br>
                             &nbsp;&nbsp;cipher: <span class="code-val">"AES-256-GCM"</span>,<br>
-                            &nbsp;&nbsp;kdf: <span class="code-val">"Argon2id"</span>,<br>
+                            &nbsp;&nbsp;kdf: <span class="code-val">"PBKDF2"</span>,<br>
                             &nbsp;&nbsp;iterations: <span class="code-val">128000</span>,<br>
                             &nbsp;&nbsp;salt: <span class="code-val">unique_per_vault</span>,<br>
                             &nbsp;&nbsp;cloud_sync: <span class="code-val">false</span> // default<br>
@@ -404,7 +404,7 @@
                     <details class="faq-item">
                         <summary class="faq-summary">What happens if I forget my pattern?</summary>
                         <div class="faq-content">
-                            <p>You are provided with a secret passphrase that recovers the vault. However if your forget that too, the data is lost. We do not store keys or have a backdoor to the data.</p>
+                            <p>You are provided with a secret passphrase that recovers the vault. However, if you forget that too, the data is lost. We do not store keys or have a backdoor to the data.</p>
                         </div>
                     </details>
                     <details class="faq-item">
@@ -428,7 +428,7 @@
                     <details class="faq-item">
                         <summary class="faq-summary">How does sharing work?</summary>
                         <div class="faq-content">
-                            <p>When you share a vault you are provided with a secret phrase that differs from the vault recovery phrase. Recipient can use it to obtain copy of the data. You control how long they keep access or how many times they can open the vault. If you add files, the data is synchronized automatically.</p>
+                            <p>When you share a vault you are provided with a secret phrase that differs from the vault recovery phrase. The recipient can use it to obtain a copy of the data. You control how long they keep access or how many times they can open the vault. If you add files, the data is synchronized automatically.</p>
                         </div>
                     </details>
                     <details class="faq-item">
@@ -452,7 +452,7 @@
                     <details class="faq-item">
                         <summary class="faq-summary">How many files can I have per vault?</summary>
                         <div class="faq-content">
-                            <p>There is no limit, however more files you add, bigger the vault and sharing becomes slower.</p>
+                            <p>There is no limit, but the more files you add, the bigger the vault gets and the slower sharing becomes.</p>
                         </div>
                     </details>
                     <details class="faq-item">

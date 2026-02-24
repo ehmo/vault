@@ -21,7 +21,7 @@
 - [Duress Mode](https://vaultaire.app/features/duress-mode/): Emergency pattern for vault destruction.
 - [Encrypted iCloud Backup](https://vaultaire.app/features/encrypted-icloud-backup/): Off-site encrypted backup.
 - [Secure Sharing](https://vaultaire.app/features/secure-sharing/): Time-limited vault sharing.
-- [Security Architecture](https://vaultaire.app/features/security-features/): AES-256-GCM, Argon2id, ChaCha20 stack.
+- [Security Architecture](https://vaultaire.app/features/security-features/): AES-256-GCM, PBKDF2, ChaCha20 stack.
 - [Ease of Use](https://vaultaire.app/features/ease-of-use/): Simple UX with military-grade security.
 
 ## Compare Pages
