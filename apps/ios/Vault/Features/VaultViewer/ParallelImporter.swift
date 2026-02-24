@@ -1,6 +1,9 @@
 import UIKit
 import AVFoundation
 import UniformTypeIdentifiers
+import OSLog
+
+private let parallelImporterLogger = Logger(subsystem: "app.vaultaire.ios", category: "ParallelImporter")
 
 /// Runs import work off MainActor with dedicated worker tasks.
 /// 2 video-priority workers + 2 image-priority workers = 4 parallel workers.
@@ -45,11 +48,25 @@ enum ParallelImporter {
     // MARK: - Thread-Safe Result Buffer
 
     /// Thread-safe buffer for collecting prepared entries from parallel workers.
+    /// Tracks worker completion to ensure all entries are committed.
     actor EntryBuffer {
         private var entries: [VaultStorage.PreparedEntry] = []
         private var allocations: [VaultStorage.BlobAllocation] = []
         private var importedFiles: [VaultFileItem] = []
         private var failedCount = 0
+        private var activeWorkers = 0
+        private var workersFinished = false
+
+        func startWorker() {
+            activeWorkers += 1
+        }
+
+        func endWorker() {
+            activeWorkers -= 1
+            if activeWorkers == 0 {
+                workersFinished = true
+            }
+        }
 
         func append(entry: VaultStorage.PreparedEntry, allocation: VaultStorage.BlobAllocation, file: VaultFileItem) {
             entries.append(entry)
@@ -59,6 +76,11 @@ enum ParallelImporter {
 
         func recordFailure() {
             failedCount += 1
+        }
+
+        /// Get current batch without clearing - allows peeking at size
+        func peekBatch() -> (entries: [VaultStorage.PreparedEntry], allocations: [VaultStorage.BlobAllocation], files: [VaultFileItem]) {
+            return (entries, allocations, importedFiles)
         }
 
         func getBatch() -> (entries: [VaultStorage.PreparedEntry], allocations: [VaultStorage.BlobAllocation], files: [VaultFileItem]) {
@@ -77,7 +99,12 @@ enum ParallelImporter {
             return (entries, allocations, importedFiles, failedCount)
         }
 
+        func allWorkersFinished() -> Bool {
+            return workersFinished && activeWorkers == 0
+        }
+
         var count: Int { entries.count }
+        var isActive: Bool { activeWorkers > 0 }
     }
 
     // MARK: - Thread-Safe Queue
@@ -251,10 +278,8 @@ enum ParallelImporter {
             continuation.yield(.failed(reason: nil))
         }
 
-        // Close any remaining handles
-        for allocation in allocations {
-            try? allocation.handle.close()
-        }
+        // Note: Handles are already closed by commitEntries
+        // No need to close them again here
 
         continuation.finish()
     }
@@ -267,6 +292,9 @@ enum ParallelImporter {
         masterKey: MasterKey,
         continuation: AsyncStream<ImportEvent>.Continuation
     ) async {
+        await entryBuffer.startWorker()
+        defer { Task { await entryBuffer.endWorker() } }
+        
         while let (item, allocation) = await queue.next() {
             guard !Task.isCancelled else { return }
             do {
@@ -296,6 +324,9 @@ enum ParallelImporter {
         masterKey: MasterKey,
         continuation: AsyncStream<ImportEvent>.Continuation
     ) async {
+        await entryBuffer.startWorker()
+        defer { Task { await entryBuffer.endWorker() } }
+        
         while let (item, allocation) = await queue.next() {
             guard !Task.isCancelled else { return }
             do {
@@ -318,6 +349,7 @@ enum ParallelImporter {
     }
 
     /// Coordinate periodic batch commits.
+    /// Only exits when ALL workers are finished AND buffer is empty.
     private static func batchCommitCoordinator(
         entryBuffer: EntryBuffer,
         key: VaultKey,
@@ -326,31 +358,67 @@ enum ParallelImporter {
     ) async {
         let batchSize = 20
         var committedCount = 0
+        var lastLoggedCount = 0
 
-        while committedCount < totalCount {
+        while true {
             try? await Task.sleep(nanoseconds: 100_000_000) // 100ms check interval
 
-            let count = await entryBuffer.count
-            if count >= batchSize {
+            // Check if workers are done
+            let workersFinished = await entryBuffer.allWorkersFinished()
+            let bufferCount = await entryBuffer.count
+            
+            // Log progress every 5 files
+            if bufferCount > 0 && bufferCount != lastLoggedCount && bufferCount % 5 == 0 {
+                parallelImporterLogger.info("Coordinator: \(bufferCount) files pending commit, workers active: \(!workersFinished)")
+                lastLoggedCount = bufferCount
+            }
+
+            // Commit batch if we have enough
+            if bufferCount >= batchSize {
                 let (entries, allocations, files) = await entryBuffer.getBatch()
                 guard !entries.isEmpty else { continue }
 
                 do {
                     try await VaultStorage.shared.commitEntries(entries, allocations: allocations, key: key)
                     committedCount += files.count
+                    parallelImporterLogger.info("Batch committed: \(files.count) files, total: \(committedCount)/\(totalCount)")
                     for file in files {
                         continuation.yield(.imported(file))
                     }
                 } catch {
+                    parallelImporterLogger.error("Batch commit failed: \(error.localizedDescription)")
                     for _ in files {
                         continuation.yield(.failed(reason: error.localizedDescription))
                     }
                 }
             }
 
-            // Check if all work is done
-            if await entryBuffer.count == 0 && committedCount >= totalCount - 5 {
-                // Near completion, let final commit handle remaining
+            // Exit condition: all workers finished AND buffer is empty AND we've committed everything
+            if workersFinished && bufferCount == 0 {
+                parallelImporterLogger.info("Coordinator exiting: all workers finished, buffer empty, committed: \(committedCount)/\(totalCount)")
+                break
+            }
+            
+            // Safety check: if all workers finished but we still have items, commit them
+            if workersFinished && bufferCount > 0 && bufferCount < batchSize {
+                let (entries, allocations, files) = await entryBuffer.getBatch()
+                guard !entries.isEmpty else { continue }
+
+                do {
+                    try await VaultStorage.shared.commitEntries(entries, allocations: allocations, key: key)
+                    committedCount += files.count
+                    parallelImporterLogger.info("Final batch committed: \(files.count) files, total: \(committedCount)/\(totalCount)")
+                    for file in files {
+                        continuation.yield(.imported(file))
+                    }
+                } catch {
+                    parallelImporterLogger.error("Final batch commit failed: \(error.localizedDescription)")
+                    for _ in files {
+                        continuation.yield(.failed(reason: error.localizedDescription))
+                    }
+                }
+                
+                // After final commit, exit
                 break
             }
         }
@@ -562,6 +630,9 @@ enum ParallelImporter {
         masterKey: MasterKey,
         continuation: AsyncStream<ImportEvent>.Continuation
     ) async {
+        await entryBuffer.startWorker()
+        defer { Task { await entryBuffer.endWorker() } }
+        
         while let (item, allocation) = await queue.next() {
             guard !Task.isCancelled else { return }
             do {

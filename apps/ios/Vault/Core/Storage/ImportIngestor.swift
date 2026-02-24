@@ -139,6 +139,15 @@ enum ImportIngestor {
             var imported = 0
             var failed = 0
             var lastError: Error?
+            var activeWorkers = 0
+            var workersFinished = false
+
+            func startWorker() { activeWorkers += 1 }
+            func endWorker() {
+                activeWorkers -= 1
+                if activeWorkers == 0 { workersFinished = true }
+            }
+            func allWorkersFinished() -> Bool { return workersFinished && activeWorkers == 0 }
 
             func append(entry: VaultStorage.PreparedEntry, allocation: VaultStorage.BlobAllocation) {
                 entries.append(entry)
@@ -173,6 +182,9 @@ enum ImportIngestor {
             // Launch parallel workers
             for i in 0..<maxConcurrentImports {
                 group.addTask {
+                    await importBuffer.startWorker()
+                    defer { Task { await importBuffer.endWorker() } }
+                    
                     var fileIndex = i
                     while fileIndex < importableFiles.count {
                         let file = importableFiles[fileIndex]
@@ -266,15 +278,18 @@ enum ImportIngestor {
                 }
             }
 
-            // Batch commit coordinator
+            // Batch commit coordinator - waits for all workers to finish
             group.addTask {
                 var committedCount = 0
                 let totalFiles = importableFiles.count
 
-                while committedCount < totalFiles {
+                while true {
                     try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
 
                     let count = await importBuffer.count
+                    let workersFinished = await importBuffer.allWorkersFinished()
+                    
+                    // Commit batch if we have enough
                     if count >= 20 {
                         let (entries, allocs) = await importBuffer.getBatch()
                         guard !entries.isEmpty else { continue }
@@ -282,6 +297,7 @@ enum ImportIngestor {
                         do {
                             try await VaultStorage.shared.commitEntries(entries, allocations: allocs, key: vaultKey)
                             committedCount += entries.count
+                            importIngestorLogger.info("Batch committed: \(entries.count) files, total: \(committedCount)/\(totalFiles)")
                         } catch {
                             importIngestorLogger.error("Batch commit failed: \(error.localizedDescription, privacy: .public)")
                         }
@@ -303,31 +319,44 @@ enum ImportIngestor {
                         }
                     }
 
-                    if await importBuffer.count == 0 && committedCount >= totalFiles - 5 {
+                    // Exit condition: all workers finished AND buffer is empty
+                    if workersFinished && count == 0 {
+                        importIngestorLogger.info("Coordinator exiting: all workers finished, buffer empty, committed: \(committedCount)/\(totalFiles)")
+                        break
+                    }
+                    
+                    // Final commit: workers finished but we still have items
+                    if workersFinished && count > 0 && count < 20 {
+                        let (entries, allocs) = await importBuffer.getBatch()
+                        guard !entries.isEmpty else { continue }
+
+                        do {
+                            try await VaultStorage.shared.commitEntries(entries, allocations: allocs, key: vaultKey)
+                            committedCount += entries.count
+                            importIngestorLogger.info("Final batch committed: \(entries.count) files, total: \(committedCount)/\(totalFiles)")
+                        } catch {
+                            importIngestorLogger.error("Final batch commit failed: \(error.localizedDescription, privacy: .public)")
+                        }
                         break
                     }
                 }
             }
         }
 
-        // Final commit
+        // Final commit of any remaining entries (should be empty if coordinator worked correctly)
         let (entries, allocs, imported, failed, lastError) = await importBuffer.getAll()
         if !entries.isEmpty {
             do {
                 try await VaultStorage.shared.commitEntries(entries, allocations: allocs, key: vaultKey)
+                importIngestorLogger.info("Final cleanup commit: \(entries.count) files")
             } catch {
-                importIngestorLogger.error("Final batch commit failed: \(error.localizedDescription, privacy: .public)")
+                importIngestorLogger.error("Final cleanup commit failed: \(error.localizedDescription, privacy: .public)")
             }
         }
 
-        // Handles will be closed by commitEntries - no need to close again here
-        // Only close handles that weren't committed (in case of early exit)
-        let committedAllocations = Set(allocs.map { ObjectIdentifier($0.handle) })
-        for allocation in allocations {
-            if !committedAllocations.contains(ObjectIdentifier(allocation.handle)) {
-                try? allocation.handle.close()
-            }
-        }
+        // Note: Handles are closed by commitEntries when it commits entries
+        // If there were uncommitted entries above, commitEntries closed those handles
+        // No additional handle cleanup needed here
 
         // Final progress update
         if let onProgress = onProgress {

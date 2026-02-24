@@ -778,14 +778,11 @@ final class VaultStorage: @unchecked Sendable {
         }
 
         // Update thumbnail cache for each entry
+        // Use the already-encrypted thumbnail from the entry (encrypted with masterKey)
         for entry in entries {
-            if let thumb = entry.thumbnailPlaintext {
+            if let encThumb = entry.encryptedThumbnail {
                 let fileId = entry.entry.fileId
-                // Encrypt with vault key for thumbnail cache
-                let encThumb = try? CryptoEngine.encrypt(thumb, with: key.rawBytes)
-                if let encThumb {
-                    await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
-                }
+                await ThumbnailCache.shared.storeEncrypted(id: fileId, data: encThumb)
             }
         }
     }
