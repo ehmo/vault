@@ -54,24 +54,24 @@ struct OnboardingView: View {
                     .disabled(currentStep == .welcome)
                     .accessibilityIdentifier("onboarding_back")
 
-                    Capsule()
-                        .fill(Color.vaultSecondaryText.opacity(0.2))
-                        .frame(height: 4)
-                        .overlay(alignment: .leading) {
+                    // Segmented progress dots — one per step
+                    HStack(spacing: 4) {
+                        ForEach(OnboardingStep.allCases, id: \.rawValue) { step in
                             Capsule()
-                                .fill(Color.accentColor)
-                                .frame(
-                                    width: nil,
-                                    height: 4
-                                )
-                                .frame(
-                                    maxWidth: .infinity,
-                                    alignment: .leading
-                                )
-                                .scaleEffect(x: currentStep.progressFraction, y: 1, anchor: .leading)
+                                .fill(step.rawValue <= currentStep.rawValue
+                                      ? Color.accentColor
+                                      : Color.vaultSecondaryText.opacity(0.25))
+                                .frame(height: 4)
                         }
+                    }
+                    .animation(animation, value: currentStep)
 
-                    if currentStep == .paywall {
+                    if currentStep == .welcome || currentStep == .concepts {
+                        Button("Skip") { skipToPermissions() }
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.vaultSecondaryText)
+                            .accessibilityIdentifier("onboarding_skip")
+                    } else if currentStep == .paywall {
                         Button("Skip") { advance() }
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(.vaultSecondaryText)
@@ -128,6 +128,10 @@ struct OnboardingView: View {
         if let next = currentStep.next() {
             withAnimation(animation) { currentStep = next }
         }
+    }
+
+    private func skipToPermissions() {
+        withAnimation(animation) { currentStep = .permissions }
     }
 
     private func completeOnboarding() {
