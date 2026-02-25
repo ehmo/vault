@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "3e75bea65716",
+  "session_id": "d364af5c-cc3f-48c0-a74c-a664db1e2b78",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-25T07:07:05.996102Z",
+  "branch": "worktree-clever-frolicking-sun",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/ios/Vault/Features/Onboarding/ConceptExplainerView.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "7bb4960b-15d3-4f91-92f3-063fd6925b67",
+  "checkpoint_transcript_start": 546,
+  "transcript_lines_at_start": 546,
+  "token_usage": {
+    "input_tokens": 17,
+    "cache_creation_tokens": 28486,
+    "cache_read_tokens": 1208014,
+    "output_tokens": 321,
+    "api_call_count": 9
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-25T07:07:05.758212Z",
+    "agent_lines": 5,
+    "human_added": 12591,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 12596,
+    "agent_percentage": 0.03969514131470308
+  }
+}
