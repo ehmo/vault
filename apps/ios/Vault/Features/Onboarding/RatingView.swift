@@ -78,8 +78,8 @@ struct RatingView: View {
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("rating_skip")
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 40)
+                .padding(.horizontal, 8)
+                .padding(.bottom, 24)
             }
             .padding(.horizontal, 24)
         }

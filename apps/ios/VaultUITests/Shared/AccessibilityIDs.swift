@@ -5,6 +5,7 @@ import Foundation
 enum AID {
     // MARK: - Onboarding
     static let welcomeContinue = "welcome_continue"
+    static let conceptsContinue = "concepts_continue"
     static let permissionsContinue = "permissions_continue"
     static let analyticsEnable = "analytics_enable"
     static let analyticsDecline = "analytics_decline"

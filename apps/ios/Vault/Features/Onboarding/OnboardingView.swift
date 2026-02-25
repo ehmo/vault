@@ -2,6 +2,7 @@ import SwiftUI
 
 enum OnboardingStep: Int, CaseIterable {
     case welcome
+    case concepts
     case permissions
     case analytics
     case paywall
@@ -95,6 +96,8 @@ struct OnboardingView: View {
                 switch currentStep {
                 case .welcome:
                     WelcomeView(onContinue: { advance() })
+                case .concepts:
+                    ConceptExplainerView(onContinue: { advance() })
                 case .permissions:
                     PermissionsView(onContinue: { advance() })
                 case .analytics:

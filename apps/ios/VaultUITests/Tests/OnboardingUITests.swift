@@ -25,6 +25,7 @@ final class OnboardingUITests: BaseUITest {
         let onboarding = OnboardingScreen(app: app)
 
         onboarding.tapWelcomeContinue()
+        onboarding.skipConcepts()
         onboarding.tapPermissionsContinue()
         onboarding.tapAnalyticsDecline()
         onboarding.skipPaywall()

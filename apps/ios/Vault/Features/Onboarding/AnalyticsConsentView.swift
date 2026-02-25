@@ -43,16 +43,19 @@ struct AnalyticsConsentView: View {
                 .accessibilityIdentifier("analytics_enable")
 
                 Button(action: onContinue) {
-                    Text("No Thanks")
-                        .font(.headline)
+                    Text("No, thank you")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.vaultSecondaryText)
                         .frame(maxWidth: .infinity)
-                        .padding()
+                        .padding(.vertical, 12)
+                        .contentShape(Rectangle())
                 }
-                .vaultSecondaryButtonStyle()
+                .buttonStyle(.plain)
                 .accessibilityIdentifier("analytics_decline")
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
+            .padding(.horizontal, 32)
+            .padding(.bottom, 24)
         }
         .background(Color.vaultBackground.ignoresSafeArea())
     }

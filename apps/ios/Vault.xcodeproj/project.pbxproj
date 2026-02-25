@@ -163,6 +163,7 @@
 		A8E7A42EB2420A976FA11FFF /* EmbraceConfigInternal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5218A3CEC0BC074E7DDB7E3E /* EmbraceConfigInternal.framework */; };
 		AD33C6034AAAE2E5161BB691 /* DuressPatternSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C8EB0B77B922C8CE9352E2B /* DuressPatternSettingsView.swift */; };
 		AEEB6F4F0D961F013E93A3FC /* SecureDeleteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD9ED75062A7FA3026698408 /* SecureDeleteTests.swift */; };
+		AEEC0AA44FB45DB24ABAD54F /* ConceptExplainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B69EE0A9AFA631FC70C9D2D /* ConceptExplainerView.swift */; };
 		AF49764042154DB2C7DE764F /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 888D90FB4209C7F01D1E635F /* CameraManager.swift */; };
 		AFA80E73B9BBE81AE9766236 /* VaultViewerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C76281F1631509828DD032E0 /* VaultViewerUITests.swift */; };
 		B0CCC8424328A74FE04F4C8B /* TuistBundle+Vault.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BEEEC471AF68B7C0168CB04 /* TuistBundle+Vault.swift */; };
@@ -341,6 +342,7 @@
 		04DDC73B1655584BBFBBBE81 /* PatternGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternGridView.swift; sourceTree = "<group>"; };
 		099767B026E8E5D50E4F56A5 /* ChangePatternView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangePatternView.swift; sourceTree = "<group>"; };
 		0B403773859CCF06D5E7A7A6 /* FileImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileImporter.swift; sourceTree = "<group>"; };
+		0B69EE0A9AFA631FC70C9D2D /* ConceptExplainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConceptExplainerView.swift; sourceTree = "<group>"; };
 		0BB327ECC9BAC4D9DE60F86D /* KSCrashRecordingCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = KSCrashRecordingCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		0C25912AC46D1B72A1274C95 /* MilestoneTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneTracker.swift; sourceTree = "<group>"; };
 		0CF106F0DF615A0E1E1C1163 /* VaultSyncIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultSyncIndicator.swift; sourceTree = "<group>"; };
@@ -873,6 +875,7 @@
 			isa = PBXGroup;
 			children = (
 				6364CBB2345A74C2CE8B6B70 /* AnalyticsConsentView.swift */,
+				0B69EE0A9AFA631FC70C9D2D /* ConceptExplainerView.swift */,
 				00DEA315F31A573401FC2AE0 /* OnboardingView.swift */,
 				D8C58222823463ABD01D291F /* PatternSetupCoordinator.swift */,
 				345392B17F78D33EA22945A8 /* PatternSetupView.swift */,
@@ -1523,6 +1526,7 @@
 				AF49764042154DB2C7DE764F /* CameraManager.swift in Sources */,
 				B0EE7484518134ACBA56B371 /* SecureCameraView.swift in Sources */,
 				87333B6027071E78689C290A /* AnalyticsConsentView.swift in Sources */,
+				AEEC0AA44FB45DB24ABAD54F /* ConceptExplainerView.swift in Sources */,
 				47D5A479C4399F6E13E5B6F3 /* OnboardingView.swift in Sources */,
 				2A59EC5E71CDCA9F6990B073 /* PatternSetupCoordinator.swift in Sources */,
 				09220D0DD90545277BF1F8ED /* PatternSetupView.swift in Sources */,

@@ -20,6 +20,20 @@ appId: app.vaultaire.ios
 - tapOn:
     id: "welcome_continue"
 
+# Concept explainer — tap through all 6 pages
+- tapOn:
+    id: "concepts_continue"
+- tapOn:
+    id: "concepts_continue"
+- tapOn:
+    id: "concepts_continue"
+- tapOn:
+    id: "concepts_continue"
+- tapOn:
+    id: "concepts_continue"
+- tapOn:
+    id: "concepts_continue"
+
 # Permissions — skip past
 - tapOn:
     id: "permissions_continue"

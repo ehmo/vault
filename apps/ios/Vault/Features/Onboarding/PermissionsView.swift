@@ -72,8 +72,8 @@ struct PermissionsView: View {
                     .padding()
             }
             .vaultProminentButtonStyle()
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
+            .padding(.horizontal, 32)
+            .padding(.bottom, 24)
             .accessibilityIdentifier("permissions_continue")
         }
         .background(Color.vaultBackground.ignoresSafeArea())

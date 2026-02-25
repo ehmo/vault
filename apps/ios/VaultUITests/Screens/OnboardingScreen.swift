@@ -10,6 +10,10 @@ struct OnboardingScreen {
         app.buttons[AID.welcomeContinue]
     }
 
+    var conceptsContinueButton: XCUIElement {
+        app.buttons[AID.conceptsContinue]
+    }
+
     var permissionsContinueButton: XCUIElement {
         app.buttons[AID.permissionsContinue]
     }
@@ -56,6 +60,7 @@ struct OnboardingScreen {
     @discardableResult
     func completeHappyPath() -> VaultScreen {
         tapWelcomeContinue()
+        skipConcepts()
         tapPermissionsContinue()
         tapAnalyticsDecline()
         skipPaywall()
@@ -70,6 +75,16 @@ struct OnboardingScreen {
     func tapWelcomeContinue() -> Self {
         XCTAssertTrue(welcomeContinueButton.waitForExistence(timeout: 5))
         welcomeContinueButton.tap()
+        return self
+    }
+
+    /// Tap through all 6 concept explainer pages via the Continue/Get Started button.
+    @discardableResult
+    func skipConcepts() -> Self {
+        XCTAssertTrue(conceptsContinueButton.waitForExistence(timeout: 5))
+        for _ in 0..<6 {
+            conceptsContinueButton.tap()
+        }
         return self
     }
 

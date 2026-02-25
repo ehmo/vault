@@ -5,21 +5,25 @@ final class OnboardingStepTests: XCTestCase {
 
     // MARK: - Case Count
 
-    func testAllCasesCountIsSix() {
-        XCTAssertEqual(OnboardingStep.allCases.count, 6)
+    func testAllCasesCountIsSeven() {
+        XCTAssertEqual(OnboardingStep.allCases.count, 7)
     }
 
     // MARK: - Ordering
 
     func testCaseOrderMatchesExpectedFlow() {
-        let expected: [OnboardingStep] = [.welcome, .permissions, .analytics, .paywall, .thankYou, .rating]
+        let expected: [OnboardingStep] = [.welcome, .concepts, .permissions, .analytics, .paywall, .thankYou, .rating]
         XCTAssertEqual(OnboardingStep.allCases, expected)
     }
 
     // MARK: - next()
 
-    func testNextFromWelcomeReturnsPermissions() {
-        XCTAssertEqual(OnboardingStep.welcome.next(), .permissions)
+    func testNextFromWelcomeReturnsConcepts() {
+        XCTAssertEqual(OnboardingStep.welcome.next(), .concepts)
+    }
+
+    func testNextFromConceptsReturnsPermissions() {
+        XCTAssertEqual(OnboardingStep.concepts.next(), .permissions)
     }
 
     func testNextFromPermissionsReturnsAnalytics() {
@@ -48,8 +52,12 @@ final class OnboardingStepTests: XCTestCase {
         XCTAssertNil(OnboardingStep.welcome.previous())
     }
 
-    func testPreviousFromPermissionsReturnsWelcome() {
-        XCTAssertEqual(OnboardingStep.permissions.previous(), .welcome)
+    func testPreviousFromConceptsReturnsWelcome() {
+        XCTAssertEqual(OnboardingStep.concepts.previous(), .welcome)
+    }
+
+    func testPreviousFromPermissionsReturnsConcepts() {
+        XCTAssertEqual(OnboardingStep.permissions.previous(), .concepts)
     }
 
     func testPreviousFromThankYouReturnsPaywall() {
@@ -64,7 +72,7 @@ final class OnboardingStepTests: XCTestCase {
 
     func testProgressFractionForFirstStep() {
         let fraction = OnboardingStep.welcome.progressFraction
-        XCTAssertEqual(fraction, 1.0 / 6.0, accuracy: 0.001)
+        XCTAssertEqual(fraction, 1.0 / 7.0, accuracy: 0.001)
     }
 
     func testProgressFractionForLastStep() {

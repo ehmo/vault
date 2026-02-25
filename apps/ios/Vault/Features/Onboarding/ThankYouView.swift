@@ -53,14 +53,14 @@ struct ThankYouView: View {
                     Spacer(minLength: 0)
 
                     Button(action: onContinue) {
-                        Text("Create My Secure Vault")
+                        Text("Continue")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding()
                     }
                     .vaultProminentButtonStyle()
-                    .padding(.horizontal, 40)
-                    .padding(.bottom, 40)
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 24)
                     .accessibilityIdentifier("thankyou_continue")
                 }
                 .frame(maxWidth: .infinity, minHeight: proxy.size.height)

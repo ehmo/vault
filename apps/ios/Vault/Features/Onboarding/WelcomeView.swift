@@ -73,6 +73,11 @@ struct WelcomeView: View {
                                 title: "Encrypted Backup",
                                 description: isCompact ? "Back up to iCloud, only you can decrypt" : "Back up to your iCloud. Only you can decrypt it with your pattern"
                             )
+                            FeatureRow(
+                                icon: "shield.slash",
+                                title: "Duress Vault",
+                                description: isCompact ? "Duress pattern silently wipes real vaults" : "If forced to unlock, the duress pattern silently wipes your real vaults"
+                            )
                         }
                         .padding(.horizontal)
 
