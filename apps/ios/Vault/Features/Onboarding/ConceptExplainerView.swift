@@ -512,7 +512,7 @@ private struct EncryptedSharingPage: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
 
-                Text("Send encrypted vaults to anyone. No accounts, no identity, no metadata trail.")
+                Text("Send encrypted vaults to anyone.\nNo accounts, no identity, no metadata trail.")
                     .font(.subheadline)
                     .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
