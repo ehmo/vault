@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "acb1f311e977",
+  "strategy": "manual-commit",
+  "branch": "worktree-clever-frolicking-sun",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/ios/Vault/Features/Onboarding/ConceptExplainerView.swift",
+    "apps/ios/Vault/Features/Onboarding/OnboardingView.swift",
+    "apps/ios/VaultTests/OnboardingStepTests.swift",
+    "apps/ios/VaultUITests/Screens/OnboardingScreen.swift",
+    "apps/ios/VaultUITests/Shared/AccessibilityIDs.swift",
+    "apps/ios/VaultUITests/Tests/OnboardingUITests.swift",
+    "apps/ios/maestro/flows/onboarding/complete_onboarding.yaml",
+    "apps/ios/onboarding-concepts.html"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ac/b1f311e977/0/metadata.json",
+      "transcript": "/ac/b1f311e977/0/full.jsonl",
+      "context": "/ac/b1f311e977/0/context.md",
+      "content_hash": "/ac/b1f311e977/0/content_hash.txt",
+      "prompt": "/ac/b1f311e977/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 44,
+    "cache_creation_tokens": 175673,
+    "cache_read_tokens": 3716233,
+    "output_tokens": 9480,
+    "api_call_count": 40
+  }
+}

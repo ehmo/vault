@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "acb1f311e977",
+  "session_id": "f88b81e4-7947-47c0-b3a7-1849b864b041",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-25T06:55:11.457724Z",
+  "branch": "worktree-clever-frolicking-sun",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/ios/Vault/Features/Onboarding/ConceptExplainerView.swift",
+    "apps/ios/Vault/Features/Onboarding/OnboardingView.swift",
+    "apps/ios/VaultTests/OnboardingStepTests.swift",
+    "apps/ios/VaultUITests/Screens/OnboardingScreen.swift",
+    "apps/ios/VaultUITests/Shared/AccessibilityIDs.swift",
+    "apps/ios/VaultUITests/Tests/OnboardingUITests.swift",
+    "apps/ios/maestro/flows/onboarding/complete_onboarding.yaml",
+    "apps/ios/onboarding-concepts.html"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "b1f89239-30a6-416a-bbe0-d0901c491a75",
+  "token_usage": {
+    "input_tokens": 44,
+    "cache_creation_tokens": 175673,
+    "cache_read_tokens": 3716233,
+    "output_tokens": 9480,
+    "api_call_count": 40
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-25T06:55:11.327586Z",
+    "agent_lines": 887,
+    "human_added": 10217,
+    "human_modified": 1187,
+    "human_removed": 0,
+    "total_committed": 12291,
+    "agent_percentage": 7.2166625986494175
+  }
+}
