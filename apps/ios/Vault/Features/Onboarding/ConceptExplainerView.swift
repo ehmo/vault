@@ -247,7 +247,7 @@ private struct PlausibleDeniabilityPage: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
 
-                Text("Without your pattern, there's no trace that hidden vaults even exist.")
+                Text("Without your pattern, there's no trace\nthat hidden vaults even exist.")
                     .font(.subheadline)
                     .foregroundStyle(.vaultSecondaryText)
                     .multilineTextAlignment(.center)
@@ -360,17 +360,17 @@ private struct DuressPatternGrid: View {
 
     private let gridSize = 5
     private let dotSize: CGFloat = 10
-    private let gridWidth: CGFloat = 200
+    private let gridWidth: CGFloat = 160
 
-    // Duress pattern: reverse diagonal
-    private let highlightedDots: [(Int, Int)] = [(0, 4), (1, 3), (2, 2), (3, 1), (4, 0)]
+    // Duress pattern: Z-shape with direction changes
+    private let highlightedDots: [(Int, Int)] = [(0, 0), (0, 2), (2, 2), (4, 0), (4, 2)]
 
     var body: some View {
         ZStack {
             // Glow behind grid
             Circle()
                 .fill(Color.red.opacity(0.06))
-                .frame(width: 240, height: 240)
+                .frame(width: 200, height: 200)
 
             // Draw all dots
             ForEach(0..<gridSize, id: \.self) { row in
