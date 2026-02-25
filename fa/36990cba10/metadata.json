@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "fa36990cba10",
+  "strategy": "manual-commit",
+  "branch": "worktree-clever-frolicking-sun",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Features/Onboarding/ConceptExplainerView.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/fa/36990cba10/0/metadata.json",
+      "transcript": "/fa/36990cba10/0/full.jsonl",
+      "context": "/fa/36990cba10/0/context.md",
+      "content_hash": "/fa/36990cba10/0/content_hash.txt",
+      "prompt": "/fa/36990cba10/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 11,
+    "cache_creation_tokens": 27650,
+    "cache_read_tokens": 467847,
+    "output_tokens": 74,
+    "api_call_count": 7
+  }
+}
