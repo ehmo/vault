@@ -360,7 +360,8 @@ private struct DuressPatternGrid: View {
 
     private let gridSize = 5
     private let dotSize: CGFloat = 10
-    private let gridWidth: CGFloat = 160
+    private let gridSpan: CGFloat = 160   // distance between outermost dots
+    private let circleSize: CGFloat = 200 // background circle diameter
 
     // Duress pattern: Z-shape with direction changes
     private let highlightedDots: [(Int, Int)] = [(0, 0), (0, 2), (2, 2), (4, 0), (4, 2)]
@@ -370,7 +371,7 @@ private struct DuressPatternGrid: View {
             // Glow behind grid
             Circle()
                 .fill(Color.red.opacity(0.06))
-                .frame(width: 200, height: 200)
+                .frame(width: circleSize, height: circleSize)
 
             // Draw all dots
             ForEach(0..<gridSize, id: \.self) { row in
@@ -402,12 +403,13 @@ private struct DuressPatternGrid: View {
             }
             .stroke(Color.red.opacity(0.5), style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
         }
-        .frame(width: gridWidth, height: gridWidth)
+        .frame(width: circleSize, height: circleSize)
     }
 
     private func dotPosition(row: Int, col: Int) -> CGPoint {
-        let spacing = gridWidth / CGFloat(gridSize - 1)
-        return CGPoint(x: CGFloat(col) * spacing, y: CGFloat(row) * spacing)
+        let spacing = gridSpan / CGFloat(gridSize - 1)
+        let inset = (circleSize - gridSpan) / 2
+        return CGPoint(x: inset + CGFloat(col) * spacing, y: inset + CGFloat(row) * spacing)
     }
 }
 
