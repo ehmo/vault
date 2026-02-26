@@ -31,6 +31,16 @@ final class MediaOptimizer: Sendable {
         case original
     }
 
+    /// Result of media optimization, replacing the old tuple return.
+    struct Result: Sendable {
+        let url: URL
+        let mimeType: String
+        let wasOptimized: Bool
+        let thumbnailData: Data?
+        let duration: TimeInterval?
+        let creationDate: Date?
+    }
+
     /// Determines which optimization path to use for a video.
     enum VideoOptimizationStrategy: Sendable, Equatable {
         case skip           // Already optimal (HEVC ≤1080p)
@@ -38,11 +48,12 @@ final class MediaOptimizer: Sendable {
         case readerWriter   // Non-HEVC — codec change via sample buffers
     }
 
-    /// Returns (outputURL, outputMimeType, wasOptimized).
-    /// If `wasOptimized` is true, caller must delete the temp file after use.
-    func optimize(fileURL: URL, mimeType: String, mode: Mode) async throws -> (URL, String, Bool) {
+    /// Optimizes media for storage. If `wasOptimized` is true, caller must delete the temp file.
+    /// For images, `thumbnailData` contains a pre-generated thumbnail from the in-memory CGImage,
+    /// avoiding a redundant decode from disk after HEIC conversion.
+    func optimize(fileURL: URL, mimeType: String, mode: Mode) async throws -> Result {
         guard mode == .optimized else {
-            return (fileURL, mimeType, false)
+            return Result(url: fileURL, mimeType: mimeType, wasOptimized: false, thumbnailData: nil, duration: nil, creationDate: nil)
         }
 
         if mimeType.hasPrefix("image/") {
@@ -52,7 +63,7 @@ final class MediaOptimizer: Sendable {
         }
 
         // Non-media: passthrough
-        return (fileURL, mimeType, false)
+        return Result(url: fileURL, mimeType: mimeType, wasOptimized: false, thumbnailData: nil, duration: nil, creationDate: nil)
     }
 
     /// Optimizes a UIImage (e.g., from camera) to HEIC temp file.
@@ -109,10 +120,29 @@ final class MediaOptimizer: Sendable {
 
     // MARK: - Image Optimization
 
-    private func optimizeImage(fileURL: URL, mimeType: String) throws -> (URL, String, Bool) {
+    /// Images below this size skip HEIC conversion — the CPU cost of decode+encode
+    /// outweighs the negligible space savings on small files.
+    static var imageOptimizationThreshold: Int64 = 500_000  // 500 KB
+
+    private func optimizeImage(fileURL: URL, mimeType: String) throws -> Result {
         // Skip if already HEIC
         if mimeType == "image/heic" || mimeType == "image/heif" {
-            return (fileURL, mimeType, false)
+            return Result(url: fileURL, mimeType: mimeType, wasOptimized: false, thumbnailData: nil, duration: nil, creationDate: nil)
+        }
+
+        // Skip PNGs — they're typically screenshots/diagrams where lossy HEIC at 0.6
+        // introduces visible artifacts on text and sharp edges, and often produces
+        // larger output than the original PNG.
+        if mimeType == "image/png" {
+            optimizerLogger.info("PNG detected, skipping lossy HEIC conversion to preserve quality")
+            return Result(url: fileURL, mimeType: mimeType, wasOptimized: false, thumbnailData: nil, duration: nil, creationDate: nil)
+        }
+
+        // Skip small images — HEIC conversion has fixed CPU overhead that isn't worth it
+        let originalSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int64) ?? 0
+        if originalSize > 0 && originalSize < Self.imageOptimizationThreshold {
+            optimizerLogger.info("Image \(originalSize) bytes < \(Self.imageOptimizationThreshold) threshold, skipping HEIC conversion")
+            return Result(url: fileURL, mimeType: mimeType, wasOptimized: false, thumbnailData: nil, duration: nil, creationDate: nil)
         }
 
         // autoreleasepool ensures CGImageSource, CGImage, and CGImageDestination temporaries
@@ -120,7 +150,7 @@ final class MediaOptimizer: Sendable {
         // accumulated ObjC objects between executor yields.
         return autoreleasepool {
             guard let source = CGImageSourceCreateWithURL(fileURL as CFURL, nil) else {
-                return (fileURL, mimeType, false)
+                return Result(url: fileURL, mimeType: mimeType, wasOptimized: false, thumbnailData: nil, duration: nil, creationDate: nil)
             }
 
             // Check image dimensions for potential downsampling
@@ -140,7 +170,7 @@ final class MediaOptimizer: Sendable {
                     kCGImageSourceThumbnailMaxPixelSize: 4096
                 ]
                 guard let thumb = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbOptions as CFDictionary) else {
-                    return (fileURL, mimeType, false)
+                    return Result(url: fileURL, mimeType: mimeType, wasOptimized: false, thumbnailData: nil, duration: nil, creationDate: nil)
                 }
                 cgImage = thumb
                 // kCGImageSourceCreateThumbnailWithTransform already rotated the pixels,
@@ -148,12 +178,16 @@ final class MediaOptimizer: Sendable {
                 orientation = .up
             } else {
                 guard let full = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
-                    return (fileURL, mimeType, false)
+                    return Result(url: fileURL, mimeType: mimeType, wasOptimized: false, thumbnailData: nil, duration: nil, creationDate: nil)
                 }
                 cgImage = full
                 // Full-size path: pixels are unrotated, so preserve original EXIF orientation.
                 orientation = (properties?[kCGImagePropertyOrientation] as? UInt32).flatMap { CGImagePropertyOrientation(rawValue: $0) } ?? .up
             }
+
+            // Generate thumbnail from in-memory CGImage BEFORE writing HEIC.
+            // This avoids a redundant decode from disk after optimization.
+            let thumbnail = Self.generateThumbnailFromCGImage(cgImage, orientation: orientation, maxPixelSize: 400)
 
             // Write HEIC to temp file
             let tempURL = FileManager.default.temporaryDirectory
@@ -166,7 +200,7 @@ final class MediaOptimizer: Sendable {
                 1,
                 nil
             ) else {
-                return (fileURL, mimeType, false)
+                return Result(url: fileURL, mimeType: mimeType, wasOptimized: false, thumbnailData: nil, duration: nil, creationDate: nil)
             }
 
             // Preserve EXIF orientation metadata when writing the output image
@@ -181,15 +215,43 @@ final class MediaOptimizer: Sendable {
 
             guard CGImageDestinationFinalize(destination) else {
                 FileUtilities.cleanupTemporaryFile(at: tempURL)
-                return (fileURL, mimeType, false)
+                return Result(url: fileURL, mimeType: mimeType, wasOptimized: false, thumbnailData: nil, duration: nil, creationDate: nil)
             }
 
-            let originalSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int64) ?? 0
             let optimizedSize = (try? FileManager.default.attributesOfItem(atPath: tempURL.path)[.size] as? Int64) ?? 0
-            optimizerLogger.info("Image optimized: \(originalSize) → \(optimizedSize) bytes (\(originalSize > 0 ? Int(100 - (optimizedSize * 100 / originalSize)) : 0)% reduction)")
 
-            return (tempURL, "image/heic", true)
+            // Discard HEIC if it didn't achieve at least 20% reduction (same logic as video)
+            if originalSize > 0 && optimizedSize >= Int64(Double(originalSize) * 0.8) {
+                FileUtilities.cleanupTemporaryFile(at: tempURL)
+                optimizerLogger.info("Image HEIC \(optimizedSize) bytes >= 80% of original \(originalSize), keeping original")
+                return Result(url: fileURL, mimeType: mimeType, wasOptimized: false, thumbnailData: thumbnail, duration: nil, creationDate: nil)
+            }
+
+            let reduction = originalSize > 0 ? Int(100 - (optimizedSize * 100 / originalSize)) : 0
+            optimizerLogger.info("Image optimized: \(originalSize) → \(optimizedSize) bytes (\(reduction)% reduction)")
+
+            return Result(url: tempURL, mimeType: "image/heic", wasOptimized: true, thumbnailData: thumbnail, duration: nil, creationDate: nil)
         }
+    }
+
+    /// Generates a JPEG thumbnail from an in-memory CGImage, applying EXIF orientation.
+    private static func generateThumbnailFromCGImage(_ cgImage: CGImage, orientation: CGImagePropertyOrientation, maxPixelSize: CGFloat) -> Data? {
+        let w = CGFloat(cgImage.width)
+        let h = CGFloat(cgImage.height)
+        let maxDim = max(w, h)
+        guard maxDim > 0 else { return nil }
+        let scale = maxDim <= maxPixelSize ? 1.0 : maxPixelSize / maxDim
+        let thumbW = w * scale
+        let thumbH = h * scale
+
+        let uiOrientation = UIImage.Orientation(orientation)
+        let image = UIImage(cgImage: cgImage, scale: 1.0, orientation: uiOrientation)
+        let thumbSize = CGSize(width: thumbW, height: thumbH)
+        let renderer = UIGraphicsImageRenderer(size: thumbSize)
+        let thumbImage = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: thumbSize))
+        }
+        return thumbImage.jpegData(compressionQuality: 0.7)
     }
 
     // MARK: - Video Optimization
@@ -202,26 +264,43 @@ final class MediaOptimizer: Sendable {
     private static let bitrateSD    = 2_000_000  // 2 Mbps
     private static let audioBitrate = 128_000    // 128 kbps AAC
 
-    private func optimizeVideo(fileURL: URL, mimeType: String) async throws -> (URL, String, Bool) {
+    private func optimizeVideo(fileURL: URL, mimeType: String) async throws -> Result {
         let asset = AVURLAsset(url: fileURL)
         let strategy = await videoOptimizationStrategy(for: asset)
+
+        // Load duration and creation date from the already-opened asset
+        // so callers don't need to re-open it
+        var duration: TimeInterval?
+        if let cmDuration = try? await asset.load(.duration) {
+            let seconds = CMTimeGetSeconds(cmDuration)
+            if seconds.isFinite && seconds > 0 { duration = seconds }
+        }
+        var creationDate: Date?
+        if let metadataItems = try? await asset.load(.commonMetadata) {
+            let dateItems = AVMetadataItem.metadataItems(from: metadataItems, filteredByIdentifier: .commonIdentifierCreationDate)
+            if let dateItem = dateItems.first, let dateValue = try? await dateItem.load(.dateValue) {
+                creationDate = dateValue
+            }
+        }
 
         switch strategy {
         case .skip:
             optimizerLogger.info("Video already optimal, skipping")
-            return (fileURL, mimeType, false)
+            return Result(url: fileURL, mimeType: mimeType, wasOptimized: false, thumbnailData: nil, duration: duration, creationDate: creationDate)
 
         case .exportSession:
             optimizerLogger.info("HEVC >1080p — using AVAssetExportSession for fast downscale")
-            if let result = await optimizeVideoWithExportSession(fileURL: fileURL, mimeType: mimeType, asset: asset) {
-                return result
+            if let (url, mime, optimized) = await optimizeVideoWithExportSession(fileURL: fileURL, mimeType: mimeType, asset: asset) {
+                return Result(url: url, mimeType: mime, wasOptimized: optimized, thumbnailData: nil, duration: duration, creationDate: creationDate)
             }
             // ExportSession failed — fall back to reader/writer
             optimizerLogger.warning("ExportSession unavailable, falling back to AVAssetReader/Writer")
-            return try await optimizeVideoWithReaderWriter(fileURL: fileURL, mimeType: mimeType, asset: asset)
+            let (url, mime, optimized) = try await optimizeVideoWithReaderWriter(fileURL: fileURL, mimeType: mimeType, asset: asset)
+            return Result(url: url, mimeType: mime, wasOptimized: optimized, thumbnailData: nil, duration: duration, creationDate: creationDate)
 
         case .readerWriter:
-            return try await optimizeVideoWithReaderWriter(fileURL: fileURL, mimeType: mimeType, asset: asset)
+            let (url, mime, optimized) = try await optimizeVideoWithReaderWriter(fileURL: fileURL, mimeType: mimeType, asset: asset)
+            return Result(url: url, mimeType: mime, wasOptimized: optimized, thumbnailData: nil, duration: duration, creationDate: creationDate)
         }
     }
 
@@ -506,5 +585,22 @@ extension MediaOptimizer {
 
         let name = (filename as NSString).deletingPathExtension
         return "\(name).\(ext)"
+    }
+}
+
+// MARK: - UIImage.Orientation from CGImagePropertyOrientation
+
+private extension UIImage.Orientation {
+    init(_ cgOrientation: CGImagePropertyOrientation) {
+        switch cgOrientation {
+        case .up: self = .up
+        case .upMirrored: self = .upMirrored
+        case .down: self = .down
+        case .downMirrored: self = .downMirrored
+        case .left: self = .left
+        case .leftMirrored: self = .leftMirrored
+        case .right: self = .right
+        case .rightMirrored: self = .rightMirrored
+        }
     }
 }

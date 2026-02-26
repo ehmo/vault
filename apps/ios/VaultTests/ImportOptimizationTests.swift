@@ -7,6 +7,19 @@ import ImageIO
 /// autoreleasepool correctness, and worker count configuration.
 final class ImportOptimizationTests: XCTestCase {
 
+    private var savedThreshold: Int64 = 0
+
+    override func setUp() {
+        super.setUp()
+        savedThreshold = MediaOptimizer.imageOptimizationThreshold
+        MediaOptimizer.imageOptimizationThreshold = 0
+    }
+
+    override func tearDown() {
+        MediaOptimizer.imageOptimizationThreshold = savedThreshold
+        super.tearDown()
+    }
+
     // MARK: - Helpers
 
     /// Creates a JPEG at exact pixel dimensions (not points) using a @1x scale renderer.
@@ -257,31 +270,17 @@ final class ImportOptimizationTests: XCTestCase {
 
     /// Verifies that a PNG file is optimized to HEIC without intermediate JPEG conversion.
     /// The output should be a valid HEIC file produced directly from the PNG source.
-    func testPNGOptimizesDirectlyToHEIC() async throws {
+    func testPNGSkipsLossyHEICConversion() async throws {
         let pngURL = try createTempPNG(pixels: CGSize(width: 500, height: 500))
         defer { try? FileManager.default.removeItem(at: pngURL) }
-        let originalSize = try FileManager.default.attributesOfItem(atPath: pngURL.path)[.size] as? Int64 ?? 0
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: pngURL, mimeType: "image/png", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
 
-        XCTAssertTrue(wasOptimized, "PNG should be optimized to HEIC")
-        XCTAssertEqual(mimeType, "image/heic")
-        XCTAssertTrue(FileManager.default.fileExists(atPath: outputURL.path))
-
-        // Verify the output is a valid HEIC by reading with CGImageSource
-        guard let source = CGImageSourceCreateWithURL(outputURL as CFURL, nil) else {
-            XCTFail("Output HEIC should be readable by CGImageSource")
-            return
-        }
-        let typeIdentifier = CGImageSourceGetType(source) as? String
-        XCTAssertEqual(typeIdentifier, "public.heic", "Output should be HEIC format")
-
-        // Should be smaller than original PNG
-        let optimizedSize = try FileManager.default.attributesOfItem(atPath: outputURL.path)[.size] as? Int64 ?? 0
-        XCTAssertLessThan(optimizedSize, originalSize, "HEIC should be smaller than PNG")
+        XCTAssertFalse(result.wasOptimized, "PNG should skip lossy HEIC conversion")
+        XCTAssertEqual(result.mimeType, "image/png", "PNG mime type should be preserved")
+        XCTAssertEqual(result.url, pngURL, "PNG should return same URL")
     }
 
     /// Verifies that a JPEG is optimized directly to HEIC (single decode, no intermediate).
@@ -289,16 +288,16 @@ final class ImportOptimizationTests: XCTestCase {
         let jpegURL = try createTempJPEG(pixels: CGSize(width: 500, height: 500))
         defer { try? FileManager.default.removeItem(at: jpegURL) }
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: jpegURL, mimeType: "image/jpeg", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
-        XCTAssertTrue(wasOptimized)
-        XCTAssertEqual(mimeType, "image/heic")
+        XCTAssertTrue(result.wasOptimized)
+        XCTAssertEqual(result.mimeType, "image/heic")
 
         // Verify valid HEIC output
-        guard let source = CGImageSourceCreateWithURL(outputURL as CFURL, nil),
+        guard let source = CGImageSourceCreateWithURL(result.url as CFURL, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
             XCTFail("Output should be a valid decodable HEIC")
             return
@@ -317,16 +316,16 @@ final class ImportOptimizationTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: heicURL) }
         let originalSize = try FileManager.default.attributesOfItem(atPath: heicURL.path)[.size] as? Int64 ?? 0
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: heicURL, mimeType: "image/heic", mode: .optimized
         )
 
-        XCTAssertFalse(wasOptimized, "HEIC should NOT be re-optimized")
-        XCTAssertEqual(mimeType, "image/heic")
-        XCTAssertEqual(outputURL, heicURL, "Should return same URL — no temp file created")
+        XCTAssertFalse(result.wasOptimized, "HEIC should NOT be re-optimized")
+        XCTAssertEqual(result.mimeType, "image/heic")
+        XCTAssertEqual(result.url, heicURL, "Should return same URL — no temp file created")
 
         // File should be byte-identical (not re-encoded)
-        let outputSize = try FileManager.default.attributesOfItem(atPath: outputURL.path)[.size] as? Int64 ?? 0
+        let outputSize = try FileManager.default.attributesOfItem(atPath: result.url.path)[.size] as? Int64 ?? 0
         XCTAssertEqual(outputSize, originalSize, "HEIC file should not be modified")
     }
 
@@ -374,13 +373,13 @@ final class ImportOptimizationTests: XCTestCase {
         let detectedMime = FileUtilities.mimeType(forExtension: weirdURL.pathExtension)
         let sourceMimeType = detectedMime.hasPrefix("image/") ? detectedMime : "image/jpeg"
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: weirdURL, mimeType: sourceMimeType, mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
-        XCTAssertTrue(wasOptimized, "Image with unknown ext should still be optimized")
-        XCTAssertEqual(mimeType, "image/heic")
+        XCTAssertTrue(result.wasOptimized, "Image with unknown ext should still be optimized")
+        XCTAssertEqual(result.mimeType, "image/heic")
     }
 
     // MARK: - Original Mode Preserves Format
@@ -391,15 +390,15 @@ final class ImportOptimizationTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: pngURL) }
         let originalData = try Data(contentsOf: pngURL)
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: pngURL, mimeType: "image/png", mode: .original
         )
 
-        XCTAssertFalse(wasOptimized)
-        XCTAssertEqual(mimeType, "image/png", "Original mode should preserve mime type")
-        XCTAssertEqual(outputURL, pngURL, "Original mode should return same URL")
+        XCTAssertFalse(result.wasOptimized)
+        XCTAssertEqual(result.mimeType, "image/png", "Original mode should preserve mime type")
+        XCTAssertEqual(result.url, pngURL, "Original mode should return same URL")
 
-        let outputData = try Data(contentsOf: outputURL)
+        let outputData = try Data(contentsOf: result.url)
         XCTAssertEqual(outputData, originalData, "File should be byte-identical")
     }
 
@@ -413,16 +412,16 @@ final class ImportOptimizationTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: jpegURL) }
 
         // Run optimization (which now includes autoreleasepool internally)
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: jpegURL, mimeType: "image/jpeg", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
-        XCTAssertTrue(wasOptimized)
-        XCTAssertEqual(mimeType, "image/heic")
+        XCTAssertTrue(result.wasOptimized)
+        XCTAssertEqual(result.mimeType, "image/heic")
 
         // Verify the output HEIC is fully valid and decodable
-        guard let source = CGImageSourceCreateWithURL(outputURL as CFURL, nil) else {
+        guard let source = CGImageSourceCreateWithURL(result.url as CFURL, nil) else {
             XCTFail("Output should be a valid image source")
             return
         }
@@ -435,7 +434,7 @@ final class ImportOptimizationTests: XCTestCase {
 
         // Verify we can generate a thumbnail from it (tests the thumbnail autoreleasepool path)
         let thumbnail = autoreleasepool {
-            FileUtilities.generateThumbnail(fromFileURL: outputURL)
+            FileUtilities.generateThumbnail(fromFileURL: result.url)
         }
         XCTAssertNotNil(thumbnail, "Thumbnail should be generatable from optimized HEIC")
         if let thumbData = thumbnail {
@@ -456,16 +455,16 @@ final class ImportOptimizationTests: XCTestCase {
             let jpegURL = try createTempJPEG(pixels: CGSize(width: 300, height: 300))
             defer { try? FileManager.default.removeItem(at: jpegURL) }
 
-            let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+            let result = try await MediaOptimizer.shared.optimize(
                 fileURL: jpegURL, mimeType: "image/jpeg", mode: .optimized
             )
 
-            XCTAssertTrue(wasOptimized, "Image \(i) should be optimized")
-            XCTAssertEqual(mimeType, "image/heic", "Image \(i) should produce HEIC")
-            XCTAssertTrue(FileManager.default.fileExists(atPath: outputURL.path), "Output \(i) should exist")
+            XCTAssertTrue(result.wasOptimized, "Image \(i) should be optimized")
+            XCTAssertEqual(result.mimeType, "image/heic", "Image \(i) should produce HEIC")
+            XCTAssertTrue(FileManager.default.fileExists(atPath: result.url.path), "Output \(i) should exist")
 
             // Verify each output is independently valid
-            guard let source = CGImageSourceCreateWithURL(outputURL as CFURL, nil),
+            guard let source = CGImageSourceCreateWithURL(result.url as CFURL, nil),
                   let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
                 XCTFail("Output \(i) should be decodable")
                 continue
@@ -473,7 +472,7 @@ final class ImportOptimizationTests: XCTestCase {
             XCTAssertEqual(image.width, 300, "Image \(i) width should be preserved")
             XCTAssertEqual(image.height, 300, "Image \(i) height should be preserved")
 
-            outputURLs.append(outputURL)
+            outputURLs.append(result.url)
         }
 
         // Cleanup
@@ -490,16 +489,16 @@ final class ImportOptimizationTests: XCTestCase {
         let largeURL = try createTempJPEG(pixels: CGSize(width: 5000, height: 5000))
         defer { try? FileManager.default.removeItem(at: largeURL) }
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: largeURL, mimeType: "image/jpeg", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
-        XCTAssertTrue(wasOptimized)
-        XCTAssertEqual(mimeType, "image/heic")
+        XCTAssertTrue(result.wasOptimized)
+        XCTAssertEqual(result.mimeType, "image/heic")
 
         // Verify dimensions were capped at 4096
-        guard let source = CGImageSourceCreateWithURL(outputURL as CFURL, nil),
+        guard let source = CGImageSourceCreateWithURL(result.url as CFURL, nil),
               let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let width = props[kCGImagePropertyPixelWidth] as? Int,
               let height = props[kCGImagePropertyPixelHeight] as? Int else {
@@ -515,14 +514,14 @@ final class ImportOptimizationTests: XCTestCase {
         let normalURL = try createTempJPEG(pixels: CGSize(width: 2000, height: 1500))
         defer { try? FileManager.default.removeItem(at: normalURL) }
 
-        let (outputURL, _, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: normalURL, mimeType: "image/jpeg", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
-        XCTAssertTrue(wasOptimized)
+        XCTAssertTrue(result.wasOptimized)
 
-        guard let source = CGImageSourceCreateWithURL(outputURL as CFURL, nil),
+        guard let source = CGImageSourceCreateWithURL(result.url as CFURL, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
             XCTFail("Should be able to read output image")
             return
@@ -610,15 +609,15 @@ final class ImportOptimizationTests: XCTestCase {
         let jpegURL = try createTempJPEG(pixels: CGSize(width: 300, height: 200))
         defer { try? FileManager.default.removeItem(at: jpegURL) }
 
-        let (outputURL, _, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: jpegURL, mimeType: "image/jpeg", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
-        XCTAssertTrue(wasOptimized)
+        XCTAssertTrue(result.wasOptimized)
 
         // Verify the output has valid EXIF properties
-        guard let source = CGImageSourceCreateWithURL(outputURL as CFURL, nil),
+        guard let source = CGImageSourceCreateWithURL(result.url as CFURL, nil),
               let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] else {
             XCTFail("Output should have readable properties")
             return

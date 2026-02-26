@@ -392,20 +392,20 @@ final class VaultViewModel {
                     .appendingPathExtension("jpg")
                 try imageData.write(to: tempInputURL, options: [.atomic])
 
-                let (optimizedURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+                let result = try await MediaOptimizer.shared.optimize(
                     fileURL: tempInputURL, mimeType: "image/jpeg", mode: optimizationMode
                 )
                 defer {
-                    if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
+                    if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) }
                     try? FileManager.default.removeItem(at: tempInputURL)
                 }
 
-                let ext = mimeType == "image/heic" ? "heic" : "jpg"
+                let ext = result.mimeType == "image/heic" ? "heic" : "jpg"
                 let filename = "IMG_\(Date().timeIntervalSince1970).\(ext)"
-                let thumbnail = FileUtilities.generateThumbnail(fromFileURL: optimizedURL)
+                let thumbnail = result.thumbnailData ?? FileUtilities.generateThumbnail(fromFileURL: result.url)
 
                 let fileId = try await VaultStorage.shared.storeFileFromURL(
-                    optimizedURL, filename: filename, mimeType: mimeType,
+                    result.url, filename: filename, mimeType: result.mimeType,
                     with: key, thumbnailData: thumbnail
                 )
                 let encThumb = thumbnail.flatMap { try? CryptoEngine.encrypt($0, with: currentMasterKey?.rawBytes ?? key.rawBytes) }
@@ -414,8 +414,8 @@ final class VaultViewModel {
                 }
 
                 EmbraceManager.shared.trackFeatureUsage("camera_capture", context: [
-                    "optimized": String(wasOptimized),
-                    "mime_type": mimeType
+                    "optimized": String(result.wasOptimized),
+                    "mime_type": result.mimeType
                 ])
 
                 await MainActor.run {
@@ -523,21 +523,39 @@ final class VaultViewModel {
                 continuation.finish()
             }
 
-            // Consume events on MainActor for real-time UI updates
+            // Consume events on MainActor, batching UI updates to reduce SwiftUI churn.
+            // Without batching, each .imported event triggers a separate array mutation +
+            // progress update, hammering the main thread with rapid-fire view diffs.
             var successCount = 0
             var failedCount = 0
             var lastErrorReason: String?
+            var pendingFiles: [VaultFileItem] = []
+            var lastUIFlush = ContinuousClock.now
 
             for await event in stream {
                 guard !Task.isCancelled else { break }
 
                 if case .imported(let file) = event {
                     successCount += 1
-                    self.files.append(file)
+                    pendingFiles.append(file)
                 } else if case .failed(let reason) = event {
                     failedCount += 1
                     if let reason { lastErrorReason = reason }
                 }
+
+                let now = ContinuousClock.now
+                let isComplete = (successCount + failedCount) == count
+                if now - lastUIFlush >= .milliseconds(250) || isComplete {
+                    self.files.append(contentsOf: pendingFiles)
+                    pendingFiles.removeAll(keepingCapacity: true)
+                    self.importProgress = (successCount + failedCount, count)
+                    lastUIFlush = now
+                }
+            }
+
+            // Final flush for any remaining files
+            if !pendingFiles.isEmpty {
+                self.files.append(contentsOf: pendingFiles)
                 self.importProgress = (successCount + failedCount, count)
             }
 
@@ -653,17 +671,34 @@ final class VaultViewModel {
             var successCount = 0
             var failedCount = 0
             var lastErrorReason: String?
+            var pendingFiles: [VaultFileItem] = []
+            var lastUIFlush = ContinuousClock.now
 
             for await event in stream {
                 guard !Task.isCancelled else { break }
 
                 if case .imported(let file) = event {
                     successCount += 1
-                    self.files.append(file)
+                    pendingFiles.append(file)
                 } else if case .failed(let reason) = event {
                     failedCount += 1
                     if let reason { lastErrorReason = reason }
                 }
+
+                let now = ContinuousClock.now
+                let isComplete = (successCount + failedCount) == count
+                if now - lastUIFlush >= .milliseconds(250) || isComplete {
+                    self.files.append(contentsOf: pendingFiles)
+                    pendingFiles.removeAll(keepingCapacity: true)
+                    if showProgress {
+                        self.importProgress = (successCount + failedCount, count)
+                    }
+                    lastUIFlush = now
+                }
+            }
+
+            if !pendingFiles.isEmpty {
+                self.files.append(contentsOf: pendingFiles)
                 if showProgress {
                     self.importProgress = (successCount + failedCount, count)
                 }

@@ -166,22 +166,23 @@ enum ImportIngestor {
                             let optimizationModeStr = UserDefaults.standard.string(forKey: "fileOptimization") ?? "optimized"
                             let optimizationMode = MediaOptimizer.Mode(rawValue: optimizationModeStr) ?? .optimized
 
-                            let (optimizedURL, optimizedMimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+                            let result = try await MediaOptimizer.shared.optimize(
                                 fileURL: tempURL, mimeType: file.mimeType, mode: optimizationMode
                             )
 
-                            let storedFilename = wasOptimized
-                                ? MediaOptimizer.updatedFilename(file.filename, newMimeType: optimizedMimeType)
+                            let storedFilename = result.wasOptimized
+                                ? MediaOptimizer.updatedFilename(file.filename, newMimeType: result.mimeType)
                                 : file.filename
 
                             // Process thumbnail and store
                             try await storeWithThumbnail(
-                                batch: batch, file: file, optimizedURL: optimizedURL,
-                                storedFilename: storedFilename, optimizedMimeType: optimizedMimeType,
+                                batch: batch, file: file, optimizedURL: result.url,
+                                storedFilename: storedFilename, optimizedMimeType: result.mimeType,
+                                optimizerThumbnail: result.thumbnailData,
                                 vaultKey: vaultKey
                             )
 
-                            if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
+                            if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) }
                             try? FileManager.default.removeItem(at: tempURL)
 
                             StagedImportManager.deleteEncryptedFile(batchId: batch.batchId, fileId: file.fileId)
@@ -242,6 +243,7 @@ enum ImportIngestor {
         optimizedURL: URL,
         storedFilename: String,
         optimizedMimeType: String,
+        optimizerThumbnail: Data? = nil,
         vaultKey: VaultKey
     ) async throws {
         // Resolve thumbnail inside autoreleasepool so UIImage/CGImage temporaries are released
@@ -252,6 +254,9 @@ enum ImportIngestor {
                    batchId: batch.batchId, fileId: file.fileId
                ) {
                 thumb = try? CryptoEngine.decrypt(encThumb, with: vaultKey.rawBytes)
+            }
+            if thumb == nil {
+                thumb = optimizerThumbnail
             }
             if thumb == nil {
                 thumb = generateThumbnailSync(for: optimizedURL, mimeType: optimizedMimeType)

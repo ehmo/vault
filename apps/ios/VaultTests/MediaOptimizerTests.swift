@@ -4,6 +4,20 @@ import AVFoundation
 
 final class MediaOptimizerTests: XCTestCase {
 
+    private var savedThreshold: Int64 = 0
+
+    override func setUp() {
+        super.setUp()
+        // Disable small-file skip so existing tests exercise the optimization path
+        savedThreshold = MediaOptimizer.imageOptimizationThreshold
+        MediaOptimizer.imageOptimizationThreshold = 0
+    }
+
+    override func tearDown() {
+        MediaOptimizer.imageOptimizationThreshold = savedThreshold
+        super.tearDown()
+    }
+
     // MARK: - Helpers
 
     /// Creates a minimal valid JPEG file at a temp URL.
@@ -55,13 +69,31 @@ final class MediaOptimizerTests: XCTestCase {
         let jpegURL = try createTempJPEG()
         defer { try? FileManager.default.removeItem(at: jpegURL) }
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: jpegURL, mimeType: "image/jpeg", mode: .original
         )
 
-        XCTAssertFalse(wasOptimized, "Original mode should not optimize")
-        XCTAssertEqual(mimeType, "image/jpeg")
-        XCTAssertEqual(outputURL, jpegURL, "Should return same URL in original mode")
+        XCTAssertFalse(result.wasOptimized, "Original mode should not optimize")
+        XCTAssertEqual(result.mimeType, "image/jpeg")
+        XCTAssertEqual(result.url, jpegURL, "Should return same URL in original mode")
+    }
+
+    func testSmallImageSkipsOptimization() async throws {
+        // Restore threshold so this test exercises the skip behavior
+        MediaOptimizer.imageOptimizationThreshold = 500_000
+        let jpegURL = try createTempJPEG(size: CGSize(width: 100, height: 100))
+        defer { try? FileManager.default.removeItem(at: jpegURL) }
+
+        let fileSize = (try? FileManager.default.attributesOfItem(atPath: jpegURL.path)[.size] as? Int64) ?? 0
+        XCTAssertLessThan(fileSize, 500_000, "Test image should be under 500KB")
+
+        let result = try await MediaOptimizer.shared.optimize(
+            fileURL: jpegURL, mimeType: "image/jpeg", mode: .optimized
+        )
+
+        XCTAssertFalse(result.wasOptimized, "Small image should skip optimization")
+        XCTAssertEqual(result.mimeType, "image/jpeg", "Should preserve original mime type")
+        XCTAssertEqual(result.url, jpegURL, "Should return same URL")
     }
 
     func testOriginalModePassthroughForVideo() async throws {
@@ -69,13 +101,13 @@ final class MediaOptimizerTests: XCTestCase {
         let videoURL = try await createMinimalVideo()
         defer { try? FileManager.default.removeItem(at: videoURL) }
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: videoURL, mimeType: "video/quicktime", mode: .original
         )
 
-        XCTAssertFalse(wasOptimized)
-        XCTAssertEqual(mimeType, "video/quicktime")
-        XCTAssertEqual(outputURL, videoURL)
+        XCTAssertFalse(result.wasOptimized)
+        XCTAssertEqual(result.mimeType, "video/quicktime")
+        XCTAssertEqual(result.url, videoURL)
     }
 
     // MARK: - Image Optimization
@@ -84,28 +116,28 @@ final class MediaOptimizerTests: XCTestCase {
         let jpegURL = try createTempJPEG(size: CGSize(width: 500, height: 500))
         defer { try? FileManager.default.removeItem(at: jpegURL) }
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: jpegURL, mimeType: "image/jpeg", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
-        XCTAssertTrue(wasOptimized, "JPEG should be optimized to HEIC")
-        XCTAssertEqual(mimeType, "image/heic")
-        XCTAssertTrue(outputURL.pathExtension == "heic")
-        XCTAssertTrue(FileManager.default.fileExists(atPath: outputURL.path))
+        XCTAssertTrue(result.wasOptimized, "JPEG should be optimized to HEIC")
+        XCTAssertEqual(result.mimeType, "image/heic")
+        XCTAssertTrue(result.url.pathExtension == "heic")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: result.url.path))
     }
 
-    func testPNGOptimizesToHEIC() async throws {
+    func testPNGSkipsLossyHEICConversion() async throws {
         let pngURL = try createTempPNG(size: CGSize(width: 500, height: 500))
         defer { try? FileManager.default.removeItem(at: pngURL) }
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: pngURL, mimeType: "image/png", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
 
-        XCTAssertTrue(wasOptimized)
-        XCTAssertEqual(mimeType, "image/heic")
+        XCTAssertFalse(result.wasOptimized, "PNG should skip lossy HEIC conversion")
+        XCTAssertEqual(result.mimeType, "image/png", "PNG mime type should be preserved")
+        XCTAssertEqual(result.url, pngURL, "PNG should return same URL")
     }
 
     func testHEICImageSkipsOptimization() async throws {
@@ -113,32 +145,32 @@ final class MediaOptimizerTests: XCTestCase {
         let jpegURL = try createTempJPEG()
         defer { try? FileManager.default.removeItem(at: jpegURL) }
 
-        let (heicURL, _, firstWasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result1 = try await MediaOptimizer.shared.optimize(
             fileURL: jpegURL, mimeType: "image/jpeg", mode: .optimized
         )
-        XCTAssertTrue(firstWasOptimized)
-        defer { try? FileManager.default.removeItem(at: heicURL) }
+        XCTAssertTrue(result1.wasOptimized)
+        defer { try? FileManager.default.removeItem(at: result1.url) }
 
         // Now try to optimize the HEIC — should skip
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
-            fileURL: heicURL, mimeType: "image/heic", mode: .optimized
+        let result2 = try await MediaOptimizer.shared.optimize(
+            fileURL: result1.url, mimeType: "image/heic", mode: .optimized
         )
 
-        XCTAssertFalse(wasOptimized, "HEIC should not be re-optimized")
-        XCTAssertEqual(mimeType, "image/heic")
-        XCTAssertEqual(outputURL, heicURL)
+        XCTAssertFalse(result2.wasOptimized, "HEIC should not be re-optimized")
+        XCTAssertEqual(result2.mimeType, "image/heic")
+        XCTAssertEqual(result2.url, result1.url)
     }
 
     func testHEIFImageSkipsOptimization() async throws {
         let jpegURL = try createTempJPEG()
         defer { try? FileManager.default.removeItem(at: jpegURL) }
 
-        let (_, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: jpegURL, mimeType: "image/heif", mode: .optimized
         )
 
-        XCTAssertFalse(wasOptimized, "HEIF should not be re-optimized")
-        XCTAssertEqual(mimeType, "image/heif")
+        XCTAssertFalse(result.wasOptimized, "HEIF should not be re-optimized")
+        XCTAssertEqual(result.mimeType, "image/heif")
     }
 
     func testOptimizedImageIsSmallerThanOriginal() async throws {
@@ -147,13 +179,13 @@ final class MediaOptimizerTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: jpegURL) }
         let originalSize = try FileManager.default.attributesOfItem(atPath: jpegURL.path)[.size] as? Int64 ?? 0
 
-        let (outputURL, _, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: jpegURL, mimeType: "image/jpeg", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
-        XCTAssertTrue(wasOptimized)
-        let optimizedSize = try FileManager.default.attributesOfItem(atPath: outputURL.path)[.size] as? Int64 ?? 0
+        XCTAssertTrue(result.wasOptimized)
+        let optimizedSize = try FileManager.default.attributesOfItem(atPath: result.url.path)[.size] as? Int64 ?? 0
         XCTAssertLessThan(optimizedSize, originalSize, "HEIC output should be smaller than JPEG input")
     }
 
@@ -163,37 +195,37 @@ final class MediaOptimizerTests: XCTestCase {
         let pdfURL = try createTempFile(ext: "pdf", data: Data(repeating: 0x25, count: 1000))
         defer { try? FileManager.default.removeItem(at: pdfURL) }
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: pdfURL, mimeType: "application/pdf", mode: .optimized
         )
 
-        XCTAssertFalse(wasOptimized)
-        XCTAssertEqual(mimeType, "application/pdf")
-        XCTAssertEqual(outputURL, pdfURL)
+        XCTAssertFalse(result.wasOptimized)
+        XCTAssertEqual(result.mimeType, "application/pdf")
+        XCTAssertEqual(result.url, pdfURL)
     }
 
     func testZIPPassesThrough() async throws {
         let zipURL = try createTempFile(ext: "zip", data: Data(repeating: 0x50, count: 500))
         defer { try? FileManager.default.removeItem(at: zipURL) }
 
-        let (_, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: zipURL, mimeType: "application/zip", mode: .optimized
         )
 
-        XCTAssertFalse(wasOptimized)
-        XCTAssertEqual(mimeType, "application/zip")
+        XCTAssertFalse(result.wasOptimized)
+        XCTAssertEqual(result.mimeType, "application/zip")
     }
 
     func testPlainTextPassesThrough() async throws {
         let txtURL = try createTempFile(ext: "txt", data: "Hello world".data(using: .utf8)!)
         defer { try? FileManager.default.removeItem(at: txtURL) }
 
-        let (_, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: txtURL, mimeType: "text/plain", mode: .optimized
         )
 
-        XCTAssertFalse(wasOptimized)
-        XCTAssertEqual(mimeType, "text/plain")
+        XCTAssertFalse(result.wasOptimized)
+        XCTAssertEqual(result.mimeType, "text/plain")
     }
 
     // MARK: - UIImage Optimization
@@ -279,20 +311,20 @@ final class MediaOptimizerTests: XCTestCase {
         let videoURL = try await createMinimalVideo()
         defer { try? FileManager.default.removeItem(at: videoURL) }
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
         // Minimal videos may or may not get optimized depending on the codec/preset availability
         // but the method should not crash and should return valid results
-        if wasOptimized {
-            XCTAssertEqual(mimeType, "video/mp4")
-            XCTAssertTrue(outputURL.pathExtension == "mp4")
-            XCTAssertTrue(FileManager.default.fileExists(atPath: outputURL.path))
+        if result.wasOptimized {
+            XCTAssertEqual(result.mimeType, "video/mp4")
+            XCTAssertTrue(result.url.pathExtension == "mp4")
+            XCTAssertTrue(FileManager.default.fileExists(atPath: result.url.path))
         } else {
             // If HEVC preset isn't available or video is already optimal, passthrough is fine
-            XCTAssertEqual(mimeType, "video/quicktime")
+            XCTAssertEqual(result.mimeType, "video/quicktime")
         }
     }
 
@@ -301,16 +333,16 @@ final class MediaOptimizerTests: XCTestCase {
         let videoURL = try await createMinimalVideo(width: 1920, height: 1080, rotated: true)
         defer { try? FileManager.default.removeItem(at: videoURL) }
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
-        if wasOptimized {
-            XCTAssertEqual(mimeType, "video/mp4")
+        if result.wasOptimized {
+            XCTAssertEqual(result.mimeType, "video/mp4")
 
             // Verify the output video track dimensions match naturalSize (not transformed)
-            let asset = AVURLAsset(url: outputURL)
+            let asset = AVURLAsset(url: result.url)
             guard let track = try? await asset.loadTracks(withMediaType: .video).first else {
                 XCTFail("No video track in output")
                 return
@@ -336,39 +368,39 @@ final class MediaOptimizerTests: XCTestCase {
         let videoURL = try await createMinimalVideo(width: 1920, height: 1080, codec: .hevc)
         defer { try? FileManager.default.removeItem(at: videoURL) }
 
-        let (outputURL, _, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
-        XCTAssertFalse(wasOptimized, "HEVC 1080p should skip transcode")
-        XCTAssertEqual(outputURL, videoURL, "Skipped video must return original URL")
+        XCTAssertFalse(result.wasOptimized, "HEVC 1080p should skip transcode")
+        XCTAssertEqual(result.url, videoURL, "Skipped video must return original URL")
     }
 
     func testHEVC720pSkipsTranscode() async throws {
         let videoURL = try await createMinimalVideo(width: 1280, height: 720, codec: .hevc)
         defer { try? FileManager.default.removeItem(at: videoURL) }
 
-        let (outputURL, _, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
-        XCTAssertFalse(wasOptimized, "HEVC 720p should skip transcode")
-        XCTAssertEqual(outputURL, videoURL)
+        XCTAssertFalse(result.wasOptimized, "HEVC 720p should skip transcode")
+        XCTAssertEqual(result.url, videoURL)
     }
 
     func testHEVCSubSDSkipsTranscode() async throws {
         let videoURL = try await createMinimalVideo(width: 480, height: 360, codec: .hevc)
         defer { try? FileManager.default.removeItem(at: videoURL) }
 
-        let (outputURL, _, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
-        XCTAssertFalse(wasOptimized, "HEVC sub-SD should skip transcode")
-        XCTAssertEqual(outputURL, videoURL)
+        XCTAssertFalse(result.wasOptimized, "HEVC sub-SD should skip transcode")
+        XCTAssertEqual(result.url, videoURL)
     }
 
     func testHEVCPortrait1080pSkipsTranscode() async throws {
@@ -377,13 +409,13 @@ final class MediaOptimizerTests: XCTestCase {
         let videoURL = try await createMinimalVideo(width: 1920, height: 1080, rotated: true, codec: .hevc)
         defer { try? FileManager.default.removeItem(at: videoURL) }
 
-        let (outputURL, _, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
-        XCTAssertFalse(wasOptimized, "Portrait HEVC ≤1080p should skip transcode")
-        XCTAssertEqual(outputURL, videoURL)
+        XCTAssertFalse(result.wasOptimized, "Portrait HEVC ≤1080p should skip transcode")
+        XCTAssertEqual(result.url, videoURL)
     }
 
     /// Regression guard: creates HEVC video with random-noise pixels so the encoder
@@ -402,13 +434,13 @@ final class MediaOptimizerTests: XCTestCase {
             }
         }
 
-        let (outputURL, _, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
-        XCTAssertFalse(wasOptimized, "HEVC ≤1080p must skip transcode even at high bitrate")
-        XCTAssertEqual(outputURL, videoURL)
+        XCTAssertFalse(result.wasOptimized, "HEVC ≤1080p must skip transcode even at high bitrate")
+        XCTAssertEqual(result.url, videoURL)
     }
 
     // -- Skipped video contract: caller-facing guarantees --
@@ -417,12 +449,12 @@ final class MediaOptimizerTests: XCTestCase {
         let videoURL = try await createMinimalVideo(width: 640, height: 480, codec: .hevc)
         defer { try? FileManager.default.removeItem(at: videoURL) }
 
-        let (_, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
         )
 
-        XCTAssertFalse(wasOptimized)
-        XCTAssertEqual(mimeType, "video/quicktime",
+        XCTAssertFalse(result.wasOptimized)
+        XCTAssertEqual(result.mimeType, "video/quicktime",
                        "Skipped video must preserve original mime type, not convert to video/mp4")
     }
 
@@ -431,12 +463,12 @@ final class MediaOptimizerTests: XCTestCase {
         let videoURL = try await createMinimalVideo(width: 640, height: 480, codec: .hevc)
         defer { try? FileManager.default.removeItem(at: videoURL) }
 
-        let (_, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: videoURL, mimeType: "video/mp4", mode: .optimized
         )
 
-        XCTAssertFalse(wasOptimized)
-        XCTAssertEqual(mimeType, "video/mp4",
+        XCTAssertFalse(result.wasOptimized)
+        XCTAssertEqual(result.mimeType, "video/mp4",
                        "Skipped video must preserve whatever mime type was passed in")
     }
 
@@ -453,16 +485,16 @@ final class MediaOptimizerTests: XCTestCase {
         let videoURL = try await createMinimalVideo(width: 1280, height: 720, codec: .h264)
         defer { try? FileManager.default.removeItem(at: videoURL) }
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
         // H.264 should trigger transcoding (may be discarded by threshold for tiny test videos)
-        if wasOptimized {
-            XCTAssertEqual(mimeType, "video/mp4", "H.264 source should be re-encoded to HEVC MP4")
-            XCTAssertNotEqual(outputURL, videoURL, "Transcoded video should be a new temp file")
-            XCTAssertEqual(outputURL.pathExtension, "mp4")
+        if result.wasOptimized {
+            XCTAssertEqual(result.mimeType, "video/mp4", "H.264 source should be re-encoded to HEVC MP4")
+            XCTAssertNotEqual(result.url, videoURL, "Transcoded video should be a new temp file")
+            XCTAssertEqual(result.url.pathExtension, "mp4")
         }
     }
 
@@ -470,14 +502,14 @@ final class MediaOptimizerTests: XCTestCase {
         let videoURL = try await createMinimalVideo(width: 1920, height: 1080, codec: .h264)
         defer { try? FileManager.default.removeItem(at: videoURL) }
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
-        if wasOptimized {
-            XCTAssertEqual(mimeType, "video/mp4", "H.264 1080p should be transcoded to HEVC MP4")
-            XCTAssertNotEqual(outputURL, videoURL)
+        if result.wasOptimized {
+            XCTAssertEqual(result.mimeType, "video/mp4", "H.264 1080p should be transcoded to HEVC MP4")
+            XCTAssertNotEqual(result.url, videoURL)
         }
     }
 
@@ -487,15 +519,15 @@ final class MediaOptimizerTests: XCTestCase {
         let videoURL = try await createMinimalVideo(width: 3840, height: 2160, codec: .hevc)
         defer { try? FileManager.default.removeItem(at: videoURL) }
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
-        if wasOptimized {
-            XCTAssertEqual(mimeType, "video/mp4", "4K HEVC should be transcoded")
+        if result.wasOptimized {
+            XCTAssertEqual(result.mimeType, "video/mp4", "4K HEVC should be transcoded")
 
-            let asset = AVURLAsset(url: outputURL)
+            let asset = AVURLAsset(url: result.url)
             guard let track = try? await asset.loadTracks(withMediaType: .video).first else {
                 XCTFail("No video track in output")
                 return
@@ -516,16 +548,16 @@ final class MediaOptimizerTests: XCTestCase {
         let videoURL = try await createMinimalVideo()
         defer { try? FileManager.default.removeItem(at: videoURL) }
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
-        if wasOptimized {
-            XCTAssertNotEqual(outputURL, videoURL, "Transcoded output must be a different file")
-            XCTAssertEqual(mimeType, "video/mp4", "Transcoded output must be MP4")
-            XCTAssertEqual(outputURL.pathExtension, "mp4")
-            XCTAssertTrue(FileManager.default.fileExists(atPath: outputURL.path))
+        if result.wasOptimized {
+            XCTAssertNotEqual(result.url, videoURL, "Transcoded output must be a different file")
+            XCTAssertEqual(result.mimeType, "video/mp4", "Transcoded output must be MP4")
+            XCTAssertEqual(result.url.pathExtension, "mp4")
+            XCTAssertTrue(FileManager.default.fileExists(atPath: result.url.path))
         }
     }
 
@@ -592,18 +624,18 @@ final class MediaOptimizerTests: XCTestCase {
         let videoURL = try await createMinimalVideo(width: 3840, height: 2160, codec: .hevc)
         defer { try? FileManager.default.removeItem(at: videoURL) }
 
-        let (outputURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: videoURL, mimeType: "video/quicktime", mode: .optimized
         )
-        defer { if wasOptimized { try? FileManager.default.removeItem(at: outputURL) } }
+        defer { if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) } }
 
-        if wasOptimized {
-            XCTAssertEqual(mimeType, "video/mp4")
-            XCTAssertEqual(outputURL.pathExtension, "mp4")
-            XCTAssertTrue(FileManager.default.fileExists(atPath: outputURL.path))
+        if result.wasOptimized {
+            XCTAssertEqual(result.mimeType, "video/mp4")
+            XCTAssertEqual(result.url.pathExtension, "mp4")
+            XCTAssertTrue(FileManager.default.fileExists(atPath: result.url.path))
 
             // Verify output is HEVC
-            let asset = AVURLAsset(url: outputURL)
+            let asset = AVURLAsset(url: result.url)
             guard let track = try? await asset.loadTracks(withMediaType: .video).first,
                   let fmtDescs = try? await track.load(.formatDescriptions),
                   let desc = fmtDescs.first else {

@@ -249,24 +249,24 @@ enum ParallelImporter {
         let mime = FileUtilities.mimeType(forExtension: ext)
         let sourceMimeType = mime.hasPrefix("video/") ? mime : "video/quicktime"
 
-        let (optimizedURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: tempVideoURL, mimeType: sourceMimeType, mode: optimizationMode
         )
         defer {
-            if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
+            if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) }
         }
 
         let baseFilename = item.provider.suggestedName.map { name -> String in
             if (name as NSString).pathExtension.isEmpty { return name + ".\(ext)" }
             return name
         } ?? "VID_\(Date().timeIntervalSince1970)_\(item.originalIndex).\(ext)"
-        let filename = wasOptimized ? MediaOptimizer.updatedFilename(baseFilename, newMimeType: mimeType) : baseFilename
+        let filename = result.wasOptimized ? MediaOptimizer.updatedFilename(baseFilename, newMimeType: result.mimeType) : baseFilename
 
-        let metadata = await generateVideoMetadata(from: optimizedURL)
-        let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
+        let metadata = await generateVideoMetadata(from: result.url, knownDuration: result.duration, knownCreationDate: result.creationDate)
+        let fileSize = (try? FileManager.default.attributesOfItem(atPath: result.url.path)[.size] as? Int) ?? 0
 
         let fileId = try await VaultStorage.shared.storeFileFromURL(
-            optimizedURL, filename: filename, mimeType: mimeType,
+            result.url, filename: filename, mimeType: result.mimeType,
             with: key, options: FileStoreOptions(thumbnailData: metadata.thumbnail, duration: metadata.duration, originalDate: metadata.creationDate)
         )
 
@@ -277,7 +277,7 @@ enum ParallelImporter {
 
         return VaultFileItem(
             id: fileId, size: fileSize,
-            hasThumbnail: encThumb != nil, mimeType: mimeType,
+            hasThumbnail: encThumb != nil, mimeType: result.mimeType,
             filename: filename, createdAt: Date(), duration: metadata.duration,
             originalDate: metadata.creationDate
         )
@@ -307,15 +307,15 @@ enum ParallelImporter {
         // FileUtilities returns application/octet-stream — we know it's an image from PHPicker.
         let detectedMime = FileUtilities.mimeType(forExtension: tempImageURL.pathExtension)
         let sourceMimeType = detectedMime.hasPrefix("image/") ? detectedMime : "image/jpeg"
-        let (optimizedURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: tempImageURL, mimeType: sourceMimeType, mode: optimizationMode
         )
         defer {
-            if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
+            if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) }
         }
 
         let ext: String
-        if mimeType == "image/heic" {
+        if result.mimeType == "image/heic" {
             ext = "heic"
         } else {
             let sourceExt = tempImageURL.pathExtension.lowercased()
@@ -323,15 +323,15 @@ enum ParallelImporter {
         }
         let filename = "IMG_\(Date().timeIntervalSince1970)_\(item.originalIndex).\(ext)"
 
-        // autoreleasepool releases CGImage/UIImage temporaries from thumbnail generation
-        // before the async storeFileFromURL call, preventing memory accumulation across workers
-        let thumbnail: Data? = autoreleasepool {
-            FileUtilities.generateThumbnail(fromFileURL: optimizedURL)
+        // Use optimizer's thumbnail if available (generated from in-memory CGImage),
+        // otherwise fall back to re-decoding from disk
+        let thumbnail: Data? = result.thumbnailData ?? autoreleasepool {
+            FileUtilities.generateThumbnail(fromFileURL: result.url)
         }
-        let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
+        let fileSize = (try? FileManager.default.attributesOfItem(atPath: result.url.path)[.size] as? Int) ?? 0
 
         let fileId = try await VaultStorage.shared.storeFileFromURL(
-            optimizedURL, filename: filename, mimeType: mimeType,
+            result.url, filename: filename, mimeType: result.mimeType,
             with: key, thumbnailData: thumbnail, originalDate: originalDate
         )
 
@@ -342,7 +342,7 @@ enum ParallelImporter {
 
         return VaultFileItem(
             id: fileId, size: fileSize,
-            hasThumbnail: encThumb != nil, mimeType: mimeType,
+            hasThumbnail: encThumb != nil, mimeType: result.mimeType,
             filename: filename, createdAt: Date(), originalDate: originalDate
         )
     }
@@ -363,27 +363,27 @@ enum ParallelImporter {
         let originalFilename = url.lastPathComponent
         let sourceMimeType = FileUtilities.mimeType(forExtension: url.pathExtension)
 
-        let (optimizedURL, mimeType, wasOptimized) = try await MediaOptimizer.shared.optimize(
+        let result = try await MediaOptimizer.shared.optimize(
             fileURL: url, mimeType: sourceMimeType, mode: optimizationMode
         )
         defer {
-            if wasOptimized { try? FileManager.default.removeItem(at: optimizedURL) }
+            if result.wasOptimized { try? FileManager.default.removeItem(at: result.url) }
         }
 
-        let filename = wasOptimized
-            ? MediaOptimizer.updatedFilename(originalFilename, newMimeType: mimeType)
+        let filename = result.wasOptimized
+            ? MediaOptimizer.updatedFilename(originalFilename, newMimeType: result.mimeType)
             : originalFilename
 
         // Extract original date from the source file's filesystem creation date
         let resourceOriginalDate = (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate
 
-        if mimeType.hasPrefix("video/") {
-            let metadata = await generateVideoMetadata(from: optimizedURL)
+        if result.mimeType.hasPrefix("video/") {
+            let metadata = await generateVideoMetadata(from: result.url, knownDuration: result.duration, knownCreationDate: result.creationDate)
             let originalDate = metadata.creationDate ?? resourceOriginalDate
-            let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
+            let fileSize = (try? FileManager.default.attributesOfItem(atPath: result.url.path)[.size] as? Int) ?? 0
 
             let fileId = try await VaultStorage.shared.storeFileFromURL(
-                optimizedURL, filename: filename, mimeType: mimeType,
+                result.url, filename: filename, mimeType: result.mimeType,
                 with: key, options: FileStoreOptions(thumbnailData: metadata.thumbnail, duration: metadata.duration, originalDate: originalDate)
             )
 
@@ -392,23 +392,24 @@ enum ParallelImporter {
 
             return VaultFileItem(
                 id: fileId, size: fileSize,
-                hasThumbnail: encThumb != nil, mimeType: mimeType,
+                hasThumbnail: encThumb != nil, mimeType: result.mimeType,
                 filename: filename, createdAt: Date(), duration: metadata.duration,
                 originalDate: originalDate
             )
         } else {
-            let fileSize = (try? FileManager.default.attributesOfItem(atPath: optimizedURL.path)[.size] as? Int) ?? 0
-            let thumbnail = mimeType.hasPrefix("image/")
-                ? FileUtilities.generateThumbnail(fromFileURL: optimizedURL)
+            let fileSize = (try? FileManager.default.attributesOfItem(atPath: result.url.path)[.size] as? Int) ?? 0
+            // Use optimizer's thumbnail for images if available, otherwise re-decode from disk
+            let thumbnail = result.mimeType.hasPrefix("image/")
+                ? (result.thumbnailData ?? FileUtilities.generateThumbnail(fromFileURL: result.url))
                 : nil
 
             // For images, try EXIF first, then fall back to filesystem date
-            let originalDate: Date? = mimeType.hasPrefix("image/")
+            let originalDate: Date? = result.mimeType.hasPrefix("image/")
                 ? (FileUtilities.extractImageCreationDate(from: url) ?? resourceOriginalDate)
                 : resourceOriginalDate
 
             let fileId = try await VaultStorage.shared.storeFileFromURL(
-                optimizedURL, filename: filename, mimeType: mimeType,
+                result.url, filename: filename, mimeType: result.mimeType,
                 with: key, thumbnailData: thumbnail, originalDate: originalDate
             )
 
@@ -417,7 +418,7 @@ enum ParallelImporter {
 
             return VaultFileItem(
                 id: fileId, size: fileSize,
-                hasThumbnail: encThumb != nil, mimeType: mimeType,
+                hasThumbnail: encThumb != nil, mimeType: result.mimeType,
                 filename: filename, createdAt: Date(), originalDate: originalDate
             )
         }
@@ -476,27 +477,43 @@ enum ParallelImporter {
     }
 
     /// Generates thumbnail + duration + creation date from a video URL.
-    private static func generateVideoMetadata(from url: URL) async -> (thumbnail: Data?, duration: TimeInterval?, creationDate: Date?) {
+    /// If duration/creationDate are already known (from MediaOptimizer), pass them to avoid
+    /// redundantly re-opening the AVAsset just for metadata.
+    private static func generateVideoMetadata(
+        from url: URL,
+        knownDuration: TimeInterval? = nil,
+        knownCreationDate: Date? = nil
+    ) async -> (thumbnail: Data?, duration: TimeInterval?, creationDate: Date?) {
         let asset = AVAsset(url: url)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = CGSize(width: 400, height: 400)
 
         var thumbnail: Data?
-        var duration: TimeInterval?
-        var creationDate: Date?
+        let duration: TimeInterval?
+        let creationDate: Date?
 
-        if let cmDuration = try? await asset.load(.duration) {
+        // Use pre-loaded metadata from optimizer if available
+        if let known = knownDuration {
+            duration = known
+        } else if let cmDuration = try? await asset.load(.duration) {
             let seconds = CMTimeGetSeconds(cmDuration)
-            if seconds.isFinite && seconds > 0 { duration = seconds }
+            duration = seconds.isFinite && seconds > 0 ? seconds : nil
+        } else {
+            duration = nil
         }
 
-        // Extract creation date from video metadata
-        if let metadataItems = try? await asset.load(.commonMetadata) {
+        if let known = knownCreationDate {
+            creationDate = known
+        } else if let metadataItems = try? await asset.load(.commonMetadata) {
             let dateItems = AVMetadataItem.metadataItems(from: metadataItems, filteredByIdentifier: .commonIdentifierCreationDate)
             if let dateItem = dateItems.first, let dateValue = try? await dateItem.load(.dateValue) {
                 creationDate = dateValue
+            } else {
+                creationDate = nil
             }
+        } else {
+            creationDate = nil
         }
 
         let time = CMTime(seconds: 0.5, preferredTimescale: 600)
