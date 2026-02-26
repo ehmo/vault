@@ -1,0 +1,8 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+Review sonarcloud for any errors and fix them. There should be a script you have written before that should help you do so. If there is not, let me know and I want you to create one so it becomes easier down the line
+
