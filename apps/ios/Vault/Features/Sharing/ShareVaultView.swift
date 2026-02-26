@@ -15,7 +15,7 @@ struct ShareVaultView: View {
         case loading
         case iCloudUnavailable(CKAccountStatus)
         case newShare
-        case uploading(jobId: String)
+        case uploading(jobId: String, phrase: String, shareVaultId: String)
         case phraseReveal(phrase: String, shareVaultId: String)
         case manageShares
         case error(String)
@@ -63,7 +63,7 @@ struct ShareVaultView: View {
                         iCloudUnavailableView(status)
                     case .newShare:
                         newShareSettingsView
-                    case .uploading(let jobId):
+                    case .uploading(let jobId, _, _):
                         uploadingView(jobId: jobId)
                     case .phraseReveal(let phrase, _):
                         phraseRevealView(phrase: phrase)
@@ -105,7 +105,7 @@ struct ShareVaultView: View {
         }
         .alert("Terminate Upload?", isPresented: $showTerminateConfirmation) {
             Button("Terminate", role: .destructive) {
-                if case .uploading(let jobId) = mode {
+                if case .uploading(let jobId, _, _) = mode {
                     if let job = uploadJobs.first(where: { $0.id == jobId }) {
                         terminateUpload(job)
                     }
@@ -198,16 +198,11 @@ struct ShareVaultView: View {
         applyIdleTimerPolicy()
 
         // Check if an uploading job just completed — transition to phraseReveal
-        if case .uploading(let jobId) = mode {
+        if case .uploading(let jobId, let phrase, let shareVaultId) = mode {
             let matchingJob = latestJobs.first(where: { $0.id == jobId })
-            if let job = matchingJob, job.status == .complete {
-                // Upload done — find the phrase from the share record or the job
-                let phrase = activeShares.first(where: { $0.id == job.shareVaultId })?.phrase ?? job.phrase
-                if let phrase {
-                    mode = .phraseReveal(phrase: phrase, shareVaultId: job.shareVaultId)
-                } else {
-                    mode = .manageShares
-                }
+            if matchingJob == nil || matchingJob?.status == .complete {
+                // Job completed (and possibly already removed from manager)
+                mode = .phraseReveal(phrase: phrase, shareVaultId: shareVaultId)
                 return
             } else if let job = matchingJob, job.status == .failed || job.status == .cancelled {
                 mode = .error(job.errorMessage ?? "Upload failed")
@@ -874,7 +869,7 @@ struct ShareVaultView: View {
             // Find the job with this phrase
             if let job = latestJobs.first(where: { $0.phrase == phrase }) {
                 uploadJobs = latestJobs.filter(Self.shouldDisplayUploadJob)
-                mode = .uploading(jobId: job.id)
+                mode = .uploading(jobId: job.id, phrase: phrase, shareVaultId: job.shareVaultId)
             } else {
                 // Fallback: just show manage shares
                 await refreshUploadJobs(reloadShares: false)
