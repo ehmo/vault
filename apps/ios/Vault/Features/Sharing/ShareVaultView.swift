@@ -105,12 +105,19 @@ struct ShareVaultView: View {
         }
         .alert("Terminate Upload?", isPresented: $showTerminateConfirmation) {
             Button("Terminate", role: .destructive) {
-                if case .uploading(let jobId, _, _) = mode {
-                    if let job = uploadJobs.first(where: { $0.id == jobId }) {
-                        terminateUpload(job)
+                if case .uploading(let jobId, let phrase, let shareVaultId) = mode {
+                    // Check live state — the upload may have completed while the alert was showing
+                    let liveJob = ShareUploadManager.shared.jobs.first(where: { $0.id == jobId })
+                    if liveJob == nil || liveJob?.status == .complete {
+                        // Upload finished while alert was showing — show phrase reveal
+                        mode = .phraseReveal(phrase: phrase, shareVaultId: shareVaultId)
+                    } else if let localJob = uploadJobs.first(where: { $0.id == jobId }) {
+                        terminateUpload(localJob)
+                        if case .uploading = mode {
+                            mode = .newShare
+                        }
                     }
                 }
-                mode = .newShare
             }
             Button("Cancel", role: .cancel) {}
         } message: {

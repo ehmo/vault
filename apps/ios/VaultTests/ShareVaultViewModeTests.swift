@@ -513,6 +513,462 @@ final class ShareVaultViewModeTests: XCTestCase {
         XCTAssertNotEqual(a, c)
     }
 
+    // MARK: - PendingUploadState Codable backward compatibility
+
+    func testPendingUploadStateDecodesWithoutPhraseField() throws {
+        // Simulates decoding a legacy pending state that predates the phrase field
+        let json = """
+        {
+            "jobId": "legacy-job-1",
+            "shareVaultId": "sv-legacy",
+            "phraseVaultId": "pv-legacy",
+            "shareKeyData": "AQID",
+            "policy": { "allowScreenshots": false, "allowDownloads": true },
+            "ownerFingerprint": "fp123",
+            "totalChunks": 10,
+            "sharedFileIds": ["f1", "f2"],
+            "svdfManifest": [],
+            "createdAt": 1000,
+            "uploadFinished": false,
+            "lastProgress": 50,
+            "lastMessage": "Uploading..."
+        }
+        """.data(using: .utf8)!
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        let state = try decoder.decode(ShareUploadManager.PendingUploadState.self, from: json)
+
+        XCTAssertEqual(state.jobId, "legacy-job-1")
+        XCTAssertEqual(state.shareVaultId, "sv-legacy")
+        XCTAssertNil(state.phrase, "Legacy state without phrase field should decode as nil")
+        XCTAssertEqual(state.totalChunks, 10)
+        XCTAssertEqual(state.lastProgress, 50)
+    }
+
+    func testPendingUploadStateRoundTripWithPhrase() throws {
+        let state = ShareUploadManager.PendingUploadState(
+            jobId: "job-with-phrase",
+            shareVaultId: "sv-phrase",
+            phraseVaultId: "pv-phrase",
+            shareKeyData: Data([0x01, 0x02, 0x03]),
+            policy: VaultStorage.SharePolicy(maxOpens: 5),
+            ownerFingerprint: "fp-test",
+            totalChunks: 20,
+            sharedFileIds: ["a", "b", "c"],
+            svdfManifest: [],
+            createdAt: Date(timeIntervalSince1970: 5000),
+            uploadFinished: false,
+            lastProgress: 75,
+            lastMessage: "Almost there...",
+            phrase: "alpha bravo charlie"
+        )
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .secondsSince1970
+        let data = try encoder.encode(state)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        let decoded = try decoder.decode(ShareUploadManager.PendingUploadState.self, from: data)
+
+        XCTAssertEqual(decoded.phrase, "alpha bravo charlie")
+        XCTAssertEqual(decoded.jobId, "job-with-phrase")
+        XCTAssertEqual(decoded.shareVaultId, "sv-phrase")
+        XCTAssertEqual(decoded.lastProgress, 75)
+    }
+
+    func testPendingUploadStateDecodesWithNilPhrase() throws {
+        let state = ShareUploadManager.PendingUploadState(
+            jobId: "job-nil-phrase",
+            shareVaultId: "sv-nil",
+            phraseVaultId: "pv-nil",
+            shareKeyData: Data([0x04]),
+            policy: VaultStorage.SharePolicy(),
+            ownerFingerprint: "fp-nil",
+            totalChunks: 1,
+            sharedFileIds: [],
+            svdfManifest: [],
+            createdAt: Date(timeIntervalSince1970: 0),
+            uploadFinished: true,
+            lastProgress: 100,
+            lastMessage: "Done",
+            phrase: nil
+        )
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .secondsSince1970
+        let data = try encoder.encode(state)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        let decoded = try decoder.decode(ShareUploadManager.PendingUploadState.self, from: data)
+
+        XCTAssertNil(decoded.phrase)
+        XCTAssertTrue(decoded.uploadFinished)
+    }
+
+    // MARK: - ShareRecord reconciliation patterns
+
+    func testReconcileConsumedSharesRemovesConsumedEntries() {
+        // Simulates the reconcile logic: consumed shares should be removed
+        var shares = [
+            makeShareRecord(id: "sv-1", phrase: "phrase-1"),
+            makeShareRecord(id: "sv-2", phrase: "phrase-2"),
+            makeShareRecord(id: "sv-3", phrase: "phrase-3"),
+        ]
+        let consumedIds: Set<String> = ["sv-2"]
+
+        shares.removeAll { consumedIds.contains($0.id) }
+
+        XCTAssertEqual(shares.count, 2)
+        XCTAssertEqual(shares.map(\.id), ["sv-1", "sv-3"])
+    }
+
+    func testReconcileClaimedSharesClearsPhraseAndSetsFlag() {
+        // Simulates the reconcile logic: claimed shares get isClaimed=true, phrase=nil
+        var shares = [
+            makeShareRecord(id: "sv-1", phrase: "phrase-1"),
+            makeShareRecord(id: "sv-2", phrase: "phrase-2"),
+        ]
+        let claimedIds: Set<String> = ["sv-1"]
+
+        for i in shares.indices {
+            if claimedIds.contains(shares[i].id) {
+                shares[i].isClaimed = true
+                shares[i].phrase = nil
+            }
+        }
+
+        XCTAssertTrue(shares[0].isClaimed == true)
+        XCTAssertNil(shares[0].phrase, "Phrase should be cleared after claim")
+        XCTAssertNil(shares[1].isClaimed, "Unclaimed share should not be modified")
+        XCTAssertEqual(shares[1].phrase, "phrase-2")
+    }
+
+    func testReconcileHandlesBothConsumedAndClaimedSimultaneously() {
+        // One share consumed, another claimed, third untouched
+        var shares = [
+            makeShareRecord(id: "sv-1", phrase: "p1"),
+            makeShareRecord(id: "sv-2", phrase: "p2"),
+            makeShareRecord(id: "sv-3", phrase: "p3"),
+        ]
+        let consumedIds: Set<String> = ["sv-1"]
+        let claimedIds: Set<String> = ["sv-2"]
+
+        shares.removeAll { consumedIds.contains($0.id) }
+        for i in shares.indices {
+            if claimedIds.contains(shares[i].id) {
+                shares[i].isClaimed = true
+                shares[i].phrase = nil
+            }
+        }
+
+        XCTAssertEqual(shares.count, 2, "Consumed share should be removed")
+        XCTAssertEqual(shares[0].id, "sv-2")
+        XCTAssertTrue(shares[0].isClaimed == true, "sv-2 should be claimed")
+        XCTAssertNil(shares[0].phrase, "sv-2 phrase should be cleared")
+        XCTAssertEqual(shares[1].id, "sv-3")
+        XCTAssertNil(shares[1].isClaimed, "sv-3 should be untouched")
+        XCTAssertEqual(shares[1].phrase, "p3")
+    }
+
+    func testReconcileWithOverlappingConsumedAndClaimed() {
+        // A share that is both consumed AND claimed — consumed takes precedence (removes it)
+        var shares = [
+            makeShareRecord(id: "sv-1", phrase: "p1"),
+        ]
+        let consumedIds: Set<String> = ["sv-1"]
+        let claimedIds: Set<String> = ["sv-1"]
+
+        shares.removeAll { consumedIds.contains($0.id) }
+        for i in shares.indices {
+            if claimedIds.contains(shares[i].id) {
+                shares[i].isClaimed = true
+                shares[i].phrase = nil
+            }
+        }
+
+        XCTAssertTrue(shares.isEmpty, "Consumed-and-claimed share should be removed entirely")
+    }
+
+    // MARK: - Share phrase visibility conditions
+
+    func testPhraseVisibleWhenNotClaimedAndPhrasePresent() {
+        let share = makeShareRecord(id: "sv-1", phrase: "test phrase", isClaimed: false)
+        let shouldShowPhrase = share.isClaimed != true && share.phrase != nil
+        XCTAssertTrue(shouldShowPhrase)
+    }
+
+    func testPhraseHiddenWhenClaimed() {
+        var share = makeShareRecord(id: "sv-1", phrase: nil)
+        share.isClaimed = true
+        let shouldShowPhrase = share.isClaimed != true && share.phrase != nil
+        XCTAssertFalse(shouldShowPhrase)
+    }
+
+    func testPhraseHiddenWhenNilPhrase() {
+        let share = makeShareRecord(id: "sv-1", phrase: nil, isClaimed: nil)
+        let shouldShowPhrase = share.isClaimed != true && share.phrase != nil
+        XCTAssertFalse(shouldShowPhrase)
+    }
+
+    func testPhraseVisibleForLegacyRecordWithPhraseButNoClaimedStatus() {
+        // Legacy record: isClaimed is nil (not set), but phrase was added
+        let share = makeShareRecord(id: "sv-1", phrase: "legacy phrase", isClaimed: nil)
+        let shouldShowPhrase = share.isClaimed != true && share.phrase != nil
+        XCTAssertTrue(shouldShowPhrase, "nil isClaimed should not hide the phrase")
+    }
+
+    // MARK: - UploadJob status raw value stability (Codable)
+
+    func testUploadJobStatusRawValues() {
+        // These raw values are persisted via Codable — changing them breaks backward compat
+        XCTAssertEqual(ShareUploadManager.UploadJobStatus.preparing.rawValue, "preparing")
+        XCTAssertEqual(ShareUploadManager.UploadJobStatus.uploading.rawValue, "uploading")
+        XCTAssertEqual(ShareUploadManager.UploadJobStatus.finalizing.rawValue, "finalizing")
+        XCTAssertEqual(ShareUploadManager.UploadJobStatus.paused.rawValue, "paused")
+        XCTAssertEqual(ShareUploadManager.UploadJobStatus.failed.rawValue, "failed")
+        XCTAssertEqual(ShareUploadManager.UploadJobStatus.complete.rawValue, "complete")
+        XCTAssertEqual(ShareUploadManager.UploadJobStatus.cancelled.rawValue, "cancelled")
+    }
+
+    func testUploadJobStatusCodableRoundTrip() throws {
+        let statuses: [ShareUploadManager.UploadJobStatus] = [
+            .preparing, .uploading, .finalizing, .paused, .failed, .complete, .cancelled
+        ]
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+
+        for status in statuses {
+            let data = try encoder.encode(status)
+            let decoded = try decoder.decode(ShareUploadManager.UploadJobStatus.self, from: data)
+            XCTAssertEqual(decoded, status, "Round-trip failed for \(status.rawValue)")
+        }
+    }
+
+    // MARK: - UploadJob phrase propagation
+
+    func testUploadJobStoresPhrase() {
+        let job = makeUploadJob(status: .preparing, phrase: "test phrase here")
+        XCTAssertEqual(job.phrase, "test phrase here")
+    }
+
+    func testUploadJobPhraseCanBeNil() {
+        let job = makeUploadJob(status: .paused, phrase: nil)
+        XCTAssertNil(job.phrase)
+    }
+
+    // MARK: - Policy description ordering consistency
+
+    func testPolicyDescriptionItemsAlwaysInSameOrder() {
+        // Order should be: No exports → maxOpens → Expires
+        let date = DateComponents(calendar: .current, year: 2027, month: 1, day: 1).date!
+        let policy = VaultStorage.SharePolicy(
+            expiresAt: date,
+            maxOpens: 3,
+            allowDownloads: false
+        )
+        let items = ShareVaultView.policyDescriptionItems(policy)
+        XCTAssertEqual(items.count, 3)
+        XCTAssertEqual(items[0], "No exports")
+        XCTAssertEqual(items[1], "3 opens max")
+        XCTAssertTrue(items[2].hasPrefix("Expires "))
+    }
+
+    func testPolicyDescriptionMaxOpensZero() {
+        // Edge case: maxOpens = 0
+        let policy = VaultStorage.SharePolicy(maxOpens: 0)
+        let items = ShareVaultView.policyDescriptionItems(policy)
+        XCTAssertEqual(items, ["0 opens max"])
+    }
+
+    func testPolicyDescriptionOnlyScreenshotsDoesNotProduceItem() {
+        // allowScreenshots isn't displayed in policy description
+        let policy = VaultStorage.SharePolicy(allowScreenshots: true)
+        let items = ShareVaultView.policyDescriptionItems(policy)
+        XCTAssertTrue(items.isEmpty)
+    }
+
+    // MARK: - resolveMode: sequential transitions simulate real usage
+
+    func testResolveModeSequentialTransitionSimulation() {
+        // Simulate: loading → manageShares → (user taps new share) → newShare → uploading → phraseReveal → manageShares
+        var mode: ShareVaultView.ViewMode = .loading
+
+        // 1. Initialization finds existing shares
+        mode = ShareVaultView.resolveMode(currentMode: mode, hasShareData: true)
+        assert(mode, matches: .manageShares)
+
+        // 2. User manually enters newShare (not driven by resolveMode)
+        mode = .newShare
+        mode = ShareVaultView.resolveMode(currentMode: mode, hasShareData: true)
+        assert(mode, matches: .newShare) // sticky
+
+        // 3. User starts upload (set explicitly)
+        mode = .uploading(jobId: "j1", phrase: "test phrase", shareVaultId: "sv-1")
+        mode = ShareVaultView.resolveMode(currentMode: mode, hasShareData: true)
+        assertUploading(mode) // preserved
+
+        // 4. Upload completes (set explicitly by polling)
+        mode = .phraseReveal(phrase: "test phrase", shareVaultId: "sv-1")
+        mode = ShareVaultView.resolveMode(currentMode: mode, hasShareData: true)
+        assertPhraseReveal(mode) // preserved
+
+        // 5. User taps Done (set explicitly)
+        mode = .manageShares
+        mode = ShareVaultView.resolveMode(currentMode: mode, hasShareData: true)
+        assert(mode, matches: .manageShares)
+    }
+
+    // MARK: - resolveMode: uploading/phraseReveal carry data through
+
+    func testResolveModePreservesUploadingAssociatedValues() {
+        let mode = ShareVaultView.resolveMode(
+            currentMode: .uploading(jobId: "job-42", phrase: "india juliet kilo", shareVaultId: "sv-42"),
+            hasShareData: false
+        )
+        if case .uploading(let jid, let p, let sv) = mode {
+            XCTAssertEqual(jid, "job-42")
+            XCTAssertEqual(p, "india juliet kilo")
+            XCTAssertEqual(sv, "sv-42")
+        } else {
+            XCTFail("Expected .uploading mode with associated values")
+        }
+    }
+
+    func testResolveModePreservesPhraseRevealAssociatedValues() {
+        let mode = ShareVaultView.resolveMode(
+            currentMode: .phraseReveal(phrase: "lima mike november", shareVaultId: "sv-99"),
+            hasShareData: false
+        )
+        if case .phraseReveal(let p, let sv) = mode {
+            XCTAssertEqual(p, "lima mike november")
+            XCTAssertEqual(sv, "sv-99")
+        } else {
+            XCTFail("Expected .phraseReveal mode with associated values")
+        }
+    }
+
+    // MARK: - ShareRecord sorting (newest first)
+
+    func testShareRecordsSortNewestFirst() {
+        let now = Date()
+        let shares = [
+            makeShareRecord(id: "sv-old", createdAt: now.addingTimeInterval(-3600)),
+            makeShareRecord(id: "sv-new", createdAt: now),
+            makeShareRecord(id: "sv-mid", createdAt: now.addingTimeInterval(-1800)),
+        ]
+        let sorted = shares.sorted { $0.createdAt > $1.createdAt }
+        XCTAssertEqual(sorted.map(\.id), ["sv-new", "sv-mid", "sv-old"])
+    }
+
+    // MARK: - ShareRecord minimal JSON (all optionals absent)
+
+    func testShareRecordDecodesMinimalJSON() throws {
+        let json = """
+        {
+            "id": "sv-minimal",
+            "createdAt": 0,
+            "policy": { "allowScreenshots": false, "allowDownloads": true }
+        }
+        """.data(using: .utf8)!
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        let record = try decoder.decode(VaultStorage.ShareRecord.self, from: json)
+
+        XCTAssertEqual(record.id, "sv-minimal")
+        XCTAssertNil(record.phrase)
+        XCTAssertNil(record.isClaimed)
+        XCTAssertNil(record.lastSyncedAt)
+        XCTAssertNil(record.shareKeyData)
+        XCTAssertNil(record.syncSequence)
+    }
+
+    // MARK: - shouldDisplayUploadJob for all statuses exhaustively
+
+    func testShouldDisplayUploadJobExhaustive() {
+        let allStatuses: [ShareUploadManager.UploadJobStatus] = [
+            .preparing, .uploading, .finalizing, .paused, .failed, .complete, .cancelled
+        ]
+        let expectedVisible: [ShareUploadManager.UploadJobStatus: Bool] = [
+            .preparing: true,
+            .uploading: true,
+            .finalizing: true,
+            .paused: true,
+            .failed: true,
+            .complete: false,
+            .cancelled: false,
+        ]
+        for status in allStatuses {
+            let job = makeUploadJob(status: status)
+            let visible = ShareVaultView.shouldDisplayUploadJob(job)
+            XCTAssertEqual(
+                visible, expectedVisible[status],
+                "shouldDisplayUploadJob mismatch for \(status.rawValue)"
+            )
+        }
+    }
+
+    // MARK: - UploadJob canResume exhaustive
+
+    func testUploadJobCanResumeExhaustive() {
+        let expected: [ShareUploadManager.UploadJobStatus: Bool] = [
+            .preparing: false,
+            .uploading: false,
+            .finalizing: false,
+            .paused: true,
+            .failed: true,
+            .complete: false,
+            .cancelled: false,
+        ]
+        for (status, expectedResult) in expected {
+            let job = makeUploadJob(status: status)
+            XCTAssertEqual(job.canResume, expectedResult, "canResume mismatch for \(status.rawValue)")
+        }
+    }
+
+    // MARK: - UploadJob canTerminate exhaustive
+
+    func testUploadJobCanTerminateExhaustive() {
+        let expected: [ShareUploadManager.UploadJobStatus: Bool] = [
+            .preparing: true,
+            .uploading: true,
+            .finalizing: true,
+            .paused: true,
+            .failed: true,
+            .complete: false,
+            .cancelled: false,
+        ]
+        for (status, expectedResult) in expected {
+            let job = makeUploadJob(status: status)
+            XCTAssertEqual(job.canTerminate, expectedResult, "canTerminate mismatch for \(status.rawValue)")
+        }
+    }
+
+    // MARK: - SharePolicy Codable round trip
+
+    func testSharePolicyCodableRoundTrip() throws {
+        let date = DateComponents(calendar: .current, year: 2026, month: 12, day: 25).date!
+        let policy = VaultStorage.SharePolicy(
+            expiresAt: date,
+            maxOpens: 42,
+            allowScreenshots: true,
+            allowDownloads: false
+        )
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .secondsSince1970
+        let data = try encoder.encode(policy)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        let decoded = try decoder.decode(VaultStorage.SharePolicy.self, from: data)
+
+        XCTAssertEqual(decoded, policy)
+    }
+
     // MARK: - Helpers
 
     private func assert(_ mode: ShareVaultView.ViewMode, matches expected: ShareVaultView.ViewMode) {
@@ -563,5 +1019,24 @@ final class ShareVaultViewModeTests: XCTestCase {
             message: "",
             errorMessage: nil
         )
+    }
+
+    private func makeShareRecord(
+        id: String,
+        phrase: String? = nil,
+        isClaimed: Bool? = nil,
+        createdAt: Date = Date()
+    ) -> VaultStorage.ShareRecord {
+        var record = VaultStorage.ShareRecord(
+            id: id,
+            createdAt: createdAt,
+            policy: VaultStorage.SharePolicy(),
+            lastSyncedAt: nil,
+            shareKeyData: nil,
+            syncSequence: nil
+        )
+        record.phrase = phrase
+        record.isClaimed = isClaimed
+        return record
     }
 }

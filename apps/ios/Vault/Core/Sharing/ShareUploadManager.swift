@@ -1123,7 +1123,7 @@ final class ShareUploadManager {
                 ownerFingerprint: state.ownerFingerprint,
                 createdAt: state.createdAt,
                 shareVaultId: state.shareVaultId,
-                phrase: nil,
+                phrase: state.phrase,
                 status: .paused,
                 progress: state.lastProgress,
                 total: 100,
