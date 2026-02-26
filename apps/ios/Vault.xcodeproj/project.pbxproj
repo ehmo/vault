@@ -1355,7 +1355,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Upload dSYM files to Embrace for crash symbolication.\nEMBRACE_ID=ehz4q\nEMBRACE_TOKEN=9bba685da2e34a409e2d5059712a8da4\nBUILD_DIR=${DWARF_DSYM_FOLDER_PATH}\nif [ -d \"$BUILD_DIR\" ]; then\n  for dsym in \"$BUILD_DIR\"/*.dSYM; do\n    zip -r \"${dsym}.zip\" \"$dsym\" 2>/dev/null\n    curl -s -X POST \"https://symbols.embrace.io/upload\" \\\n      -F \"app_id=$EMBRACE_ID\" \\\n      -F \"token=$EMBRACE_TOKEN\" \\\n      -F \"dsym=@${dsym}.zip\" || echo \"warning: Embrace dSYM upload failed for $dsym\"\n    rm -f \"${dsym}.zip\"\n  done\nelse\n  echo \"warning: dSYM folder not found at $BUILD_DIR\"\nfi";
+			shellScript = "# Upload dSYM files to Embrace for crash symbolication.\n# Skip Debug builds — dSYMs are only needed for Release crash symbolication.\nif [ \"$CONFIGURATION\" != \"Release\" ]; then\n  exit 0\nfi\nEMBRACE_ID=ehz4q\nEMBRACE_TOKEN=9bba685da2e34a409e2d5059712a8da4\nBUILD_DIR=${DWARF_DSYM_FOLDER_PATH}\nif [ -d \"$BUILD_DIR\" ]; then\n  for dsym in \"$BUILD_DIR\"/*.dSYM; do\n    zip -r \"${dsym}.zip\" \"$dsym\" 2>/dev/null\n    curl -s -X POST \"https://symbols.embrace.io/upload\" \\\n      -F \"app_id=$EMBRACE_ID\" \\\n      -F \"token=$EMBRACE_TOKEN\" \\\n      -F \"dsym=@${dsym}.zip\" || echo \"warning: Embrace dSYM upload failed for $dsym\"\n    rm -f \"${dsym}.zip\"\n  done\nelse\n  echo \"warning: dSYM folder not found at $BUILD_DIR\"\nfi";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -1678,7 +1678,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 153;
+				CURRENT_PROJECT_VERSION = 154;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Add to Vaultaire";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1718,7 +1718,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 153;
+				CURRENT_PROJECT_VERSION = 154;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -1865,7 +1865,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 153;
+				CURRENT_PROJECT_VERSION = 154;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Add to Vaultaire";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -2040,7 +2040,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 153;
+				CURRENT_PROJECT_VERSION = 154;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;

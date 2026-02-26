@@ -3,7 +3,7 @@ import ProjectDescription
 // MARK: - Constants
 
 let version = "1.0.2"
-let buildNumber = "153"
+let buildNumber = "154"
 let teamId = "UFV835UGV6"
 let baseBundleId = "app.vaultaire.ios"
 
@@ -11,6 +11,10 @@ let baseBundleId = "app.vaultaire.ios"
 
 let embraceDSYMScript = """
 # Upload dSYM files to Embrace for crash symbolication.
+# Skip Debug builds — dSYMs are only needed for Release crash symbolication.
+if [ "$CONFIGURATION" != "Release" ]; then
+  exit 0
+fi
 EMBRACE_ID=ehz4q
 EMBRACE_TOKEN=9bba685da2e34a409e2d5059712a8da4
 BUILD_DIR=${DWARF_DSYM_FOLDER_PATH}

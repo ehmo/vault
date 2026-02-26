@@ -36,7 +36,7 @@ enum VaultCoreConstants {
     #if DEBUG
     /// Test-only override for the pending imports base URL.
     /// Set this to a temp directory in tests so StagedImportManager works without an app group container.
-    static var testPendingImportsOverride: URL?
+    nonisolated(unsafe) static var testPendingImportsOverride: URL?
     #endif
 
     /// Returns the pending imports directory URL within the app group container.

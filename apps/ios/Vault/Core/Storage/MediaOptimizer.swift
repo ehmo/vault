@@ -7,6 +7,13 @@ import os.log
 
 private let optimizerLogger = Logger(subsystem: "app.vaultaire.ios", category: "MediaOptimizer")
 
+/// Wraps a non-Sendable value so it can cross isolation boundaries in task groups.
+/// Safety: callers must ensure the wrapped value is not accessed concurrently.
+private struct UncheckedBox<T>: @unchecked Sendable {
+    let value: T
+    init(_ value: T) { self.value = value }
+}
+
 /// Optimizes media files before vault storage using modern codecs.
 /// Images → HEIC (ImageIO). Videos → HEVC 1080p via two paths:
 /// - AVAssetExportSession for HEVC 4K→1080p downscale (fast hardware path)
@@ -327,17 +334,17 @@ final class MediaOptimizer: Sendable {
             let id = UUID().uuidString.prefix(8)
             let videoXferQueue = DispatchQueue(label: "app.vaultaire.transcode.video.\(id)")
             let audioXferQueue = DispatchQueue(label: "app.vaultaire.transcode.audio.\(id)")
-            // nonisolated(unsafe): AVAssetReaderTrackOutput/AVAssetWriterInput are thread-safe for
+            // UncheckedBox: AVAssetReaderTrackOutput/AVAssetWriterInput are thread-safe for
             // the serial-queue callback pattern used in transferSamples.
-            nonisolated(unsafe) let unsafeVideoReaderOutput = videoReaderOutput
-            nonisolated(unsafe) let unsafeVideoWriterInput = videoWriterInput
-            nonisolated(unsafe) let unsafeAudioReaderOutput = audioReaderOutput
-            nonisolated(unsafe) let unsafeAudioWriterInput = audioWriterInput
+            let vro = UncheckedBox(videoReaderOutput)
+            let vwi = UncheckedBox(videoWriterInput)
+            let aro = UncheckedBox(audioReaderOutput)
+            let awi = UncheckedBox(audioWriterInput)
             await withTaskGroup(of: Void.self) { group in
                 group.addTask {
-                    await Self.transferSamples(from: unsafeVideoReaderOutput, to: unsafeVideoWriterInput, on: videoXferQueue)
+                    await Self.transferSamples(from: vro.value, to: vwi.value, on: videoXferQueue)
                 }
-                if let audioOutput = unsafeAudioReaderOutput, let audioInput = unsafeAudioWriterInput {
+                if let audioOutput = aro.value, let audioInput = awi.value {
                     group.addTask {
                         await Self.transferSamples(from: audioOutput, to: audioInput, on: audioXferQueue)
                     }

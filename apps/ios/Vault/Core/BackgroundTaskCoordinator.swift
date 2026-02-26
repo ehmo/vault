@@ -14,9 +14,8 @@ enum BackgroundTaskCoordinator {
     @discardableResult
     static func register(
         identifier: String,
-        handler: @escaping @MainActor (BGProcessingTask) -> Void
+        handler: @escaping @Sendable @MainActor (BGProcessingTask) -> Void
     ) -> Bool {
-        nonisolated(unsafe) let handler = handler
         let success = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: nil) { task in
             guard let processingTask = task as? BGProcessingTask else {
                 task.setTaskCompleted(success: false)

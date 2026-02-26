@@ -536,6 +536,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, @preconcurrency UNUserNotifi
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
+                nonisolated(unsafe) let notification = notification
                 MainActor.assumeIsolated {
                     guard let window = notification.object as? UIWindow else { return }
                     window.overrideUserInterfaceStyle = style

@@ -491,6 +491,7 @@ final class iCloudBackupManager: @unchecked Sendable {
         activeBgTaskIds.insert(bgTaskId)
 
         detachedTask = Task.detached(priority: .utility) { [weak self] in
+            let bgTaskId = bgTaskId
             guard let self else { return }
             defer {
                 Task { @MainActor [weak self] in
@@ -992,6 +993,7 @@ final class iCloudBackupManager: @unchecked Sendable {
         activeBgTaskIds.insert(bgTaskId)
 
         detachedTask = Task.detached(priority: .utility) { [weak self] in
+            let bgTaskId = bgTaskId
             guard let self else { return }
             defer {
                 Task { @MainActor [weak self] in
