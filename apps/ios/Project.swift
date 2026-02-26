@@ -219,7 +219,7 @@ let vaultScheme = Scheme.scheme(
         )
     ),
     archiveAction: .archiveAction(configuration: .release),
-    profileAction: .profileAction(configuration: .release, executable: "Vault")
+    profileAction: .profileAction(configuration: .debug, executable: "Vault")
 )
 
 // MARK: - Project
