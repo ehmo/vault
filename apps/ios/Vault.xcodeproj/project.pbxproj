@@ -1672,13 +1672,50 @@
 			};
 			name = Release;
 		};
+		03FB66221C4357B1FA1A2AE1 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 155;
+				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Add to Vaultaire";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.2;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-L$(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios.ShareExtension;
+				PRODUCT_NAME = ShareExtension;
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "ad hoc extension";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "EXTENSION $(inherited)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Profile;
+		};
 		1732A1799574B7A34B4218CB /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 154;
+				CURRENT_PROJECT_VERSION = 155;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Add to Vaultaire";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1710,6 +1747,72 @@
 			};
 			name = Debug;
 		};
+		3239E4B7A6A960E4100CE1B4 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Tuist/.build/checkouts/KSCrash/Sources/KSCrashCore/include",
+					"$(SRCROOT)/Tuist/.build/checkouts/KSCrash/Sources/KSCrashDemangleFilter/include",
+					"$(SRCROOT)/Tuist/.build/checkouts/KSCrash/Sources/KSCrashRecording",
+					"$(SRCROOT)/Tuist/.build/checkouts/KSCrash/Sources/KSCrashRecording/Monitors",
+					"$(SRCROOT)/Tuist/.build/checkouts/KSCrash/Sources/KSCrashRecording/include",
+					"$(SRCROOT)/Tuist/.build/checkouts/KSCrash/Sources/KSCrashRecordingCore/include",
+					"$(SRCROOT)/Tuist/.build/checkouts/embrace-apple-sdk/Sources/EmbraceAtomicsShim/include",
+					"$(SRCROOT)/Tuist/.build/checkouts/embrace-apple-sdk/Sources/EmbraceObjCUtilsInternal/include",
+				);
+				INFOPLIST_FILE = "Derived/InfoPlists/VaultTests-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				OTHER_CFLAGS = (
+					"$(inherited)",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/checkouts/embrace-apple-sdk/Sources/EmbraceObjCUtilsInternal/include/module.modulemap",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/EmbraceAtomicsShim/EmbraceAtomicsShim.modulemap",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashCore/KSCrashCore.modulemap",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashDemangleFilter/KSCrashDemangleFilter.modulemap",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashRecording/KSCrashRecording.modulemap",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashRecordingCore/KSCrashRecordingCore.modulemap",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-L$(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+				);
+				OTHER_SWIFT_FLAGS = (
+					"$(inherited)",
+					"-Xcc",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/checkouts/embrace-apple-sdk/Sources/EmbraceObjCUtilsInternal/include/module.modulemap",
+					"-Xcc",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/EmbraceAtomicsShim/EmbraceAtomicsShim.modulemap",
+					"-Xcc",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashCore/KSCrashCore.modulemap",
+					"-Xcc",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashDemangleFilter/KSCrashDemangleFilter.modulemap",
+					"-Xcc",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashRecording/KSCrashRecording.modulemap",
+					"-Xcc",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashRecordingCore/KSCrashRecordingCore.modulemap",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios.VaultTests;
+				PRODUCT_NAME = VaultTests;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Vault.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Vault";
+				TEST_TARGET_NAME = Vault;
+			};
+			name = Profile;
+		};
 		3E5B4F5B0EC00B58E2210513 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1718,7 +1821,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 154;
+				CURRENT_PROJECT_VERSION = 155;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -1865,7 +1968,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 154;
+				CURRENT_PROJECT_VERSION = 155;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Add to Vaultaire";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1965,6 +2068,70 @@
 			};
 			name = Debug;
 		};
+		55FC26848423D7B8AE1E4442 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Tuist/.build/checkouts/KSCrash/Sources/KSCrashCore/include",
+					"$(SRCROOT)/Tuist/.build/checkouts/KSCrash/Sources/KSCrashDemangleFilter/include",
+					"$(SRCROOT)/Tuist/.build/checkouts/KSCrash/Sources/KSCrashRecording",
+					"$(SRCROOT)/Tuist/.build/checkouts/KSCrash/Sources/KSCrashRecording/Monitors",
+					"$(SRCROOT)/Tuist/.build/checkouts/KSCrash/Sources/KSCrashRecording/include",
+					"$(SRCROOT)/Tuist/.build/checkouts/KSCrash/Sources/KSCrashRecordingCore/include",
+					"$(SRCROOT)/Tuist/.build/checkouts/embrace-apple-sdk/Sources/EmbraceAtomicsShim/include",
+					"$(SRCROOT)/Tuist/.build/checkouts/embrace-apple-sdk/Sources/EmbraceObjCUtilsInternal/include",
+				);
+				INFOPLIST_FILE = "Derived/InfoPlists/VaultUITests-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				OTHER_CFLAGS = (
+					"$(inherited)",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/checkouts/embrace-apple-sdk/Sources/EmbraceObjCUtilsInternal/include/module.modulemap",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/EmbraceAtomicsShim/EmbraceAtomicsShim.modulemap",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashCore/KSCrashCore.modulemap",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashDemangleFilter/KSCrashDemangleFilter.modulemap",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashRecording/KSCrashRecording.modulemap",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashRecordingCore/KSCrashRecordingCore.modulemap",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-L$(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+				);
+				OTHER_SWIFT_FLAGS = (
+					"$(inherited)",
+					"-Xcc",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/checkouts/embrace-apple-sdk/Sources/EmbraceObjCUtilsInternal/include/module.modulemap",
+					"-Xcc",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/EmbraceAtomicsShim/EmbraceAtomicsShim.modulemap",
+					"-Xcc",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashCore/KSCrashCore.modulemap",
+					"-Xcc",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashDemangleFilter/KSCrashDemangleFilter.modulemap",
+					"-Xcc",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashRecording/KSCrashRecording.modulemap",
+					"-Xcc",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashRecordingCore/KSCrashRecordingCore.modulemap",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios.VaultUITests;
+				PRODUCT_NAME = VaultUITests;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Vault;
+			};
+			name = Profile;
+		};
 		7EA70073DBB330BD46B7B4E5 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -2031,6 +2198,62 @@
 			};
 			name = Release;
 		};
+		921AF39A7D0921B059DEA433 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = UFV835UGV6;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Profile;
+		};
 		9E89E8BCDC8DF85764E0A760 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -2040,7 +2263,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 154;
+				CURRENT_PROJECT_VERSION = 155;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -2226,6 +2449,83 @@
 			};
 			name = Debug;
 		};
+		DC3B7D62B9A1F3D2843D879A /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 155;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Tuist/.build/checkouts/KSCrash/Sources/KSCrashCore/include",
+					"$(SRCROOT)/Tuist/.build/checkouts/KSCrash/Sources/KSCrashDemangleFilter/include",
+					"$(SRCROOT)/Tuist/.build/checkouts/KSCrash/Sources/KSCrashRecording",
+					"$(SRCROOT)/Tuist/.build/checkouts/KSCrash/Sources/KSCrashRecording/Monitors",
+					"$(SRCROOT)/Tuist/.build/checkouts/KSCrash/Sources/KSCrashRecording/include",
+					"$(SRCROOT)/Tuist/.build/checkouts/KSCrash/Sources/KSCrashRecordingCore/include",
+					"$(SRCROOT)/Tuist/.build/checkouts/embrace-apple-sdk/Sources/EmbraceAtomicsShim/include",
+					"$(SRCROOT)/Tuist/.build/checkouts/embrace-apple-sdk/Sources/EmbraceObjCUtilsInternal/include",
+				);
+				INFOPLIST_FILE = Vault/Supporting/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Vaultaire needs camera access to capture photos directly into your secure vault.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Vaultaire needs photo library access to import photos into your secure vault.";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.2;
+				OTHER_CFLAGS = (
+					"$(inherited)",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/checkouts/embrace-apple-sdk/Sources/EmbraceObjCUtilsInternal/include/module.modulemap",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/EmbraceAtomicsShim/EmbraceAtomicsShim.modulemap",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashCore/KSCrashCore.modulemap",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashDemangleFilter/KSCrashDemangleFilter.modulemap",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashRecording/KSCrashRecording.modulemap",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashRecordingCore/KSCrashRecordingCore.modulemap",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"-L$(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+				);
+				OTHER_SWIFT_FLAGS = (
+					"$(inherited)",
+					"-Xcc",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/checkouts/embrace-apple-sdk/Sources/EmbraceObjCUtilsInternal/include/module.modulemap",
+					"-Xcc",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/EmbraceAtomicsShim/EmbraceAtomicsShim.modulemap",
+					"-Xcc",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashCore/KSCrashCore.modulemap",
+					"-Xcc",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashDemangleFilter/KSCrashDemangleFilter.modulemap",
+					"-Xcc",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashRecording/KSCrashRecording.modulemap",
+					"-Xcc",
+					"-fmodule-map-file=$(SRCROOT)/Tuist/.build/tuist-derived/KSCrashRecordingCore/KSCrashRecordingCore.modulemap",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.vaultaire.ios;
+				PRODUCT_NAME = Vault;
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = adhoc;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Profile;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -2233,6 +2533,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				1732A1799574B7A34B4218CB /* Debug */,
+				03FB66221C4357B1FA1A2AE1 /* Profile */,
 				528AED9085E68DD0624DA69F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
@@ -2242,6 +2543,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				CBB932D356AD35D71E0503D5 /* Debug */,
+				921AF39A7D0921B059DEA433 /* Profile */,
 				B6BDF9332732D59DECAE5713 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
@@ -2251,6 +2553,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				53F6C7FA669E50829B42FE23 /* Debug */,
+				3239E4B7A6A960E4100CE1B4 /* Profile */,
 				7EA70073DBB330BD46B7B4E5 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
@@ -2260,6 +2563,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				4AA1609ABDC4BF674ACEAA5F /* Debug */,
+				55FC26848423D7B8AE1E4442 /* Profile */,
 				03C196F57F86B64C1987505E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
@@ -2269,6 +2573,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				3E5B4F5B0EC00B58E2210513 /* Debug */,
+				DC3B7D62B9A1F3D2843D879A /* Profile */,
 				9E89E8BCDC8DF85764E0A760 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;

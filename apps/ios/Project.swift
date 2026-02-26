@@ -3,7 +3,7 @@ import ProjectDescription
 // MARK: - Constants
 
 let version = "1.0.2"
-let buildNumber = "154"
+let buildNumber = "155"
 let teamId = "UFV835UGV6"
 let baseBundleId = "app.vaultaire.ios"
 
@@ -36,6 +36,8 @@ fi
 
 let deploymentTargets: DeploymentTargets = .iOS("17.0")
 
+let profileConfigName: ConfigurationName = .configuration("Profile")
+
 let projectSettings: Settings = .settings(
     base: [
         "SWIFT_STRICT_CONCURRENCY": "complete",
@@ -45,6 +47,7 @@ let projectSettings: Settings = .settings(
     configurations: [
         .debug(name: .debug),
         .release(name: .release),
+        .release(name: profileConfigName),
     ]
 )
 
@@ -113,6 +116,14 @@ let vaultTarget = Target.target(
                     "PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]": "Vault App Store",
                 ]
             ),
+            .release(
+                name: profileConfigName,
+                settings: [
+                    "CODE_SIGN_STYLE": "Manual",
+                    "CODE_SIGN_IDENTITY[sdk=iphoneos*]": "Apple Distribution",
+                    "PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]": "adhoc",
+                ]
+            ),
         ]
     )
 )
@@ -161,6 +172,14 @@ let shareExtensionTarget = Target.target(
                     "PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]": "ShareExtension App Store",
                 ]
             ),
+            .release(
+                name: profileConfigName,
+                settings: [
+                    "CODE_SIGN_STYLE": "Manual",
+                    "CODE_SIGN_IDENTITY[sdk=iphoneos*]": "Apple Distribution",
+                    "PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]": "ad hoc extension",
+                ]
+            ),
         ]
     )
 )
@@ -194,22 +213,30 @@ let vaultUITestsTarget = Target.target(
     ]
 )
 
-// MARK: - Scheme
+// MARK: - Schemes
 
+/// Default scheme: fast tests (no TSan, no benchmarks, parallel execution)
 let vaultScheme = Scheme.scheme(
     name: "Vault",
     shared: true,
     buildAction: .buildAction(targets: ["Vault"]),
     testAction: .targets(
         [
-            .testableTarget(target: "VaultTests"),
+            .testableTarget(
+                target: "VaultTests",
+                parallelization: .enabled,
+                isRandomExecutionOrdering: true
+            ),
             .testableTarget(target: "VaultUITests"),
         ],
         configuration: .debug,
         diagnosticsOptions: .options(
-            threadSanitizerEnabled: true,
             mainThreadCheckerEnabled: true
-        )
+        ),
+        skippedTests: [
+            "PerformanceBenchmarkTests",
+            "MediaOptimizerTests",  // Video transcoding integration tests (~4.5 min)
+        ]
     ),
     runAction: .runAction(
         configuration: .debug,
@@ -219,7 +246,46 @@ let vaultScheme = Scheme.scheme(
         )
     ),
     archiveAction: .archiveAction(configuration: .release),
-    profileAction: .profileAction(configuration: .debug, executable: "Vault")
+    profileAction: .profileAction(configuration: profileConfigName, executable: "Vault")
+)
+
+/// Sanitizer scheme: TSan + Main Thread Checker (use periodically, not every run)
+let sanitizerScheme = Scheme.scheme(
+    name: "Vault-Sanitizer",
+    shared: true,
+    buildAction: .buildAction(targets: ["Vault"]),
+    testAction: .targets(
+        [
+            .testableTarget(target: "VaultTests"),
+        ],
+        configuration: .debug,
+        diagnosticsOptions: .options(
+            threadSanitizerEnabled: true,
+            mainThreadCheckerEnabled: true
+        ),
+        skippedTests: ["PerformanceBenchmarkTests"]
+    ),
+    runAction: .runAction(
+        configuration: .debug,
+        executable: "Vault"
+    )
+)
+
+/// Benchmarks scheme: performance tests only (run via xcodebuild -only-testing:VaultTests/PerformanceBenchmarkTests)
+let benchmarksScheme = Scheme.scheme(
+    name: "Vault-Benchmarks",
+    shared: true,
+    buildAction: .buildAction(targets: ["Vault"]),
+    testAction: .targets(
+        [
+            .testableTarget(target: "VaultTests"),
+        ],
+        configuration: .debug
+    ),
+    runAction: .runAction(
+        configuration: .debug,
+        executable: "Vault"
+    )
 )
 
 // MARK: - Project
@@ -233,5 +299,5 @@ let project = Project(
         vaultTestsTarget,
         vaultUITestsTarget,
     ],
-    schemes: [vaultScheme]
+    schemes: [vaultScheme, sanitizerScheme, benchmarksScheme]
 )

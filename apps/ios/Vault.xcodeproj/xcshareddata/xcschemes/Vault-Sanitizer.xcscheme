@@ -26,12 +26,12 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      shouldUseLaunchSchemeArgsEnv = "YES">
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      enableThreadSanitizer = "YES">
       <Testables>
          <TestableReference
             skipped = "NO"
-            parallelizable = "YES"
-            testExecutionOrdering = "random">
+            parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "F978F7C937ADF5C2D227E8B8"
@@ -42,28 +42,6 @@
             <SkippedTests>
                <Test
                   Identifier = "PerformanceBenchmarkTests">
-               </Test>
-               <Test
-                  Identifier = "MediaOptimizerTests">
-               </Test>
-            </SkippedTests>
-         </TestableReference>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "358E83BDB67C5EE8B78D4AB6"
-               BuildableName = "VaultUITests.xctest"
-               BlueprintName = "VaultUITests"
-               ReferencedContainer = "container:Vault.xcodeproj">
-            </BuildableReference>
-            <SkippedTests>
-               <Test
-                  Identifier = "PerformanceBenchmarkTests">
-               </Test>
-               <Test
-                  Identifier = "MediaOptimizerTests">
                </Test>
             </SkippedTests>
          </TestableReference>
@@ -89,12 +67,9 @@
             ReferencedContainer = "container:Vault.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <StoreKitConfigurationFileReference
-         identifier = "../Products.storekit">
-      </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction
-      buildConfiguration = "Profile"
+      buildConfiguration = "Release"
       shouldUseLaunchSchemeArgsEnv = "YES"
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"

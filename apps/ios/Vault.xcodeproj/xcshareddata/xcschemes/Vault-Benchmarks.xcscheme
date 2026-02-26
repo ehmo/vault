@@ -30,8 +30,7 @@
       <Testables>
          <TestableReference
             skipped = "NO"
-            parallelizable = "YES"
-            testExecutionOrdering = "random">
+            parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "F978F7C937ADF5C2D227E8B8"
@@ -39,33 +38,6 @@
                BlueprintName = "VaultTests"
                ReferencedContainer = "container:Vault.xcodeproj">
             </BuildableReference>
-            <SkippedTests>
-               <Test
-                  Identifier = "PerformanceBenchmarkTests">
-               </Test>
-               <Test
-                  Identifier = "MediaOptimizerTests">
-               </Test>
-            </SkippedTests>
-         </TestableReference>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "358E83BDB67C5EE8B78D4AB6"
-               BuildableName = "VaultUITests.xctest"
-               BlueprintName = "VaultUITests"
-               ReferencedContainer = "container:Vault.xcodeproj">
-            </BuildableReference>
-            <SkippedTests>
-               <Test
-                  Identifier = "PerformanceBenchmarkTests">
-               </Test>
-               <Test
-                  Identifier = "MediaOptimizerTests">
-               </Test>
-            </SkippedTests>
          </TestableReference>
       </Testables>
    </TestAction>
@@ -89,12 +61,9 @@
             ReferencedContainer = "container:Vault.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <StoreKitConfigurationFileReference
-         identifier = "../Products.storekit">
-      </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction
-      buildConfiguration = "Profile"
+      buildConfiguration = "Release"
       shouldUseLaunchSchemeArgsEnv = "YES"
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"

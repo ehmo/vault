@@ -69,18 +69,12 @@ final class PatternValidationStateTests: XCTestCase {
         XCTAssertNil(viewModel.errorMessage)
     }
 
-    /// Tests that error message auto-clears after delay in confirm step.
-    func testErrorMessageAutoClears() async {
+    /// Tests that error message is set and persists until explicitly cleared.
+    func testErrorMessagePersistsUntilCleared() {
         viewModel.errorMessage = "Patterns don't match"
 
         XCTAssertNotNil(viewModel.errorMessage)
-
-        // Simulate auto-clear after 2.5s
-        try? await Task.sleep(nanoseconds: 2_500_000_000)
-
-        // In real implementation, error clears after delay
-        // Here we verify the mechanism exists
-        XCTAssertNotNil(viewModel.errorMessage) // Still set until auto-clear runs
+        XCTAssertEqual(viewModel.errorMessage, "Patterns don't match")
     }
 
     // MARK: - Pattern Validation Errors
