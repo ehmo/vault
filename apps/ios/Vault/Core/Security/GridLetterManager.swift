@@ -6,7 +6,7 @@ import os.log
 /// Manages random letter assignments for grid nodes.
 /// Letters are randomly assigned once and persist in the keychain.
 /// They are reset when the app is deleted/reinstalled (keychain is cleared).
-final class GridLetterManager {
+final class GridLetterManager: @unchecked Sendable {
     static let shared = GridLetterManager()
 
     private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "GridLetters")

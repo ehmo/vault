@@ -207,9 +207,10 @@ final class ShareImportManager {
                                 phrase: capturedPhrase,
                                 markClaimedOnDownload: false,
                                 onProgress: { [weak self] current, total in
-                                    guard let self else { return }
                                     let pct = total > 0 ? downloadWeight * current / total : 0
-                                    self.setTargetProgress(pct, message: "Downloading shared vault...")
+                                    Task { @MainActor [weak self] in
+                                        self?.setTargetProgress(pct, message: "Downloading shared vault...")
+                                    }
                                 }
                             )
                             lastDownloadError = nil

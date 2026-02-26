@@ -7,7 +7,7 @@ import BackgroundTasks
 /// Single source of truth for opening iCloud settings.
 /// Used by ShareVaultView and iCloudBackupSettingsView — keep in sync.
 enum SettingsURLHelper {
-    static func openICloudSettings() {
+    @MainActor static func openICloudSettings() {
         // iOS 17+: APPLE_ACCOUNT opens the Apple ID page (which contains iCloud).
         // Fallback to app settings if the private URL scheme is rejected.
         let iCloudURL = URL(string: "App-Prefs:root=APPLE_ACCOUNT")
@@ -316,11 +316,12 @@ final class iCloudBackupManager: @unchecked Sendable {
                         onUploadProgress?(progress)
                     }
 
+                    let backupId = state.backupId
                     group.addTask {
                         let chunkURL = Self.chunkFileURL(index: chunkIndex)
                         let chunkData = try Data(contentsOf: chunkURL)
 
-                        let recordName = "\(state.backupId)_bchunk_\(chunkIndex)"
+                        let recordName = "\(backupId)_bchunk_\(chunkIndex)"
                         let recordID = CKRecord.ID(recordName: recordName)
                         let record = CKRecord(recordType: self.chunkRecordType, recordID: recordID)
 
@@ -336,7 +337,7 @@ final class iCloudBackupManager: @unchecked Sendable {
 
                         record["chunkData"] = CKAsset(fileURL: tempURL)
                         record["chunkIndex"] = chunkIndex as CKRecordValue
-                        record["backupId"] = state.backupId as CKRecordValue
+                        record["backupId"] = backupId as CKRecordValue
 
                         try await self.privateDatabase.saveWithRetry(record)
                     }
@@ -469,7 +470,7 @@ final class iCloudBackupManager: @unchecked Sendable {
         Self.logger.info("[resume] Found staged backup, starting upload (trigger=\(trigger, privacy: .public), terminated=\(state.wasTerminated))")
 
         var detachedTask: Task<Void, Never>?
-        var bgTaskId: UIBackgroundTaskIdentifier = .invalid
+        nonisolated(unsafe) var bgTaskId: UIBackgroundTaskIdentifier = .invalid
 
         bgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
             Self.logger.warning("[resume] Background time expired - iOS terminated the app")
@@ -506,34 +507,34 @@ final class iCloudBackupManager: @unchecked Sendable {
                 }
                 try await self.uploadStagedBackup()
                 Self.logger.info("[resume] Staged backup upload completed successfully")
-                await self.sendBackupCompleteNotification(success: true)
+                self.sendBackupCompleteNotification(success: true)
             } catch {
                 if Task.isCancelled {
                     Self.logger.warning("[resume] Staged backup upload cancelled")
-                    await self.scheduleBackgroundResumeTask(earliestIn: 60)
+                    self.scheduleBackgroundResumeTask(earliestIn: 60)
                     return
                 }
-                
+
                 // Check retry count to prevent infinite loops
                 if var state = self.loadPendingBackupState() {
                     state.retryCount += 1
                     self.savePendingBackupState(state)
-                    
+
                     if state.retryCount >= Self.maxRetryCount {
                         Self.logger.error("[resume] Max retry count (\(Self.maxRetryCount)) reached. Scheduling next attempt in 24 hours.")
-                        await self.sendBackupCompleteNotification(success: false, errorMessage: "Backup failed after multiple attempts. Will retry in 24 hours.")
+                        self.sendBackupCompleteNotification(success: false, errorMessage: "Backup failed after multiple attempts. Will retry in 24 hours.")
                         // Don't clear staging - keep it for the next periodic retry
                         // Schedule a retry in 24 hours to try again
-                        await self.scheduleBackgroundResumeTask(earliestIn: 24 * 60 * 60)
+                        self.scheduleBackgroundResumeTask(earliestIn: 24 * 60 * 60)
                         return
                     }
-                    
+
                     // Exponential backoff
                     let delay = min(Self.retryBaseDelay * pow(2.0, Double(state.retryCount - 1)), 3600)
                     Self.logger.info("[resume] Scheduling retry \(state.retryCount)/\(Self.maxRetryCount) in \(Int(delay))s")
-                    await self.scheduleBackgroundResumeTask(earliestIn: delay)
+                    self.scheduleBackgroundResumeTask(earliestIn: delay)
                 } else {
-                    await self.scheduleBackgroundResumeTask(earliestIn: 300)
+                    self.scheduleBackgroundResumeTask(earliestIn: 300)
                 }
             }
         }
@@ -976,7 +977,7 @@ final class iCloudBackupManager: @unchecked Sendable {
 
         let capturedKey = key
         var detachedTask: Task<Void, Never>?
-        var bgTaskId: UIBackgroundTaskIdentifier = .invalid
+        nonisolated(unsafe) var bgTaskId: UIBackgroundTaskIdentifier = .invalid
 
         bgTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
             Self.logger.warning("[auto-backup] Background time expired")
@@ -1005,11 +1006,11 @@ final class iCloudBackupManager: @unchecked Sendable {
                 // Phase 2: Upload (no key needed)
                 try await self.uploadStagedBackup()
                 Self.logger.info("[auto-backup] Two-phase backup completed successfully")
-                await self.sendBackupCompleteNotification(success: true)
+                self.sendBackupCompleteNotification(success: true)
             } catch {
                 if Task.isCancelled {
                     Self.logger.warning("[auto-backup] Backup cancelled")
-                    await self.scheduleBackgroundResumeTask(earliestIn: 60)
+                    self.scheduleBackgroundResumeTask(earliestIn: 60)
                     return
                 }
                 EmbraceManager.shared.captureError(
@@ -1017,27 +1018,27 @@ final class iCloudBackupManager: @unchecked Sendable {
                     context: ["feature": "icloud_auto_backup"]
                 )
                 Self.logger.error("[auto-backup] Backup failed: \(error)")
-                
+
                 // Check retry count to prevent infinite loops
                 if var state = self.loadPendingBackupState() {
                     state.retryCount += 1
                     self.savePendingBackupState(state)
-                    
+
                     if state.retryCount >= Self.maxRetryCount {
                         Self.logger.error("[auto-backup] Max retry count (\(Self.maxRetryCount)) reached. Will retry in 24 hours.")
-                        await self.sendBackupCompleteNotification(success: false, errorMessage: "Backup failed after multiple attempts. Will retry in 24 hours.")
+                        self.sendBackupCompleteNotification(success: false, errorMessage: "Backup failed after multiple attempts. Will retry in 24 hours.")
                         // Don't clear staging - schedule retry in 24 hours instead
-                        await self.scheduleBackgroundResumeTask(earliestIn: 24 * 60 * 60)
+                        self.scheduleBackgroundResumeTask(earliestIn: 24 * 60 * 60)
                         return
                     }
-                    
+
                     // Exponential backoff: 60s, 120s, 240s, 480s, etc. (max 1 hour)
                     let delay = min(Self.retryBaseDelay * pow(2.0, Double(state.retryCount - 1)), 3600)
                     Self.logger.info("[auto-backup] Scheduling retry \(state.retryCount)/\(Self.maxRetryCount) in \(Int(delay))s")
-                    await self.scheduleBackgroundResumeTask(earliestIn: delay)
+                    self.scheduleBackgroundResumeTask(earliestIn: delay)
                 } else {
-                    await self.sendBackupCompleteNotification(success: false, errorMessage: error.localizedDescription)
-                    await self.scheduleBackgroundResumeTask(earliestIn: 300)
+                    self.sendBackupCompleteNotification(success: false, errorMessage: error.localizedDescription)
+                    self.scheduleBackgroundResumeTask(earliestIn: 300)
                 }
             }
         }
@@ -1388,26 +1389,26 @@ final class iCloudBackupManager: @unchecked Sendable {
                     try await self.uploadStagedBackup()
                     succeeded = true
                     Self.logger.info("[bg-task] Staged backup upload completed")
-                    await self.sendBackupCompleteNotification(success: true)
+                    self.sendBackupCompleteNotification(success: true)
                 } catch {
                     Self.logger.error("[bg-task] Staged backup upload failed: \(error)")
-                    
+
                     // Check retry count
                     if var state = self.loadPendingBackupState() {
                         state.retryCount += 1
                         self.savePendingBackupState(state)
-                        
+
                         if state.retryCount >= Self.maxRetryCount {
                             Self.logger.error("[bg-task] Max retry count reached. Will retry in 24 hours.")
-                            await self.sendBackupCompleteNotification(success: false, errorMessage: "Backup failed after multiple attempts. Will retry in 24 hours.")
+                            self.sendBackupCompleteNotification(success: false, errorMessage: "Backup failed after multiple attempts. Will retry in 24 hours.")
                             // Don't clear staging - schedule retry in 24 hours
-                            await self.scheduleBackgroundResumeTask(earliestIn: 24 * 60 * 60)
+                            self.scheduleBackgroundResumeTask(earliestIn: 24 * 60 * 60)
                         } else {
                             let delay = min(Self.retryBaseDelay * pow(2.0, Double(state.retryCount - 1)), 3600)
-                            await self.scheduleBackgroundResumeTask(earliestIn: delay)
+                            self.scheduleBackgroundResumeTask(earliestIn: delay)
                         }
                     } else {
-                        await self.scheduleBackgroundResumeTask(earliestIn: 300)
+                        self.scheduleBackgroundResumeTask(earliestIn: 300)
                     }
                 }
             }
@@ -1448,10 +1449,10 @@ final class iCloudBackupManager: @unchecked Sendable {
                     try await self.uploadStagedBackup()
                     succeeded = true
                     Self.logger.info("[bg-task] Full backup completed")
-                    await self.sendBackupCompleteNotification(success: true)
+                    self.sendBackupCompleteNotification(success: true)
                 } catch {
                     Self.logger.error("[bg-task] Full backup failed: \(error)")
-                    await self.scheduleBackgroundResumeTask(earliestIn: 300)
+                    self.scheduleBackgroundResumeTask(earliestIn: 300)
                 }
             }
             autoBackupTask = bgTask

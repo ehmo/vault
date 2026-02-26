@@ -491,7 +491,7 @@ final class AppState {
 
 // MARK: - AppDelegate for Foreground Notifications
 
-class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+class AppDelegate: NSObject, UIApplicationDelegate, @preconcurrency UNUserNotificationCenterDelegate {
     private var earlyAppearanceObserver: NSObjectProtocol?
 
     func application(
@@ -536,13 +536,15 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
-                guard let window = notification.object as? UIWindow else { return }
-                window.overrideUserInterfaceStyle = style
-                window.backgroundColor = resolved
-                // Remove after first window — SwiftUI's .onAppear handles the rest
-                if let observer = self?.earlyAppearanceObserver {
-                    NotificationCenter.default.removeObserver(observer)
-                    self?.earlyAppearanceObserver = nil
+                MainActor.assumeIsolated {
+                    guard let window = notification.object as? UIWindow else { return }
+                    window.overrideUserInterfaceStyle = style
+                    window.backgroundColor = resolved
+                    // Remove after first window — SwiftUI's .onAppear handles the rest
+                    if let observer = self?.earlyAppearanceObserver {
+                        NotificationCenter.default.removeObserver(observer)
+                        self?.earlyAppearanceObserver = nil
+                    }
                 }
             }
         }
@@ -582,8 +584,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
         // Write notification icon to app group so the share extension can use it.
         // Dispatched to background — does fileExists check + JPEG encode + file write.
+        let notificationManager = LocalNotificationManager.shared
         DispatchQueue.global(qos: .utility).async {
-            LocalNotificationManager.shared.warmNotificationIcon()
+            notificationManager.warmNotificationIcon()
         }
 
         // Register once at launch so iOS can wake the app to continue pending uploads/backups.

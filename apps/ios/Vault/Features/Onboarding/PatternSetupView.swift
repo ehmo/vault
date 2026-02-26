@@ -390,6 +390,7 @@ struct PatternSetupView: View {
 
         Task {
             let phrase = useCustomPhrase ? customPhrase.trimmingCharacters(in: .whitespacesAndNewlines) : generatedPhrase
+            nonisolated(unsafe) let coordinator = self.coordinator
             let result = await coordinator.savePattern(pattern, gridSize: patternState.gridSize, phrase: phrase)
 
             await MainActor.run {

@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 import UIKit
 
 /// Handles importing files from various sources into the vault.
-final class FileImporter {
+final class FileImporter: @unchecked Sendable {
     static let shared = FileImporter()
 
     private let storage = VaultStorage.shared

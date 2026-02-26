@@ -28,7 +28,7 @@ struct StagedFileMetadata: Codable, Sendable {
 /// Used by both the share extension (write) and the main app (read + cleanup).
 enum StagedImportManager {
 
-    private static let fm = FileManager.default
+    nonisolated(unsafe) private static let fm = FileManager.default
     private static let encoder: JSONEncoder = {
         let e = JSONEncoder()
         e.dateEncodingStrategy = .iso8601

@@ -52,7 +52,7 @@ enum CloudKitSharingError: Error, LocalizedError, Equatable {
 
 /// Manages shared vault storage in CloudKit's public database.
 /// Supports chunked uploads, one-time claim phrases, and multi-recipient sync.
-final class CloudKitSharingManager {
+final class CloudKitSharingManager: @unchecked Sendable {
     static let shared = CloudKitSharingManager()
 
     private let container: CKContainer
@@ -206,7 +206,7 @@ final class CloudKitSharingManager {
         shareKey: ShareKey,
         policy: VaultStorage.SharePolicy,
         ownerFingerprint: String,
-        onProgress: ((Int, Int) -> Void)? = nil
+        onProgress: (@Sendable (Int, Int) -> Void)? = nil
     ) async throws {
         let transaction = EmbraceManager.shared.startTransaction(name: "share.upload", operation: "share.upload")
         transaction.setTag(value: getNetworkType(), key: "network_type")
@@ -280,7 +280,7 @@ final class CloudKitSharingManager {
         vaultData: Data,
         shareKey _: ShareKey,
         currentVersion: Int,
-        onProgress: ((Int, Int) -> Void)? = nil
+        onProgress: (@Sendable (Int, Int) -> Void)? = nil
     ) async throws {
         // Delete old chunks
         try await deleteChunks(for: shareVaultId)
@@ -310,7 +310,7 @@ final class CloudKitSharingManager {
         svdfData: Data,
         newChunkHashes: [String],
         previousChunkHashes: [String],
-        onProgress: ((Int, Int) -> Void)? = nil
+        onProgress: (@Sendable (Int, Int) -> Void)? = nil
     ) async throws {
         let chunks = stride(from: 0, to: svdfData.count, by: chunkSize).map { start in
             let end = min(start + chunkSize, svdfData.count)
@@ -353,7 +353,7 @@ final class CloudKitSharingManager {
         svdfFileURL: URL,
         newChunkHashes: [String],
         previousChunkHashes: [String],
-        onProgress: ((Int, Int) -> Void)? = nil
+        onProgress: (@Sendable (Int, Int) -> Void)? = nil
     ) async throws {
         let totalChunks = newChunkHashes.count
 
@@ -391,7 +391,7 @@ final class CloudKitSharingManager {
     func downloadSharedVault(
         phrase: String,
         markClaimedOnDownload: Bool = true,
-        onProgress: ((Int, Int) -> Void)? = nil
+        onProgress: (@Sendable (Int, Int) -> Void)? = nil
     ) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
         let transaction = EmbraceManager.shared.startTransaction(name: "share.download", operation: "share.download")
         let phraseVaultId = Self.vaultId(from: phrase)
@@ -528,7 +528,7 @@ final class CloudKitSharingManager {
     func downloadUpdatedVault(
         shareVaultId: String,
         shareKey: ShareKey,
-        onProgress: ((Int, Int) -> Void)? = nil
+        onProgress: (@Sendable (Int, Int) -> Void)? = nil
     ) async throws -> Data {
         // Find manifest
         let predicate = NSPredicate(format: "shareVaultId == %@", shareVaultId)
@@ -661,7 +661,7 @@ final class CloudKitSharingManager {
     func uploadChunksParallel(
         shareVaultId: String,
         chunks: [(Int, Data)],
-        onProgress: ((Int, Int) -> Void)? = nil
+        onProgress: (@Sendable (Int, Int) -> Void)? = nil
     ) async throws {
         let totalChunks = chunks.count
         guard totalChunks > 0 else { return }
@@ -700,7 +700,7 @@ final class CloudKitSharingManager {
         shareVaultId: String,
         fileURL: URL,
         chunkIndices: [Int],
-        onProgress: ((Int, Int) -> Void)? = nil
+        onProgress: (@Sendable (Int, Int) -> Void)? = nil
     ) async throws {
         let uniqueSortedIndices = Array(Set(chunkIndices)).sorted()
         let totalChunks = uniqueSortedIndices.count
@@ -758,7 +758,7 @@ final class CloudKitSharingManager {
     private func downloadChunksParallel(
         shareVaultId: String,
         chunkCount: Int,
-        onProgress: ((Int, Int) -> Void)? = nil
+        onProgress: (@Sendable (Int, Int) -> Void)? = nil
     ) async throws -> Data {
         guard chunkCount > 0 else { return Data() }
 
@@ -984,12 +984,13 @@ final class CloudKitSharingManager {
             }
         }
 
-        Self.orphanLock.lock()
-        // Merge any new orphans persisted during cleanup
-        let current = Self.loadOrphanIds()
-        let merged = current.subtracting(orphanIds).union(remaining)
-        Self.saveOrphanIds(merged)
-        Self.orphanLock.unlock()
+        let merged = Self.orphanLock.withLock {
+            // Merge any new orphans persisted during cleanup
+            let current = Self.loadOrphanIds()
+            let merged = current.subtracting(orphanIds).union(remaining)
+            Self.saveOrphanIds(merged)
+            return merged
+        }
         Self.logger.info("[orphan-cleanup] Cleanup complete, \(merged.count) still pending")
     }
 

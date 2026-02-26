@@ -144,7 +144,7 @@ extension VaultView {
             let data = try await CloudKitSharingManager.shared.downloadUpdatedVault(
                 shareVaultId: vaultId,
                 shareKey: shareKey,
-                onProgress: { [weak viewModel] completed, total in
+                onProgress: { @Sendable [weak viewModel] completed, total in
                     Task { @MainActor in
                         // Map download progress to 0→70% range
                         let pct = total > 0 ? Int(Double(completed) / Double(total) * 70) : 0

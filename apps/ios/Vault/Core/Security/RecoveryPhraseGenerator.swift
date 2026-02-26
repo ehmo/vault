@@ -2,7 +2,7 @@ import Foundation
 
 /// Generates memorable recovery phrases with high entropy.
 /// Uses template-based sentence generation for memorability.
-final class RecoveryPhraseGenerator {
+final class RecoveryPhraseGenerator: @unchecked Sendable {
     static let shared = RecoveryPhraseGenerator()
 
     private init() {

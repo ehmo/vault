@@ -111,7 +111,7 @@ final class MediaOptimizer: Sendable {
         // autoreleasepool ensures CGImageSource, CGImage, and CGImageDestination temporaries
         // are released immediately. With 4 parallel workers, this prevents ~100-200MB of
         // accumulated ObjC objects between executor yields.
-        return try autoreleasepool {
+        return autoreleasepool {
             guard let source = CGImageSourceCreateWithURL(fileURL as CFURL, nil) else {
                 return (fileURL, mimeType, false)
             }
@@ -327,11 +327,17 @@ final class MediaOptimizer: Sendable {
             let id = UUID().uuidString.prefix(8)
             let videoXferQueue = DispatchQueue(label: "app.vaultaire.transcode.video.\(id)")
             let audioXferQueue = DispatchQueue(label: "app.vaultaire.transcode.audio.\(id)")
+            // nonisolated(unsafe): AVAssetReaderTrackOutput/AVAssetWriterInput are thread-safe for
+            // the serial-queue callback pattern used in transferSamples.
+            nonisolated(unsafe) let unsafeVideoReaderOutput = videoReaderOutput
+            nonisolated(unsafe) let unsafeVideoWriterInput = videoWriterInput
+            nonisolated(unsafe) let unsafeAudioReaderOutput = audioReaderOutput
+            nonisolated(unsafe) let unsafeAudioWriterInput = audioWriterInput
             await withTaskGroup(of: Void.self) { group in
                 group.addTask {
-                    await Self.transferSamples(from: videoReaderOutput, to: videoWriterInput, on: videoXferQueue)
+                    await Self.transferSamples(from: unsafeVideoReaderOutput, to: unsafeVideoWriterInput, on: videoXferQueue)
                 }
-                if let audioOutput = audioReaderOutput, let audioInput = audioWriterInput {
+                if let audioOutput = unsafeAudioReaderOutput, let audioInput = unsafeAudioWriterInput {
                     group.addTask {
                         await Self.transferSamples(from: audioOutput, to: audioInput, on: audioXferQueue)
                     }
@@ -382,7 +388,7 @@ final class MediaOptimizer: Sendable {
             // The requestMediaDataWhenReady callback is always called on the provided queue serially.
             nonisolated(unsafe) let output = output
             nonisolated(unsafe) let input = input
-            var resumed = false
+            nonisolated(unsafe) var resumed = false
             input.requestMediaDataWhenReady(on: queue) {
                 while input.isReadyForMoreMediaData {
                     guard let buffer = output.copyNextSampleBuffer() else {

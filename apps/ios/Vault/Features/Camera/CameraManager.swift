@@ -1,5 +1,5 @@
 import Foundation
-import AVFoundation
+@preconcurrency import AVFoundation
 import UIKit
 import Observation
 import OSLog
@@ -66,7 +66,7 @@ final class CameraManager: NSObject, @unchecked Sendable {
     deinit {
         // Capture session directly — don't use [weak self] during deallocation
         // as forming a weak reference to a deallocating object is undefined behavior.
-        let session = self.session
+        nonisolated(unsafe) let session = self.session
         sessionQueue.async {
             if session.isRunning {
                 session.stopRunning()
@@ -488,9 +488,11 @@ final class CameraManager: NSObject, @unchecked Sendable {
 
     @available(iOS 17.0, *)
     private static func currentVideoRotationAngle() -> CGFloat {
-        let orientation = UIApplication.shared.connectedScenes
-            .compactMap { ($0 as? UIWindowScene)?.interfaceOrientation }
-            .first ?? .portrait
+        let orientation: UIInterfaceOrientation = DispatchQueue.main.sync {
+            UIApplication.shared.connectedScenes
+                .compactMap { ($0 as? UIWindowScene)?.interfaceOrientation }
+                .first ?? .portrait
+        }
 
         switch orientation {
         case .portrait: return 90.0
@@ -504,9 +506,11 @@ final class CameraManager: NSObject, @unchecked Sendable {
 
     @available(iOS, deprecated: 17.0, message: "Use AVCaptureDevice.RotationCoordinator for iOS 17+")
     private static func currentVideoOrientation() -> AVCaptureVideoOrientation {
-        let orientation = UIApplication.shared.connectedScenes
-            .compactMap { ($0 as? UIWindowScene)?.interfaceOrientation }
-            .first ?? .portrait
+        let orientation: UIInterfaceOrientation = DispatchQueue.main.sync {
+            UIApplication.shared.connectedScenes
+                .compactMap { ($0 as? UIWindowScene)?.interfaceOrientation }
+                .first ?? .portrait
+        }
 
         switch orientation {
         case .portrait: return .portrait

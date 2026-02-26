@@ -1,5 +1,5 @@
 import Foundation
-import EmbraceIO
+@preconcurrency import EmbraceIO
 import os
 
 // File-scoped sensitive keywords to avoid actor isolation issues in Swift 6

@@ -2,7 +2,7 @@ import AVFoundation
 import CoreMedia
 import Foundation
 import UIKit
-import UserNotifications
+@preconcurrency import UserNotifications
 import os.log
 
 /// Processes staged imports from the share extension into the main vault storage.

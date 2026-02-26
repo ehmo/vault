@@ -180,6 +180,7 @@ final class ShareViewController: UIViewController {
             guard let providers = item.attachments else { continue }
             for provider in providers {
                 guard let utType = ShareAttachmentProcessor.supportedType(for: provider) else { continue }
+                nonisolated(unsafe) let unsafeProvider = provider
                 processed += 1
                 let startedAt = Date()
                 await MainActor.run {
@@ -188,7 +189,7 @@ final class ShareViewController: UIViewController {
                 }
 
                 let meta = try await ShareAttachmentProcessor.processAttachment(
-                    provider,
+                    unsafeProvider,
                     utType: utType,
                     key: key,
                     batchURL: batchURL

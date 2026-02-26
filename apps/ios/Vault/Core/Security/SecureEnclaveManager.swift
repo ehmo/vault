@@ -12,7 +12,7 @@ enum SecureEnclaveError: Error {
     case saltGenerationFailed
 }
 
-final class SecureEnclaveManager {
+final class SecureEnclaveManager: @unchecked Sendable {
     static let shared = SecureEnclaveManager()
 
     private let saltKeyTag = "app.vaultaire.ios.device.salt"

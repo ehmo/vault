@@ -1,7 +1,7 @@
 import Foundation
 import TelemetryDeck
 
-final class TelemetryManager {
+final class TelemetryManager: @unchecked Sendable {
     static let shared = TelemetryManager()
     private var isInitialized = false
     private init() {

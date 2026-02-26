@@ -259,7 +259,7 @@ final class ShareSyncManager {
                     idIndex += 1
                     running += 1
 
-                    group.addTask { [weak self, cloudKit] in
+                    group.addTask { [weak self] in
                         await self?.trackAndUpload(shareVaultId: shareVaultId, cloudKit: cloudKit)
                     }
                 }
@@ -282,7 +282,7 @@ final class ShareSyncManager {
             self?.resumeTasks[shareVaultId] = uploadTask
         }
         await uploadTask.value
-        await MainActor.run { [weak self] in
+        _ = await MainActor.run { [weak self] in
             self?.resumeTasks.removeValue(forKey: shareVaultId)
         }
     }

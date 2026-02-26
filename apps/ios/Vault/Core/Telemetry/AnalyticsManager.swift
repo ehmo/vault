@@ -1,6 +1,6 @@
 import Foundation
 
-final class AnalyticsManager {
+final class AnalyticsManager: @unchecked Sendable {
     static let shared = AnalyticsManager()
     private init() {
         // No-op: singleton

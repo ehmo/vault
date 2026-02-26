@@ -112,12 +112,14 @@ struct SecureVideoPlayer: View {
                     self.player = newPlayer
                     
                     // Observe playback state for inactivity lock manager
-                    self.timeObserver = newPlayer.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: .main) { _ in
+                    self.timeObserver = newPlayer.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: .main) { [self] _ in
                         // Note: Can't use weak self in struct, but the observer is cleaned up in cleanup()
-                        let wasPlaying = self.isPlaying
-                        let nowPlaying = newPlayer.timeControlStatus == .playing
-                        if wasPlaying != nowPlaying {
-                            self.isPlaying = nowPlaying
+                        MainActor.assumeIsolated {
+                            let wasPlaying = self.isPlaying
+                            let nowPlaying = newPlayer.timeControlStatus == .playing
+                            if wasPlaying != nowPlaying {
+                                self.isPlaying = nowPlaying
+                            }
                         }
                     }
                     

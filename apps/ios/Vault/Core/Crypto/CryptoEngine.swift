@@ -400,7 +400,13 @@ enum CryptoEngine {
             return try encrypt(data, with: key)
         }
 
-        return try encryptStreaming(fileURL: fileURL, originalSize: fileSize, with: key)
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".enc")
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+        FileManager.default.createFile(atPath: tempURL.path, contents: nil)
+        let handle = try FileHandle(forWritingTo: tempURL)
+        try encryptFileStreamingToHandle(from: fileURL, to: handle, with: key)
+        try handle.close()
+        return try Data(contentsOf: tempURL)
     }
 
     /// Stream-encrypts a file with chunked AES-GCM but accumulates entire output in memory.

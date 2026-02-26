@@ -137,7 +137,7 @@ final class LocalNotificationManager {
 
     /// Writes the notification icon to the app group container so extensions can use it.
     /// Call once on app launch.
-    func warmNotificationIcon() {
+    nonisolated func warmNotificationIcon() {
         let sharedURL = FileManager.default
             .containerURL(forSecurityApplicationGroupIdentifier: VaultCoreConstants.appGroupIdentifier)?
             .appendingPathComponent("notification-icon.jpg")

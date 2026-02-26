@@ -2,7 +2,7 @@ import UIKit
 
 // MARK: - Delegate Protocol
 
-protocol PatternInputDelegate: AnyObject {
+@MainActor protocol PatternInputDelegate: AnyObject {
     func patternComplete(_ pattern: [Int])
 }
 

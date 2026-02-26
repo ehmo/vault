@@ -5,7 +5,7 @@ import os.log
 
 /// Manages recovery phrases for all vaults in a privacy-preserving way.
 /// Stores all recovery data in a single encrypted blob in Keychain to prevent vault enumeration.
-final class RecoveryPhraseManager {
+final class RecoveryPhraseManager: @unchecked Sendable {
     static let shared = RecoveryPhraseManager()
 
     private static let logger = Logger(subsystem: "app.vaultaire.ios", category: "RecoveryManager")

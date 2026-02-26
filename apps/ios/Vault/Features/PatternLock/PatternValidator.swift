@@ -31,7 +31,7 @@ enum PatternValidationWarning: String {
     case commonShape = "This pattern resembles a common shape"
 }
 
-final class PatternValidator {
+final class PatternValidator: @unchecked Sendable {
     static let shared = PatternValidator()
 
     private init() {

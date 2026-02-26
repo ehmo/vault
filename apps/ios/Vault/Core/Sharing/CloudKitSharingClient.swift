@@ -3,7 +3,7 @@ import Foundation
 
 /// Protocol abstracting CloudKitSharingManager for testability.
 /// Covers the public API surface used by ShareSyncManager, ShareUploadManager, and other consumers.
-protocol CloudKitSharingClient {
+protocol CloudKitSharingClient: Sendable {
     // MARK: - Phrase & Status
 
     func checkPhraseAvailability(phrase: String) async -> Result<Void, CloudKitSharingError>
@@ -21,7 +21,7 @@ protocol CloudKitSharingClient {
         shareKey: ShareKey,
         policy: VaultStorage.SharePolicy,
         ownerFingerprint: String,
-        onProgress: ((Int, Int) -> Void)?
+        onProgress: (@Sendable (Int, Int) -> Void)?
     ) async throws
 
     func syncSharedVault(
@@ -29,7 +29,7 @@ protocol CloudKitSharingClient {
         vaultData: Data,
         shareKey: ShareKey,
         currentVersion: Int,
-        onProgress: ((Int, Int) -> Void)?
+        onProgress: (@Sendable (Int, Int) -> Void)?
     ) async throws
 
     func syncSharedVaultIncremental(
@@ -37,7 +37,7 @@ protocol CloudKitSharingClient {
         svdfData: Data,
         newChunkHashes: [String],
         previousChunkHashes: [String],
-        onProgress: ((Int, Int) -> Void)?
+        onProgress: (@Sendable (Int, Int) -> Void)?
     ) async throws
 
     func syncSharedVaultIncrementalFromFile(
@@ -45,20 +45,20 @@ protocol CloudKitSharingClient {
         svdfFileURL: URL,
         newChunkHashes: [String],
         previousChunkHashes: [String],
-        onProgress: ((Int, Int) -> Void)?
+        onProgress: (@Sendable (Int, Int) -> Void)?
     ) async throws
 
     func uploadChunksParallel(
         shareVaultId: String,
         chunks: [(Int, Data)],
-        onProgress: ((Int, Int) -> Void)?
+        onProgress: (@Sendable (Int, Int) -> Void)?
     ) async throws
 
     func uploadChunksFromFile(
         shareVaultId: String,
         fileURL: URL,
         chunkIndices: [Int],
-        onProgress: ((Int, Int) -> Void)?
+        onProgress: (@Sendable (Int, Int) -> Void)?
     ) async throws
 
     func saveManifest(
@@ -75,7 +75,7 @@ protocol CloudKitSharingClient {
     func downloadSharedVault(
         phrase: String,
         markClaimedOnDownload: Bool,
-        onProgress: ((Int, Int) -> Void)?
+        onProgress: (@Sendable (Int, Int) -> Void)?
     ) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int)
 
     func checkForUpdates(shareVaultId: String, currentVersion: Int) async throws -> Int?
@@ -83,7 +83,7 @@ protocol CloudKitSharingClient {
     func downloadUpdatedVault(
         shareVaultId: String,
         shareKey: ShareKey,
-        onProgress: ((Int, Int) -> Void)?
+        onProgress: (@Sendable (Int, Int) -> Void)?
     ) async throws -> Data
 
     // MARK: - Revoke & Delete

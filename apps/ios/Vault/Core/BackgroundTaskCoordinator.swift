@@ -16,13 +16,15 @@ enum BackgroundTaskCoordinator {
         identifier: String,
         handler: @escaping @MainActor (BGProcessingTask) -> Void
     ) -> Bool {
+        nonisolated(unsafe) let handler = handler
         let success = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: nil) { task in
             guard let processingTask = task as? BGProcessingTask else {
                 task.setTaskCompleted(success: false)
                 return
             }
+            nonisolated(unsafe) let unsafeTask = processingTask
             Task { @MainActor in
-                handler(processingTask)
+                handler(unsafeTask)
             }
         }
 

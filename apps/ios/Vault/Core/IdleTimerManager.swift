@@ -3,7 +3,7 @@ import OSLog
 
 /// Manages the idle timer to prevent screen sleep during critical operations.
 /// Provides a reference-counted approach for nested operations.
-final class IdleTimerManager {
+final class IdleTimerManager: @unchecked Sendable {
     static let shared = IdleTimerManager()
     
     private let logger = Logger(subsystem: "app.vaultaire.ios", category: "IdleTimerManager")
@@ -18,7 +18,9 @@ final class IdleTimerManager {
         
         disableCount += 1
         if disableCount == 1 {
-            UIApplication.shared.isIdleTimerDisabled = true
+            DispatchQueue.main.async {
+                UIApplication.shared.isIdleTimerDisabled = true
+            }
             logger.debug("Idle timer disabled")
         }
     }
@@ -36,7 +38,9 @@ final class IdleTimerManager {
         
         disableCount -= 1
         if disableCount == 0 {
-            UIApplication.shared.isIdleTimerDisabled = false
+            DispatchQueue.main.async {
+                UIApplication.shared.isIdleTimerDisabled = false
+            }
             logger.debug("Idle timer re-enabled")
         }
     }

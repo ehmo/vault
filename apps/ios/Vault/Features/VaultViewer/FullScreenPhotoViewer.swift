@@ -270,7 +270,7 @@ struct FullScreenPhotoViewer: View {
             guard let key = vaultKey else { return }
             let fileId = file.id
             // Decrypt and decode off main thread, downsampled to screen resolution
-            let screenScale = await UIScreen.main.scale
+            let screenScale = UIScreen.main.scale
             let uiImage: UIImage? = await Task.detached(priority: .userInitiated) {
                 do {
                     let (header, content) = try await VaultStorage.shared.retrieveFile(id: fileId, with: key)
@@ -308,7 +308,7 @@ struct FullScreenPhotoViewer: View {
 
     /// Decodes image data with downsampling to avoid loading full-resolution bitmaps.
     /// For a 12MP image on a 3x screen, this decodes at ~5.7MP instead of ~48MP bitmap.
-    private static func downsampledImage(from data: Data, maxPixelSize: Int) -> UIImage? {
+    private nonisolated static func downsampledImage(from data: Data, maxPixelSize: Int) -> UIImage? {
         let options: [CFString: Any] = [kCGImageSourceShouldCache: false]
         guard let source = CGImageSourceCreateWithData(data as CFData, options as CFDictionary) else {
             return UIImage(data: data)

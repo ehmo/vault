@@ -1,7 +1,7 @@
 import Foundation
 
 /// Tracks first-time achievements for celebration toasts
-final class MilestoneTracker {
+final class MilestoneTracker: @unchecked Sendable {
     static let shared = MilestoneTracker()
 
     @UserDefaultsBacked(key: "milestone_firstFile", defaultValue: false)

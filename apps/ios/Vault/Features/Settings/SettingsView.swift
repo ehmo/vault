@@ -751,11 +751,11 @@ struct iCloudBackupSettingsView: View {
                 }
             }
             do {
-                try await backupManager.performBackup(with: key.rawBytes, onProgress: { stage in
+                try await backupManager.performBackup(with: key.rawBytes, onProgress: { @Sendable stage in
                     Task { @MainActor in
                         backupStage = stage
                     }
-                }, onUploadProgress: { progress in
+                }, onUploadProgress: { @Sendable progress in
                     Task { @MainActor in
                         uploadProgress = progress
                     }
@@ -822,7 +822,7 @@ struct iCloudBackupSettingsView: View {
             }
             do {
                 // Resume upload from staged data (no vault key needed)
-                try await backupManager.uploadStagedBackup(onUploadProgress: { progress in
+                try await backupManager.uploadStagedBackup(onUploadProgress: { @Sendable progress in
                     Task { @MainActor in
                         uploadProgress = progress
                     }
