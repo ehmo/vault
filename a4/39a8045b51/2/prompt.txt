@@ -1,0 +1,17 @@
+We need to do something about the tests. They are taking ridiculously long time to run. I thought adding tuist will help but tests are now running 10 mins or longer. What ideas do you have to speed them up? I do have tuist cloud account, will that help? Additional option would be adding https://marathonlabs.io. Investigate and propose a solution because we can't be waiting an hour on tests.
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+It seems you got stuck on something. Run it again
+
+---
+
+Yes
+
+---
+
+Push to main

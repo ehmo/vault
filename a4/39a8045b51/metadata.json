@@ -3,13 +3,16 @@
   "checkpoint_id": "a439a8045b51",
   "strategy": "manual-commit",
   "branch": "worktree-clever-frolicking-sun",
-  "checkpoints_count": 4,
+  "checkpoints_count": 6,
   "files_touched": [
     "apps/ios/Project.swift",
+    "apps/ios/Vault.xcodeproj/xcshareddata/xcschemes/Vault-Benchmarks.xcscheme",
+    "apps/ios/Vault.xcodeproj/xcshareddata/xcschemes/Vault-Sanitizer.xcscheme",
     "apps/ios/Vault/App/ContentView.swift",
     "apps/ios/Vault/Core/Sharing/ShareImportManager.swift",
     "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
     "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift",
+    "apps/ios/VaultTests/PatternValidationStateTests.swift",
     "apps/ios/VaultTests/VaultViewModelTests.swift"
   ],
   "sessions": [
@@ -26,13 +29,20 @@
       "context": "/a4/39a8045b51/1/context.md",
       "content_hash": "/a4/39a8045b51/1/content_hash.txt",
       "prompt": "/a4/39a8045b51/1/prompt.txt"
+    },
+    {
+      "metadata": "/a4/39a8045b51/2/metadata.json",
+      "transcript": "/a4/39a8045b51/2/full.jsonl",
+      "context": "/a4/39a8045b51/2/context.md",
+      "content_hash": "/a4/39a8045b51/2/content_hash.txt",
+      "prompt": "/a4/39a8045b51/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 453,
-    "cache_creation_tokens": 611698,
-    "cache_read_tokens": 41866397,
-    "output_tokens": 32638,
-    "api_call_count": 397
+    "input_tokens": 624,
+    "cache_creation_tokens": 698477,
+    "cache_read_tokens": 46273370,
+    "output_tokens": 35185,
+    "api_call_count": 444
   }
 }
