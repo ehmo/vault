@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "b76e68597206",
+  "session_id": "32f87011-6945-4151-8c15-cda82d1f1063",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-26T18:17:04.987702Z",
+  "branch": "worktree-sequential-brewing-patterson",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/VaultTests/VisibleFilesCacheTests.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "66eac2b3-cb0b-48b0-a6a3-33c862b5829d",
+  "checkpoint_transcript_start": 1633,
+  "transcript_lines_at_start": 1633,
+  "token_usage": {
+    "input_tokens": 19,
+    "cache_creation_tokens": 26979,
+    "cache_read_tokens": 2378851,
+    "output_tokens": 546,
+    "api_call_count": 17
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-26T18:17:04.731302Z",
+    "agent_lines": 81,
+    "human_added": 2946,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 3028,
+    "agent_percentage": 2.6750330250990753
+  }
+}

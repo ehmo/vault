@@ -1,0 +1,347 @@
+Implement the following plan:
+
+# Performance Improvements — System Trace Analysis
+
+## Context
+
+Xcode Instruments System Trace recorded on iPhone 16 (iOS 26.1), ~12 min session of the Vault app. 50 main-thread hangs totaling 3.58s were captured. Media processing is already optimized — this plan targets everything else: SwiftUI body evaluation cost, main-thread I/O, redundant work, and monitoring overhead.
+
+**Hang profile during freezes**: SwiftUI `AG::Graph::UpdateStack::update()` (189% of hang samples), `LayoutEngineBox.sizeThatFits` (77%), Swift `TypeDecoder<>::decodeMangledType` (64%) — all amplified by expensive computations inside view `body` getters.
+
+---
+
+## Changes
+
+### 1. Cache `computeVisibleFiles()` result (P0 — largest hang contributor)
+
+**File**: `apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift`
+
+`computeVisibleFiles()` runs O(n log n) filter+sort+dictionary-build **every SwiftUI body evaluation** (called at `VaultView.swift:352`). With AttributeGraph re-evaluating body frequently, this is the primary hang amplifier.
+
+**Fix**:
+- Add a cached `visibleFiles` published property on `VaultViewModel`
+- Recompute only when inputs change (`files`, `fileFilter`, `searchText`, `sortOrder`) using a private `recomputeVisibleFiles()` method called from `didSet` / onChange handlers
+- In `VaultView.body`, read `viewModel.visibleFiles` instead of calling `computeVisibleFiles()`
+
+**File**: `apps/ios/Vault/Features/VaultViewer/VaultView.swift` (line ~352)
+- Replace `let visible = viewModel.computeVisibleFiles()` with `let visible = viewModel.visibleFiles`
+
+### 2. Cache DateFormatters as static properties (P1)
+
+**File**: `apps/ios/Vault/Features/VaultViewer/VaultView.swift` (lines 47-95, `groupFilesByDate`)
+
+`DateFormatter` and `ISO8601DateFormatter` are allocated on every call. DateFormatter init is expensive (ICU locale data).
+
+**Fix**:
+- Move the two formatters to `private static let` properties (either on VaultView or a small namespace enum)
+- Reference them in `groupFilesByDate()` instead of creating new instances
+
+### 3. Move `groupFilesByDate` into cached pipeline (P1)
+
+**File**: `apps/ios/Vault/Features/VaultViewer/VaultView+Grid.swift` (line ~26)
+
+`dateGroupedContentView` calls `groupFilesByDate()` inside the view body — another O(n) pass on every render.
+
+**Fix**:
+- Add `dateGroups: [DateGroup]` to the cached `VisibleFiles` struct
+- Compute it once inside the `recomputeVisibleFiles()` method from change #1
+- `dateGroupedContentView` reads `visible.dateGroups` instead of calling `groupFilesByDate()`
+
+### 4. Move ShareUploadManager file I/O off main thread (P2)
+
+**File**: `apps/ios/Vault/Core/Sharing/ShareUploadManager.swift` (lines ~1115-1131)
+
+`savePendingState()` does `JSONEncoder().encode()` + `Data.write(to:options:.atomic)` synchronously on `@MainActor`. Called on every progress update via `updatePendingProgress()`.
+
+**Fix**:
+- Make `savePendingState()` nonisolated and dispatch the encode+write to a background queue/Task
+- Keep the in-memory `pendingStateByJobId` update on MainActor, only move the serialization+I/O off
+- Debounce or coalesce rapid progress updates (e.g., save at most once per 0.5s per job)
+
+### 5. Deduplicate `resumePendingUploadsIfNeeded` calls (P3)
+
+**Files**:
+- `apps/ios/Vault/App/VaultApp.swift` (lines ~36, ~42, ~59)
+- `apps/ios/Vault/Features/VaultViewer/VaultView.swift` (line ~360)
+
+Called 4 times during app activation: `.onAppear`, `.onReceive(didBecomeActive)`, `.onChange(scenePhase .active)`, and VaultView `.task`.
+
+**Fix**:
+- Add a simple debounce/guard in `resumePendingUploadsIfNeeded` itself — track last resume time, skip if < 2s since last call
+- Remove the most redundant call sites (keep `.onChange(scenePhase)` and VaultView `.task`, remove the others)
+
+### 6. Reduce Embrace HangWatchdog overhead (P4)
+
+**File**: `apps/ios/Vault/Core/Telemetry/EmbraceManager.swift` (line ~93-94)
+
+HangWatchdog consumes 2.4% of main thread time (671 + 366 = 1,037 samples). This is the monitoring tool itself contributing to the problem it detects.
+
+**Fix**:
+- Remove HangWatchdog from Embrace capture services (the Instruments System Trace itself is a better hang detector)
+- Or conditionally enable it only in CI/TestFlight builds via `#if !DEBUG` guard
+
+---
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift` | Add cached `visibleFiles`, recompute on input change |
+| `apps/ios/Vault/Features/VaultViewer/VaultView.swift` | Read cached visible, static DateFormatters, remove inline compute |
+| `apps/ios/Vault/Features/VaultViewer/VaultView+Grid.swift` | Read cached dateGroups instead of computing inline |
+| `apps/ios/Vault/Core/Sharing/ShareUploadManager.swift` | Move encode+write off main thread, debounce |
+| `apps/ios/Vault/App/VaultApp.swift` | Remove redundant resume calls |
+| `apps/ios/Vault/Core/Telemetry/EmbraceManager.swift` | Remove/gate HangWatchdog |
+
+## Verification
+
+1. Build and deploy to device: `./scripts/deploy-phone.sh --launch`
+2. Exercise the app for ~2 min (scroll vault, open files, background/foreground)
+3. Record a new System Trace in Instruments, compare:
+   - Hang count and total hang time (target: <1s total, <20 events)
+   - Main thread time in Vault.debug.dylib (target: <1% in computeVisibleFiles, 0% in DateFormatter init)
+   - ShareUploadManager should not appear in main thread hot paths
+4. Run existing tests: `xcodebuild test -scheme Vault -destination 'platform=iOS Simulator,name=iPhone 16'`
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me go through the conversation chronologically:
+
+1. **Initial Request**: The user provided a detailed performance improvement plan based on Xcode Instruments System Trace analysis. The plan had 6 changes to fix main-thread hangs in their iOS Vault app.
+
+2. **Implementation Phase**: I read all 6 target files, created a beads issue (VAULT-jaf), and implemented all 6 changes:
+   - Change 1: Cached `computeVisibleFiles()` as `visibleFiles` published property on VaultViewModel
+   - Change 2: Static DateFormatters in `groupFilesByDate()`
+   - Change 3: Pre-computed dateGroups in cached VisibleFiles struct
+   - Change 4: Debounced ShareUploadManager.savePendingState() with background dispatch
+   - Change 5: Debounced resumePendingUploadsIfNeeded() with 2s guard
+   - Change 6: Gated HangCaptureService behind `#if !DEBUG`
+
+3. **Build Issues**: 
+   - First build failed because no iPhone 16 simulator existed (iOS 26.2 with iPhone 17 Pro)
+   - Multiple simulators with same name required using specific UUID
+   - Tuist project needed `tuist install` + `tuist generate` before building
+   - Got concurrency warning on static DateFormatters → fixed with `nonisolated(unsafe)`
+
+4. **Test Issues**:
+   - VaultViewModelTests referenced old `computeVisibleFiles()` → replaced with `visibleFiles`
+   - Pre-existing test failures (LocalVaultRevocationTests, DuressVaultSharingTests, PatternBoardConsistencyTests) unrelated to changes
+
+5. **Committed and pushed** successfully to main.
+
+6. **Second Request**: User asked to review all code for bugs and write comprehensive tests.
+
+7. **Code Review Phase**: I re-read all modified files thoroughly and found:
+   - **BUG FOUND**: In `savePendingState` with `immediate: true`, the pending debounced work item wasn't cancelled. A stale debounced write could overwrite a newer immediate write with old data. Same issue with `clearPendingUpload` callers.
+   - Fixed by moving `pendingSaveWorkItems[jobId]?.cancel()` to the top of `savePendingState` (before the `if immediate` check), and adding cancellation at all 4 `clearPendingUpload` call sites.
+   - Rebuild verified clean.
+
+8. **Current state**: Bug fix is applied and builds clean. I was about to write comprehensive tests but hadn't started yet when the summary was requested.
+
+Key files modified:
+- `VaultViewModel.swift` - cached visibleFiles, didSet triggers, recomputeVisibleFiles()
+- `VaultView.swift` - VisibleFiles struct with dateGroups, static DateFormatters, body reads cached visibleFiles
+- `VaultView+Grid.swift` - reads visible.dateGroups instead of calling groupFilesByDate()
+- `ShareUploadManager.swift` - debounced savePendingState, debounced resumePendingUploadsIfNeeded, bug fix for work item cancellation
+- `VaultApp.swift` - removed redundant ShareUploadManager resume calls
+- `EmbraceManager.swift` - gated HangCaptureService behind #if !DEBUG
+- `VaultViewModelTests.swift` - updated computeVisibleFiles() → visibleFiles
+
+The beads issue VAULT-jaf was closed. Code was committed and pushed. The bug fix from the review phase has NOT been committed yet - it was just applied and build-verified.
+
+Summary:
+1. Primary Request and Intent:
+   The user provided a detailed 6-change performance improvement plan based on Xcode Instruments System Trace analysis of their iOS Vault app (iPhone 16, iOS 26.1, ~12 min session, 50 main-thread hangs totaling 3.58s). The plan targeted SwiftUI body evaluation cost, main-thread I/O, redundant work, and monitoring overhead. After implementation, the user asked to "Review all code you have written for technical, implementation and logical bugs... pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior."
+
+2. Key Technical Concepts:
+   - SwiftUI `@Observable` macro and `didSet` property observers for cache invalidation
+   - `AG::Graph::UpdateStack::update()` — SwiftUI AttributeGraph body re-evaluation overhead
+   - Caching computed properties to avoid O(n log n) work per SwiftUI body evaluation
+   - Static `DateFormatter`/`ISO8601DateFormatter` instances with `nonisolated(unsafe)` for Swift 6 concurrency
+   - `DispatchWorkItem` debouncing pattern for file I/O coalescing
+   - `ContinuousClock.Instant` for debounce timing
+   - Embrace SDK 6.x `CaptureServiceBuilder` and `HangCaptureService`
+   - `@MainActor` isolation and `nonisolated static` methods for background dispatch
+   - Tuist project generation workflow (`tuist install` → `tuist generate`)
+   - Beads (`bd`) issue tracking workflow
+
+3. Files and Code Sections:
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift`**
+     - Core file for Change 1 & 3. Added cached `visibleFiles` property, `didSet` triggers on `files`, `searchText`, `sortOrder`, `fileFilter`, and `recomputeVisibleFiles()` method that pre-computes dateGroups.
+     - `files` property with didSet:
+       ```swift
+       var files: [VaultFileItem] = [] {
+           didSet { recomputeVisibleFiles() }
+       }
+       ```
+     - Filter/sort properties with didSet guards:
+       ```swift
+       var searchText = "" {
+           didSet { if searchText != oldValue { recomputeVisibleFiles() } }
+       }
+       var sortOrder: SortOrder = .dateNewest {
+           didSet { if sortOrder != oldValue { recomputeVisibleFiles() } }
+       }
+       var fileFilter: FileFilter = ... {
+           didSet { if fileFilter != oldValue { recomputeVisibleFiles() } }
+       }
+       ```
+     - Cached property:
+       ```swift
+       private(set) var visibleFiles: VaultView.VisibleFiles = .empty
+       ```
+     - `recomputeVisibleFiles()` replaces old `computeVisibleFiles()` — same filter/sort logic but also pre-computes dateGroups:
+       ```swift
+       let dateGroups: [DateGroup]
+       if useDateGrouping {
+           let dateKeyPath: KeyPath<VaultFileItem, Date?> = sortOrder == .fileDate ? \.originalDate : \.createdAt
+           dateGroups = groupFilesByDate(visible, newestFirst: sortOrder != .dateOldest, dateKeyPath: dateKeyPath)
+       } else {
+           dateGroups = []
+       }
+       visibleFiles = VaultView.VisibleFiles(all: visible, media: media, documents: documents, mediaIndexById: mediaIndexById, dateGroups: dateGroups)
+       ```
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView.swift`**
+     - Updated `VisibleFiles` struct to include `dateGroups` and `static let empty`:
+       ```swift
+       struct VisibleFiles: Equatable {
+           let all: [VaultFileItem]
+           let media: [VaultFileItem]
+           let documents: [VaultFileItem]
+           let mediaIndexById: [UUID: Int]
+           let dateGroups: [DateGroup]
+           static let empty = VisibleFiles(all: [], media: [], documents: [], mediaIndexById: [:], dateGroups: [])
+       }
+       ```
+     - Made `DateGroup` conform to `Equatable`
+     - Added static DateFormatters:
+       ```swift
+       private enum DateGroupFormatters {
+           nonisolated(unsafe) static let dayFormatter: DateFormatter = {
+               let f = DateFormatter()
+               f.doesRelativeDateFormatting = false
+               f.dateFormat = "EEEE, MMMM d"
+               return f
+           }()
+           nonisolated(unsafe) static let isoFormatter = ISO8601DateFormatter()
+       }
+       ```
+     - Body reads cached value: `let visible = viewModel.visibleFiles`
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView+Grid.swift`**
+     - Changed `dateGroupedContentView` to read `visible.dateGroups` instead of calling `groupFilesByDate()`:
+       ```swift
+       let groups = visible.dateGroups
+       ```
+
+   - **`apps/ios/Vault/Core/Sharing/ShareUploadManager.swift`**
+     - Added debounced save infrastructure:
+       ```swift
+       private var pendingSaveWorkItems: [String: DispatchWorkItem] = [:]
+       private static let saveQueue = DispatchQueue(label: "app.vaultaire.ios.share-upload.save", qos: .utility)
+       ```
+     - Refactored `savePendingState` with debounce and immediate mode (includes bug fix — cancel at top):
+       ```swift
+       private func savePendingState(_ state: PendingUploadState, immediate: Bool = false) {
+           pendingStateByJobId[state.jobId] = state
+           pendingSaveWorkItems[state.jobId]?.cancel()
+           pendingSaveWorkItems[state.jobId] = nil
+           if immediate {
+               Self.savePendingStateToDisk(state)
+               return
+           }
+           let capturedState = state
+           let workItem = DispatchWorkItem { Self.savePendingStateToDisk(capturedState) }
+           pendingSaveWorkItems[state.jobId] = workItem
+           Self.saveQueue.asyncAfter(deadline: .now() + 0.5, execute: workItem)
+       }
+       ```
+     - Extracted `savePendingStateToDisk` as `nonisolated static` for background dispatch
+     - `markPendingUploadFinished` uses `immediate: true`; initial `savePendingState(pendingState, immediate: true)` also immediate
+     - Added resume debounce:
+       ```swift
+       private var lastResumeTime: ContinuousClock.Instant = .now - .seconds(10)
+       func resumePendingUploadsIfNeeded(trigger: String) {
+           guard hasPendingUpload else { return }
+           let now = ContinuousClock.now
+           guard now - lastResumeTime >= .seconds(2) else { ... return }
+           lastResumeTime = now
+           ...
+       }
+       ```
+     - Added `pendingSaveWorkItems[jobId]?.cancel(); pendingSaveWorkItems[jobId] = nil` at all 4 `clearPendingUpload` call sites (lines ~474, ~655, ~748, ~874)
+
+   - **`apps/ios/Vault/App/VaultApp.swift`**
+     - Removed `ShareUploadManager.shared.resumePendingUploadsIfNeeded` from `.onAppear` and `.onReceive(didBecomeActive)`, keeping only `.onChange(scenePhase .active)` and VaultView `.task`
+
+   - **`apps/ios/Vault/Core/Telemetry/EmbraceManager.swift`**
+     - Gated `HangCaptureService` removal behind `#if DEBUG`:
+       ```swift
+       var builder = CaptureServiceBuilder()
+           .addDefaults()
+           .remove(ofType: URLSessionCaptureService.self)
+           .remove(ofType: TapCaptureService.self)
+           .remove(ofType: ViewCaptureService.self)
+           .remove(ofType: WebViewCaptureService.self)
+       #if DEBUG
+       builder = builder.remove(ofType: HangCaptureService.self)
+       #endif
+       let services = builder.build()
+       ```
+
+   - **`apps/ios/VaultTests/VaultViewModelTests.swift`**
+     - Replaced `viewModel.computeVisibleFiles()` → `viewModel.visibleFiles` (2 occurrences via replace_all)
+
+4. Errors and Fixes:
+   - **No iPhone 16 simulator**: iOS 26.2 SDK only has iPhone 17 series. Fixed by using specific simulator UUID: `id=1E2BEFBC-2FBC-49D2-84B5-5DE55338CF79`
+   - **Multiple simulators with same name**: Two "iPhone 17 Pro" simulators caused ambiguity. Fixed by using UUID directly.
+   - **Missing Tuist-generated files**: Build failed with "Build input files cannot be found: TuistAssets+Vault.swift". Fixed by running `tuist install && tuist generate --no-open`.
+   - **Concurrency warning on static ISO8601DateFormatter**: Swift 6 mode flagged `nonisolated(unsafe)` needed. Fixed by adding `nonisolated(unsafe)` to both static formatters.
+   - **Test compilation failure**: `VaultViewModelTests` referenced removed `computeVisibleFiles()`. Fixed with `replace_all` to use `visibleFiles`.
+   - **BUG: Debounced write overwriting immediate write**: In `savePendingState` with `immediate: true`, the pending debounced work item wasn't cancelled. Fixed by moving cancellation to top of method (before the `if immediate` branch). Also added cancellation at all 4 `clearPendingUpload` call sites to prevent stale writes from recreating deleted job directories.
+
+5. Problem Solving:
+   - Found `HangCaptureService` type name by searching the Embrace SDK source in FlowDeck DerivedData: `REDACTED`
+   - Verified all 20 VaultViewModel-specific tests pass; pre-existing failures in LocalVaultRevocationTests, DuressVaultSharingTests, PatternBoardConsistencyTests are unrelated.
+   - During code review, traced all callers of `savePendingState`, `clearPendingUpload`, and `resumePendingUploadsIfNeeded` to identify the race condition bug.
+
+6. All User Messages:
+   - **Message 1**: "Implement the following plan: [6-change performance improvement plan with detailed file locations, code changes, and verification steps]" — Also referenced plan mode transcript at `/Users/nan/.REDACTED.jsonl`
+   - **Message 2**: "Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior."
+
+7. Pending Tasks:
+   - Write comprehensive tests for all 6 performance changes (user explicitly requested this in Message 2)
+   - Commit and push the bug fix (debounced work item cancellation) found during review
+   - The beads issue VAULT-jaf was already closed, but the bug fix commit hasn't been made yet
+
+8. Current Work:
+   I was in the middle of the code review + test writing task from Message 2. I completed the review phase: re-read all 6 modified files, found a real bug in `ShareUploadManager.savePendingState` (debounced write race condition), and fixed it across 5 locations in the file. The build verified clean after the fix. I had just finished reading the existing `VaultViewModelTests.swift` to understand the test patterns before writing new comprehensive tests. The bug fix has NOT been committed yet.
+
+9. Optional Next Step:
+   Write comprehensive tests as the user explicitly requested: "write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior." Then commit the bug fix + new tests together and push. Tests should cover:
+   - `recomputeVisibleFiles()` correctness for all filter types, sort orders, search text
+   - `didSet` triggers on `files`, `searchText`, `sortOrder`, `fileFilter` correctly update `visibleFiles`
+   - `dateGroups` computed correctly for date-based sort orders, empty for non-date sorts
+   - `VisibleFiles.empty` static property
+   - `groupFilesByDate` with static formatters producing correct results
+   - `handleVaultKeyChange` clearing `visibleFiles`
+   - The debounce behavior in `resumePendingUploadsIfNeeded`
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior.
