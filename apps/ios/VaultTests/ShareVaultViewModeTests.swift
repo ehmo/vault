@@ -42,6 +42,43 @@ final class ShareVaultViewModeTests: XCTestCase {
         }
     }
 
+    func testResolveModePreservesUploadingState() {
+        let mode = ShareVaultView.resolveMode(currentMode: .uploading(jobId: "test-job"), hasShareData: true)
+        if case .uploading(let jobId) = mode {
+            XCTAssertEqual(jobId, "test-job")
+        } else {
+            XCTFail("Expected .uploading mode")
+        }
+    }
+
+    func testResolveModePreservesPhraseRevealState() {
+        let mode = ShareVaultView.resolveMode(currentMode: .phraseReveal(phrase: "test phrase", shareVaultId: "sv-1"), hasShareData: true)
+        if case .phraseReveal(let phrase, let svId) = mode {
+            XCTAssertEqual(phrase, "test phrase")
+            XCTAssertEqual(svId, "sv-1")
+        } else {
+            XCTFail("Expected .phraseReveal mode")
+        }
+    }
+
+    func testPolicyDescriptionNoExports() {
+        let policy = VaultStorage.SharePolicy(allowDownloads: false)
+        let items = ShareVaultView.policyDescriptionItems(policy)
+        XCTAssertTrue(items.contains("No exports"))
+    }
+
+    func testPolicyDescriptionMaxOpens() {
+        let policy = VaultStorage.SharePolicy(maxOpens: 10)
+        let items = ShareVaultView.policyDescriptionItems(policy)
+        XCTAssertTrue(items.contains("10 opens max"))
+    }
+
+    func testPolicyDescriptionEmpty() {
+        let policy = VaultStorage.SharePolicy()
+        let items = ShareVaultView.policyDescriptionItems(policy)
+        XCTAssertTrue(items.isEmpty)
+    }
+
     func testShouldDisplayUploadJobHidesCompleteAndCancelled() {
         XCTAssertFalse(ShareVaultView.shouldDisplayUploadJob(makeUploadJob(status: .complete)))
         XCTAssertFalse(ShareVaultView.shouldDisplayUploadJob(makeUploadJob(status: .cancelled)))

@@ -325,6 +325,10 @@ class MockCloudKitSharingClient: CloudKitSharingClient {
         return [:]
     }
 
+    func claimedStatusByShareVaultIds(_: [String]) async throws -> [String: Bool] {
+        return [:]
+    }
+
     func markShareClaimed(shareVaultId _: String) async throws {
         // Implementation not needed for current tests
     }

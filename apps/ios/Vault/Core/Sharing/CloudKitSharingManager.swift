@@ -876,6 +876,23 @@ final class CloudKitSharingManager: @unchecked Sendable {
         return statusById
     }
 
+    func claimedStatusByShareVaultIds(_ shareVaultIds: [String]) async throws -> [String: Bool] {
+        guard !shareVaultIds.isEmpty else { return [:] }
+        let predicate = NSPredicate(format: "shareVaultId IN %@", shareVaultIds)
+        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
+
+        let results = try await publicDatabase.records(matching: query)
+        var statusById: [String: Bool] = [:]
+        statusById.reserveCapacity(shareVaultIds.count)
+        for (_, result) in results.matchResults {
+            if let record = try? result.get(),
+               let shareVaultId = record["shareVaultId"] as? String {
+                statusById[shareVaultId] = (record["claimed"] as? Bool) ?? false
+            }
+        }
+        return statusById
+    }
+
     /// Marks a share as consumed by the recipient (e.g. after policy-triggered self-destruct).
     /// Sets `consumed = true` on the CloudKit manifest, mirroring how `revokeShare` sets `revoked`.
     func markShareConsumed(shareVaultId: String) async throws {

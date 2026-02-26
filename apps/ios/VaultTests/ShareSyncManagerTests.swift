@@ -116,6 +116,10 @@ private final class MockSyncCloudKitSharing: CloudKitSharingClient {
         fatalError("Not used in ShareSyncManager tests")
     }
 
+    func claimedStatusByShareVaultIds(_ shareVaultIds: [String]) async throws -> [String: Bool] {
+        Dictionary(uniqueKeysWithValues: shareVaultIds.map { ($0, false) })
+    }
+
     func markShareClaimed(shareVaultId _: String) async throws {
         fatalError("Not used in ShareSyncManager tests")
     }

@@ -647,6 +647,7 @@ final class ShareUploadManager {
                 shareVaultId: shareVaultId,
                 policy: policy,
                 shareKeyData: prepared.shareKey.rawBytes,
+                phrase: phrase,
                 vaultKey: vaultKey
             )
 
@@ -741,6 +742,7 @@ final class ShareUploadManager {
                         shareVaultId: state.shareVaultId,
                         policy: state.policy,
                         shareKeyData: state.shareKeyData,
+                        phrase: state.phrase,
                         vaultKey: effectiveKey
                     )
                     pendingSaveWorkItems[state.jobId]?.cancel()
@@ -851,6 +853,7 @@ final class ShareUploadManager {
                     shareVaultId: state.shareVaultId,
                     policy: state.policy,
                     shareKeyData: state.shareKeyData,
+                    phrase: state.phrase,
                     vaultKey: effectiveKey2
                 )
             } else {
@@ -1081,13 +1084,14 @@ final class ShareUploadManager {
         shareVaultId: String,
         policy: VaultStorage.SharePolicy,
         shareKeyData: Data,
+        phrase: String?,
         vaultKey: VaultKey
     ) async {
         do {
             var index = try await storage.loadIndex(with: vaultKey)
             let exists = index.activeShares?.contains(where: { $0.id == shareVaultId }) ?? false
             if !exists {
-                let record = VaultStorage.ShareRecord(
+                var record = VaultStorage.ShareRecord(
                     id: shareVaultId,
                     createdAt: Date(),
                     policy: policy,
@@ -1095,6 +1099,7 @@ final class ShareUploadManager {
                     shareKeyData: shareKeyData,
                     syncSequence: 1
                 )
+                record.phrase = phrase
                 if index.activeShares == nil {
                     index.activeShares = []
                 }

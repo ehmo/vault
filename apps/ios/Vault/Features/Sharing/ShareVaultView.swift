@@ -15,6 +15,8 @@ struct ShareVaultView: View {
         case loading
         case iCloudUnavailable(CKAccountStatus)
         case newShare
+        case uploading(jobId: String)
+        case phraseReveal(phrase: String, shareVaultId: String)
         case manageShares
         case error(String)
     }
@@ -34,13 +36,21 @@ struct ShareVaultView: View {
     @State private var currentOwnerFingerprint: String?
     @State private var initializationGeneration = 0
 
-    // Phrase display
-    @State private var activePhrase: String?
+    // Upload termination confirmation
+    @State private var showTerminateConfirmation = false
+    @State private var showCloseWhileUploadingConfirmation = false
+
+    // Link copy feedback
     @State private var linkCopied = false
 
     // Screen-awake policy while uploads are running and this screen is visible
     @State private var didDisableIdleTimerForUploads = false
     @State private var isShareScreenVisible = false
+
+    private var isUploading: Bool {
+        if case .uploading = mode { return true }
+        return false
+    }
 
     var body: some View {
         NavigationStack {
@@ -53,6 +63,10 @@ struct ShareVaultView: View {
                         iCloudUnavailableView(status)
                     case .newShare:
                         newShareSettingsView
+                    case .uploading(let jobId):
+                        uploadingView(jobId: jobId)
+                    case .phraseReveal(let phrase, _):
+                        phraseRevealView(phrase: phrase)
                     case .manageShares:
                         manageSharesView
                     case .error(let message):
@@ -66,19 +80,41 @@ struct ShareVaultView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") {
-                        dismiss()
+                    if isUploading {
+                        Button("Close") {
+                            showCloseWhileUploadingConfirmation = true
+                        }
+                        .accessibilityIdentifier("share_close")
+                    } else {
+                        Button("Close") {
+                            dismiss()
+                        }
+                        .accessibilityIdentifier("share_close")
                     }
-                    .accessibilityIdentifier("share_close")
                 }
             }
         }
-        .sheet(item: Binding(
-            get: { activePhrase.map(SharePhraseSheetItem.init(phrase:)) },
-            set: { activePhrase = $0?.phrase }
-        )) { item in
-            phraseSheet(phrase: item.phrase)
-                .presentationDetents([.medium, .large])
+        .interactiveDismissDisabled(isUploading)
+        .alert("Upload in Progress", isPresented: $showCloseWhileUploadingConfirmation) {
+            Button("Leave", role: .destructive) {
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The upload will continue in the background, but may pause if the app is minimized.")
+        }
+        .alert("Terminate Upload?", isPresented: $showTerminateConfirmation) {
+            Button("Terminate", role: .destructive) {
+                if case .uploading(let jobId) = mode {
+                    if let job = uploadJobs.first(where: { $0.id == jobId }) {
+                        terminateUpload(job)
+                    }
+                }
+                mode = .newShare
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will stop the upload and discard progress. You'll need to start over.")
         }
         .task {
             await initialize()
@@ -133,7 +169,7 @@ struct ShareVaultView: View {
             updateModeForCurrentData()
 
             Task {
-                await reconcileConsumedShares(
+                await reconcileShareStatuses(
                     vaultKey: key,
                     initialShares: localSnapshot.activeShares,
                     generation: generation
@@ -160,6 +196,25 @@ struct ShareVaultView: View {
             await reloadActiveShares()
         }
         applyIdleTimerPolicy()
+
+        // Check if an uploading job just completed — transition to phraseReveal
+        if case .uploading(let jobId) = mode {
+            let matchingJob = latestJobs.first(where: { $0.id == jobId })
+            if let job = matchingJob, job.status == .complete {
+                // Upload done — find the phrase from the share record or the job
+                let phrase = activeShares.first(where: { $0.id == job.shareVaultId })?.phrase ?? job.phrase
+                if let phrase {
+                    mode = .phraseReveal(phrase: phrase, shareVaultId: job.shareVaultId)
+                } else {
+                    mode = .manageShares
+                }
+                return
+            } else if let job = matchingJob, job.status == .failed || job.status == .cancelled {
+                mode = .error(job.errorMessage ?? "Upload failed")
+                return
+            }
+        }
+
         updateModeForCurrentData()
     }
 
@@ -177,9 +232,10 @@ struct ShareVaultView: View {
         case .manageShares:
             return hasShareData ? .manageShares : .newShare
         case .newShare:
-            // Keep user in manual "share with someone new" flow even while
-            // uploads/shares are changing in the background.
             return .newShare
+        case .uploading, .phraseReveal:
+            // Don't auto-transition away from these — they have explicit transitions
+            return currentMode
         case .iCloudUnavailable, .error:
             return currentMode
         }
@@ -233,9 +289,10 @@ struct ShareVaultView: View {
             Text("Share This Vault")
                 .font(.title2).fontWeight(.semibold)
 
-            Text("Generate one-time share phrases. You can start multiple uploads in parallel.")
+            Text("Generate a one-time share phrase. The phrase will be shown after the upload completes.")
                 .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
+                .lineLimit(nil)
 
             // Policy settings
             VStack(spacing: 16) {
@@ -286,12 +343,127 @@ struct ShareVaultView: View {
 
             Button("Share Vault") {
                 let phrase = RecoveryPhraseGenerator.shared.generatePhrase()
-                startBackgroundUpload(phrase: phrase)
+                startUploadAndShowProgress(phrase: phrase)
             }
             .accessibilityIdentifier("share_generate_phrase")
             .vaultProminentButtonStyle()
+
+            // If there are existing shares, show a button to go back to manage view
+            if !activeShares.isEmpty || !uploadJobs.isEmpty {
+                Button("Back to Active Shares") {
+                    mode = .manageShares
+                }
+                .buttonStyle(.bordered)
+            }
         }
     }
+
+    // MARK: - Uploading View (full-screen progress)
+
+    private func uploadingView(jobId: String) -> some View {
+        let job = uploadJobs.first(where: { $0.id == jobId })
+
+        return VStack(spacing: 24) {
+            Spacer().frame(height: 40)
+
+            PixelLoader.standard(size: 60)
+
+            Text("Uploading Vault")
+                .font(.title2).fontWeight(.semibold)
+
+            Text(job?.message ?? "Preparing...")
+                .foregroundStyle(.vaultSecondaryText)
+                .lineLimit(nil)
+                .multilineTextAlignment(.center)
+                .frame(minHeight: 20)
+
+            ProgressView(value: Double(job?.progress ?? 0), total: Double(max(job?.total ?? 100, 1)))
+                .tint(.accentColor)
+                .padding(.horizontal)
+
+            Text("\(job?.progress ?? 0)%")
+                .font(.body.monospacedDigit())
+                .foregroundStyle(.vaultSecondaryText)
+
+            if let error = job?.errorMessage, !error.isEmpty {
+                Text(error)
+                    .font(.subheadline)
+                    .foregroundStyle(.vaultHighlight)
+                    .lineLimit(nil)
+                    .multilineTextAlignment(.center)
+            }
+
+            Spacer().frame(height: 8)
+
+            Label {
+                Text("Keep the app open. Minimizing may pause the upload.")
+                    .lineLimit(nil)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle")
+            }
+            .font(.subheadline)
+            .foregroundStyle(.vaultSecondaryText)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal)
+
+            Spacer().frame(height: 16)
+
+            if job?.canResume == true {
+                Button("Resume Upload") {
+                    ShareUploadManager.shared.resumeUpload(jobId: jobId, vaultKey: appState.currentVaultKey)
+                }
+                .vaultProminentButtonStyle()
+                .accessibilityIdentifier("share_upload_resume")
+            }
+
+            Button("Terminate Upload", role: .destructive) {
+                showTerminateConfirmation = true
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("share_upload_terminate")
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Phrase Reveal View (shown only after upload completes)
+
+    private func phraseRevealView(phrase: String) -> some View {
+        VStack(spacing: 20) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 48))
+                .foregroundStyle(.green)
+
+            Text("Upload Complete")
+                .font(.title2).fontWeight(.semibold)
+
+            Text("Share this phrase with the recipient. They'll use it to access your vault.")
+                .foregroundStyle(.vaultSecondaryText)
+                .multilineTextAlignment(.center)
+                .lineLimit(nil)
+
+            PhraseDisplayCard(phrase: phrase)
+            PhraseActionButtons(phrase: phrase)
+            shareLinkButtons(for: phrase)
+
+            Label {
+                Text("This phrase is stored with the share. You can find it later in Active Shares until the recipient claims it.")
+                    .lineLimit(nil)
+            } icon: {
+                Image(systemName: "info.circle")
+            }
+            .font(.subheadline)
+            .foregroundStyle(.vaultSecondaryText)
+            .multilineTextAlignment(.center)
+
+            Button("Done") {
+                mode = .manageShares
+            }
+            .vaultProminentButtonStyle()
+            .accessibilityIdentifier("share_phrase_done")
+        }
+    }
+
+    // MARK: - Manage Shares View
 
     private var manageSharesView: some View {
         VStack(spacing: 20) {
@@ -406,14 +578,6 @@ struct ShareVaultView: View {
                     .accessibilityIdentifier("share_upload_resume")
                 }
 
-                if let phrase = job.phrase {
-                    Button("Show Phrase") {
-                        activePhrase = phrase
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("share_upload_show_phrase")
-                }
-
                 Spacer()
 
                 if job.canTerminate {
@@ -478,6 +642,7 @@ struct ShareVaultView: View {
             if case .error = syncProgress?.status { return false }
             return true
         }()
+        let isClaimed = share.isClaimed == true
 
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -488,12 +653,7 @@ struct ShareVaultView: View {
                         .font(.caption).foregroundStyle(.vaultSecondaryText)
                 }
                 Spacer()
-                Text(isSyncingShare ? "Syncing" : "Active")
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background((isSyncingShare ? Color.blue : Color.green).opacity(0.15))
-                    .clipShape(Capsule())
+                shareStatusBadge(isClaimed: isClaimed, isSyncing: isSyncingShare)
             }
 
             if isSyncingShare, let progress = syncProgress {
@@ -506,13 +666,16 @@ struct ShareVaultView: View {
                 }
             }
 
-            if let expires = share.policy.expiresAt {
-                HStack {
-                    Text("Expires")
-                    Spacer()
-                    Text(expires, style: .date)
+            // Policy summary
+            policySummary(share.policy)
+
+            // Phrase section — show only if not claimed
+            if !isClaimed, let phrase = share.phrase {
+                VStack(spacing: 8) {
+                    Divider()
+                    PhraseDisplayCard(phrase: phrase)
+                    shareLinkButtons(for: phrase)
                 }
-                .font(.subheadline).foregroundStyle(.vaultSecondaryText)
             }
 
             Button("Revoke Access", role: .destructive) {
@@ -524,6 +687,66 @@ struct ShareVaultView: View {
         .vaultGlassBackground(cornerRadius: 12)
     }
 
+    @ViewBuilder
+    private func shareStatusBadge(isClaimed: Bool, isSyncing: Bool) -> some View {
+        if isSyncing {
+            Text("Syncing")
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(Color.blue.opacity(0.15))
+                .clipShape(Capsule())
+        } else if isClaimed {
+            Text("Accepted")
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(Color.green.opacity(0.15))
+                .clipShape(Capsule())
+        } else {
+            Text("Pending")
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(Color.orange.opacity(0.15))
+                .clipShape(Capsule())
+        }
+    }
+
+    @ViewBuilder
+    private func policySummary(_ policy: VaultStorage.SharePolicy) -> some View {
+        let items = Self.policyDescriptionItems(policy)
+        if !items.isEmpty {
+            HStack(spacing: 8) {
+                ForEach(items, id: \.self) { item in
+                    Text(item)
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.vaultSecondaryText.opacity(0.1))
+                        .clipShape(Capsule())
+                }
+                Spacer()
+            }
+        }
+    }
+
+    static func policyDescriptionItems(_ policy: VaultStorage.SharePolicy) -> [String] {
+        var items: [String] = []
+        if !policy.allowDownloads {
+            items.append("No exports")
+        }
+        if let maxOpens = policy.maxOpens {
+            items.append("\(maxOpens) opens max")
+        }
+        if let expiresAt = policy.expiresAt {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMM d"
+            items.append("Expires \(formatter.string(from: expiresAt))")
+        }
+        return items
+    }
+
     private func errorView(_ message: String) -> some View {
         VStack(spacing: 16) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -532,6 +755,7 @@ struct ShareVaultView: View {
                 .font(.title2).fontWeight(.semibold)
             Text(message)
                 .foregroundStyle(.vaultSecondaryText).multilineTextAlignment(.center)
+                .lineLimit(nil)
             Button("Try Again") { mode = .newShare }
                 .vaultProminentButtonStyle().padding(.top)
         }
@@ -572,39 +796,6 @@ struct ShareVaultView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.mini)
                 .disabled(isSyncing)
-            }
-        }
-    }
-
-    private func phraseSheet(phrase: String) -> some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    PhraseDisplayCard(phrase: phrase)
-                    PhraseActionButtons(phrase: phrase)
-                    shareLinkButtons(for: phrase)
-
-                    Label {
-                        Text("Save this phrase now. You can continue using the app while upload runs in the background.")
-                    } icon: {
-                        Image(systemName: "exclamationmark.triangle")
-                    }
-                    .font(.subheadline)
-                    .foregroundStyle(.vaultSecondaryText)
-                    .multilineTextAlignment(.center)
-                }
-                .padding()
-            }
-            .background(Color.vaultBackground.ignoresSafeArea())
-            .navigationTitle("Share Phrase")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        activePhrase = nil
-                    }
-                    .accessibilityIdentifier("share_phrase_done")
-                }
             }
         }
     }
@@ -659,7 +850,7 @@ struct ShareVaultView: View {
 
     // MARK: - Actions
 
-    private func startBackgroundUpload(phrase: String) {
+    private func startUploadAndShowProgress(phrase: String) {
         guard let vaultKey = appState.currentVaultKey else {
             mode = .error("No vault key available")
             return
@@ -675,9 +866,21 @@ struct ShareVaultView: View {
             allowDownloads: allowDownloads
         )
 
-        activePhrase = phrase
-        mode = .manageShares
-        Task { await refreshUploadJobs(reloadShares: false) }
+        // Find the newly created job to get its ID
+        Task {
+            // Brief delay for job to appear
+            try? await Task.sleep(for: .milliseconds(100))
+            let latestJobs = ShareUploadManager.shared.jobs(forOwnerFingerprint: currentOwnerFingerprint)
+            // Find the job with this phrase
+            if let job = latestJobs.first(where: { $0.phrase == phrase }) {
+                uploadJobs = latestJobs.filter(Self.shouldDisplayUploadJob)
+                mode = .uploading(jobId: job.id)
+            } else {
+                // Fallback: just show manage shares
+                await refreshUploadJobs(reloadShares: false)
+                mode = .manageShares
+            }
+        }
     }
 
     private func reloadActiveShares() async {
@@ -690,12 +893,12 @@ struct ShareVaultView: View {
         activeShares = shares.sorted { $0.createdAt > $1.createdAt }
         updateModeForCurrentData()
     }
-    
+
     /// Formats a date as relative time (e.g., "5 minutes ago", "1 day ago")
     private func relativeTimeString(from date: Date) -> String {
         let now = Date()
         let diff = now.timeIntervalSince(date)
-        
+
         // Less than a minute
         if diff < 60 {
             return "just now"
@@ -729,11 +932,11 @@ struct ShareVaultView: View {
 
         // Update local state first for instant UI response
         activeShares.removeAll { $0.id == share.id }
-        
+
         // Check if this was the last share - if so, terminate any ongoing sync
         let remainingShares = activeShares
         let remainingJobs = uploadJobs.filter { $0.shareVaultId != share.id }
-        
+
         if remainingShares.isEmpty && remainingJobs.isEmpty {
             // No more users - terminate any ongoing uploads for this specific share
             for job in uploadJobs where job.shareVaultId == share.id && job.canTerminate {
@@ -837,6 +1040,69 @@ struct ShareVaultView: View {
         }
     }
 
+    // MARK: - Reconcile Share Statuses (consumed + claimed)
+
+    private func reconcileShareStatuses(
+        vaultKey: VaultKey,
+        initialShares: [VaultStorage.ShareRecord],
+        generation: Int
+    ) async {
+        guard !initialShares.isEmpty else { return }
+
+        let shareIds = initialShares.map(\.id)
+
+        // Query both consumed and claimed statuses in parallel
+        async let consumedTask = CloudKitSharingManager.shared.consumedStatusByShareVaultIds(shareIds)
+        async let claimedTask = CloudKitSharingManager.shared.claimedStatusByShareVaultIds(shareIds)
+
+        let consumedMap: [String: Bool]
+        let claimedMap: [String: Bool]
+        do {
+            consumedMap = try await consumedTask
+            claimedMap = try await claimedTask
+        } catch {
+            shareVaultLogger.warning("Failed to check share statuses: \(error.localizedDescription, privacy: .private)")
+            return
+        }
+
+        let consumedIds = Set(consumedMap.compactMap { $0.value ? $0.key : nil })
+        let claimedIds = Set(claimedMap.compactMap { $0.value ? $0.key : nil })
+
+        // Nothing to update
+        guard !consumedIds.isEmpty || !claimedIds.isEmpty else { return }
+
+        do {
+            let updatedShares = try await Task.detached(priority: .utility) { () -> [VaultStorage.ShareRecord] in
+                var index = try await VaultStorage.shared.loadIndex(with: vaultKey)
+                var shares = index.activeShares ?? []
+
+                // Remove consumed shares
+                shares.removeAll { consumedIds.contains($0.id) }
+
+                // Update claimed status and clear phrase for claimed shares
+                for i in shares.indices {
+                    if claimedIds.contains(shares[i].id) {
+                        shares[i].isClaimed = true
+                        shares[i].phrase = nil
+                    }
+                }
+
+                shares.sort { $0.createdAt > $1.createdAt }
+                index.activeShares = shares.isEmpty ? nil : shares
+                try await VaultStorage.shared.saveIndex(index, with: vaultKey)
+                return shares
+            }.value
+
+            await MainActor.run {
+                guard generation == initializationGeneration else { return }
+                activeShares = updatedShares
+                updateModeForCurrentData()
+            }
+        } catch {
+            shareVaultLogger.error("Failed to reconcile share statuses: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     // MARK: - Helpers
 
     private static let byteCountFormatter: ByteCountFormatter = {
@@ -871,45 +1137,6 @@ struct ShareVaultView: View {
             // Sort by creation date, newest first
             return shares.sorted { $0.createdAt > $1.createdAt }
         }.value
-    }
-
-    private func reconcileConsumedShares(
-        vaultKey: VaultKey,
-        initialShares: [VaultStorage.ShareRecord],
-        generation: Int
-    ) async {
-        guard !initialShares.isEmpty else { return }
-
-        let consumedMap: [String: Bool]
-        do {
-            consumedMap = try await CloudKitSharingManager.shared.consumedStatusByShareVaultIds(initialShares.map(\.id))
-        } catch {
-            shareVaultLogger.warning("Failed to check consumed status: \(error.localizedDescription, privacy: .private)")
-            return
-        }
-        let consumedIds = Set(consumedMap.compactMap { $0.value ? $0.key : nil })
-        guard !consumedIds.isEmpty else { return }
-
-        do {
-            let updatedShares = try await Task.detached(priority: .utility) { () -> [VaultStorage.ShareRecord] in
-                var index = try await VaultStorage.shared.loadIndex(with: vaultKey)
-                var shares = index.activeShares ?? []
-                shares.removeAll { consumedIds.contains($0.id) }
-                // Sort by creation date, newest first (descending order)
-                shares.sort { $0.createdAt > $1.createdAt }
-                index.activeShares = shares.isEmpty ? nil : shares
-                try await VaultStorage.shared.saveIndex(index, with: vaultKey)
-                return shares
-            }.value
-
-            await MainActor.run {
-                guard generation == initializationGeneration else { return }
-                activeShares = updatedShares
-                updateModeForCurrentData()
-            }
-        } catch {
-            shareVaultLogger.error("Failed to reconcile consumed shares: \(error.localizedDescription, privacy: .public)")
-        }
     }
 
     static func shouldDisplayUploadJob(_ job: ShareUploadManager.UploadJob) -> Bool {

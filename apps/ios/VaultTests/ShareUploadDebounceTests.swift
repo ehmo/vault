@@ -151,6 +151,7 @@ private final class MockDebounceVaultStorage: VaultStorageProtocol, @unchecked S
 private final class MockDebounceCloudKitSharing: CloudKitSharingClient {
     func checkPhraseAvailability(phrase _: String) async -> Result<Void, CloudKitSharingError> { .success(()) }
     func consumedStatusByShareVaultIds(_ ids: [String]) async throws -> [String: Bool] { Dictionary(uniqueKeysWithValues: ids.map { ($0, false) }) }
+    func claimedStatusByShareVaultIds(_ ids: [String]) async throws -> [String: Bool] { Dictionary(uniqueKeysWithValues: ids.map { ($0, false) }) }
     func markShareClaimed(shareVaultId _: String) async throws {}
     func markShareConsumed(shareVaultId _: String) async throws {}
     func isShareConsumed(shareVaultId _: String) async throws -> Bool { false }

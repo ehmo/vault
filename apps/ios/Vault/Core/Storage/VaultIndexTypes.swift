@@ -27,6 +27,8 @@ extension VaultStorage {
         var lastSyncedAt: Date?
         var shareKeyData: Data?     // phrase-derived share key (stored in encrypted index)
         var syncSequence: Int?      // incremental sync counter (nil = never synced with SVDF)
+        var phrase: String?         // share phrase, stored until recipient claims
+        var isClaimed: Bool?        // local cache of CloudKit claimed status
 
         var shareId: String { id }
     }

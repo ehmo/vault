@@ -8,6 +8,7 @@ protocol CloudKitSharingClient: Sendable {
 
     func checkPhraseAvailability(phrase: String) async -> Result<Void, CloudKitSharingError>
     func consumedStatusByShareVaultIds(_ shareVaultIds: [String]) async throws -> [String: Bool]
+    func claimedStatusByShareVaultIds(_ shareVaultIds: [String]) async throws -> [String: Bool]
     func markShareClaimed(shareVaultId: String) async throws
     func markShareConsumed(shareVaultId: String) async throws
     func isShareConsumed(shareVaultId: String) async throws -> Bool
