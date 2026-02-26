@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "35495f964642",
+  "session_id": "32f87011-6945-4151-8c15-cda82d1f1063",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-26T18:12:51.783013Z",
+  "branch": "worktree-sequential-brewing-patterson",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Sharing/ShareUploadManager.swift",
+    "apps/ios/Vault/Core/Telemetry/EmbraceManager.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Grid.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift",
+    "apps/ios/VaultTests/ShareUploadDebounceTests.swift",
+    "apps/ios/VaultTests/VaultViewModelTests.swift",
+    "apps/ios/VaultTests/VisibleFilesCacheTests.swift"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 120,
+    "cache_creation_tokens": 358447,
+    "cache_read_tokens": 12248022,
+    "output_tokens": 7270,
+    "api_call_count": 114
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-26T18:12:51.543796Z",
+    "agent_lines": 743,
+    "human_added": 2851,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3594,
+    "agent_percentage": 20.673344462993878
+  }
+}
