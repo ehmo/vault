@@ -1,0 +1,135 @@
+Implement the following plan:
+
+# Redesign Share Vault Flow
+
+## Context
+
+When user A shares a vault, the current flow immediately shows the phrase while uploading in the background. If the user minimizes the app, the upload gets suspended/killed but the phrase is already shared — creating a race condition where user B tries to join but the upload isn't complete. Additionally, user A has no visibility into whether user B accepted the share.
+
+**Goal**: Restructure the share flow to (1) block user interaction during upload with a progress screen, (2) only reveal the phrase after upload completes, (3) persist phrase per share until recipient claims it, and (4) show claimed/policy status per share row.
+
+## Changes Overview
+
+### 1. Add `phrase` field to `ShareRecord`
+
+**File**: `apps/ios/Vault/Core/Storage/VaultIndexTypes.swift`
+
+- Add `var phrase: String?` to `ShareRecord`
+- Add `var isClaimed: Bool?` to `ShareRecord` (local cache of CloudKit claimed status)
+- The phrase is stored encrypted in the vault index (already encrypted at rest), only visible until claimed
+
+### 2. Add `claimedStatusByShareVaultIds` to CloudKit layer
+
+**File**: `apps/ios/Vault/Core/Sharing/CloudKitSharingManager.swift`
+
+- New method: `func claimedStatusByShareVaultIds(_ ids: [String]) async throws -> [String: Bool]`
+- Same pattern as `consumedStatusByShareVaultIds` but reads `claimed` field instead of `consumed`
+
+**File**: `apps/ios/Vault/Core/Sharing/CloudKitSharingClient.swift`
+
+- Add protocol requirement: `func claimedStatusByShareVaultIds(_ shareVaultIds: [String]) async throws -> [String: Bool]`
+
+### 3. Store phrase in `ShareRecord` when upload completes
+
+**File**: `apps/ios/Vault/Core/Sharing/ShareUploadManager.swift`
+
+- In `appendShareRecord()` (~line 1080): pass `phrase` parameter, store it in the new `ShareRecord.phrase` field
+- Thread phrase through from `runInitialUpload` and `runResumeUpload` to `appendShareRecord`
+
+### 4. Restructure `ShareVaultView` flow
+
+**File**: `apps/ios/Vault/Features/Sharing/ShareVaultView.swift`
+
+This is the main UI change. The current `ViewMode` enum changes:
+
+```
+Current:  loading | iCloudUnavailable | newShare | manageShares | error
+New:      loading | iCloudUnavailable | newShare | uploading | phraseReveal | manageShares | error
+```
+
+#### New `.uploading` state (full-screen progress)
+- Shows when user taps "Share Vault" button
+- Full-screen progress view with:
+  - Animated progress bar/percentage
+  - Current status message (from UploadJob.message)
+  - Warning text: "Keep the app open. Minimizing will pause the upload."
+  - "Terminate Upload" button (destructive, with confirmation alert)
+- Close button shows confirmation alert: "Upload in progress. Leaving will pause the upload. Are you sure?" → Cancel / Leave
+- Monitors the specific UploadJob for this share
+- On job completion → transitions to `.phraseReveal`
+- On job failure → shows error with retry option
+- Keeps idle timer disabled (reuse existing `IdleTimerManager` pattern)
+
+#### New `.phraseReveal` state
+- Shows phrase only AFTER upload is complete
+- Reuses existing `PhraseDisplayCard` and `PhraseActionButtons` components
+- Reuses existing `shareLinkButtons` for Copy Link / Share
+- "Done" button → transitions to `.manageShares`
+
+#### Updated `.manageShares` state
+Each share row (`shareRow`) changes:
+- **Badge**: "Pending" (orange) if not claimed, "Accepted" (green) if claimed, "Syncing" (blue) if syncing
+- **Phrase**: Show phrase + copy/share buttons if `isClaimed != true` (pending). Hide phrase when claimed.
+- **Policy summary**: Show policy restrictions inline (e.g., "No exports", "10 opens max", "Expires Mar 15")
+- **Revoke**: Keep existing revoke button
+
+#### Updated `reconcileConsumedShares` → rename to `reconcileShareStatuses`
+- Query both consumed AND claimed status from CloudKit
+- Update local `ShareRecord.isClaimed` when claimed detected
+- Remove consumed shares (existing behavior)
+- When claimed: set `isClaimed = true`, clear `phrase` from ShareRecord, persist to index
+
+### 5. Prevent close during upload (full app modal behavior)
+
+The `ShareVaultView` is already presented as `.fullScreenCover` from `VaultSettingsView`. During the `.uploading` state:
+- Hide the "Close" toolbar button (or replace with terminate confirmation)
+- Set `.interactiveDismissDisabled(true)` to prevent swipe dismiss
+- The `.uploading` state acts as the blocking mechanism
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `apps/ios/Vault/Core/Storage/VaultIndexTypes.swift` | Add `phrase`, `isClaimed` to ShareRecord |
+| `apps/ios/Vault/Core/Sharing/CloudKitSharingManager.swift` | Add `claimedStatusByShareVaultIds` |
+| `apps/ios/Vault/Core/Sharing/CloudKitSharingClient.swift` | Add protocol method |
+| `apps/ios/Vault/Core/Sharing/ShareUploadManager.swift` | Thread phrase to `appendShareRecord` |
+| `apps/ios/Vault/Features/Sharing/ShareVaultView.swift` | Main UI restructure (uploading + phraseReveal modes, updated shareRow, claimed status) |
+
+### Guardrails Compliance
+
+- No pattern board changes (not relevant to this view)
+- Fixed heights for dynamic content (progress area, phrase area)
+- `.lineLimit(nil)` on all descriptive text
+- No layout shifts: uploading/phraseReveal are distinct states, not conditional overlays
+
+### Existing Code Reused
+
+- `PhraseDisplayCard` / `PhraseActionButtons` (`Vault/UI/Components/PhraseActionButtons.swift`)
+- `ShareLinkEncoder.shareURL(for:)` for link generation
+- `ShareSheetHelper.present(items:)` for native share sheet
+- `IdleTimerManager.shared` for keeping screen awake during upload
+- `PixelLoader` for loading animations
+- `uploadStatusBadge` pattern for status capsule badges
+- `.vaultGlassBackground()`, `.vaultProminentButtonStyle()` modifiers
+- `consumedStatusByShareVaultIds` pattern for the new claimed query
+- `ShareUploadManager.UploadJob` for progress monitoring
+
+### Verification
+
+1. **Unit tests**: Update `ShareVaultViewModeTests` for new ViewMode cases
+2. **Upload flow**: Start share → verify progress screen blocks interaction → verify phrase shown only after completion
+3. **Pause/resume**: Start share → terminate from progress screen → verify cleanup
+4. **Close during upload**: Tap close → verify confirmation alert → verify pause behavior
+5. **Claimed status**: After user B joins, verify user A's share row updates from "Pending" to "Accepted" and phrase disappears
+6. **Multiple shares**: Create 2 shares → verify each shows its own phrase independently
+7. **Policy display**: Create share with limits → verify limits shown in manage view
+8. **Build**: `xcodebuild build` to verify compilation
+9. **Existing tests**: Run test suite to verify no regressions
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior.
