@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "e6944659aafc",
+  "session_id": "8337e0ef-91f6-4e42-bd6a-73135c7db773",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-26T22:10:22.001844Z",
+  "branch": "worktree-sequential-brewing-patterson",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Core/InactivityLockManager.swift",
+    "apps/ios/Vault/Core/Sharing/ShareImportManager.swift",
+    "apps/ios/Vault/Core/Storage/FileUtilities.swift",
+    "apps/ios/Vault/Extensions/ShareExtension/ShareViewController.swift",
+    "apps/ios/Vault/Features/Onboarding/ConceptExplainerView.swift",
+    "apps/ios/Vault/Features/Sharing/ShareVaultView.swift",
+    "apps/ios/Vault/Features/VaultViewer/FileImporter.swift",
+    "apps/ios/VaultTests/CloudKitSharingTests.swift",
+    "apps/ios/VaultTests/ImportOptimizationTests.swift",
+    "apps/ios/VaultTests/ImportStreamingTests.swift",
+    "apps/ios/VaultTests/MediaOptimizerTests.swift",
+    "apps/ios/VaultTests/PatternBoardConsistencyTests.swift",
+    "apps/ios/VaultTests/ShareRevocationTests.swift",
+    "apps/ios/VaultTests/ShareUploadDebounceTests.swift",
+    "apps/ios/VaultTests/SonarQubeRulesTests.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "95a65f94-04ba-424c-8b15-aa26698fade6",
+  "checkpoint_transcript_start": 1853,
+  "transcript_lines_at_start": 1853,
+  "token_usage": {
+    "input_tokens": 1275,
+    "cache_creation_tokens": 47122,
+    "cache_read_tokens": 1576278,
+    "output_tokens": 1290,
+    "api_call_count": 18
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-26T22:10:21.76871Z",
+    "agent_lines": 0,
+    "human_added": 2946,
+    "human_modified": 9,
+    "human_removed": 0,
+    "total_committed": 2946,
+    "agent_percentage": 0
+  }
+}

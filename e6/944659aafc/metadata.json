@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "e6944659aafc",
+  "strategy": "manual-commit",
+  "branch": "worktree-sequential-brewing-patterson",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Core/InactivityLockManager.swift",
+    "apps/ios/Vault/Core/Sharing/ShareImportManager.swift",
+    "apps/ios/Vault/Core/Storage/FileUtilities.swift",
+    "apps/ios/Vault/Extensions/ShareExtension/ShareViewController.swift",
+    "apps/ios/Vault/Features/Onboarding/ConceptExplainerView.swift",
+    "apps/ios/Vault/Features/Sharing/ShareVaultView.swift",
+    "apps/ios/Vault/Features/VaultViewer/FileImporter.swift",
+    "apps/ios/VaultTests/CloudKitSharingTests.swift",
+    "apps/ios/VaultTests/ImportOptimizationTests.swift",
+    "apps/ios/VaultTests/ImportStreamingTests.swift",
+    "apps/ios/VaultTests/MediaOptimizerTests.swift",
+    "apps/ios/VaultTests/PatternBoardConsistencyTests.swift",
+    "apps/ios/VaultTests/ShareRevocationTests.swift",
+    "apps/ios/VaultTests/ShareUploadDebounceTests.swift",
+    "apps/ios/VaultTests/SonarQubeRulesTests.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e6/944659aafc/0/metadata.json",
+      "transcript": "/e6/944659aafc/0/full.jsonl",
+      "context": "/e6/944659aafc/0/context.md",
+      "content_hash": "/e6/944659aafc/0/content_hash.txt",
+      "prompt": "/e6/944659aafc/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1275,
+    "cache_creation_tokens": 47122,
+    "cache_read_tokens": 1576278,
+    "output_tokens": 1290,
+    "api_call_count": 18
+  }
+}
