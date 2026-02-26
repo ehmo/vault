@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "ae08337336bf",
+  "session_id": "8337e0ef-91f6-4e42-bd6a-73135c7db773",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-26T21:11:57.902699Z",
+  "branch": "worktree-sequential-brewing-patterson",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/VaultTests/SonarQubeRulesTests.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "e9db95d9-e5e2-43fa-bdc5-ae4989a4c986",
+  "checkpoint_transcript_start": 1143,
+  "transcript_lines_at_start": 1143,
+  "token_usage": {
+    "input_tokens": 45,
+    "cache_creation_tokens": 89385,
+    "cache_read_tokens": 4673602,
+    "output_tokens": 1079,
+    "api_call_count": 41
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-26T21:11:57.696327Z",
+    "agent_lines": 286,
+    "human_added": 2946,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 3233,
+    "agent_percentage": 8.846272811630065
+  }
+}

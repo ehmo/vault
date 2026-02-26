@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "ae08337336bf",
+  "strategy": "manual-commit",
+  "branch": "worktree-sequential-brewing-patterson",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/VaultTests/SonarQubeRulesTests.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ae/08337336bf/0/metadata.json",
+      "transcript": "/ae/08337336bf/0/full.jsonl",
+      "context": "/ae/08337336bf/0/context.md",
+      "content_hash": "/ae/08337336bf/0/content_hash.txt",
+      "prompt": "/ae/08337336bf/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 45,
+    "cache_creation_tokens": 89385,
+    "cache_read_tokens": 4673602,
+    "output_tokens": 1079,
+    "api_call_count": 41
+  }
+}
