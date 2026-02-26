@@ -90,14 +90,19 @@ final class EmbraceManager: @unchecked Sendable {
             // Start with defaults, then remove services inappropriate for a vault app.
             // Removed: URLSession (swizzles all networking — unnecessary overhead),
             // Tap (tracks user taps — privacy concern), View (tracks screen views),
-            // WebView (not used). Keeps: LowMemory, LowPower, HangWatchdog.
-            let services = CaptureServiceBuilder()
+            // WebView (not used), HangWatchdog in DEBUG (2.4% main thread overhead;
+            // Instruments System Trace is a better hang detector during development).
+            // Keeps: LowMemory, LowPower, and HangWatchdog in Release.
+            var builder = CaptureServiceBuilder()
                 .addDefaults()
                 .remove(ofType: URLSessionCaptureService.self)
                 .remove(ofType: TapCaptureService.self)
                 .remove(ofType: ViewCaptureService.self)
                 .remove(ofType: WebViewCaptureService.self)
-                .build()
+            #if DEBUG
+            builder = builder.remove(ofType: HangCaptureService.self)
+            #endif
+            let services = builder.build()
 
             // Embrace enforces main-thread preconditions during setup.
             try Embrace

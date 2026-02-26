@@ -22,8 +22,7 @@ extension VaultView {
 
     @ViewBuilder
     func dateGroupedContentView(visible: VisibleFiles, masterKey: Data) -> some View {
-        let dateKeyPath: KeyPath<VaultFileItem, Date?> = viewModel.sortOrder == .fileDate ? \.originalDate : \.createdAt
-        let groups = groupFilesByDate(visible.all, newestFirst: viewModel.sortOrder != .dateOldest, dateKeyPath: dateKeyPath)
+        let groups = visible.dateGroups
         let deleteHandler: ((UUID) -> Void)? = viewModel.isSharedVault ? nil : { id in viewModel.deleteFileById(id) }
         let isEditing = viewModel.isEditing
         let selectedIds = viewModel.selectedIds

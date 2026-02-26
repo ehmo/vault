@@ -36,12 +36,23 @@ enum PendingImport {
 
 // MARK: - Date Grouping
 
-struct DateGroup: Identifiable {
+struct DateGroup: Identifiable, Equatable {
     let id: String // group title
     let title: String
     let items: [VaultFileItem] // all items in original order
     let media: [VaultFileItem] // images + videos
     let files: [VaultFileItem] // non-media files
+}
+
+private enum DateGroupFormatters {
+    nonisolated(unsafe) static let dayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.doesRelativeDateFormatting = false
+        f.dateFormat = "EEEE, MMMM d"
+        return f
+    }()
+
+    nonisolated(unsafe) static let isoFormatter = ISO8601DateFormatter()
 }
 
 func groupFilesByDate(_ items: [VaultFileItem], newestFirst: Bool = true, dateKeyPath: KeyPath<VaultFileItem, Date?> = \.createdAt) -> [DateGroup] {
@@ -54,13 +65,6 @@ func groupFilesByDate(_ items: [VaultFileItem], newestFirst: Bool = true, dateKe
     var dayBuckets: [(dayStart: Date, title: String, items: [VaultFileItem])] = []
     var bucketIndex: [Date: Int] = [:]
 
-    let dayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.doesRelativeDateFormatting = false
-        f.dateFormat = "EEEE, MMMM d"
-        return f
-    }()
-
     for item in items {
         let date = item[keyPath: dateKeyPath] ?? .distantPast
         let dayStart = calendar.startOfDay(for: date)
@@ -71,7 +75,7 @@ func groupFilesByDate(_ items: [VaultFileItem], newestFirst: Bool = true, dateKe
         } else if dayStart >= startOfYesterday {
             title = "Yesterday"
         } else {
-            title = dayFormatter.string(from: date)
+            title = DateGroupFormatters.dayFormatter.string(from: date)
         }
 
         if let idx = bucketIndex[dayStart] {
@@ -85,11 +89,10 @@ func groupFilesByDate(_ items: [VaultFileItem], newestFirst: Bool = true, dateKe
     // Sort buckets to match the chosen sort direction
     dayBuckets.sort { newestFirst ? $0.dayStart > $1.dayStart : $0.dayStart < $1.dayStart }
 
-    let isoFormatter = ISO8601DateFormatter()
     return dayBuckets.map { bucket in
         let media = bucket.items.filter { $0.isMedia }
         let files = bucket.items.filter { !$0.isMedia }
-        let uniqueId = isoFormatter.string(from: bucket.dayStart)
+        let uniqueId = DateGroupFormatters.isoFormatter.string(from: bucket.dayStart)
         return DateGroup(id: uniqueId, title: bucket.title, items: bucket.items, media: media, files: files)
     }
 }
@@ -122,6 +125,9 @@ struct VaultView: View {
         let media: [VaultFileItem]
         let documents: [VaultFileItem]
         let mediaIndexById: [UUID: Int]
+        let dateGroups: [DateGroup]
+
+        static let empty = VisibleFiles(all: [], media: [], documents: [], mediaIndexById: [:], dateGroups: [])
     }
 
     /// Keep cover presentation stable while allowing index changes inside the viewer.
@@ -349,7 +355,7 @@ struct VaultView: View {
     }
 
     var body: some View {
-        let visible = viewModel.computeVisibleFiles()
+        let visible = viewModel.visibleFiles
         NavigationStack {
             navigationContent(visible: visible)
         }

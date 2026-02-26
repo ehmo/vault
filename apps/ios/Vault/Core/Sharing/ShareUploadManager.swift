@@ -368,8 +368,17 @@ final class ShareUploadManager {
         uploadTasks[jobId] = task
     }
 
+    private var lastResumeTime: ContinuousClock.Instant = .now - .seconds(10)
+
     func resumePendingUploadsIfNeeded(trigger: String) {
         guard hasPendingUpload else { return }
+        // Debounce: skip if called within 2s of last resume
+        let now = ContinuousClock.now
+        guard now - lastResumeTime >= .seconds(2) else {
+            Self.logger.debug("[resume] Skipping duplicate resume trigger=\(trigger, privacy: .public) (debounced)")
+            return
+        }
+        lastResumeTime = now
         guard CloudKitSharingManager.canProceedWithNetwork() else {
             Self.logger.info("[resume] Skipping upload resume: waiting for Wi-Fi (user preference)")
             return
@@ -551,7 +560,7 @@ final class ShareUploadManager {
                 lastMessage: "Uploading vault...",
                 phrase: phrase
             )
-            savePendingState(pendingState)
+            savePendingState(pendingState, immediate: true)
 
             scheduleBackgroundResumeTask(earliestIn: 15)
 
@@ -1112,14 +1121,36 @@ final class ShareUploadManager {
         }
     }
 
-    private func savePendingState(_ state: PendingUploadState) {
+    /// Tracks pending disk writes to coalesce rapid progress updates.
+    private var pendingSaveWorkItems: [String: DispatchWorkItem] = [:]
+    private static let saveQueue = DispatchQueue(label: "app.vaultaire.ios.share-upload.save", qos: .utility)
+
+    private func savePendingState(_ state: PendingUploadState, immediate: Bool = false) {
         pendingStateByJobId[state.jobId] = state
+
+        if immediate {
+            // Synchronous write for critical state changes (finish, cancel)
+            Self.savePendingStateToDisk(state)
+            return
+        }
+
+        // Debounced write: coalesce rapid progress updates to at most once per 0.5s per job
+        pendingSaveWorkItems[state.jobId]?.cancel()
+        let capturedState = state
+        let workItem = DispatchWorkItem {
+            Self.savePendingStateToDisk(capturedState)
+        }
+        pendingSaveWorkItems[state.jobId] = workItem
+        Self.saveQueue.asyncAfter(deadline: .now() + 0.5, execute: workItem)
+    }
+
+    private nonisolated static func savePendingStateToDisk(_ state: PendingUploadState) {
         do {
-            try Self.prepareJobDirectory(jobId: state.jobId)
+            try prepareJobDirectory(jobId: state.jobId)
             let data = try JSONEncoder().encode(state)
-            try data.write(to: Self.stateURL(jobId: state.jobId), options: .atomic)
+            try data.write(to: stateURL(jobId: state.jobId), options: .atomic)
         } catch {
-            Self.logger.error("Failed to save pending state: \(error.localizedDescription, privacy: .public)")
+            logger.error("Failed to save pending state: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -1133,7 +1164,7 @@ final class ShareUploadManager {
     private func markPendingUploadFinished(jobId: String) {
         guard var state = pendingStateByJobId[jobId] else { return }
         state.uploadFinished = true
-        savePendingState(state)
+        savePendingState(state, immediate: true)
     }
 
     private nonisolated static func loadAllPendingUploadStates() -> [PendingUploadState] {

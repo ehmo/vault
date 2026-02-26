@@ -75,7 +75,7 @@ final class VaultViewModelTests: XCTestCase {
     func testSetFileFilterUpdatesFilter() {
         viewModel.setFileFilter(.all)
         // Verify filter was set (indirectly via computeVisibleFiles)
-        let visible = viewModel.computeVisibleFiles()
+        let visible = viewModel.visibleFiles
         XCTAssertNotNil(visible)
     }
 
@@ -90,7 +90,7 @@ final class VaultViewModelTests: XCTestCase {
         await viewModel.activeLoadTask?.value
         viewModel.setFileFilter(.media)
 
-        let visible = viewModel.computeVisibleFiles()
+        let visible = viewModel.visibleFiles
         XCTAssertEqual(visible.media.count, 1, "Media filter should show only 1 media file")
     }
 

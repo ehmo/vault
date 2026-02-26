@@ -18,7 +18,9 @@ final class VaultViewModel {
 
     // MARK: - Core Data State
 
-    var files: [VaultFileItem] = []
+    var files: [VaultFileItem] = [] {
+        didSet { recomputeVisibleFiles() }
+    }
     var masterKey: MasterKey?
     var isLoading = true
 
@@ -79,9 +81,15 @@ final class VaultViewModel {
 
     // MARK: - Filter / Sort State
 
-    var searchText = ""
-    var sortOrder: SortOrder = .dateNewest
-    var fileFilter: FileFilter = FileFilter(rawValue: UserDefaults.standard.string(forKey: "vaultFileFilter") ?? FileFilter.all.rawValue) ?? .all
+    var searchText = "" {
+        didSet { if searchText != oldValue { recomputeVisibleFiles() } }
+    }
+    var sortOrder: SortOrder = .dateNewest {
+        didSet { if sortOrder != oldValue { recomputeVisibleFiles() } }
+    }
+    var fileFilter: FileFilter = FileFilter(rawValue: UserDefaults.standard.string(forKey: "vaultFileFilter") ?? FileFilter.all.rawValue) ?? .all {
+        didSet { if fileFilter != oldValue { recomputeVisibleFiles() } }
+    }
 
     // MARK: - Toast
 
@@ -91,7 +99,9 @@ final class VaultViewModel {
 
     var transferManager = ShareImportManager.shared
 
-    // MARK: - Visible Files (computed from observed properties)
+    // MARK: - Cached Visible Files
+
+    private(set) var visibleFiles: VaultView.VisibleFiles = .empty
 
     // MARK: - Computed
 
@@ -110,7 +120,7 @@ final class VaultViewModel {
 
     // MARK: - Visible Files
 
-    func computeVisibleFiles() -> VaultView.VisibleFiles {
+    func recomputeVisibleFiles() {
         var visible = files
         switch fileFilter {
         case .all:
@@ -152,11 +162,22 @@ final class VaultViewModel {
             media.enumerated().map { ($1.id, $0) },
             uniquingKeysWith: { first, _ in first }
         )
-        return VaultView.VisibleFiles(
+
+        // Pre-compute date groups so the view body doesn't recompute on every render
+        let dateGroups: [DateGroup]
+        if useDateGrouping {
+            let dateKeyPath: KeyPath<VaultFileItem, Date?> = sortOrder == .fileDate ? \.originalDate : \.createdAt
+            dateGroups = groupFilesByDate(visible, newestFirst: sortOrder != .dateOldest, dateKeyPath: dateKeyPath)
+        } else {
+            dateGroups = []
+        }
+
+        visibleFiles = VaultView.VisibleFiles(
             all: visible,
             media: media,
             documents: documents,
-            mediaIndexById: mediaIndexById
+            mediaIndexById: mediaIndexById,
+            dateGroups: dateGroups
         )
     }
 
