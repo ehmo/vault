@@ -1,0 +1,354 @@
+Implement the following plan:
+
+# Redesign Share Vault Flow
+
+## Context
+
+When user A shares a vault, the current flow immediately shows the phrase while uploading in the background. If the user minimizes the app, the upload gets suspended/killed but the phrase is already shared — creating a race condition where user B tries to join but the upload isn't complete. Additionally, user A has no visibility into whether user B accepted the share.
+
+**Goal**: Restructure the share flow to (1) block user interaction during upload with a progress screen, (2) only reveal the phrase after upload completes, (3) persist phrase per share until recipient claims it, and (4) show claimed/policy status per share row.
+
+## Changes Overview
+
+### 1. Add `phrase` field to `ShareRecord`
+
+**File**: `apps/ios/Vault/Core/Storage/VaultIndexTypes.swift`
+
+- Add `var phrase: String?` to `ShareRecord`
+- Add `var isClaimed: Bool?` to `ShareRecord` (local cache of CloudKit claimed status)
+- The phrase is stored encrypted in the vault index (already encrypted at rest), only visible until claimed
+
+### 2. Add `claimedStatusByShareVaultIds` to CloudKit layer
+
+**File**: `apps/ios/Vault/Core/Sharing/CloudKitSharingManager.swift`
+
+- New method: `func claimedStatusByShareVaultIds(_ ids: [String]) async throws -> [String: Bool]`
+- Same pattern as `consumedStatusByShareVaultIds` but reads `claimed` field instead of `consumed`
+
+**File**: `apps/ios/Vault/Core/Sharing/CloudKitSharingClient.swift`
+
+- Add protocol requirement: `func claimedStatusByShareVaultIds(_ shareVaultIds: [String]) async throws -> [String: Bool]`
+
+### 3. Store phrase in `ShareRecord` when upload completes
+
+**File**: `apps/ios/Vault/Core/Sharing/ShareUploadManager.swift`
+
+- In `appendShareRecord()` (~line 1080): pass `phrase` parameter, store it in the new `ShareRecord.phrase` field
+- Thread phrase through from `runInitialUpload` and `runResumeUpload` to `appendShareRecord`
+
+### 4. Restructure `ShareVaultView` flow
+
+**File**: `apps/ios/Vault/Features/Sharing/ShareVaultView.swift`
+
+This is the main UI change. The current `ViewMode` enum changes:
+
+```
+Current:  loading | iCloudUnavailable | newShare | manageShares | error
+New:      loading | iCloudUnavailable | newShare | uploading | phraseReveal | manageShares | error
+```
+
+#### New `.uploading` state (full-screen progress)
+- Shows when user taps "Share Vault" button
+- Full-screen progress view with:
+  - Animated progress bar/percentage
+  - Current status message (from UploadJob.message)
+  - Warning text: "Keep the app open. Minimizing will pause the upload."
+  - "Terminate Upload" button (destructive, with confirmation alert)
+- Close button shows confirmation alert: "Upload in progress. Leaving will pause the upload. Are you sure?" → Cancel / Leave
+- Monitors the specific UploadJob for this share
+- On job completion → transitions to `.phraseReveal`
+- On job failure → shows error with retry option
+- Keeps idle timer disabled (reuse existing `IdleTimerManager` pattern)
+
+#### New `.phraseReveal` state
+- Shows phrase only AFTER upload is complete
+- Reuses existing `PhraseDisplayCard` and `PhraseActionButtons` components
+- Reuses existing `shareLinkButtons` for Copy Link / Share
+- "Done" button → transitions to `.manageShares`
+
+#### Updated `.manageShares` state
+Each share row (`shareRow`) changes:
+- **Badge**: "Pending" (orange) if not claimed, "Accepted" (green) if claimed, "Syncing" (blue) if syncing
+- **Phrase**: Show phrase + copy/share buttons if `isClaimed != true` (pending). Hide phrase when claimed.
+- **Policy summary**: Show policy restrictions inline (e.g., "No exports", "10 opens max", "Expires Mar 15")
+- **Revoke**: Keep existing revoke button
+
+#### Updated `reconcileConsumedShares` → rename to `reconcileShareStatuses`
+- Query both consumed AND claimed status from CloudKit
+- Update local `ShareRecord.isClaimed` when claimed detected
+- Remove consumed shares (existing behavior)
+- When claimed: set `isClaimed = true`, clear `phrase` from ShareRecord, persist to index
+
+### 5. Prevent close during upload (full app modal behavior)
+
+The `ShareVaultView` is already presented as `.fullScreenCover` from `VaultSettingsView`. During the `.uploading` state:
+- Hide the "Close" toolbar button (or replace with terminate confirmation)
+- Set `.interactiveDismissDisabled(true)` to prevent swipe dismiss
+- The `.uploading` state acts as the blocking mechanism
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `apps/ios/Vault/Core/Storage/VaultIndexTypes.swift` | Add `phrase`, `isClaimed` to ShareRecord |
+| `apps/ios/Vault/Core/Sharing/CloudKitSharingManager.swift` | Add `claimedStatusByShareVaultIds` |
+| `apps/ios/Vault/Core/Sharing/CloudKitSharingClient.swift` | Add protocol method |
+| `apps/ios/Vault/Core/Sharing/ShareUploadManager.swift` | Thread phrase to `appendShareRecord` |
+| `apps/ios/Vault/Features/Sharing/ShareVaultView.swift` | Main UI restructure (uploading + phraseReveal modes, updated shareRow, claimed status) |
+
+### Guardrails Compliance
+
+- No pattern board changes (not relevant to this view)
+- Fixed heights for dynamic content (progress area, phrase area)
+- `.lineLimit(nil)` on all descriptive text
+- No layout shifts: uploading/phraseReveal are distinct states, not conditional overlays
+
+### Existing Code Reused
+
+- `PhraseDisplayCard` / `PhraseActionButtons` (`Vault/UI/Components/PhraseActionButtons.swift`)
+- `ShareLinkEncoder.shareURL(for:)` for link generation
+- `ShareSheetHelper.present(items:)` for native share sheet
+- `IdleTimerManager.shared` for keeping screen awake during upload
+- `PixelLoader` for loading animations
+- `uploadStatusBadge` pattern for status capsule badges
+- `.vaultGlassBackground()`, `.vaultProminentButtonStyle()` modifiers
+- `consumedStatusByShareVaultIds` pattern for the new claimed query
+- `ShareUploadManager.UploadJob` for progress monitoring
+
+### Verification
+
+1. **Unit tests**: Update `ShareVaultViewModeTests` for new ViewMode cases
+2. **Upload flow**: Start share → verify progress screen blocks interaction → verify phrase shown only after completion
+3. **Pause/resume**: Start share → terminate from progress screen → verify cleanup
+4. **Close during upload**: Tap close → verify confirmation alert → verify pause behavior
+5. **Claimed status**: After user B joins, verify user A's share row updates from "Pending" to "Accepted" and phrase disappears
+6. **Multiple shares**: Create 2 shares → verify each shows its own phrase independently
+7. **Policy display**: Create share with limits → verify limits shown in manage view
+8. **Build**: `xcodebuild build` to verify compilation
+9. **Existing tests**: Run test suite to verify no regressions
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior.
+
+---
+
+Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial Request**: User provided a detailed plan to "Redesign Share Vault Flow" with specific changes across 5 files. The plan addressed a race condition where user A shares a vault, the phrase is shown immediately while uploading in background, but if the app is minimized the upload gets suspended while the phrase is already shared.
+
+2. **Implementation Phase 1** (First assistant turn):
+   - Read all 5 key files to understand current code
+   - Read additional sections of ShareUploadManager for `appendShareRecord` and upload flow
+   - Read `consumedStatusByShareVaultIds` pattern in CloudKitSharingManager
+   - Read `startBackgroundUpload` and `PendingUploadState` for phrase threading
+   - Created beads issue VAULT-6o9, marked in_progress
+   - Made changes to all 5 files plus 4 test mock files:
+     a. VaultIndexTypes.swift: Added `phrase: String?` and `isClaimed: Bool?` to ShareRecord
+     b. CloudKitSharingClient.swift: Added `claimedStatusByShareVaultIds` protocol method
+     c. CloudKitSharingManager.swift: Implemented `claimedStatusByShareVaultIds`
+     d. ShareUploadManager.swift: Added `phrase` param to `appendShareRecord`, updated 3 call sites
+     e. ShareVaultView.swift: Major restructure - new ViewMode cases (.uploading, .phraseReveal), new views, reconcileShareStatuses, policy badges
+     f. 4 test mock files: Added `claimedStatusByShareVaultIds` stubs
+   - Updated ShareVaultViewModeTests with 3 new tests
+   - Built successfully, ran tests (19 passed)
+   - Committed, closed beads issue, pushed to remote
+
+3. **First Review Request**: User asked to "Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior."
+
+4. **Bug Discovery and Fix** (Second assistant turn):
+   - Re-read all modified files thoroughly
+   - Found a critical race condition bug: When ShareUploadManager completes an upload, it calls `removeJob(jobId:)` immediately. The 1-second polling loop then can't find the job (`matchingJob == nil`), but `resolveMode` preserves `.uploading` mode — trapping the user on the upload screen forever.
+   - Root cause: `.uploading(jobId:)` only carried jobId, so when job disappeared we couldn't look up phrase/shareVaultId for transition.
+   - Fix: Changed `.uploading(jobId:)` → `.uploading(jobId:, phrase:, shareVaultId:)`. When `matchingJob == nil` (removed after completion), transition to `.phraseReveal` using stored data.
+   - Updated all references: body switch, terminate alert, startUploadAndShowProgress, test
+   - Wrote comprehensive tests (45 total, up from 19): exhaustive resolveMode matrix, ShareRecord Codable backward compat, policy descriptions, all statuses, idle timer combinations, etc.
+   - Built and ran all tests (45 passed, plus all sharing test suites passed)
+   - Committed and pushed
+
+5. **Second Review Request**: User asked the same review question again: "Review all code you have written for technical, implementation and logical bugs..."
+
+6. **Second Review** (Third assistant turn, interrupted):
+   - Started re-reading all files again
+   - Was in the process of reviewing when the summary was requested
+
+Let me now catalog all the specific changes, files, and code patterns.
+
+Key files modified:
+1. `apps/ios/Vault/Core/Storage/VaultIndexTypes.swift` - ShareRecord model
+2. `apps/ios/Vault/Core/Sharing/CloudKitSharingClient.swift` - Protocol
+3. `apps/ios/Vault/Core/Sharing/CloudKitSharingManager.swift` - CloudKit implementation
+4. `apps/ios/Vault/Core/Sharing/ShareUploadManager.swift` - Upload manager
+5. `apps/ios/Vault/Features/Sharing/ShareVaultView.swift` - Main UI view (major rewrite)
+6. `apps/ios/VaultTests/ShareVaultViewModeTests.swift` - Comprehensive tests
+7. `apps/ios/VaultTests/CloudKitSharingTests.swift` - Mock update
+8. `apps/ios/VaultTests/ShareSyncManagerTests.swift` - Mock update
+9. `apps/ios/VaultTests/ShareUploadDebounceTests.swift` - Mock update
+10. `apps/ios/VaultTests/ShareUploadManagerTests.swift` - Mock update
+
+Beads issue: VAULT-6o9 (closed)
+
+Two commits made:
+1. `781e491f` - Initial implementation
+2. `33b50156` - Bug fix + comprehensive tests
+
+Both pushed to `origin/main`.
+
+The second review request is the current work - user asked again to review all code for bugs and write comprehensive tests. The assistant had started re-reading files but was interrupted by the summary request.
+
+Summary:
+1. Primary Request and Intent:
+   The user provided a detailed implementation plan to **Redesign the Share Vault Flow** in an iOS app (Vaultaire). The core problem: when user A shares a vault, the phrase was shown immediately while uploading in background. If the app was minimized, the upload got suspended/killed but the phrase was already shared — creating a race condition where user B tries to join but the upload isn't complete. The plan specified:
+   - (1) Block user interaction during upload with a progress screen
+   - (2) Only reveal the phrase after upload completes
+   - (3) Persist phrase per share until recipient claims it
+   - (4) Show claimed/policy status per share row
+   
+   After implementation, the user twice requested: "Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior."
+
+2. Key Technical Concepts:
+   - SwiftUI `@State` ViewMode enum-based state machine for share flow
+   - CloudKit public database queries for claimed/consumed status
+   - `Codable` backward compatibility with optional fields on existing structs
+   - Race condition between `ShareUploadManager.removeJob()` and 1-second UI polling loop
+   - `async let` for parallel CloudKit queries
+   - `interactiveDismissDisabled` to prevent swipe-dismiss during upload
+   - `Task.detached` for off-MainActor index persistence
+   - Generation-based staleness guards for async initialization
+   - Beads (`bd`) issue tracking workflow
+
+3. Files and Code Sections:
+
+   - **`apps/ios/Vault/Core/Storage/VaultIndexTypes.swift`**
+     - Added two new optional fields to `ShareRecord` for phrase persistence and claimed status tracking
+     - Changes:
+     ```swift
+     struct ShareRecord: Codable, Identifiable, Sendable {
+         let id: String
+         let createdAt: Date
+         let policy: SharePolicy
+         var lastSyncedAt: Date?
+         var shareKeyData: Data?
+         var syncSequence: Int?
+         var phrase: String?         // NEW: share phrase, stored until recipient claims
+         var isClaimed: Bool?        // NEW: local cache of CloudKit claimed status
+         var shareId: String { id }
+     }
+     ```
+
+   - **`apps/ios/Vault/Core/Sharing/CloudKitSharingClient.swift`**
+     - Added protocol requirement for querying claimed status in batch
+     - Change: Added `func claimedStatusByShareVaultIds(_ shareVaultIds: [String]) async throws -> [String: Bool]` after `consumedStatusByShareVaultIds`
+
+   - **`apps/ios/Vault/Core/Sharing/CloudKitSharingManager.swift`**
+     - Implemented `claimedStatusByShareVaultIds` mirroring the existing `consumedStatusByShareVaultIds` pattern but reading `claimed` field
+     ```swift
+     func claimedStatusByShareVaultIds(_ shareVaultIds: [String]) async throws -> [String: Bool] {
+         guard !shareVaultIds.isEmpty else { return [:] }
+         let predicate = NSPredicate(format: "shareVaultId IN %@", shareVaultIds)
+         let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
+         let results = try await publicDatabase.records(matching: query)
+         var statusById: [String: Bool] = [:]
+         statusById.reserveCapacity(shareVaultIds.count)
+         for (_, result) in results.matchResults {
+             if let record = try? result.get(),
+                let shareVaultId = record["shareVaultId"] as? String {
+                 statusById[shareVaultId] = (record["claimed"] as? Bool) ?? false
+             }
+         }
+         return statusById
+     }
+     ```
+
+   - **`apps/ios/Vault/Core/Sharing/ShareUploadManager.swift`**
+     - Added `phrase: String?` parameter to `appendShareRecord` and updated all 3 call sites
+     ```swift
+     private func appendShareRecord(
+         shareVaultId: String,
+         policy: VaultStorage.SharePolicy,
+         shareKeyData: Data,
+         phrase: String?,       // NEW parameter
+         vaultKey: VaultKey
+     ) async {
+         // ... creates record, sets record.phrase = phrase
+     }
+     ```
+     - Call site 1 (runInitialUpload ~line 646): passes `phrase: phrase` from function param
+     - Call site 2 (runResumeUpload uploadFinished ~line 741): passes `phrase: state.phrase`
+     - Call site 3 (runResumeUpload new complete ~line 852): passes `phrase: state.phrase`
+
+   - **`apps/ios/Vault/Features/Sharing/ShareVaultView.swift`** (MAJOR REWRITE - most critical file)
+     - ViewMode enum changed from `{loading, iCloudUnavailable, newShare, manageShares, error}` to `{loading, iCloudUnavailable, newShare, uploading(jobId:phrase:shareVaultId:), phraseReveal(phrase:shareVaultId:), manageShares, error}`
+     - New `.uploading` view: full-screen progress with PixelLoader, percentage, status message, "Keep app open" warning, terminate button with confirmation, `.interactiveDismissDisabled`, close confirmation alert
+     - New `.phraseReveal` view: shows phrase + PhraseDisplayCard + PhraseActionButtons + shareLinkButtons only after upload completes
+     - Updated `shareRow`: shows Pending/Accepted/Syncing badges via `shareStatusBadge`, inline policy chips via `policySummary`, phrase+share buttons visible only when unclaimed
+     - Renamed `reconcileConsumedShares` → `reconcileShareStatuses`: queries both consumed AND claimed in parallel with `async let`, clears phrase and sets `isClaimed=true` on claimed shares
+     - `resolveMode` preserves `.uploading` and `.phraseReveal` states (they have explicit transitions only)
+     - `refreshUploadJobs` detects upload completion: if job gone or `.complete`, transitions to `.phraseReveal`; if `.failed`/`.cancelled`, transitions to `.error`
+     - Removed the old `phraseSheet` (bottom sheet) — phrase is now shown inline in phraseReveal and shareRow
+     - Removed `activePhrase` state variable (no longer needed)
+     - New `startUploadAndShowProgress` replaces old `startBackgroundUpload` — starts upload then finds job by phrase match to enter `.uploading` mode
+
+   - **`apps/ios/VaultTests/ShareVaultViewModeTests.swift`** (comprehensive rewrite - 45 tests)
+     - Exhaustive resolveMode matrix (every mode × hasShareData)
+     - ShareRecord Codable backward compat tests
+     - ShareRecord round-trip with phrase + isClaimed
+     - Policy description items for all restriction combinations
+     - shouldDisplayUploadJob for all 7 statuses
+     - Idle timer policy for all input combinations
+     - UploadJob isRunning/canResume/canTerminate for all statuses
+     - SharePolicy default values and equatable
+
+   - **4 test mock files** (CloudKitSharingTests, ShareSyncManagerTests, ShareUploadDebounceTests, ShareUploadManagerTests):
+     - Each had `claimedStatusByShareVaultIds` stub added to their mock CloudKitSharingClient conformance
+
+4. Errors and Fixes:
+   - **Simulator not found**: Initial `xcodebuild` tried `iPhone 16, OS 18.4` which didn't exist. Fixed by listing available destinations and using specific simulator UUID `1E2BEFBC-2FBC-49D2-84B5-5DE55338CF79` (iPhone 17 Pro, OS 26.2). Also hit "multiple devices matched" when using name-based destination.
+   - **git push failed**: Worktree branch tracked `origin/main` but `git push` without specifying refspec failed. Fixed with `git push origin HEAD:main`.
+   - **git pull --rebase failed**: Unstaged changes to `apps/ios/Vault.xcworkspace/xcshareddata/xcschemes/Generate Project.xcscheme` (pre-existing, not our change) blocked rebase. Fixed with `git stash && git pull --rebase && git stash pop`.
+   - **CRITICAL BUG - Upload completion race condition** (found during first review):
+     - When `ShareUploadManager` completes a job, it calls `removeJob(jobId:)` immediately. The 1-second polling in `refreshUploadJobs` then finds `matchingJob == nil`. Since `resolveMode` preserves `.uploading` mode, the user gets stuck on the uploading screen forever.
+     - Root cause: `.uploading(jobId:)` only carried jobId — when job disappeared, couldn't look up phrase/shareVaultId for transition.
+     - Fix: Changed to `.uploading(jobId: String, phrase: String, shareVaultId: String)`. When `matchingJob == nil || matchingJob?.status == .complete`, transitions to `.phraseReveal(phrase:, shareVaultId:)` using the stored values.
+     - Updated all pattern-matching sites: body switch (`case .uploading(let jobId, _, _)`), terminate alert, `startUploadAndShowProgress`, and test assertions.
+
+5. Problem Solving:
+   - Solved the original race condition (phrase shown before upload complete) by restructuring the UI flow with blocking upload screen
+   - Solved the discovered race condition (job removed before polling detects completion) by carrying phrase/shareVaultId in the ViewMode
+   - Ensured backward compatibility of Codable changes by using optional fields (verified with explicit decode test of JSON without new fields)
+   - Ensured all 4 mock conformances were updated for the new protocol method
+
+6. All User Messages:
+   - Message 1: "Implement the following plan: [detailed plan for Redesign Share Vault Flow with 5 file changes, guardrails compliance, verification steps, etc.]"
+   - Message 2: "Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior."
+   - Message 3: "Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior." (identical repeat)
+
+7. Pending Tasks:
+   - The user's third message (identical to second) asked again to review all code for bugs and write comprehensive tests. The assistant had begun re-reading files but was interrupted by this summary request. This second review pass needs to be completed.
+
+8. Current Work:
+   The assistant was responding to the user's **second identical review request** (message 3): "Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior."
+   
+   The assistant had re-read VaultIndexTypes.swift, CloudKitSharingClient.swift, and ShareVaultView.swift (full + offset reads covering lines 50-225) before being interrupted. The first review pass (message 2) found and fixed one critical bug (upload completion race) and expanded tests from 19 to 45. This second pass was just beginning.
+
+   Git state: Two commits pushed to `origin/main`:
+   - `781e491f` - "Redesign share vault flow: block during upload, reveal phrase after complete, show claimed status"
+   - `33b50156` - "Fix upload completion race, add comprehensive share flow tests"
+   
+   Beads: VAULT-6o9 closed.
+
+9. Optional Next Step:
+   Continue the second review pass per the user's request: "Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior." The assistant had started re-reading files but needs to finish reviewing ShareUploadManager.swift and the CloudKitSharingManager.swift changes, check for any remaining edge cases, and determine if additional tests are warranted beyond the existing 45.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
