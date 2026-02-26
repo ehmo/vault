@@ -609,6 +609,43 @@ class AppDelegate: NSObject, UIApplicationDelegate, @preconcurrency UNUserNotifi
             )
         }
 
+        // Install passive touch recognizer on every window for inactivity tracking.
+        // SwiftUI gesture modifiers (onTapGesture, DragGesture) are unreliable —
+        // buttons, lists, and scroll views consume them before they reach the modifier.
+        NotificationCenter.default.addObserver(
+            forName: UIWindow.didBecomeKeyNotification,
+            object: nil,
+            queue: .main
+        ) { notification in
+            nonisolated(unsafe) let notification = notification
+            MainActor.assumeIsolated {
+                guard let window = notification.object as? UIWindow else { return }
+                // Only add once per window
+                let alreadyInstalled = window.gestureRecognizers?.contains(where: { $0 is PassthroughTouchRecognizer }) ?? false
+                if !alreadyInstalled {
+                    let recognizer = PassthroughTouchRecognizer()
+                    recognizer.cancelsTouchesInView = false
+                    recognizer.delaysTouchesBegan = false
+                    recognizer.delaysTouchesEnded = false
+                    window.addGestureRecognizer(recognizer)
+                }
+            }
+        }
+
+        // Register active operation checks so the inactivity timer resets
+        // during imports, share uploads, and iCloud backups.
+        MainActor.assumeIsolated {
+            InactivityLockManager.shared.registerActiveOperationCheck {
+                ShareImportManager.shared.status != .idle
+            }
+            InactivityLockManager.shared.registerActiveOperationCheck {
+                ShareUploadManager.shared.hasPendingUpload
+            }
+            InactivityLockManager.shared.registerActiveOperationCheck {
+                iCloudBackupManager.shared.hasPendingBackup
+            }
+        }
+
         // Register for memory warnings to track resource pressure events
         NotificationCenter.default.addObserver(
             self,

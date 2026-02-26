@@ -67,6 +67,9 @@ final class iCloudBackupManager: @unchecked Sendable {
     @MainActor private var currentAutoBackupBgTaskId: UIBackgroundTaskIdentifier = .invalid
     @MainActor private var activeBgTaskIds: Set<UIBackgroundTaskIdentifier> = []
 
+    /// Guards against concurrent uploads from manual backup + auto-resume triggers.
+    @MainActor private var isUploadRunning = false
+
     // MARK: - Background Task State
     @MainActor private var currentBGProcessingTask: BGProcessingTask?
 
@@ -283,6 +286,22 @@ final class iCloudBackupManager: @unchecked Sendable {
     func uploadStagedBackup(
         onUploadProgress: ((Double) -> Void)? = nil
     ) async throws {
+        // Prevent concurrent uploads (manual backup + auto-resume can race)
+        let alreadyRunning = await MainActor.run {
+            if isUploadRunning {
+                return true
+            }
+            isUploadRunning = true
+            return false
+        }
+        if alreadyRunning {
+            Self.logger.info("[upload] Upload already in progress, skipping concurrent attempt")
+            return
+        }
+        defer {
+            Task { @MainActor in self.isUploadRunning = false }
+        }
+
         guard var state = loadPendingBackupState() else {
             Self.logger.info("[upload] No pending backup state on disk")
             return
@@ -325,9 +344,10 @@ final class iCloudBackupManager: @unchecked Sendable {
                         let recordID = CKRecord.ID(recordName: recordName)
                         let record = CKRecord(recordType: self.chunkRecordType, recordID: recordID)
 
-                        // Write to temp file with relaxed protection for CKAsset
+                        // Write to temp file with relaxed protection for CKAsset.
+                        // UUID ensures uniqueness if concurrent uploads race.
                         let tempURL = self.fileManager.temporaryDirectory
-                            .appendingPathComponent("\(recordName).bin")
+                            .appendingPathComponent("\(recordName)_\(UUID().uuidString).bin")
                         try chunkData.write(to: tempURL)
                         try FileManager.default.setAttributes(
                             [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
@@ -459,6 +479,10 @@ final class iCloudBackupManager: @unchecked Sendable {
         guard let state = loadPendingBackupState() else { return }
         guard autoBackupTask == nil else {
             Self.logger.info("[resume] Backup already running, skipping (trigger=\(trigger, privacy: .public))")
+            return
+        }
+        guard !isUploadRunning else {
+            Self.logger.info("[resume] Upload already in progress (manual backup?), skipping (trigger=\(trigger, privacy: .public))")
             return
         }
 
@@ -770,7 +794,7 @@ final class iCloudBackupManager: @unchecked Sendable {
                     let record = CKRecord(recordType: self.chunkRecordType, recordID: recordID)
 
                     let tempURL = self.fileManager.temporaryDirectory
-                        .appendingPathComponent("\(recordName).bin")
+                        .appendingPathComponent("\(recordName)_\(UUID().uuidString).bin")
                     try data.write(to: tempURL)
                     defer { try? self.fileManager.removeItem(at: tempURL) }
 
@@ -952,6 +976,10 @@ final class iCloudBackupManager: @unchecked Sendable {
         }
         guard autoBackupTask == nil else {
             Self.logger.info("[auto-backup] Backup already running, skipping")
+            return
+        }
+        guard !isUploadRunning else {
+            Self.logger.info("[auto-backup] Upload already in progress (manual backup?), skipping")
             return
         }
 

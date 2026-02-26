@@ -358,18 +358,17 @@ struct VaultView: View {
             viewModel.configure(appState: appState, subscriptionManager: subscriptionManager)
             viewModel.loadVault()
             ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "vault_view_task")
+            // Register local import as an active operation so the inactivity
+            // timer resets during long imports (Photos picker, file import).
+            // Weak ref ensures stale entries are harmless after VaultView is dismissed.
+            InactivityLockManager.shared.registerActiveOperationCheck { [weak viewModel] in
+                viewModel?.isImporting ?? false
+            }
         }
         .onAppear {
-            // Check shared vault status immediately when view appears
-            // This ensures revoked shares are detected right away
             viewModel.checkSharedVaultStatus()
-            // Report activity to inactivity lock manager
-            InactivityLockManager.shared.userDidInteract()
         }
         .onTapGesture {
-            // Report any tap as user activity
-            InactivityLockManager.shared.userDidInteract()
-            // Dismiss keyboard when tapping outside search field
             UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }
         .onChange(of: appState.currentVaultKey) { oldKey, newKey in
