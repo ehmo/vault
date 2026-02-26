@@ -470,6 +470,8 @@ final class ShareUploadManager {
 
         uploadTasks[jobId]?.cancel()
         uploadTasks.removeValue(forKey: jobId)
+        pendingSaveWorkItems[jobId]?.cancel()
+        pendingSaveWorkItems[jobId] = nil
         pendingStateByJobId.removeValue(forKey: jobId)
         Self.clearPendingUpload(jobId: jobId)
         removeJob(jobId: jobId)
@@ -648,6 +650,8 @@ final class ShareUploadManager {
                 vaultKey: vaultKey
             )
 
+            pendingSaveWorkItems[jobId]?.cancel()
+            pendingSaveWorkItems[jobId] = nil
             pendingStateByJobId.removeValue(forKey: jobId)
             Self.clearPendingUpload(jobId: jobId)
 
@@ -739,6 +743,8 @@ final class ShareUploadManager {
                         shareKeyData: state.shareKeyData,
                         vaultKey: effectiveKey
                     )
+                    pendingSaveWorkItems[state.jobId]?.cancel()
+                    pendingSaveWorkItems[state.jobId] = nil
                     pendingStateByJobId.removeValue(forKey: state.jobId)
                     Self.clearPendingUpload(jobId: state.jobId)
                     removeJob(jobId: state.jobId)
@@ -863,6 +869,8 @@ final class ShareUploadManager {
                 return
             }
 
+            pendingSaveWorkItems[state.jobId]?.cancel()
+            pendingSaveWorkItems[state.jobId] = nil
             pendingStateByJobId.removeValue(forKey: state.jobId)
             Self.clearPendingUpload(jobId: state.jobId)
 
@@ -1128,6 +1136,11 @@ final class ShareUploadManager {
     private func savePendingState(_ state: PendingUploadState, immediate: Bool = false) {
         pendingStateByJobId[state.jobId] = state
 
+        // Always cancel any pending debounced write first — prevents stale data
+        // from overwriting a newer immediate write or being written after job cleanup.
+        pendingSaveWorkItems[state.jobId]?.cancel()
+        pendingSaveWorkItems[state.jobId] = nil
+
         if immediate {
             // Synchronous write for critical state changes (finish, cancel)
             Self.savePendingStateToDisk(state)
@@ -1135,7 +1148,6 @@ final class ShareUploadManager {
         }
 
         // Debounced write: coalesce rapid progress updates to at most once per 0.5s per job
-        pendingSaveWorkItems[state.jobId]?.cancel()
         let capturedState = state
         let workItem = DispatchWorkItem {
             Self.savePendingStateToDisk(capturedState)

@@ -33,6 +33,7 @@
 		1E1E6F641F43E6EE6AD49531 /* ShareUploadManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9461AEF7D86290818C11C6BF /* ShareUploadManagerTests.swift */; };
 		1EFEB3AC6C40E6C1B8A3ABB1 /* PhotosGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4600ED8CB85E32890ACBBF3B /* PhotosGridView.swift */; };
 		204E5A395ECA2F8F60912BF6 /* SecureEnclaveManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A07A4C799279E9DAC5DC2EDA /* SecureEnclaveManager.swift */; };
+		21E5CB37ECEC473C4D1FD572 /* ShareUploadDebounceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F791F56B4868D2779CEB21EB /* ShareUploadDebounceTests.swift */; };
 		2221C42B211926E8FFCD1F8D /* VaultViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 303728A72CB53D53926ABEEA /* VaultViewModel.swift */; };
 		22D56467F74B2DFD78AC9302 /* CKDatabase+Retry.swift in Sources */ = {isa = PBXBuildFile; fileRef = B998B6F9BDBDD5106C751513 /* CKDatabase+Retry.swift */; };
 		2384B71CA1244092FE011A72 /* StorageRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42B49ACAF8547374B7E8BB17 /* StorageRingView.swift */; };
@@ -178,6 +179,7 @@
 		B7E03792F64612B82EF0B538 /* EmbraceConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F72ACF65AFB204A1BEE36A1 /* EmbraceConfiguration.framework */; };
 		B7FBED7E1FDAC51B90BB6EAC /* CloudKitSharingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFA9C6380B444944E434A09F /* CloudKitSharingManager.swift */; };
 		B98B06BCA29362196F81DADE /* KeyDerivation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 435012907AA308C654B3BCCB /* KeyDerivation.swift */; };
+		BB609F7E2E3965481C0AF769 /* VisibleFilesCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D81EED6C5D2748D3978435 /* VisibleFilesCacheTests.swift */; };
 		BDCD74AE6F66B43E22DC8A58 /* KSCrash_KSCrashCore.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 4324B050A5E75DF9EB696A61 /* KSCrash_KSCrashCore.bundle */; };
 		BEEC3FCC938BA5D0A0BDBBE7 /* BaseUITest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1988B7DE73E53DC08AB9DE4 /* BaseUITest.swift */; };
 		C044D3F7283687B1DBC51BF3 /* ScreenshotShieldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5687797C98EB10B9594D18CF /* ScreenshotShieldTests.swift */; };
@@ -391,6 +393,7 @@
 		36BED727B539ACEBE1B5B851 /* IdleTimerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleTimerManager.swift; sourceTree = "<group>"; };
 		36DF831A08A69DB393CD4479 /* SecureImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureImageViewer.swift; sourceTree = "<group>"; };
 		37D52A719A3B63BBB9F73B0D /* EmbraceSemantics.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = EmbraceSemantics.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		37D81EED6C5D2748D3978435 /* VisibleFilesCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisibleFilesCacheTests.swift; sourceTree = "<group>"; };
 		3815E8701FECB3D916FB7165 /* StagedImportManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StagedImportManagerTests.swift; sourceTree = "<group>"; };
 		39541637394394466028AE4E /* FileUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUtilities.swift; sourceTree = "<group>"; };
 		396088C74C78394E029E860C /* RecoveryPhraseGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryPhraseGeneratorTests.swift; sourceTree = "<group>"; };
@@ -558,6 +561,7 @@
 		F3A7CB542AF096D4A0AB3928 /* PatternValidationFeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternValidationFeedbackView.swift; sourceTree = "<group>"; };
 		F3D031B662AF2EB0C73F0898 /* VaultFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFile.swift; sourceTree = "<group>"; };
 		F6A056A5544784420F0AF1D6 /* VaultView+Toolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VaultView+Toolbar.swift"; sourceTree = "<group>"; };
+		F791F56B4868D2779CEB21EB /* ShareUploadDebounceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareUploadDebounceTests.swift; sourceTree = "<group>"; };
 		F7CB8E1AB0C8B8976F5F2F15 /* OnboardingScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingScreen.swift; sourceTree = "<group>"; };
 		F84A0C365C47F0063FD5A135 /* VaultScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultScreen.swift; sourceTree = "<group>"; };
 		FCE8F35C4DBB5FF8990B4BE2 /* KSCrashCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = KSCrashCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -980,6 +984,7 @@
 				40A20AE05352062BD1621B64 /* ShareRoundTripTests.swift */,
 				7C01093BEB297288B912E129 /* ShareSyncCacheTests.swift */,
 				48485BDF4B0E7C16A7A74813 /* ShareSyncManagerTests.swift */,
+				F791F56B4868D2779CEB21EB /* ShareUploadDebounceTests.swift */,
 				9461AEF7D86290818C11C6BF /* ShareUploadManagerTests.swift */,
 				FF6E2E8DA5FB1050B75F673B /* ShareVaultViewModeTests.swift */,
 				EF12098F9B50032C10903F6A /* SonarQubeRulesTests.swift */,
@@ -992,6 +997,7 @@
 				87095EDEFB7A63AB84ECFD55 /* VaultNameTests.swift */,
 				639C4245ECE027417F9D6524 /* VaultStorageIntegrationTests.swift */,
 				34791F8988A3B6ED03150DA4 /* VaultViewModelTests.swift */,
+				37D81EED6C5D2748D3978435 /* VisibleFilesCacheTests.swift */,
 				C40910627C8AB2800270C984 /* ZoomableImageContainerTests.swift */,
 			);
 			path = VaultTests;
@@ -1428,6 +1434,7 @@
 				63DFD665E4E2B30DD410C737 /* ShareRoundTripTests.swift in Sources */,
 				8B16DC63508D8915A39A48B7 /* ShareSyncCacheTests.swift in Sources */,
 				10F639D44BE27EDFEAD82252 /* ShareSyncManagerTests.swift in Sources */,
+				21E5CB37ECEC473C4D1FD572 /* ShareUploadDebounceTests.swift in Sources */,
 				1E1E6F641F43E6EE6AD49531 /* ShareUploadManagerTests.swift in Sources */,
 				686673FAABB2B7D0237390B6 /* ShareVaultViewModeTests.swift in Sources */,
 				FCB88982E1518D90801BFC90 /* SharedVaultBannerTests.swift in Sources */,
@@ -1441,6 +1448,7 @@
 				B73679C387449970270584F3 /* VaultNameTests.swift in Sources */,
 				C3C825FE198C0D746DEC0479 /* VaultStorageIntegrationTests.swift in Sources */,
 				479F76CA0D42B331C9E50BFA /* VaultViewModelTests.swift in Sources */,
+				BB609F7E2E3965481C0AF769 /* VisibleFilesCacheTests.swift in Sources */,
 				A2F52FF1DE4D33DA58465AEA /* ZoomableImageContainerTests.swift in Sources */,
 				75A21BB62FC2B81BF9DADA2A /* iCloudBackupBackgroundTests.swift in Sources */,
 			);
