@@ -35,6 +35,7 @@ final class VisibleFilesCacheTests: XCTestCase {
     }
 
     override func tearDown() {
+        UserDefaults.standard.removeObject(forKey: "vaultFileFilter")
         viewModel = nil
         appState = nil
         super.tearDown()
@@ -382,14 +383,21 @@ final class VisibleFilesCacheTests: XCTestCase {
     }
 
     func testDateGroupsPopulatedForFileDate() {
-        let item = makeItem(filename: "item.png", createdAt: daysAgo(5), originalDate: Date())
-        viewModel.files = [item]
+        // Two items with same createdAt but different originalDate should group by originalDate
+        let itemA = makeItem(filename: "taken-today.png", createdAt: daysAgo(5), originalDate: Date())
+        let itemB = makeItem(filename: "taken-yesterday.png", createdAt: daysAgo(5), originalDate: daysAgo(1))
+        viewModel.files = [itemA, itemB]
         viewModel.sortOrder = .fileDate
 
         let groups = viewModel.visibleFiles.dateGroups
-        XCTAssertEqual(groups.count, 1)
-        // fileDate uses originalDate → today
+        XCTAssertEqual(groups.count, 2, "Items with different originalDate should be in separate groups")
+        // fileDate sorts newest first, groups by originalDate
         XCTAssertEqual(groups[0].title, "Today")
+        XCTAssertEqual(groups[0].items.count, 1)
+        XCTAssertEqual(groups[0].items[0].filename, "taken-today.png")
+        XCTAssertEqual(groups[1].title, "Yesterday")
+        XCTAssertEqual(groups[1].items.count, 1)
+        XCTAssertEqual(groups[1].items[0].filename, "taken-yesterday.png")
     }
 
     func testDateGroupsEmptyForNonDateSorts() {
@@ -531,6 +539,76 @@ final class VisibleFilesCacheTests: XCTestCase {
         viewModel.setFileFilter(.media)
         XCTAssertEqual(viewModel.visibleFiles.all.count, 1)
         XCTAssertEqual(viewModel.fileFilter, .media)
+    }
+
+    // MARK: - Search + Filter Interaction with DateGroups
+
+    func testDateGroupsReflectSearchFiltering() {
+        let todayPhoto = makeItem(mimeType: "image/jpeg", filename: "sunset.jpg", createdAt: Date())
+        let yesterdayPhoto = makeItem(mimeType: "image/jpeg", filename: "sunrise.jpg", createdAt: daysAgo(1))
+        viewModel.files = [todayPhoto, yesterdayPhoto]
+        viewModel.sortOrder = .dateNewest
+
+        XCTAssertEqual(viewModel.visibleFiles.dateGroups.count, 2)
+
+        viewModel.searchText = "sunset"
+        XCTAssertEqual(viewModel.visibleFiles.dateGroups.count, 1,
+                       "Search should reduce date groups to only those containing matches")
+        XCTAssertEqual(viewModel.visibleFiles.dateGroups[0].title, "Today")
+    }
+
+    func testClearingSearchRestoresAllGroups() {
+        let today = makeItem(filename: "a.png", createdAt: Date())
+        let yesterday = makeItem(filename: "b.png", createdAt: daysAgo(1))
+        viewModel.files = [today, yesterday]
+        viewModel.sortOrder = .dateNewest
+
+        viewModel.searchText = "a"
+        XCTAssertEqual(viewModel.visibleFiles.dateGroups.count, 1)
+
+        viewModel.searchText = ""
+        XCTAssertEqual(viewModel.visibleFiles.dateGroups.count, 2,
+                       "Clearing search should restore all date groups")
+    }
+
+    func testFilterChangeUpdatesDateGroups() {
+        let photo = makeItem(mimeType: "image/jpeg", filename: "photo.jpg", createdAt: Date())
+        let doc = makeItem(mimeType: "application/pdf", filename: "doc.pdf", createdAt: daysAgo(1))
+        viewModel.files = [photo, doc]
+        viewModel.sortOrder = .dateNewest
+
+        XCTAssertEqual(viewModel.visibleFiles.dateGroups.count, 2)
+
+        viewModel.fileFilter = .media
+        XCTAssertEqual(viewModel.visibleFiles.dateGroups.count, 1,
+                       "Media filter should reduce groups to only those with media items")
+        XCTAssertEqual(viewModel.visibleFiles.dateGroups[0].title, "Today")
+    }
+
+    // MARK: - Incremental Append Triggers Recompute
+
+    func testAppendingFilesUpdatesVisibleFiles() {
+        let a = makeItem(filename: "a.png", createdAt: Date())
+        viewModel.files = [a]
+        XCTAssertEqual(viewModel.visibleFiles.all.count, 1)
+
+        // Simulate what import does: append to files array
+        let b = makeItem(filename: "b.png", createdAt: daysAgo(1))
+        viewModel.files.append(b)
+        XCTAssertEqual(viewModel.visibleFiles.all.count, 2,
+                       "In-place append should trigger didSet and recompute")
+    }
+
+    func testRemovingFileUpdatesVisibleFiles() {
+        let a = makeItem(filename: "a.png", createdAt: Date())
+        let b = makeItem(filename: "b.png", createdAt: daysAgo(1))
+        viewModel.files = [a, b]
+        XCTAssertEqual(viewModel.visibleFiles.all.count, 2)
+
+        viewModel.files.removeAll { $0.id == a.id }
+        XCTAssertEqual(viewModel.visibleFiles.all.count, 1,
+                       "In-place remove should trigger didSet and recompute")
+        XCTAssertEqual(viewModel.visibleFiles.all.first?.filename, "b.png")
     }
 
     // MARK: - Large Dataset Sanity
