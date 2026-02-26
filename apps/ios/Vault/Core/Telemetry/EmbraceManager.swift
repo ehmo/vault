@@ -1,5 +1,6 @@
 import Foundation
 @preconcurrency import EmbraceIO
+import EmbraceCrash
 import os
 
 // File-scoped sensitive keywords to avoid actor isolation issues in Swift 6
@@ -86,10 +87,24 @@ final class EmbraceManager: @unchecked Sendable {
             return
         }
         do {
+            // Start with defaults, then remove services inappropriate for a vault app.
+            // Removed: URLSession (swizzles all networking — unnecessary overhead),
+            // Tap (tracks user taps — privacy concern), View (tracks screen views),
+            // WebView (not used). Keeps: LowMemory, LowPower, HangWatchdog.
+            let services = CaptureServiceBuilder()
+                .addDefaults()
+                .remove(ofType: URLSessionCaptureService.self)
+                .remove(ofType: TapCaptureService.self)
+                .remove(ofType: ViewCaptureService.self)
+                .remove(ofType: WebViewCaptureService.self)
+                .build()
+
             // Embrace enforces main-thread preconditions during setup.
             try Embrace
                 .setup(options: Embrace.Options(
-                    appId: "ehz4q"
+                    appId: "ehz4q",
+                    captureServices: services,
+                    crashReporter: KSCrashReporter()
                 ))
                 .start()
             self.hasSetup = true

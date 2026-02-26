@@ -11,7 +11,6 @@ struct ContentView: View {
     @State private var showUnlockTransition = false
     @State private var isLockingInProgress = false
 
-    private let capturePollIntervalNanoseconds: UInt64 = 1_000_000_000
     private let screenshotLockDebounceIntervalNanoseconds: UInt64 = 200_000_000  // 200ms debounce
 
     private var enforceCaptureLocking: Bool {
@@ -137,16 +136,6 @@ struct ContentView: View {
             guard let screen = notification.object as? UIScreen else { return }
             if screen.isCaptured {
                 lockForCaptureViolation(trigger: "recording_notification", showOverlayBeforeLock: true)
-            }
-        }
-        .task {
-            guard enforceCaptureLocking else { return }
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: capturePollIntervalNanoseconds)
-                guard !Task.isCancelled else { break }
-                if UIScreen.main.isCaptured {
-                    lockForCaptureViolation(trigger: "recording_poll", showOverlayBeforeLock: true)
-                }
             }
         }
         // Lock only when the app actually enters background.

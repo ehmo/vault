@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 import UIKit
 
 // MARK: - PixelLoader
@@ -12,101 +11,68 @@ import UIKit
 /// - Stronger colors for better visibility in both light and dark modes
 /// - Single unified appearance across the entire app
 ///
-/// The animation creates a "snake" effect where the head pixel is brightest,
-/// followed by 2 trailing pixels at 66% and 33% opacity.
+/// Uses `TimelineView` instead of `Timer.publish` so the animation only runs
+/// while the view is on-screen, eliminating idle CPU cost.
 struct PixelLoader: View {
     var size: CGFloat = 60
     var color: Color = .accentColor
-
-    // Animation state
-    @State private var step: Int = 0
-    @State private var timerCancellable: AnyCancellable?
 
     // Counter-clockwise perimeter walk: around the border skipping center
     // 1→2→3→6→9→8→7→4 (skipping center 5)
     private static let path = [1, 2, 3, 6, 9, 8, 7, 4]
 
     // Trail opacities: head + 2 trailing cells
-    // These work with 0.1s timer interval and 0.3s animation duration
-    // to create a smooth trail of ~3 visible cells
     private static let trailOpacities: [Double] = [1.0, 0.66, 0.33]
 
-    @Environment(\.colorScheme) private var colorScheme
-
     var body: some View {
-        let opacityMap = cellOpacities()
-        let pixelSize = size / 4.5
-        let spacing = size / 20
+        TimelineView(.periodic(from: .now, by: 0.1)) { context in
+            let step = Self.step(for: context.date)
+            let opacityMap = Self.cellOpacities(step: step)
+            let pixelSize = size / 4.5
+            let spacing = size / 20
 
-        VStack(spacing: spacing) {
-            ForEach(0..<3, id: \.self) { row in
-                HStack(spacing: spacing) {
-                    ForEach(0..<3, id: \.self) { col in
-                        let index = row * 3 + col + 1
-                        let opacity = opacityMap[index] ?? 0
-                        PixelCell(
-                            opacity: opacity,
-                            size: pixelSize,
-                            color: effectiveColor,
-                            shadowRadius: size / 6
-                        )
+            VStack(spacing: spacing) {
+                ForEach(0..<3, id: \.self) { row in
+                    HStack(spacing: spacing) {
+                        ForEach(0..<3, id: \.self) { col in
+                            let index = row * 3 + col + 1
+                            let opacity = opacityMap[index] ?? 0
+                            PixelCell(
+                                opacity: opacity,
+                                size: pixelSize,
+                                color: color,
+                                shadowRadius: size / 6
+                            )
+                        }
                     }
                 }
             }
-        }
-        .frame(width: size, height: size)
-        .onAppear {
-            startTimer()
-        }
-        .onDisappear {
-            stopTimer()
+            .frame(width: size, height: size)
         }
     }
 
+    /// Derive the animation step from wall-clock time so all loaders stay in sync.
+    private static func step(for date: Date) -> Int {
+        let interval = date.timeIntervalSinceReferenceDate
+        return Int(interval * 10) % path.count
+    }
+
     /// Compute opacity for each cell based on trail position.
-    private func cellOpacities() -> [Int: Double] {
-        let pathLen = Self.path.count
+    private static func cellOpacities(step: Int) -> [Int: Double] {
+        let pathLen = path.count
         guard pathLen > 0 else { return [:] }
 
         let headIndex = step % pathLen
         var map: [Int: Double] = [:]
 
-        for (offset, opacity) in Self.trailOpacities.enumerated() {
+        for (offset, opacity) in trailOpacities.enumerated() {
             let pathIndex = (headIndex - offset + pathLen) % pathLen
-            let cell = Self.path[pathIndex]
-            // Head takes priority over trail (no double-assignment)
+            let cell = path[pathIndex]
             if map[cell] == nil {
                 map[cell] = opacity
             }
         }
         return map
-    }
-
-    /// Returns the color as-is. The app's accent color asset already has
-    /// proper light/dark mode variants defined in the asset catalog.
-    private var effectiveColor: Color {
-        return color
-    }
-
-    /// Start the animation timer.
-    private func startTimer() {
-        // Only start if not already running
-        guard timerCancellable == nil else { return }
-        
-        timerCancellable = Timer.publish(every: 0.1, on: .main, in: .common)
-            .autoconnect()
-            .sink { _ in
-                guard !Self.path.isEmpty else { return }
-                withAnimation(.smooth(duration: 0.3)) {
-                    step = (step + 1) % Self.path.count
-                }
-            }
-    }
-
-    /// Stop the animation timer to prevent memory leaks.
-    private func stopTimer() {
-        timerCancellable?.cancel()
-        timerCancellable = nil
     }
 }
 
@@ -154,28 +120,8 @@ extension PixelLoader {
     /// - Parameter color: The color to use for the pixels
     /// - Returns: A new PixelLoader instance with the updated color
     func color(_ newColor: Color) -> some View {
-        // Use id() to force view identity change when color changes
-        // This ensures proper state isolation between different colored loaders
         PixelLoader(size: size, color: newColor)
             .id("pixel-loader-\(size)-\(newColor.hashValue)")
-    }
-}
-
-// MARK: - UIColor Helper
-
-private extension UIColor {
-    func lighter(by amount: CGFloat) -> UIColor {
-        var h: CGFloat = 0
-        var s: CGFloat = 0
-        var b: CGFloat = 0
-        var a: CGFloat = 0
-        getHue(&h, saturation: &s, brightness: &b, alpha: &a)
-        return UIColor(
-            hue: h,
-            saturation: max(s * (1 - amount), 0),
-            brightness: min(b + amount, 1.0),
-            alpha: a
-        )
     }
 }
 
