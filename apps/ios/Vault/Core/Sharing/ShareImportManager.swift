@@ -201,17 +201,19 @@ final class ShareImportManager {
                     let maxDownloadAttempts = 3
                     var lastDownloadError: Error?
 
+                    let downloadProgress: @Sendable (Int, Int) -> Void = { [weak self] current, total in
+                        let pct = total > 0 ? downloadWeight * current / total : 0
+                        Task { @MainActor [weak self] in
+                            self?.setTargetProgress(pct, message: "Downloading shared vault...")
+                        }
+                    }
+
                     while downloadAttempts < maxDownloadAttempts {
                         do {
                             result = try await CloudKitSharingManager.shared.downloadSharedVault(
                                 phrase: capturedPhrase,
                                 markClaimedOnDownload: false,
-                                onProgress: { [weak self] current, total in
-                                    let pct = total > 0 ? downloadWeight * current / total : 0
-                                    Task { @MainActor [weak self] in
-                                        self?.setTargetProgress(pct, message: "Downloading shared vault...")
-                                    }
-                                }
+                                onProgress: downloadProgress
                             )
                             lastDownloadError = nil
                             break // Success!

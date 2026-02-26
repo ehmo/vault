@@ -1,4 +1,4 @@
-// FIXME: CloudKitSharingError needs Equatable, publicDatabase needs internal access
+// Disabled: CloudKitSharingError needs Equatable, publicDatabase needs internal access
 #if false
 import XCTest
 @testable import Vault

@@ -198,7 +198,7 @@ final class InactivityLockManager: ObservableObject {
 /// of SwiftUI gesture conflicts with buttons, lists, and scroll views.
 /// UIGestureRecognizer is @MainActor, so touchesBegan runs on the main actor.
 class PassthroughTouchRecognizer: UIGestureRecognizer {
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override func touchesBegan(_: Set<UITouch>, with _: UIEvent?) {
         state = .failed // Never consume the touch
         InactivityLockManager.shared.userDidInteract()
     }

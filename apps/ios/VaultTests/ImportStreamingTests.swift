@@ -360,42 +360,9 @@ final class ImportStreamingTests: XCTestCase {
         let start = ContinuousClockInstant.now
 
         let workerTask = Task {
-            await withTaskGroup(of: Void.self) { group in
-                // 2 video-priority workers (steal from images)
-                for _ in 0..<2 {
-                    group.addTask {
-                        while let item = await videoQueue.next() {
-                            try? await Task.sleep(for: .milliseconds(100))
-                            continuation.yield(.imported(VaultFileItem(
-                                id: UUID(), size: item, mimeType: "video/mp4", filename: "v.mp4"
-                            )))
-                        }
-                        while let item = await imageQueue.next() {
-                            try? await Task.sleep(for: .milliseconds(100))
-                            continuation.yield(.imported(VaultFileItem(
-                                id: UUID(), size: item, mimeType: "image/heic", filename: "i.heic"
-                            )))
-                        }
-                    }
-                }
-                // 2 image-priority workers (steal from videos)
-                for _ in 0..<2 {
-                    group.addTask {
-                        while let item = await imageQueue.next() {
-                            try? await Task.sleep(for: .milliseconds(100))
-                            continuation.yield(.imported(VaultFileItem(
-                                id: UUID(), size: item, mimeType: "image/heic", filename: "i.heic"
-                            )))
-                        }
-                        while let item = await videoQueue.next() {
-                            try? await Task.sleep(for: .milliseconds(100))
-                            continuation.yield(.imported(VaultFileItem(
-                                id: UUID(), size: item, mimeType: "video/mp4", filename: "v.mp4"
-                            )))
-                        }
-                    }
-                }
-            }
+            await Self.runWorkStealingWorkers(
+                videoQueue: videoQueue, imageQueue: imageQueue, continuation: continuation
+            )
             continuation.finish()
         }
 
@@ -578,6 +545,49 @@ final class ImportStreamingTests: XCTestCase {
             // By event 5, ~150ms should have elapsed. A batch-of-10 would show 0 at this point.
             XCTAssertGreaterThan(midpoint, 100, "Events should be spread over time, not instant")
             XCTAssertLessThan(midpoint, 300, "Event 5 should arrive by 300ms (arrived at \(midpoint)ms)")
+        }
+    }
+
+    // MARK: - Helpers
+
+    private static func runWorkStealingWorkers(
+        videoQueue: ParallelImporter.Queue<Int>,
+        imageQueue: ParallelImporter.Queue<Int>,
+        continuation: AsyncStream<ParallelImporter.ImportEvent>.Continuation
+    ) async {
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<2 {
+                group.addTask {
+                    while let item = await videoQueue.next() {
+                        try? await Task.sleep(for: .milliseconds(100))
+                        continuation.yield(.imported(VaultFileItem(
+                            id: UUID(), size: item, mimeType: "video/mp4", filename: "v.mp4"
+                        )))
+                    }
+                    while let item = await imageQueue.next() {
+                        try? await Task.sleep(for: .milliseconds(100))
+                        continuation.yield(.imported(VaultFileItem(
+                            id: UUID(), size: item, mimeType: "image/heic", filename: "i.heic"
+                        )))
+                    }
+                }
+            }
+            for _ in 0..<2 {
+                group.addTask {
+                    while let item = await imageQueue.next() {
+                        try? await Task.sleep(for: .milliseconds(100))
+                        continuation.yield(.imported(VaultFileItem(
+                            id: UUID(), size: item, mimeType: "image/heic", filename: "i.heic"
+                        )))
+                    }
+                    while let item = await videoQueue.next() {
+                        try? await Task.sleep(for: .milliseconds(100))
+                        continuation.yield(.imported(VaultFileItem(
+                            id: UUID(), size: item, mimeType: "video/mp4", filename: "v.mp4"
+                        )))
+                    }
+                }
+            }
         }
     }
 }

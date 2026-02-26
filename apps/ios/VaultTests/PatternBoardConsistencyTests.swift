@@ -16,7 +16,7 @@ final class PatternBoardConsistencyTests: XCTestCase {
     // MARK: - PatternSetupView Tests
 
     func testPatternSetupViewContainsPatternGrid() throws {
-        let view = PatternSetupView(onComplete: {})
+        let view = PatternSetupView(onComplete: { /* Test completion handler */ })
             .environment(AppState())
 
         let inspect = try view.inspect()
@@ -27,7 +27,7 @@ final class PatternBoardConsistencyTests: XCTestCase {
     }
 
     func testPatternSetupViewHasFeedbackArea() throws {
-        let view = PatternSetupView(onComplete: {})
+        let view = PatternSetupView(onComplete: { /* Test completion handler */ })
             .environment(AppState())
 
         let inspect = try view.inspect()
@@ -87,7 +87,7 @@ final class PatternBoardConsistencyTests: XCTestCase {
         appState.isUnlocked = true
 
         // Test PatternSetupView
-        let setupView = PatternSetupView(onComplete: {})
+        let setupView = PatternSetupView(onComplete: { /* Test completion handler */ })
             .environment(appState)
         let setupInspect = try setupView.inspect()
         let setupGrid = try? setupInspect.find(PatternGridView.self)
@@ -110,7 +110,7 @@ final class PatternBoardConsistencyTests: XCTestCase {
         // Verify both screens have the pattern grid, which shares a layout with the feedback area.
 
         // Test PatternSetupView
-        let setupView = PatternSetupView(onComplete: {})
+        let setupView = PatternSetupView(onComplete: { /* Test completion handler */ })
             .environment(appState)
         let setupInspect = try setupView.inspect()
         let setupGrid = try? setupInspect.find(PatternGridView.self)

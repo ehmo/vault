@@ -138,36 +138,36 @@ private final class MockDebounceVaultStorage: VaultStorageProtocol, @unchecked S
     func retrieveFile(id _: UUID, with _: VaultKey) async throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) { throw VaultStorageError.corruptedData }
     func retrieveFileContent(entry _: VaultStorage.VaultIndex.VaultFileEntry, index _: VaultStorage.VaultIndex, masterKey _: MasterKey) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) { throw VaultStorageError.corruptedData }
     func retrieveFileToTempURL(id _: UUID, with _: VaultKey) async throws -> (header: CryptoEngine.EncryptedFileHeader, tempURL: URL) { throw VaultStorageError.corruptedData }
-    func deleteFile(id _: UUID, with _: VaultKey) async throws {}
-    func deleteFiles(ids _: Set<UUID>, with _: VaultKey, onProgress _: (@Sendable (Int) -> Void)?) async throws {}
+    func deleteFile(id _: UUID, with _: VaultKey) async throws { /* No-op for mock */ }
+    func deleteFiles(ids _: Set<UUID>, with _: VaultKey, onProgress _: (@Sendable (Int) -> Void)?) async throws { /* No-op for mock */ }
     func listFiles(with _: VaultKey) async throws -> [VaultStorage.VaultFileEntry] { [] }
     func listFilesLightweight(with _: VaultKey) async throws -> (masterKey: MasterKey, files: [VaultStorage.LightweightFileEntry]) { (MasterKey(Data(repeating: 0, count: 32)), []) }
     func vaultExists(for _: VaultKey) -> Bool { true }
     func vaultHasFiles(for _: VaultKey) async -> Bool { false }
-    func deleteVaultIndex(for _: VaultKey) throws {}
-    func destroyAllIndexesExcept(_: VaultKey) {}
+    func deleteVaultIndex(for _: VaultKey) throws { /* No-op for mock */ }
+    func destroyAllIndexesExcept(_: VaultKey) { /* No-op for mock */ }
 }
 
 private final class MockDebounceCloudKitSharing: CloudKitSharingClient {
     func checkPhraseAvailability(phrase _: String) async -> Result<Void, CloudKitSharingError> { .success(()) }
     func consumedStatusByShareVaultIds(_ ids: [String]) async throws -> [String: Bool] { Dictionary(uniqueKeysWithValues: ids.map { ($0, false) }) }
     func claimedStatusByShareVaultIds(_ ids: [String]) async throws -> [String: Bool] { Dictionary(uniqueKeysWithValues: ids.map { ($0, false) }) }
-    func markShareClaimed(shareVaultId _: String) async throws {}
-    func markShareConsumed(shareVaultId _: String) async throws {}
+    func markShareClaimed(shareVaultId _: String) async throws { /* No-op for mock */ }
+    func markShareConsumed(shareVaultId _: String) async throws { /* No-op for mock */ }
     func isShareConsumed(shareVaultId _: String) async throws -> Bool { false }
-    func uploadSharedVault(shareVaultId _: String, phrase _: String, vaultData _: Data, shareKey _: ShareKey, policy _: VaultStorage.SharePolicy, ownerFingerprint _: String, onProgress _: ((Int, Int) -> Void)?) async throws {}
-    func syncSharedVault(shareVaultId _: String, vaultData _: Data, shareKey _: ShareKey, currentVersion _: Int, onProgress _: ((Int, Int) -> Void)?) async throws {}
-    func syncSharedVaultIncremental(shareVaultId _: String, svdfData _: Data, newChunkHashes _: [String], previousChunkHashes _: [String], onProgress _: ((Int, Int) -> Void)?) async throws {}
-    func syncSharedVaultIncrementalFromFile(shareVaultId _: String, svdfFileURL _: URL, newChunkHashes _: [String], previousChunkHashes _: [String], onProgress _: ((Int, Int) -> Void)?) async throws {}
-    func uploadChunksParallel(shareVaultId _: String, chunks _: [(Int, Data)], onProgress _: ((Int, Int) -> Void)?) async throws {}
-    func uploadChunksFromFile(shareVaultId _: String, fileURL _: URL, chunkIndices _: [Int], onProgress _: ((Int, Int) -> Void)?) async throws {}
-    func saveManifest(shareVaultId _: String, phraseVaultId _: String, shareKey _: ShareKey, policy _: VaultStorage.SharePolicy, ownerFingerprint _: String, totalChunks _: Int) async throws {}
+    func uploadSharedVault(shareVaultId _: String, phrase _: String, vaultData _: Data, shareKey _: ShareKey, policy _: VaultStorage.SharePolicy, ownerFingerprint _: String, onProgress _: ((Int, Int) -> Void)?) async throws { /* No-op for mock */ }
+    func syncSharedVault(shareVaultId _: String, vaultData _: Data, shareKey _: ShareKey, currentVersion _: Int, onProgress _: ((Int, Int) -> Void)?) async throws { /* No-op for mock */ }
+    func syncSharedVaultIncremental(shareVaultId _: String, svdfData _: Data, newChunkHashes _: [String], previousChunkHashes _: [String], onProgress _: ((Int, Int) -> Void)?) async throws { /* No-op for mock */ }
+    func syncSharedVaultIncrementalFromFile(shareVaultId _: String, svdfFileURL _: URL, newChunkHashes _: [String], previousChunkHashes _: [String], onProgress _: ((Int, Int) -> Void)?) async throws { /* No-op for mock */ }
+    func uploadChunksParallel(shareVaultId _: String, chunks _: [(Int, Data)], onProgress _: ((Int, Int) -> Void)?) async throws { /* No-op for mock */ }
+    func uploadChunksFromFile(shareVaultId _: String, fileURL _: URL, chunkIndices _: [Int], onProgress _: ((Int, Int) -> Void)?) async throws { /* No-op for mock */ }
+    func saveManifest(shareVaultId _: String, phraseVaultId _: String, shareKey _: ShareKey, policy _: VaultStorage.SharePolicy, ownerFingerprint _: String, totalChunks _: Int) async throws { /* No-op for mock */ }
     func downloadSharedVault(phrase _: String, markClaimedOnDownload _: Bool, onProgress _: ((Int, Int) -> Void)?) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) { (Data(), "mock", VaultStorage.SharePolicy(), 1) }
     func checkForUpdates(shareVaultId _: String, currentVersion _: Int) async throws -> Int? { nil }
     func downloadUpdatedVault(shareVaultId _: String, shareKey _: ShareKey, onProgress _: ((Int, Int) -> Void)?) async throws -> Data { Data() }
-    func revokeShare(shareVaultId _: String) async throws {}
-    func deleteSharedVault(shareVaultId _: String) async throws {}
-    func deleteSharedVault(phrase _: String) async throws {}
+    func revokeShare(shareVaultId _: String) async throws { /* No-op for mock */ }
+    func deleteSharedVault(shareVaultId _: String) async throws { /* No-op for mock */ }
+    func deleteSharedVault(phrase _: String) async throws { /* No-op for mock */ }
     func existingChunkIndices(for _: String) async throws -> Set<Int> { [] }
     func checkiCloudStatus() async -> CKAccountStatus { .available }
 }

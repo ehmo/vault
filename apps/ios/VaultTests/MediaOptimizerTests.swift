@@ -428,10 +428,9 @@ final class MediaOptimizerTests: XCTestCase {
         // Verify the test video actually has high bitrate for the regression guard to be meaningful
         let asset = AVURLAsset(url: videoURL)
         if let track = try? await asset.loadTracks(withMediaType: .video).first,
-           let rate = try? await track.load(.estimatedDataRate) {
-            if rate <= 5_000_000 {
-                XCTFail("Test video bitrate \(Int(rate / 1000)) kbps is ≤5 Mbps — regression guard is not meaningful (need random noise to exceed old threshold)")
-            }
+           let rate = try? await track.load(.estimatedDataRate),
+           rate <= 5_000_000 {
+            XCTFail("Test video bitrate \(Int(rate / 1000)) kbps is ≤5 Mbps — regression guard is not meaningful (need random noise to exceed old threshold)")
         }
 
         let result = try await MediaOptimizer.shared.optimize(

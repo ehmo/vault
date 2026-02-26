@@ -181,34 +181,11 @@ final class ImportOptimizationTests: XCTestCase {
         let (stream, continuation) = AsyncStream<ParallelImporter.ImportEvent>.makeStream()
 
         let workerTask = Task {
-            await withTaskGroup(of: Void.self) { group in
-                // 2 video-priority workers
-                for _ in 0..<2 {
-                    group.addTask {
-                        while let item = await videoQueue.next() {
-                            await videoMonitor.enter()
-                            try? await Task.sleep(for: .milliseconds(200))
-                            await videoMonitor.exit()
-                            continuation.yield(.imported(VaultFileItem(
-                                id: UUID(), size: item, mimeType: "video/mp4", filename: "v\(item).mp4"
-                            )))
-                        }
-                    }
-                }
-                // 2 image-priority workers
-                for _ in 0..<2 {
-                    group.addTask {
-                        while let item = await imageQueue.next() {
-                            await imageMonitor.enter()
-                            try? await Task.sleep(for: .milliseconds(200))
-                            await imageMonitor.exit()
-                            continuation.yield(.imported(VaultFileItem(
-                                id: UUID(), size: item, mimeType: "image/heic", filename: "i\(item).heic"
-                            )))
-                        }
-                    }
-                }
-            }
+            await Self.runSplitWorkers(
+                videoQueue: videoQueue, imageQueue: imageQueue,
+                videoMonitor: videoMonitor, imageMonitor: imageMonitor,
+                continuation: continuation
+            )
             continuation.finish()
         }
 
@@ -546,43 +523,9 @@ final class ImportOptimizationTests: XCTestCase {
         let start = ContinuousClockInstant.now
 
         let workerTask = Task {
-            await withTaskGroup(of: Void.self) { group in
-                // 2 video-priority workers: drain videos, then steal images
-                for _ in 0..<2 {
-                    group.addTask {
-                        while let item = await videoQueue.next() {
-                            try? await Task.sleep(for: .milliseconds(100))
-                            continuation.yield(.imported(VaultFileItem(
-                                id: UUID(), size: item, mimeType: "video/mp4", filename: "v.mp4"
-                            )))
-                        }
-                        // Steal from image queue
-                        while let item = await imageQueue.next() {
-                            try? await Task.sleep(for: .milliseconds(100))
-                            continuation.yield(.imported(VaultFileItem(
-                                id: UUID(), size: item, mimeType: "image/heic", filename: "i.heic"
-                            )))
-                        }
-                    }
-                }
-                // 2 image-priority workers: drain images, then steal videos
-                for _ in 0..<2 {
-                    group.addTask {
-                        while let item = await imageQueue.next() {
-                            try? await Task.sleep(for: .milliseconds(100))
-                            continuation.yield(.imported(VaultFileItem(
-                                id: UUID(), size: item, mimeType: "image/heic", filename: "i.heic"
-                            )))
-                        }
-                        while let item = await videoQueue.next() {
-                            try? await Task.sleep(for: .milliseconds(100))
-                            continuation.yield(.imported(VaultFileItem(
-                                id: UUID(), size: item, mimeType: "video/mp4", filename: "v.mp4"
-                            )))
-                        }
-                    }
-                }
-            }
+            await Self.runWorkStealingWorkers(
+                videoQueue: videoQueue, imageQueue: imageQueue, continuation: continuation
+            )
             continuation.finish()
         }
 
@@ -628,6 +571,84 @@ final class ImportOptimizationTests: XCTestCase {
         XCTAssertNotNil(orientation, "Orientation should be preserved in output")
         if let o = orientation {
             XCTAssertEqual(o, CGImagePropertyOrientation.up.rawValue, "Default orientation should be .up")
+        }
+    }
+
+    // MARK: - Helpers
+
+    private static func runSplitWorkers(
+        videoQueue: ParallelImporter.Queue<Int>,
+        imageQueue: ParallelImporter.Queue<Int>,
+        videoMonitor: ConcurrencyMonitor,
+        imageMonitor: ConcurrencyMonitor,
+        continuation: AsyncStream<ParallelImporter.ImportEvent>.Continuation
+    ) async {
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<2 {
+                group.addTask {
+                    while let item = await videoQueue.next() {
+                        await videoMonitor.enter()
+                        try? await Task.sleep(for: .milliseconds(200))
+                        await videoMonitor.exit()
+                        continuation.yield(.imported(VaultFileItem(
+                            id: UUID(), size: item, mimeType: "video/mp4", filename: "v\(item).mp4"
+                        )))
+                    }
+                }
+            }
+            for _ in 0..<2 {
+                group.addTask {
+                    while let item = await imageQueue.next() {
+                        await imageMonitor.enter()
+                        try? await Task.sleep(for: .milliseconds(200))
+                        await imageMonitor.exit()
+                        continuation.yield(.imported(VaultFileItem(
+                            id: UUID(), size: item, mimeType: "image/heic", filename: "i\(item).heic"
+                        )))
+                    }
+                }
+            }
+        }
+    }
+
+    private static func runWorkStealingWorkers(
+        videoQueue: ParallelImporter.Queue<Int>,
+        imageQueue: ParallelImporter.Queue<Int>,
+        continuation: AsyncStream<ParallelImporter.ImportEvent>.Continuation
+    ) async {
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<2 {
+                group.addTask {
+                    while let item = await videoQueue.next() {
+                        try? await Task.sleep(for: .milliseconds(100))
+                        continuation.yield(.imported(VaultFileItem(
+                            id: UUID(), size: item, mimeType: "video/mp4", filename: "v.mp4"
+                        )))
+                    }
+                    while let item = await imageQueue.next() {
+                        try? await Task.sleep(for: .milliseconds(100))
+                        continuation.yield(.imported(VaultFileItem(
+                            id: UUID(), size: item, mimeType: "image/heic", filename: "i.heic"
+                        )))
+                    }
+                }
+            }
+            for _ in 0..<2 {
+                group.addTask {
+                    while let item = await imageQueue.next() {
+                        try? await Task.sleep(for: .milliseconds(100))
+                        continuation.yield(.imported(VaultFileItem(
+                            id: UUID(), size: item, mimeType: "image/heic", filename: "i.heic"
+                        )))
+                    }
+                    while let item = await videoQueue.next() {
+                        try? await Task.sleep(for: .milliseconds(100))
+                        continuation.yield(.imported(VaultFileItem(
+                            id: UUID(), size: item, mimeType: "video/mp4", filename: "v.mp4"
+                        )))
+                    }
+                }
+            }
         }
     }
 }

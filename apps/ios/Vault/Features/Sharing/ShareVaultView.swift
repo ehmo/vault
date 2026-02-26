@@ -99,7 +99,7 @@ struct ShareVaultView: View {
             Button("Leave", role: .destructive) {
                 dismiss()
             }
-            Button("Cancel", role: .cancel) {}
+            Button("Cancel", role: .cancel) { /* Dismiss alert */ }
         } message: {
             Text("The upload will continue in the background, but may pause if the app is minimized.")
         }
@@ -119,7 +119,7 @@ struct ShareVaultView: View {
                     }
                 }
             }
-            Button("Cancel", role: .cancel) {}
+            Button("Cancel", role: .cancel) { /* Dismiss alert */ }
         } message: {
             Text("This will stop the upload and discard progress. You'll need to start over.")
         }

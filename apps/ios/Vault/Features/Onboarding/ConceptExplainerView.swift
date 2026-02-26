@@ -142,7 +142,7 @@ private struct PatternDemoGrid: View {
                 }
             }
 
-            // Path lines
+            // Path lines and "Vault unlocked" badge
             if animatePattern {
                 Path { path in
                     for (i, dot) in highlightedDots.enumerated() {
@@ -154,12 +154,9 @@ private struct PatternDemoGrid: View {
                         }
                     }
                 }
-                .trim(from: 0, to: animatePattern ? 1 : 0)
+                .trim(from: 0, to: 1)
                 .stroke(Color.accentColor.opacity(0.6), style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
-            }
 
-            // "Vault unlocked" badge at bottom
-            if animatePattern {
                 HStack(spacing: 8) {
                     Image(systemName: "lock.open.fill")
                         .font(.subheadline)
