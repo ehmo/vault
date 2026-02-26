@@ -68,7 +68,8 @@ final class iCloudBackupManager: @unchecked Sendable {
     @MainActor private var activeBgTaskIds: Set<UIBackgroundTaskIdentifier> = []
 
     /// Guards against concurrent uploads from manual backup + auto-resume triggers.
-    @MainActor private var isUploadRunning = false
+    /// Internal (not private) for testability.
+    @MainActor var isUploadRunning = false
 
     // MARK: - Background Task State
     @MainActor private var currentBGProcessingTask: BGProcessingTask?

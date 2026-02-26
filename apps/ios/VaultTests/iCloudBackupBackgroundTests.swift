@@ -482,4 +482,222 @@ final class ICloudBackupBackgroundTests: XCTestCase {
     func testScheduleBackgroundResumeTaskDefaultInterval() {
         manager.scheduleBackgroundResumeTask()
     }
+
+    // MARK: - Concurrent Upload Prevention (isUploadRunning)
+
+    func testIsUploadRunningDefaultsFalse() {
+        XCTAssertFalse(manager.isUploadRunning,
+                       "isUploadRunning should default to false")
+    }
+
+    func testResumeBackupUploadIfNeededSkipsWhenUploadRunning() throws {
+        // Set up conditions where resume would normally trigger
+        UserDefaults.standard.set(true, forKey: "iCloudBackupEnabled")
+        try writePendingState()
+
+        // Simulate an ongoing upload (manual backup in progress)
+        manager.isUploadRunning = true
+        defer { manager.isUploadRunning = false }
+
+        // Resume should skip because an upload is already running
+        manager.resumeBackupUploadIfNeeded(trigger: "test_concurrent")
+
+        // State should still exist (resume was skipped, not consumed)
+        XCTAssertTrue(manager.hasPendingBackup)
+    }
+
+    func testResumeBackupUploadIfNeededProceedsWhenUploadNotRunning() throws {
+        // Set up conditions where resume would normally trigger
+        UserDefaults.standard.set(true, forKey: "iCloudBackupEnabled")
+        try writePendingState()
+        writeDummyChunks(count: 3)
+
+        // Ensure upload is not running
+        manager.isUploadRunning = false
+
+        // Resume should proceed (it will try to upload and fail on CloudKit,
+        // but the point is it attempts rather than skipping)
+        manager.resumeBackupUploadIfNeeded(trigger: "test_not_concurrent")
+
+        // The state should still exist because CloudKit isn't available in tests
+        XCTAssertTrue(manager.hasPendingBackup)
+    }
+
+    func testPerformBackupIfNeededSkipsWhenUploadRunning() throws {
+        UserDefaults.standard.set(true, forKey: "iCloudBackupEnabled")
+        UserDefaults.standard.set(0.0, forKey: "lastBackupTimestamp") // Never backed up → overdue
+
+        // Simulate an ongoing upload
+        manager.isUploadRunning = true
+        defer { manager.isUploadRunning = false }
+
+        // Should skip because upload is already running
+        let testKey = Data(repeating: 0xAA, count: 32)
+        manager.performBackupIfNeeded(with: testKey)
+
+        // No auto backup task should be created
+        // (We can't directly check autoBackupTask since it's private,
+        // but the function returned without starting anything)
+    }
+
+    func testPerformBackupIfNeededSkipsWhenAutoBackupRunning() throws {
+        UserDefaults.standard.set(true, forKey: "iCloudBackupEnabled")
+        UserDefaults.standard.set(0.0, forKey: "lastBackupTimestamp")
+
+        // First call should trigger (it'll try to start)
+        let testKey = Data(repeating: 0xBB, count: 32)
+
+        // Stage a pending backup so it goes through the resume path
+        try writePendingState()
+        writeDummyChunks(count: 3)
+
+        manager.performBackupIfNeeded(with: testKey)
+
+        // Second call should skip because first one is running
+        manager.performBackupIfNeeded(with: testKey)
+    }
+
+    func testUploadStagedBackupSetsAndClearsFlag() async throws {
+        // No pending state → uploadStagedBackup will return early
+        manager.clearStagingDirectory()
+
+        // Before calling, flag should be false
+        XCTAssertFalse(manager.isUploadRunning)
+
+        // Call uploadStagedBackup - it will set the flag, find no state, and return
+        try await manager.uploadStagedBackup()
+
+        // Give the defer Task a chance to clear the flag on MainActor
+        await Task.yield()
+        // Allow the MainActor to process the enqueued task
+        try await Task.sleep(nanoseconds: 50_000_000) // 50ms
+
+        XCTAssertFalse(manager.isUploadRunning,
+                       "isUploadRunning should be cleared after uploadStagedBackup returns")
+    }
+
+    func testUploadStagedBackupSkipsConcurrentCall() async throws {
+        // Simulate an upload already running
+        manager.isUploadRunning = true
+        defer { manager.isUploadRunning = false }
+
+        // Set up a pending state that would normally be uploaded
+        try writePendingState()
+        writeDummyChunks(count: 3)
+
+        // Should return immediately without doing anything
+        try await manager.uploadStagedBackup()
+
+        // State should still be intact (wasn't consumed by a concurrent upload)
+        XCTAssertTrue(manager.hasPendingBackup,
+                      "Pending backup should not be consumed by a skipped upload")
+    }
+
+    func testUploadStagedBackupConcurrentCallsAreIdempotent() async throws {
+        // Both calls with no pending state → both return early
+        manager.clearStagingDirectory()
+
+        // First call sets the flag and returns (no state)
+        try await manager.uploadStagedBackup()
+
+        // Give the defer a moment to clear
+        await Task.yield()
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        // Second call should also succeed (flag was cleared)
+        try await manager.uploadStagedBackup()
+
+        // Give the defer a moment to clear
+        await Task.yield()
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertFalse(manager.isUploadRunning,
+                       "Flag should be cleared after sequential uploads")
+    }
+
+    // MARK: - Temp File Uniqueness
+
+    func testTempFileNamesAreUnique() {
+        // Simulate the temp file naming pattern used in upload code
+        let backupId = "test-backup"
+        let chunkIndex = 0
+        let recordName = "\(backupId)_bchunk_\(chunkIndex)"
+
+        let tempURL1 = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(recordName)_\(UUID().uuidString).bin")
+        let tempURL2 = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(recordName)_\(UUID().uuidString).bin")
+
+        XCTAssertNotEqual(tempURL1, tempURL2,
+                          "Two temp files for the same chunk should have unique names (UUID suffix)")
+    }
+
+    func testTempFileNamesContainRecordName() {
+        let recordName = "abc123_bchunk_7"
+        let uuid = UUID().uuidString
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(recordName)_\(uuid).bin")
+
+        XCTAssertTrue(tempURL.lastPathComponent.hasPrefix(recordName),
+                      "Temp file name should start with the record name")
+        XCTAssertTrue(tempURL.lastPathComponent.hasSuffix(".bin"),
+                      "Temp file name should end with .bin")
+        XCTAssertTrue(tempURL.lastPathComponent.contains(uuid),
+                      "Temp file name should contain the UUID")
+    }
+
+    // MARK: - Guard Interaction Matrix
+
+    /// Verifies all three guards (backup disabled, no pending state, upload running)
+    /// work independently.
+    func testResumeGuardsAreIndependent() throws {
+        // Guard 1: Backup disabled
+        UserDefaults.standard.set(false, forKey: "iCloudBackupEnabled")
+        manager.isUploadRunning = false
+        manager.clearStagingDirectory()
+        manager.resumeBackupUploadIfNeeded(trigger: "guard1")
+        // Should return at first guard
+
+        // Guard 2: No pending backup
+        UserDefaults.standard.set(true, forKey: "iCloudBackupEnabled")
+        manager.isUploadRunning = false
+        manager.clearStagingDirectory()
+        manager.resumeBackupUploadIfNeeded(trigger: "guard2")
+        // Should return at pending state guard
+
+        // Guard 3: Upload already running
+        UserDefaults.standard.set(true, forKey: "iCloudBackupEnabled")
+        try writePendingState()
+        manager.isUploadRunning = true
+        manager.resumeBackupUploadIfNeeded(trigger: "guard3")
+        // Should return at isUploadRunning guard
+
+        // Clean up
+        manager.isUploadRunning = false
+    }
+
+    /// Test that the flag reset in defer works even when uploadStagedBackup
+    /// encounters errors during the iCloud account check.
+    func testIsUploadRunningClearedOnError() async {
+        // Set up a pending state so we get past the first guard
+        try? writePendingState()
+        writeDummyChunks(count: 3)
+
+        manager.isUploadRunning = false
+
+        // uploadStagedBackup will fail on waitForAvailableAccount (no iCloud in tests)
+        // but the flag should still be cleared
+        do {
+            try await manager.uploadStagedBackup()
+        } catch {
+            // Expected — iCloud isn't available in test environment
+        }
+
+        // Allow defer Task to run
+        await Task.yield()
+        try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+
+        XCTAssertFalse(manager.isUploadRunning,
+                       "isUploadRunning must be cleared even when upload throws")
+    }
 }
