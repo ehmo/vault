@@ -68,8 +68,9 @@ final class SonarQubeRulesTests: XCTestCase {
                     violations.append((relativePath, index + 1, trimmed))
                 }
 
-                // Pattern: `{ /* ... */ }` (inline block comment instead of // comment)
-                if trimmed.contains("{ /*") && trimmed.contains("*/ }") {
+                // SonarQube S1186 accepts both // and /* */ as valid nested comments.
+                // Only flag `{ /* */ }` with empty block comments (no actual explanation).
+                if (trimmed.contains("{ /* */ }") || trimmed.contains("{ /*  */ }")) {
                     violations.append((relativePath, index + 1, trimmed))
                 }
 
@@ -241,6 +242,290 @@ final class SonarQubeRulesTests: XCTestCase {
             let report = violations.map { "  \($0.file):\($0.line): \($0.code)" }.joined(separator: "\n")
             XCTFail("S1172: Found \(violations.count) `_paramName` patterns (use bare `_` instead):\n\(report)")
         }
+    }
+
+    // MARK: - S1135: FIXME/TODO Comments
+
+    /// Verifies no FIXME comments in production code or test files that are compiled.
+    /// FIXME is flagged by SonarQube as requiring immediate action.
+    /// Files wrapped in #if false are excluded since they don't compile.
+    func testS1135NoFIXMEInCompiledCode() throws {
+        let files = swiftFiles(in: sourceRoot) + swiftFiles(in: testRoot)
+        var violations: [(file: String, line: Int, code: String)] = []
+
+        for fileURL in files {
+            if fileURL.lastPathComponent == "SonarQubeRulesTests.swift" { continue }
+
+            let content = try String(contentsOf: fileURL, encoding: .utf8)
+            let lines = content.components(separatedBy: "\n")
+            let relativePath = fileURL.lastPathComponent
+
+            // Track if we're inside a #if false block
+            var ifFalseDepth = 0
+
+            for (index, line) in lines.enumerated() {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+                // Track #if false / #endif nesting
+                if trimmed == "#if false" { ifFalseDepth += 1 }
+                if trimmed == "#endif" && ifFalseDepth > 0 { ifFalseDepth -= 1 }
+
+                // Skip code inside #if false blocks (not compiled, won't reach SonarQube)
+                if ifFalseDepth > 0 { continue }
+
+                // Check for FIXME in comments
+                if trimmed.contains("FIXME") && (trimmed.hasPrefix("//") || trimmed.hasPrefix("*")) {
+                    violations.append((relativePath, index + 1, trimmed))
+                }
+            }
+        }
+
+        if !violations.isEmpty {
+            let report = violations.map { "  \($0.file):\($0.line): \($0.code)" }.joined(separator: "\n")
+            XCTFail("S1135: Found \(violations.count) FIXME comments in compiled code:\n\(report)")
+        }
+    }
+
+    // MARK: - S1066: MediaOptimizerTests Merged If Guard
+
+    /// Verifies MediaOptimizerTests uses merged if-let conditions (not nested if).
+    func testS1066MediaOptimizerMergedIfCondition() throws {
+        let fileURL = testRoot.appendingPathComponent("MediaOptimizerTests.swift")
+        let content = try String(contentsOf: fileURL, encoding: .utf8)
+        let lines = content.components(separatedBy: "\n")
+
+        for (index, line) in lines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.contains("if let track = try?") && trimmed.contains("estimatedDataRate") {
+                // The condition should include the rate check on the same if-let chain
+                XCTAssertTrue(
+                    trimmed.contains("rate <=") || trimmed.contains("rate <"),
+                    "Rate check should be merged into the if-let chain (S1066), not nested"
+                )
+                // Next line should NOT be another nested `if`
+                if index + 1 < lines.count {
+                    let nextTrimmed = lines[index + 1].trimmingCharacters(in: .whitespaces)
+                    XCTAssertFalse(
+                        nextTrimmed.hasPrefix("if rate"),
+                        "Rate check should NOT be a nested if (S1066 violation)"
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - S3087: Extracted Closure Guards
+
+    /// Verifies ShareImportManager uses extracted progress closure, not inline 3-deep nesting.
+    func testS3087ShareImportManagerNoInlineProgressClosure() throws {
+        let fileURL = sourceRoot
+            .appendingPathComponent("Core/Sharing/ShareImportManager.swift")
+        let content = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            content.contains("onProgress: downloadProgress"),
+            "Download progress should use extracted closure variable, not inline"
+        )
+        XCTAssertFalse(
+            content.contains("onProgress: { [weak self]"),
+            "Download progress should NOT be an inline closure (causes S3087 nesting violation)"
+        )
+    }
+
+    /// Verifies test files use extracted helper methods for task group worker patterns.
+    func testS3087TestFilesUseExtractedWorkerHelpers() throws {
+        for filename in ["ImportStreamingTests.swift", "ImportOptimizationTests.swift"] {
+            let fileURL = testRoot.appendingPathComponent(filename)
+            let content = try String(contentsOf: fileURL, encoding: .utf8)
+
+            XCTAssertTrue(
+                content.contains("static func runWorkStealingWorkers("),
+                "\(filename) should have runWorkStealingWorkers helper"
+            )
+            XCTAssertTrue(
+                content.contains("await Self.runWorkStealingWorkers("),
+                "\(filename) should call extracted helper via Self.runWorkStealingWorkers"
+            )
+        }
+
+        let optContent = try String(contentsOf: testRoot.appendingPathComponent("ImportOptimizationTests.swift"), encoding: .utf8)
+        XCTAssertTrue(
+            optContent.contains("static func runSplitWorkers("),
+            "ImportOptimizationTests should have runSplitWorkers helper"
+        )
+    }
+
+    // MARK: - S1186 Block Comment Validation
+
+    /// Verifies that block comments in empty bodies actually contain text, not just whitespace.
+    func testS1186BlockCommentsContainSubstantiveText() throws {
+        let files = swiftFiles(in: sourceRoot) + swiftFiles(in: testRoot)
+        var violations: [(file: String, line: Int, code: String)] = []
+
+        let emptyBlockCommentPattern = try NSRegularExpression(
+            pattern: #"\{\s*/\*\s*\*/\s*\}"#
+        )
+
+        for fileURL in files {
+            if fileURL.lastPathComponent == "SonarQubeRulesTests.swift" { continue }
+
+            let content = try String(contentsOf: fileURL, encoding: .utf8)
+            let lines = content.components(separatedBy: "\n")
+            let relativePath = fileURL.lastPathComponent
+
+            for (index, line) in lines.enumerated() {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if trimmed.hasPrefix("//") || trimmed.hasPrefix("*") { continue }
+
+                let range = NSRange(trimmed.startIndex..., in: trimmed)
+                if emptyBlockCommentPattern.firstMatch(in: trimmed, range: range) != nil {
+                    violations.append((relativePath, index + 1, trimmed))
+                }
+            }
+        }
+
+        if !violations.isEmpty {
+            let report = violations.map { "  \($0.file):\($0.line): \($0.code)" }.joined(separator: "\n")
+            XCTFail("S1186: Found \(violations.count) empty block comments (must contain explanatory text):\n\(report)")
+        }
+    }
+
+    // MARK: - Specific File Regression Guards
+
+    /// Verifies ShareVaultView cancel buttons have non-empty closures.
+    func testShareVaultViewCancelButtonsHaveComments() throws {
+        let fileURL = sourceRoot
+            .appendingPathComponent("Features/Sharing/ShareVaultView.swift")
+        let content = try String(contentsOf: fileURL, encoding: .utf8)
+        let lines = content.components(separatedBy: "\n")
+
+        var cancelButtonsFound = 0
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.contains("Button(\"Cancel\", role: .cancel)") {
+                cancelButtonsFound += 1
+                XCTAssertFalse(
+                    trimmed.hasSuffix("{}") || trimmed.hasSuffix("{ }"),
+                    "Cancel button must have a comment in its closure: \(trimmed)"
+                )
+                XCTAssertTrue(
+                    trimmed.contains("/*") || trimmed.contains("//"),
+                    "Cancel button closure must contain a comment: \(trimmed)"
+                )
+            }
+        }
+        XCTAssertGreaterThan(cancelButtonsFound, 0, "Should find at least one cancel button in ShareVaultView")
+    }
+
+    /// Verifies InactivityLockManager.PassthroughTouchRecognizer uses `_` for unused params.
+    func testPassthroughTouchRecognizerUsesUnderscoreParams() throws {
+        let fileURL = sourceRoot
+            .appendingPathComponent("Core/InactivityLockManager.swift")
+        let content = try String(contentsOf: fileURL, encoding: .utf8)
+
+        // Verify the override uses bare `_` instead of named params
+        XCTAssertTrue(
+            content.contains("override func touchesBegan(_: Set<UITouch>, with _: UIEvent?)"),
+            "PassthroughTouchRecognizer should use `_` for unused params"
+        )
+        XCTAssertFalse(
+            content.contains("override func touchesBegan(_ touches: Set<UITouch>"),
+            "PassthroughTouchRecognizer should NOT use named params (they're unused)"
+        )
+    }
+
+    /// Verifies ConceptExplainerView has a single `if animatePattern` block (not duplicated).
+    func testConceptExplainerViewNoDuplicateAnimatePatternCondition() throws {
+        let fileURL = sourceRoot
+            .appendingPathComponent("Features/Onboarding/ConceptExplainerView.swift")
+        let content = try String(contentsOf: fileURL, encoding: .utf8)
+        let lines = content.components(separatedBy: "\n")
+
+        // Count `if animatePattern {` occurrences in the PatternDemoGrid struct
+        var inPatternDemoGrid = false
+        var animatePatternIfCount = 0
+
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.contains("struct PatternDemoGrid") { inPatternDemoGrid = true }
+            if inPatternDemoGrid && trimmed == "if animatePattern {" {
+                animatePatternIfCount += 1
+            }
+            // Stop at end of struct (next struct/class/enum declaration or end of file)
+            if inPatternDemoGrid && (trimmed.hasPrefix("struct ") || trimmed.hasPrefix("class "))
+                && !trimmed.contains("PatternDemoGrid") {
+                break
+            }
+        }
+
+        XCTAssertEqual(
+            animatePatternIfCount, 1,
+            "PatternDemoGrid should have exactly one `if animatePattern` block (was consolidated from two)"
+        )
+    }
+
+    /// Verifies ShareImportManager extracts download progress handler (not inline 3-deep closure).
+    func testShareImportManagerDownloadProgressExtracted() throws {
+        let fileURL = sourceRoot
+            .appendingPathComponent("Core/Sharing/ShareImportManager.swift")
+        let content = try String(contentsOf: fileURL, encoding: .utf8)
+
+        // Should have an extracted closure variable
+        XCTAssertTrue(
+            content.contains("let downloadProgress:") || content.contains("let downloadProgress ="),
+            "ShareImportManager should have an extracted downloadProgress closure"
+        )
+
+        // Should use it as `onProgress: downloadProgress` (not inline)
+        XCTAssertTrue(
+            content.contains("onProgress: downloadProgress"),
+            "ShareImportManager should pass extracted downloadProgress to onProgress parameter"
+        )
+    }
+
+    /// Verifies disabled test files use 'Disabled:' not 'FIXME:' in their comments.
+    func testDisabledTestFilesUseDisabledNotFIXME() throws {
+        for filename in ["CloudKitSharingTests.swift", "ShareRevocationTests.swift"] {
+            let fileURL = testRoot.appendingPathComponent(filename)
+            let content = try String(contentsOf: fileURL, encoding: .utf8)
+            let firstLine = content.components(separatedBy: "\n").first ?? ""
+
+            XCTAssertTrue(
+                firstLine.contains("Disabled:") || firstLine.contains("disabled"),
+                "\(filename) should use 'Disabled:' instead of 'FIXME:' in first line"
+            )
+            XCTAssertFalse(
+                firstLine.contains("FIXME"),
+                "\(filename) should not contain FIXME (triggers SonarQube S1135)"
+            )
+        }
+    }
+
+    /// Verifies mock protocol stubs in test files have explanatory comments.
+    func testMockProtocolStubsHaveComments() throws {
+        let fileURL = testRoot.appendingPathComponent("ShareUploadDebounceTests.swift")
+        let content = try String(contentsOf: fileURL, encoding: .utf8)
+        let lines = content.components(separatedBy: "\n")
+
+        var emptyMockStubs = 0
+        var commentedMockStubs = 0
+
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            // Match one-liner function stubs ending with `{ }` or `{}`
+            if trimmed.contains("func ") && (trimmed.hasSuffix("{}") || trimmed.hasSuffix("{ }")) {
+                emptyMockStubs += 1
+            }
+            // Match one-liner stubs with comments
+            if trimmed.contains("func ") && trimmed.contains("/* No-op for mock */") {
+                commentedMockStubs += 1
+            }
+        }
+
+        XCTAssertEqual(emptyMockStubs, 0,
+            "All mock stubs should have comments, found \(emptyMockStubs) without")
+        XCTAssertGreaterThan(commentedMockStubs, 0,
+            "Should find mock stubs with /* No-op for mock */ comments")
     }
 
     // MARK: - S1659: Multiple Variables Per Declaration
