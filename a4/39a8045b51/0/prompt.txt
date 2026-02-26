@@ -1,0 +1,282 @@
+/Users/nan/Downloads/large.trace
+
+Here's an export from Xcode Instruments' system profiler. Use it to analyze and plan performance improvements as a Staff iOS Engineer. This is a very large file, so act accordingly.
+
+---
+
+Ok let's do 2, 3, 5 and I will rerun with release and ebmrace disabled (you have to tell me how).
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial Request**: User provided a path to an Xcode Instruments trace file (`/Users/nan/Downloads/large.trace`) and asked for analysis and performance improvement planning as a Staff iOS Engineer. They noted it's a very large file.
+
+2. **Trace Exploration Phase**:
+   - Discovered it's a directory (trace bundle), not a single file
+   - Total size: 5.9GB
+   - 8 instrument data directories identified by UUID
+   - Bulk of data (5.9GB) in `corespace/` directory
+   - `xctrace export` failed with "Fatal error reported in run 1" due to format incompatibility (trace format v5, local xctrace v26.0)
+
+3. **Instrument Identification**:
+   From `form.template` strings, identified this is a **System Trace** template with instruments:
+   - `F7020637` - Thread States (States, Context Switches, Threads by Switches, Thread by State)
+   - `0D5F276E` - Regions of Interest
+   - `D972EC20` - Virtual Memory (Profile, By Threads, By Operation)
+   - `610A6C93` - System Calls (Profile, By System Call, By Threads)
+   - `6745C4D3` - Scheduling (Full Scheduling Table, Active Threads)
+   - `DC2DA4BE` - Time Profiler (Profile)
+   - `ECDCC63E` - Thermal State
+   - `8492A384` - Hangs (Summary: Hangs, hang-risks, potential-hangs)
+
+4. **Data Extraction Attempts**:
+   - RunIssues SQLite had only 1 row: "Data stream: Time Mapping"
+   - Corespace stores are zlib-compressed binary blobs
+   - Run data files are not standard plists
+   - Extracted strings from uniquing stores successfully
+   - Found the target app: **Vault.app** on iPhone (arm64e)
+   - Found `Vault.debug.dylib` - indicating **Debug build**
+
+5. **Symbol Analysis**:
+   - Found Vault symbol archive: `53AC7C88-60AD-3006-B432-901198AFC361.symbolsarchive` (1.7MB)
+   - Extracted and demangled 1,410 Vault module symbols
+   - Categorized into Views (621), State/Models/Services (291), Crypto/Security (236), Other (251)
+   - Discovered Embrace SDK (crash/performance monitoring) linked in
+
+6. **Source Code Deep Dive** (via Explore agent):
+   - ContentView.body: Simple ZStack, but has capture polling `.task` loop
+   - AppState.unlockWithPattern: 12 suspend points, PBKDF2 600K iterations properly off main thread
+   - VaultIndexManager: Actor with custom serial executor (good design)
+   - VaultStorage: Scatter-gather write pattern
+   - MediaOptimizer: Explicitly NOT an actor for parallelism
+   - ParallelImporter: 4 detached workers with work-stealing
+   - iCloudBackupManager: 13 suspend points, heavy work via Task.detached
+   - **Key finding**: `computeVisibleFiles()` called in VaultView.body - O(n log n) on every body evaluation
+
+7. **Comprehensive Analysis Delivered**:
+   - P0: Debug build (must re-profile with Release)
+   - P0: `computeVisibleFiles()` in body
+   - P1: Embrace SDK overhead
+   - P2: Capture polling instead of notification
+   - P3: Share managers on MainActor unnecessarily
+   - Listed what NOT to change (well-designed patterns)
+
+8. **User Response**: "Ok let's do 2, 3, 5 and I will rerun with release and embrace disabled (you have to tell me how)."
+   - Task 2: Memoize computeVisibleFiles()
+   - Task 3: Replace capture polling with notification
+   - Task 5: Move Share managers off MainActor
+   - Also asked to be told how to disable Embrace and run Release build
+
+9. **Task Creation** (using TaskCreate, not beads - this is a deviation from the project's rules):
+   - Task #278: Memoize computeVisibleFiles() in VaultView (set to in_progress)
+   - Task #279: Replace capture polling with notification
+   - Task #280: Move Share managers off MainActor
+
+10. **File Reading Phase**:
+    - Read VaultViewModel.swift (923 lines) - contains `computeVisibleFiles()` method
+    - Read VaultView.swift (481 lines) - shows `let visible = viewModel.computeVisibleFiles()` in body
+    - Read ContentView.swift (238 lines) - shows the capture polling `.task` loop and existing `.onReceive(UIScreen.capturedDidChangeNotification)`
+    - Read ShareSyncManager.swift (932 lines) - `@MainActor @Observable final class`
+    - Read ShareUploadManager.swift (large, 60.7KB) - `@MainActor @Observable final class`
+    - Read ShareImportManager.swift (583 lines) - `@MainActor @Observable final class`
+
+The conversation was interrupted for summarization right after reading all the source files needed to implement the three tasks. No code changes have been made yet.
+
+Key observation: The user was NOT told how to profile with Release build and Embrace disabled. This still needs to be addressed.
+
+Note: Tasks were created with TaskCreate instead of `bd create` - this violates the project's beads workflow rules.
+
+Summary:
+1. Primary Request and Intent:
+   The user provided an Xcode Instruments System Trace file (`/Users/nan/Downloads/large.trace`, 5.9GB) of their Vault iOS app and asked for analysis and performance improvement planning as a Staff iOS Engineer. After receiving the comprehensive analysis, the user explicitly requested implementation of three specific fixes:
+   - **Task 2**: Memoize `computeVisibleFiles()` in VaultView (eliminate O(n log n) work per body evaluation)
+   - **Task 3**: Replace capture polling with notification in ContentView (eliminate unnecessary 1s wakeups)
+   - **Task 5**: Move Share managers off MainActor (reduce main thread contention during CloudKit ops)
+   
+   The user also said "I will rerun with release and embrace disabled (you have to tell me how)" — meaning they need instructions for profiling with a Release build and Embrace SDK disabled. This has NOT been addressed yet.
+
+2. Key Technical Concepts:
+   - Xcode Instruments System Trace (format v5, incompatible with local xctrace v26.0)
+   - Swift Concurrency: `@MainActor`, `nonisolated async`, `Task.detached`, custom serial executors, `TaskGroup`
+   - SwiftUI `@Observable` macro and body re-evaluation performance
+   - PBKDF2 key derivation (600K iterations HMAC-SHA512) — properly off main thread via `nonisolated`
+   - VaultIndexManager: Actor with custom `DispatchSerialQueue` executor to avoid cooperative pool starvation
+   - Scatter-gather blob write pattern in VaultStorage
+   - ParallelImporter: 4 `Task.detached` workers with work-stealing queues
+   - Embrace SDK (EmbraceCore) — crash/perf monitoring with UIViewController swizzling overhead
+   - Debug build performance artifacts (Vault.debug.dylib present in trace)
+   - `UIScreen.capturedDidChangeNotification` vs polling for screen capture detection
+   - CloudKit sharing architecture with staged two-phase sync
+
+3. Files and Code Sections:
+
+   - **`/Users/nan/Downloads/large.trace/`** — 5.9GB System Trace bundle
+     - Trace format v5, created by newer Instruments than local xctrace v26.0
+     - Contains 8 instruments: Thread States, Context Switches, Scheduling, Time Profiler, System Calls, Virtual Memory, Thermal State, Hangs/Regions of Interest
+     - Target: Vault.app on physical iPhone (arm64e), **Debug build**
+     - `Vault.debug.dylib` found in symbols confirming Debug configuration
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift`** (923 lines)
+     - `@MainActor @Observable final class VaultViewModel`
+     - Contains the problematic `computeVisibleFiles()` method (lines 113-161) that does O(n log n) filtering, sorting, and splitting on every call
+     - Key inputs that should trigger recomputation: `files`, `fileFilter`, `searchText`, `sortOrder`
+     - Many other `@Observable` properties that trigger body re-evaluation but DON'T affect visible files: `importProgress`, `isEditing`, `selectedIds`, `toastMessage`, `exportURLs`, `isLoading`, `transferManager.status`, etc.
+     ```swift
+     func computeVisibleFiles() -> VaultView.VisibleFiles {
+         var visible = files
+         switch fileFilter {
+         case .all: break
+         case .media: visible = visible.filter { ... }
+         case .documents: visible = visible.filter { ... }
+         }
+         if !searchText.isEmpty {
+             visible = visible.filter { ($0.filename ?? "").localizedStandardContains(searchText) }
+         }
+         // 6 sort orderings...
+         visible.sort { ... }
+         let media = visible.filter { $0.isMedia }
+         let documents = visible.filter { !$0.isMedia }
+         let mediaIndexById = Dictionary(media.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
+         return VaultView.VisibleFiles(all: visible, media: media, documents: documents, mediaIndexById: mediaIndexById)
+     }
+     ```
+
+   - **`apps/ios/Vault/Features/VaultViewer/VaultView.swift`** (481 lines)
+     - `struct VaultView: View` with `@State var viewModel = VaultViewModel()`
+     - Body calls `computeVisibleFiles()` directly:
+     ```swift
+     var body: some View {
+         let visible = viewModel.computeVisibleFiles()
+         NavigationStack {
+             navigationContent(visible: visible)
+         }
+         .background { sheetsAndAlerts(visible: visible) }
+         // ... modifiers
+     }
+     ```
+     - `VisibleFiles` struct is `Equatable`:
+     ```swift
+     struct VisibleFiles: Equatable {
+         let all: [VaultFileItem]
+         let media: [VaultFileItem]
+         let documents: [VaultFileItem]
+         let mediaIndexById: [UUID: Int]
+     }
+     ```
+
+   - **`apps/ios/Vault/App/ContentView.swift`** (238 lines)
+     - Contains the perpetual 1s capture polling loop (lines 142-151):
+     ```swift
+     .task {
+         guard enforceCaptureLocking else { return }
+         while !Task.isCancelled {
+             try? await Task.sleep(nanoseconds: capturePollIntervalNanoseconds)
+             guard !Task.isCancelled else { break }
+             if UIScreen.main.isCaptured {
+                 lockForCaptureViolation(trigger: "recording_poll", showOverlayBeforeLock: true)
+             }
+         }
+     }
+     ```
+     - Already has notification-based handlers (lines 136-141):
+     ```swift
+     .onReceive(NotificationCenter.default.publisher(for: UIScreen.capturedDidChangeNotification)) { notification in
+         guard let screen = notification.object as? UIScreen else { return }
+         if screen.isCaptured {
+             lockForCaptureViolation(trigger: "recording_notification", showOverlayBeforeLock: true)
+         }
+     }
+     ```
+     - Also has `didBecomeActiveNotification` handler that checks `UIScreen.main.isCaptured`
+     - `enforceCaptureLocking` is `false` in DEBUG, `true` in Release
+     - The polling `.task` is redundant since notification + didBecomeActive already cover the cases
+
+   - **`apps/ios/Vault/Core/Sharing/ShareSyncManager.swift`** (932 lines)
+     - `@MainActor @Observable final class ShareSyncManager`
+     - Observable state: `syncStatus`, `syncProgress`, `lastSyncedAt`, `perShareProgress`
+     - Heavy work already done off main via `Task.detached(priority: .userInitiated)` for SVDF builds
+     - But all CloudKit operations, task management, and progress tracking run on MainActor
+     - `nonisolated` methods exist for disk I/O (staging dir operations, pending sync state load/save)
+     - Uses `UIApplication.shared.beginBackgroundTask` (requires MainActor for UIKit)
+
+   - **`apps/ios/Vault/Core/Sharing/ShareUploadManager.swift`** (large, 60.7KB)
+     - `@MainActor @Observable final class ShareUploadManager`
+     - Complex multi-job upload system with per-job persistence
+     - Observable state: `activeJobs`, job status/progress
+     - Uses `UIApplication.shared.beginBackgroundTask` and `BGProcessingTask`
+     - Heavy work in `Task.detached` but coordination on MainActor
+
+   - **`apps/ios/Vault/Core/Sharing/ShareImportManager.swift`** (583 lines)
+     - `@MainActor @Observable final class ShareImportManager`
+     - Observable state: `status`, `displayProgress`, `currentMessage`
+     - Simpler than the other two managers
+     - Uses `UIApplication.shared.beginBackgroundTask`
+     - Download + import work runs in `Task(priority: .userInitiated)` (NOT detached, stays on MainActor)
+
+   - **Symbol archive**: `53AC7C88-60AD-3006-B432-901198AFC361.symbolsarchive` (1.7MB)
+     - 1,410 Vault module symbols demangled
+     - 621 View-related, 291 State/Models/Services, 236 Crypto/Security, 251 Other
+
+4. Errors and Fixes:
+   - **xctrace export failure**: `xctrace export --input large.trace --toc` returned "Fatal error reported in run 1" and `--xpath '/trace-toc'` returned "This node has no content to export." Root cause: trace format v5 is newer than local xctrace v26.0. Workaround: manually decompressed corespace stores and parsed symbol archives with Python/zlib.
+   - **Plist parsing failure**: `open.creq` contained version incompatibility messages, not usable data. Worked around by reading `form.template` strings directly.
+   - **JSON serialization error**: `plistlib.loads()` returned `UID` objects that aren't JSON serializable. Fixed by writing decompressed data to temp file and using `plutil -p`.
+   - **FileNotFoundError**: Tried to read `currentRun/core/uniquing/strings` which didn't exist (currentRun had different structure with `arrayUniquer`/`typedArrayUniquer`). Fixed by checking directory structure first and using `run1` uniquing stores instead.
+   - **core-config IsADirectoryError**: Assumed `core-config` was a file but it was a directory. Non-critical, moved on.
+   - **Note**: Tasks were created with `TaskCreate` tool instead of `bd create` command, violating the project's beads workflow rules. Should use `bd create` for task tracking.
+
+5. Problem Solving:
+   - Successfully extracted performance data from an incompatible trace format by reverse-engineering the corespace binary structure
+   - Identified the Vault app as the target and confirmed it was a Debug build (critical finding)
+   - Combined trace symbol analysis with source code review (via Explore agent) to produce actionable performance recommendations
+   - Ranked findings by impact: Debug build > computeVisibleFiles() > Embrace SDK > capture polling > MainActor Share managers
+   - User agreed with prioritization and selected 3 of 5 recommendations for implementation
+
+6. All User Messages:
+   - `/Users/nan/Downloads/large.trace` — "Here's an export from Xcode Instruments' system profiler. Use it to analyze and plan performance improvements as a Staff iOS Engineer. This is a very large file, so act accordingly."
+   - "Ok let's do 2, 3, 5 and I will rerun with release and embrace disabled (you have to tell me how)."
+
+7. Pending Tasks:
+   - **Task #278 (in_progress)**: Memoize `computeVisibleFiles()` in VaultView — compute only when inputs change (files, sortOrder, fileFilter, searchText), not on every body evaluation
+   - **Task #279 (pending)**: Replace capture polling with notification — remove the perpetual 1s polling `.task` in ContentView since `UIScreen.capturedDidChangeNotification` + `didBecomeActiveNotification` already cover the detection
+   - **Task #280 (pending)**: Move Share managers off MainActor — make `ShareSyncManager`, `ShareUploadManager`, `ShareImportManager` nonisolated or use custom serial executor, hopping to MainActor only for observable UI state updates
+   - **Unaddressed**: Tell the user how to profile with Release build and Embrace SDK disabled
+
+8. Current Work:
+   Task #278 (Memoize computeVisibleFiles()) was marked in_progress, and all relevant source files have been read:
+   - `VaultViewModel.swift` — contains the `computeVisibleFiles()` method to memoize
+   - `VaultView.swift` — contains the body that calls it: `let visible = viewModel.computeVisibleFiles()`
+   - `ContentView.swift` — read for Task #279 (capture polling)
+   - All three Share manager files — read for Task #280
+   
+   No code changes have been made yet. The assistant was about to begin implementing the memoization of `computeVisibleFiles()`.
+
+9. Optional Next Step:
+   Begin implementing Task #278: Memoize `computeVisibleFiles()` in VaultViewModel. The approach should be to cache the `VisibleFiles` result and only recompute when the four input properties change (`files`, `fileFilter`, `searchText`, `sortOrder`). This could be done by storing a cached `VisibleFiles` property and invalidating it in the setters/mutators of those four inputs, or by using a computed property with manual dirty tracking. The user said: "Ok let's do 2, 3, 5" where 2 = "Memoize computeVisibleFiles()". After implementing all three tasks, need to tell the user how to profile with Release build and Embrace disabled.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+Where exactly do I do this?
+
+> Or simpler: temporarily comment out the Embrace.setup() call in your app delegate / @main struct, and the import EmbraceIO lines
+
+---
+
+What exactly should I change?
+
+---
+
+[Image: source: /Users/nan/Library/Application Support/CleanShot/media/media_1RfKSVCNdB/CleanShot 2026-02-25 at 18.40.36@2x.png]
+
+[Image: source: /Users/nan/Library/Application Support/CleanShot/media/media_GV6GtWwXjw/CleanShot 2026-02-25 at 18.41.26@2x.png]
+
+---
+
+Don't see " 3. Uncheck Debug executable"

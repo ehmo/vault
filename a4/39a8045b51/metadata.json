@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "a439a8045b51",
+  "strategy": "manual-commit",
+  "branch": "worktree-clever-frolicking-sun",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/App/ContentView.swift",
+    "apps/ios/Vault/Core/Sharing/ShareImportManager.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultViewModel.swift",
+    "apps/ios/VaultTests/VaultViewModelTests.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a4/39a8045b51/0/metadata.json",
+      "transcript": "/a4/39a8045b51/0/full.jsonl",
+      "context": "/a4/39a8045b51/0/context.md",
+      "content_hash": "/a4/39a8045b51/0/content_hash.txt",
+      "prompt": "/a4/39a8045b51/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 84,
+    "cache_creation_tokens": 219920,
+    "cache_read_tokens": 7151624,
+    "output_tokens": 11359,
+    "api_call_count": 72
+  }
+}
