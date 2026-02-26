@@ -469,7 +469,7 @@ private enum ShareAttachmentProcessor {
     }
 
     private static func generateThumbnail(from url: URL) -> Data? {
-        let maxDimension: CGFloat = 200
+        let maxDimension: CGFloat = 400
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
 
         let options: [CFString: Any] = [
@@ -485,6 +485,6 @@ private enum ShareAttachmentProcessor {
         // kCGImageSourceCreateThumbnailWithTransform already rotates pixels to correct
         // orientation, so use .up to avoid applying the EXIF rotation a second time.
         let image = UIImage(cgImage: cgImage, scale: 1.0, orientation: .up)
-        return image.jpegData(compressionQuality: 0.6)
+        return image.jpegData(compressionQuality: 0.7)
     }
 }

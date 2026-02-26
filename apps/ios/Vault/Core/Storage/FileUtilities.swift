@@ -2,7 +2,7 @@ import UIKit
 import ImageIO
 
 enum FileUtilities {
-    static func generateThumbnail(from data: Data, maxSize: CGFloat = 200) -> Data? {
+    static func generateThumbnail(from data: Data, maxSize: CGFloat = 400) -> Data? {
         guard let image = UIImage(data: data) else { return nil }
 
         let size = image.size

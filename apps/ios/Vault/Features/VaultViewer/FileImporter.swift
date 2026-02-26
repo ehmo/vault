@@ -95,16 +95,16 @@ final class FileImporter: @unchecked Sendable {
     // MARK: - Thumbnail Generation
     
     /// Generates a thumbnail from image data
-    /// Returns JPEG data at 200x200 max size, or nil if not an image
+    /// Returns JPEG data at 400x400 max size, or nil if not an image
     private func generateThumbnail(from data: Data, mimeType: String) -> Data? {
         // Only generate thumbnails for images
         guard mimeType.hasPrefix("image/") else { return nil }
-        
+
         // Use UIImage(data:) which reads EXIF orientation
         guard let image = UIImage(data: data) else { return nil }
-        
-        // Calculate thumbnail size (max 200x200, maintaining aspect ratio)
-        let maxSize: CGFloat = 200
+
+        // Calculate thumbnail size (max 400x400, maintaining aspect ratio)
+        let maxSize: CGFloat = 400
         let size = image.size
         let scale = min(maxSize / size.width, maxSize / size.height)
         let newSize = CGSize(width: size.width * scale, height: size.height * scale)
