@@ -628,8 +628,8 @@ final class SVDFStreamingTests: XCTestCase {
 
         // Verify deleted entry is marked
         let deletedEntry = updatedManifest.first { $0.id == id2.uuidString }
-        XCTAssertNotNil(deletedEntry)
-        XCTAssertTrue(deletedEntry!.deleted)
+        let unwrappedDeleted = try XCTUnwrap(deletedEntry)
+        XCTAssertTrue(unwrappedDeleted.deleted)
     }
 
     // MARK: - Content Offset Correctness
