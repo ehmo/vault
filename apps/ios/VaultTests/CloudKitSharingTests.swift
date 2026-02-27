@@ -397,10 +397,10 @@ class MockCloudKitSharingClient: CloudKitSharingClient {
         return (outputURL, "", VaultStorage.SharePolicy(), 1)
     }
 
-    func downloadUpdatedVaultToFile(shareVaultId _: String, shareKey _: ShareKey, outputURL _: URL, onProgress _: (@Sendable (Int, Int) -> Void)?) async throws {}
+    func downloadUpdatedVaultToFile(shareVaultId _: String, shareKey _: ShareKey, outputURL _: URL, onProgress _: (@Sendable (Int, Int) -> Void)?) async throws { /* No-op for mock */ }
 
-    func deleteSharedVault(shareVaultId _: String) async throws {}
-    func deleteSharedVault(phrase _: String) async throws {}
+    func deleteSharedVault(shareVaultId _: String) async throws { /* No-op for mock */ }
+    func deleteSharedVault(phrase _: String) async throws { /* No-op for mock */ }
     func existingChunkIndices(for _: String) async throws -> Set<Int> { [] }
     func checkiCloudStatus() async -> CKAccountStatus { .available }
 }

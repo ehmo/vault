@@ -114,7 +114,7 @@ private final class MockUploadCloudKitSharing: CloudKitSharingClient {
     func downloadUpdatedVault(shareVaultId _: String, shareKey _: ShareKey, onProgress _: ((Int, Int) -> Void)?) async throws -> Data { Data() }
 
     func downloadSharedVaultToFile(phrase _: String, outputURL: URL, markClaimedOnDownload _: Bool, onProgress _: ((Int, Int) -> Void)?) async throws -> (fileURL: URL, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) { (outputURL, "", VaultStorage.SharePolicy(), 1) }
-    func downloadUpdatedVaultToFile(shareVaultId _: String, shareKey _: ShareKey, outputURL _: URL, onProgress _: ((Int, Int) -> Void)?) async throws {}
+    func downloadUpdatedVaultToFile(shareVaultId _: String, shareKey _: ShareKey, outputURL _: URL, onProgress _: ((Int, Int) -> Void)?) async throws { /* No-op for mock */ }
 
     func revokeShare(shareVaultId _: String) async throws {
         // No-op: test stub
