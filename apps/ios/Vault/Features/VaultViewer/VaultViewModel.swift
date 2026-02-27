@@ -834,6 +834,22 @@ final class VaultViewModel {
             do {
                 var index = try await VaultStorage.shared.loadIndex(with: key)
 
+                // Retroactive fix: if a pending import exists but the vault wasn't
+                // marked as shared (crash during pre-fix import), apply sharing
+                // metadata now to restore sender control over the files.
+                if index.isSharedVault != true,
+                   let pending = ShareImportManager.loadPendingImportState(),
+                   !pending.importedFileIds.isEmpty {
+                    vmLogger.warning("Detected unprotected shared vault files — applying sharing restrictions retroactively")
+                    index.isSharedVault = true
+                    index.sharedVaultId = pending.shareVaultId
+                    index.sharePolicy = pending.policy
+                    index.openCount = 0
+                    index.shareKeyData = pending.shareKeyData
+                    index.sharedVaultVersion = pending.shareVaultVersion
+                    try await VaultStorage.shared.saveIndex(index, with: key)
+                }
+
                 let shared = index.isSharedVault ?? false
                 await MainActor.run {
                     isSharedVault = shared

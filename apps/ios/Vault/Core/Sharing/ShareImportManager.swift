@@ -269,6 +269,36 @@ final class ShareImportManager {
                     throw CloudKitSharingError.invalidData
                 }
 
+                // CRITICAL: Pre-mark vault as shared BEFORE importing any files.
+                // This ensures that even if the app crashes during import, any
+                // files already stored will have sharing restrictions enforced.
+                do {
+                    var index = try await VaultStorage.shared.loadIndex(with: capturedPatternKey)
+                    let alreadyMarked = (index.isSharedVault == true && index.sharedVaultId == result.shareVaultId)
+                    if !alreadyMarked {
+                        index.isSharedVault = true
+                        index.sharedVaultId = result.shareVaultId
+                        index.sharePolicy = result.policy
+                        index.openCount = 0
+                        index.shareKeyData = shareKey.rawBytes
+                        index.sharedVaultVersion = result.version
+                        try await VaultStorage.shared.saveIndex(index, with: capturedPatternKey)
+                        Self.logger.info("[import] Pre-marked vault as shared before file import")
+                    }
+                } catch {
+                    Self.logger.error("[import] Failed to pre-mark vault as shared: \(error.localizedDescription)")
+                    throw error  // Cannot proceed safely without marking
+                }
+
+                // Mark share as claimed on CloudKit now that the vault is protected locally.
+                // Best-effort: if it fails, the local vault is still protected by the share policy.
+                do {
+                    try await CloudKitSharingManager.shared.markShareClaimed(shareVaultId: result.shareVaultId)
+                    Self.logger.info("[import] Share claimed on CloudKit before file import")
+                } catch {
+                    Self.logger.warning("[import] Failed to mark share claimed before import: \(error.localizedDescription)")
+                }
+
                 let fileCount = sharedVault.files.count
                 let alreadyImportedIds = Set(pendingImportState.importedFileIds)
 
@@ -356,25 +386,14 @@ final class ShareImportManager {
 
                 guard !Task.isCancelled else { return }
 
-                // Mark vault index as shared vault
+                // Sharing metadata was pre-marked before file import.
+                // Just ensure version is current and clear pending state.
                 var index = try await VaultStorage.shared.loadIndex(with: capturedPatternKey)
-                index.isSharedVault = true
-                index.sharedVaultId = result.shareVaultId
-                index.sharePolicy = result.policy
-                index.openCount = 0
-                index.shareKeyData = shareKey.rawBytes
                 index.sharedVaultVersion = result.version
                 try await VaultStorage.shared.saveIndex(index, with: capturedPatternKey)
 
                 // Clear pending import since we're done
                 Self.clearPendingImport()
-
-                // Claim only after local import/setup succeeds
-                do {
-                    try await CloudKitSharingManager.shared.markShareClaimed(shareVaultId: result.shareVaultId)
-                } catch {
-                    Self.logger.warning("Failed to mark share claimed after import: \(error.localizedDescription, privacy: .public)")
-                }
 
                 self.finishImport(.importComplete)
             } catch {
