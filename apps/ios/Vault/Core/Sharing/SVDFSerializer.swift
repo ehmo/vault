@@ -945,11 +945,13 @@ enum SVDFSerializer {
         try handle.seek(toOffset: UInt64(offset))
 
         // Read the entry header fields (everything before content data).
-        // Max header overhead: 4 + 16 + 2 + 255 + 1 + 255 + 4 + 8 + 8 + 4 + thumb + 4 ≈ 556 + thumb
+        // Max header overhead: 4 + 16 + 2 + 255 + 1 + 255 + 4 + 8 + 8 + 4 + thumb + 4 ≈ 557 + thumb
         // We read in two passes: first the fixed fields to learn sizes, then thumb.
 
-        // Read enough for fixed fields (up to thumbSize prefix): ~320 bytes max
-        let fixedReadSize = min(size, 320)
+        // Read enough for fixed fields (up to thumbSize prefix).
+        // 557 bytes covers max filename (255) + max mimeType (255) + fixed fields (47).
+        // Use 1024 for safety margin.
+        let fixedReadSize = min(size, 1024)
         guard let fixedData = try handle.read(upToCount: fixedReadSize),
               fixedData.count >= 4 else {
             throw SVDFError.invalidEntry

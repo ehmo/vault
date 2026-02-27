@@ -158,6 +158,7 @@
 		A0081D70B8D9F93762BADBB3 /* WordLists.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AD8EFF95D9C267EB7E31814 /* WordLists.swift */; };
 		A24FBBFF5C7419D346953788 /* RatingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02C01509778E4F4CFC0596CC /* RatingView.swift */; };
 		A2AD8D1F8A04295DED49EFB4 /* SVDFSerializerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04B8BC5053C02DEC21F3DD6F /* SVDFSerializerTests.swift */; };
+		AABB112233445566STRM0001 /* SVDFStreamingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB112233445566STRM0002 /* SVDFStreamingTests.swift */; };
 		A2F52FF1DE4D33DA58465AEA /* ZoomableImageContainerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40910627C8AB2800270C984 /* ZoomableImageContainerTests.swift */; };
 		A6A3FA909F4BAE332F07E1B3 /* EncryptedBlobTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A656539C8A023A22295EF13C /* EncryptedBlobTests.swift */; };
 		A727E6B42B5E1CFDC08FFDD2 /* ParallelImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76D26036851050EA407E0839 /* ParallelImporterTests.swift */; };
@@ -341,6 +342,7 @@
 		00DEA315F31A573401FC2AE0 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		02C01509778E4F4CFC0596CC /* RatingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RatingView.swift; sourceTree = "<group>"; };
 		04B8BC5053C02DEC21F3DD6F /* SVDFSerializerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SVDFSerializerTests.swift; sourceTree = "<group>"; };
+		AABB112233445566STRM0002 /* SVDFStreamingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SVDFStreamingTests.swift; sourceTree = "<group>"; };
 		04DDC73B1655584BBFBBBE81 /* PatternGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternGridView.swift; sourceTree = "<group>"; };
 		099767B026E8E5D50E4F56A5 /* ChangePatternView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangePatternView.swift; sourceTree = "<group>"; };
 		0B403773859CCF06D5E7A7A6 /* FileImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileImporter.swift; sourceTree = "<group>"; };
@@ -991,6 +993,7 @@
 				3815E8701FECB3D916FB7165 /* StagedImportManagerTests.swift */,
 				96784C78917A08C4F2726858 /* SubscriptionManagerTests.swift */,
 				04B8BC5053C02DEC21F3DD6F /* SVDFSerializerTests.swift */,
+				AABB112233445566STRM0002 /* SVDFStreamingTests.swift */,
 				4CA42624D77D48E8B942AEA2 /* VaultFileItemTests.swift */,
 				4C4D247821836F5F973B35D1 /* VaultFullChainTests.swift */,
 				2F16DA234C6FA95709DAD7F9 /* VaultIndexManagerTests.swift */,
@@ -1424,6 +1427,7 @@
 				06776F448B01EBAC7C1844B2 /* PerformanceBenchmarkTests.swift in Sources */,
 				6B545488A12F266AD847197C /* RecoveryPhraseGeneratorTests.swift in Sources */,
 				A2AD8D1F8A04295DED49EFB4 /* SVDFSerializerTests.swift in Sources */,
+				AABB112233445566STRM0001 /* SVDFStreamingTests.swift in Sources */,
 				C044D3F7283687B1DBC51BF3 /* ScreenshotShieldTests.swift in Sources */,
 				EE5D0E4FE5588426826E464E /* SecureBytesTests.swift in Sources */,
 				AEEB6F4F0D961F013E93A3FC /* SecureDeleteTests.swift in Sources */,
@@ -1687,7 +1691,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 155;
+				CURRENT_PROJECT_VERSION = 156;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Add to Vaultaire";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1723,7 +1727,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Extensions/ShareExtension/ShareExtension.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 155;
+				CURRENT_PROJECT_VERSION = 156;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Add to Vaultaire";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1829,7 +1833,7 @@
 				CODE_SIGN_ENTITLEMENTS = Vault/Supporting/Vault.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 155;
+				CURRENT_PROJECT_VERSION = 156;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -1976,7 +1980,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 155;
+				CURRENT_PROJECT_VERSION = 156;
 				INFOPLIST_FILE = Vault/Extensions/ShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Add to Vaultaire";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -2271,7 +2275,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 155;
+				CURRENT_PROJECT_VERSION = 156;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -2466,7 +2470,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 155;
+				CURRENT_PROJECT_VERSION = 156;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
