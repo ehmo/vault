@@ -170,4 +170,6 @@ private final class MockDebounceCloudKitSharing: CloudKitSharingClient {
     func deleteSharedVault(phrase _: String) async throws { /* No-op for mock */ }
     func existingChunkIndices(for _: String) async throws -> Set<Int> { [] }
     func checkiCloudStatus() async -> CKAccountStatus { .available }
+    func downloadSharedVaultToFile(phrase _: String, outputURL _: URL, markClaimedOnDownload _: Bool, onProgress _: ((Int, Int) -> Void)?) async throws -> (fileURL: URL, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) { (URL(fileURLWithPath: "/dev/null"), "", VaultStorage.SharePolicy(), 1) }
+    func downloadUpdatedVaultToFile(shareVaultId _: String, shareKey _: ShareKey, outputURL _: URL, onProgress _: ((Int, Int) -> Void)?) async throws {}
 }

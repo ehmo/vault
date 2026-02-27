@@ -437,6 +437,273 @@ enum SVDFSerializer {
         )
     }
 
+    // MARK: - File-Based Parsing (Streaming Import)
+
+    /// Metadata extracted from a file entry header without reading the encrypted content.
+    /// Used by the streaming import pipeline to avoid loading file content into memory.
+    struct FileEntryMetadata: Sendable {
+        let id: UUID
+        let filename: String
+        let mimeType: String
+        let originalSize: Int
+        let createdAt: Date
+        let duration: TimeInterval?
+        let encryptedThumbnail: Data?
+        /// Byte offset of the encrypted content within the SVDF file.
+        let contentOffset: Int
+        /// Size of the encrypted content in bytes.
+        let contentSize: Int
+    }
+
+    /// Checks if a file begins with SVDF magic bytes (reads 4 bytes from disk).
+    static func isSVDFFile(_ url: URL) -> Bool {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return false }
+        defer { try? handle.close() }
+        guard let data = try? handle.read(upToCount: 4), data.count == 4 else { return false }
+        return isSVDF(data)
+    }
+
+    /// Parses the 64-byte header from an SVDF file on disk.
+    static func parseHeaderFromFile(_ url: URL) throws -> Header {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        guard let data = try handle.read(upToCount: headerSize), data.count >= headerSize else {
+            throw SVDFError.invalidHeader
+        }
+        return try parseHeader(from: data)
+    }
+
+    /// Decrypts and parses the file manifest from an SVDF file on disk.
+    /// Only reads the header + manifest section (~few KB), not file entry content.
+    static func parseManifestFromFile(_ url: URL, shareKey: Data) throws -> [FileManifestEntry] {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+
+        guard let headerData = try handle.read(upToCount: headerSize), headerData.count >= headerSize else {
+            throw SVDFError.invalidHeader
+        }
+        let header = try parseHeader(from: headerData)
+
+        let mStart = Int(header.manifestOffset)
+        let mSize = Int(header.manifestSize)
+        try handle.seek(toOffset: UInt64(mStart))
+        guard let encryptedManifest = try handle.read(upToCount: mSize), encryptedManifest.count == mSize else {
+            throw SVDFError.invalidManifest
+        }
+
+        let manifestJSON = try CryptoEngine.decrypt(encryptedManifest, with: shareKey)
+        return try JSONDecoder().decode([FileManifestEntry].self, from: manifestJSON)
+    }
+
+    /// Parses metadata from an SVDF file on disk. Only reads header + metadata section.
+    static func parseMetadataFromFile(_ url: URL, shareKey: Data) throws -> SharedVaultData.SharedVaultMetadata {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+
+        guard let headerData = try handle.read(upToCount: headerSize), headerData.count >= headerSize else {
+            throw SVDFError.invalidHeader
+        }
+        let header = try parseHeader(from: headerData)
+
+        let metaStart = Int(header.metadataOffset)
+        let metaSize = Int(header.metadataSize)
+        try handle.seek(toOffset: UInt64(metaStart))
+        guard let encryptedMeta = try handle.read(upToCount: metaSize), encryptedMeta.count == metaSize else {
+            throw SVDFError.invalidManifest
+        }
+
+        let metaJSON = try CryptoEngine.decrypt(encryptedMeta, with: shareKey)
+        return try JSONDecoder().decode(SharedVaultData.SharedVaultMetadata.self, from: metaJSON)
+    }
+
+    /// Convenience: parses header, manifest, and metadata from an SVDF file on disk.
+    /// Total memory: ~100KB (manifest + metadata JSON). No file content loaded.
+    static func deserializeStreamingMetadata(
+        from url: URL,
+        shareKey: Data
+    ) throws -> (header: Header, manifest: [FileManifestEntry], metadata: SharedVaultData.SharedVaultMetadata) {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+
+        guard let headerData = try handle.read(upToCount: headerSize), headerData.count >= headerSize else {
+            throw SVDFError.invalidHeader
+        }
+        let header = try parseHeader(from: headerData)
+
+        // Read manifest
+        let mStart = Int(header.manifestOffset)
+        let mSize = Int(header.manifestSize)
+        try handle.seek(toOffset: UInt64(mStart))
+        guard let encryptedManifest = try handle.read(upToCount: mSize), encryptedManifest.count == mSize else {
+            throw SVDFError.invalidManifest
+        }
+        let manifestJSON = try CryptoEngine.decrypt(encryptedManifest, with: shareKey)
+        let manifest = try JSONDecoder().decode([FileManifestEntry].self, from: manifestJSON)
+
+        // Read metadata
+        let metaStart = Int(header.metadataOffset)
+        let metaSize = Int(header.metadataSize)
+        try handle.seek(toOffset: UInt64(metaStart))
+        guard let encryptedMeta = try handle.read(upToCount: metaSize), encryptedMeta.count == metaSize else {
+            throw SVDFError.invalidManifest
+        }
+        let metaJSON = try CryptoEngine.decrypt(encryptedMeta, with: shareKey)
+        let metadata = try JSONDecoder().decode(SharedVaultData.SharedVaultMetadata.self, from: metaJSON)
+
+        return (header, manifest, metadata)
+    }
+
+    /// Reads a file entry's header fields from an SVDF file via FileHandle, without loading
+    /// the encrypted content. Returns metadata including content byte range for later extraction.
+    static func extractFileEntryMetadata(
+        from url: URL,
+        at offset: Int,
+        size: Int,
+        version: UInt16 = 5
+    ) throws -> FileEntryMetadata {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        try handle.seek(toOffset: UInt64(offset))
+
+        // Read the entry header fields (everything before content data).
+        // Max header size: 4 + 16 + 2 + 65535 + 1 + 255 + 4 + 8 + 8 + 4 + thumbSize + 4
+        // In practice, filename and mime are short, so read a reasonable chunk for parsing.
+        // We read in two phases: fixed fields first, then variable-length thumbnail.
+
+        // Fixed fields before thumbnail: entrySize(4) + uuid(16) + filenameLen(2) + filename(var)
+        //   + mimeLen(1) + mime(var) + origSize(4) + createdAt(8) + duration(8, v5 only) + thumbSize(4)
+        // Read enough for the fixed portion. Filenames are typically < 256 bytes.
+        let fixedReadSize = min(size, 1024)
+        guard let fixedData = try handle.read(upToCount: fixedReadSize), fixedData.count >= 47 else {
+            throw SVDFError.invalidEntry
+        }
+
+        var cursor = 0
+
+        // Entry size
+        _ = fixedData.readUInt32(at: cursor); cursor += 4
+
+        // File ID (16 bytes)
+        guard cursor + 16 <= fixedData.count else { throw SVDFError.invalidEntry }
+        let uuidBytes = fixedData[cursor..<(cursor + 16)]
+        let uuid = uuidBytes.withUnsafeBytes { buf -> UUID in
+            var raw = uuid_t(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
+            withUnsafeMutableBytes(of: &raw) { dest in
+                dest.copyBytes(from: buf)
+            }
+            return UUID(uuid: raw)
+        }
+        cursor += 16
+
+        // Filename
+        guard cursor + 2 <= fixedData.count else { throw SVDFError.invalidEntry }
+        let filenameLen = Int(fixedData.readUInt16(at: cursor)); cursor += 2
+        guard cursor + filenameLen <= fixedData.count else { throw SVDFError.invalidEntry }
+        let filename = String(data: fixedData[cursor..<(cursor + filenameLen)], encoding: .utf8) ?? ""
+        cursor += filenameLen
+
+        // MIME type
+        guard cursor + 1 <= fixedData.count else { throw SVDFError.invalidEntry }
+        let mimeLen = Int(fixedData[cursor]); cursor += 1
+        guard cursor + mimeLen <= fixedData.count else { throw SVDFError.invalidEntry }
+        let mimeType = String(data: fixedData[cursor..<(cursor + mimeLen)], encoding: .utf8) ?? ""
+        cursor += mimeLen
+
+        // Original size
+        guard cursor + 4 <= fixedData.count else { throw SVDFError.invalidEntry }
+        let originalSize = Int(fixedData.readUInt32(at: cursor)); cursor += 4
+
+        // Created at
+        guard cursor + 8 <= fixedData.count else { throw SVDFError.invalidEntry }
+        let timestamp = fixedData.readFloat64(at: cursor); cursor += 8
+        let createdAt = Date(timeIntervalSince1970: timestamp)
+
+        // Duration (v5+ only)
+        var duration: TimeInterval? = nil
+        if version >= 5 {
+            guard cursor + 8 <= fixedData.count else { throw SVDFError.invalidEntry }
+            let durationValue = fixedData.readFloat64(at: cursor); cursor += 8
+            if durationValue >= 0 { duration = durationValue }
+        }
+
+        // Thumbnail size
+        guard cursor + 4 <= fixedData.count else { throw SVDFError.invalidEntry }
+        let thumbSize = Int(fixedData.readUInt32(at: cursor)); cursor += 4
+
+        // Read thumbnail data if present (may need to seek if it extends beyond our initial read)
+        var encryptedThumbnail: Data? = nil
+        if thumbSize > 0 {
+            if cursor + thumbSize <= fixedData.count {
+                encryptedThumbnail = Data(fixedData[cursor..<(cursor + thumbSize)])
+            } else {
+                // Thumbnail extends beyond our initial read — seek and read it
+                try handle.seek(toOffset: UInt64(offset + cursor))
+                guard let thumbData = try handle.read(upToCount: thumbSize), thumbData.count == thumbSize else {
+                    throw SVDFError.invalidEntry
+                }
+                encryptedThumbnail = thumbData
+            }
+        }
+        cursor += thumbSize
+
+        // Content size — may need to read from file if cursor is beyond fixedData
+        let contentSize: Int
+        if cursor + 4 <= fixedData.count {
+            contentSize = Int(fixedData.readUInt32(at: cursor)); cursor += 4
+        } else {
+            try handle.seek(toOffset: UInt64(offset + cursor))
+            guard let cSizeData = try handle.read(upToCount: 4), cSizeData.count == 4 else {
+                throw SVDFError.invalidEntry
+            }
+            contentSize = Int(cSizeData.readUInt32(at: 0)); cursor += 4
+        }
+
+        let contentOffset = offset + cursor
+
+        return FileEntryMetadata(
+            id: uuid,
+            filename: filename,
+            mimeType: mimeType,
+            originalSize: originalSize,
+            createdAt: createdAt,
+            duration: duration,
+            encryptedThumbnail: encryptedThumbnail,
+            contentOffset: contentOffset,
+            contentSize: contentSize
+        )
+    }
+
+    /// Streams encrypted content bytes from an SVDF file to a temporary file.
+    /// Uses 256KB read chunks to keep memory usage low.
+    /// Returns the URL of the temp file containing the encrypted content.
+    static func extractFileContentToTempURL(from url: URL, entry: FileEntryMetadata) throws -> URL {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("enc")
+
+        FileManager.default.createFile(atPath: tempURL.path, contents: nil)
+        let outHandle = try FileHandle(forWritingTo: tempURL)
+        defer { try? outHandle.close() }
+
+        try handle.seek(toOffset: UInt64(entry.contentOffset))
+
+        let chunkSize = 256 * 1024  // 256KB
+        var remaining = entry.contentSize
+        while remaining > 0 {
+            let readSize = min(remaining, chunkSize)
+            guard let chunk = try handle.read(upToCount: readSize), !chunk.isEmpty else {
+                throw SVDFError.invalidEntry
+            }
+            outHandle.write(chunk)
+            remaining -= chunk.count
+        }
+
+        return tempURL
+    }
+
     // MARK: - File Entry Encoding
 
     /// Binary layout per file entry:
@@ -828,7 +1095,7 @@ enum SVDFSerializer {
 
 // MARK: - Data Encoding Helpers
 
-private extension Data {
+extension Data {
     func readUInt16(at offset: Int) -> UInt16 {
         var value: UInt16 = 0
         _ = Swift.withUnsafeMutableBytes(of: &value) { dest in

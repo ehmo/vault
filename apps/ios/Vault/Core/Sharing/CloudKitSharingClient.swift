@@ -87,6 +87,22 @@ protocol CloudKitSharingClient: Sendable {
         onProgress: (@Sendable (Int, Int) -> Void)?
     ) async throws -> Data
 
+    // MARK: - Download to File (Streaming)
+
+    func downloadSharedVaultToFile(
+        phrase: String,
+        outputURL: URL,
+        markClaimedOnDownload: Bool,
+        onProgress: (@Sendable (Int, Int) -> Void)?
+    ) async throws -> (fileURL: URL, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int)
+
+    func downloadUpdatedVaultToFile(
+        shareVaultId: String,
+        shareKey: ShareKey,
+        outputURL: URL,
+        onProgress: (@Sendable (Int, Int) -> Void)?
+    ) async throws
+
     // MARK: - Revoke & Delete
 
     func revokeShare(shareVaultId: String) async throws
@@ -164,6 +180,30 @@ extension CloudKitSharingClient {
 
     func downloadUpdatedVault(shareVaultId: String, shareKey: ShareKey) async throws -> Data {
         try await downloadUpdatedVault(shareVaultId: shareVaultId, shareKey: shareKey, onProgress: nil)
+    }
+
+    func downloadSharedVaultToFile(
+        phrase: String, outputURL: URL
+    ) async throws -> (fileURL: URL, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
+        try await downloadSharedVaultToFile(
+            phrase: phrase, outputURL: outputURL, markClaimedOnDownload: true, onProgress: nil
+        )
+    }
+
+    func downloadSharedVaultToFile(
+        phrase: String, outputURL: URL, markClaimedOnDownload: Bool
+    ) async throws -> (fileURL: URL, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
+        try await downloadSharedVaultToFile(
+            phrase: phrase, outputURL: outputURL, markClaimedOnDownload: markClaimedOnDownload, onProgress: nil
+        )
+    }
+
+    func downloadUpdatedVaultToFile(
+        shareVaultId: String, shareKey: ShareKey, outputURL: URL
+    ) async throws {
+        try await downloadUpdatedVaultToFile(
+            shareVaultId: shareVaultId, shareKey: shareKey, outputURL: outputURL, onProgress: nil
+        )
     }
 }
 

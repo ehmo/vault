@@ -66,6 +66,15 @@ final class ShareImportManager {
         try vaultData.write(to: importDataURL)
     }
 
+    /// Moves a downloaded temp file to `importDataURL` without copying data into memory.
+    nonisolated static func savePendingImportFile(from tempURL: URL) throws {
+        let fm = FileManager.default
+        if fm.fileExists(atPath: importDataURL.path) {
+            try fm.removeItem(at: importDataURL)
+        }
+        try fm.moveItem(at: tempURL, to: importDataURL)
+    }
+
     /// Updates just the state file without rewriting vault data (for progress updates)
     nonisolated static func updatePendingImportState(_ state: PendingImportState) throws {
         try JSONEncoder().encode(state).write(to: importStateURL)
@@ -157,8 +166,9 @@ final class ShareImportManager {
 
             do {
                 let shareKey: ShareKey
-                let sharedVault: SharedVaultData
-                var result: (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int)!
+                var shareVaultId: String
+                var policy: VaultStorage.SharePolicy
+                var version: Int
 
                 if let pending = pendingImport, pending.isDownloadComplete {
                     // Validate that vault data file exists before attempting resume
@@ -168,24 +178,12 @@ final class ShareImportManager {
                         throw CloudKitSharingError.invalidData
                     }
 
-                    // Resume from completed download - just need to finish import
+                    // Resume from completed download — SVDF file already on disk
                     Self.logger.info("[import] Resuming interrupted import with \(pending.importedFileIds.count)/\(pending.totalFiles) files already imported")
                     shareKey = ShareKey(pending.shareKeyData)
-
-                    // Load the vault data from disk
-                    let vaultData = try Data(contentsOf: Self.importDataURL)
-                    if SVDFSerializer.isSVDF(vaultData) {
-                        sharedVault = try SVDFSerializer.deserialize(from: vaultData, shareKey: shareKey.rawBytes)
-                    } else {
-                        sharedVault = try SharedVaultData.decode(from: vaultData)
-                    }
-
-                    // Validate that file count matches expected
-                    if sharedVault.files.count != pending.totalFiles {
-                        Self.logger.warning("[import] File count mismatch: expected \(pending.totalFiles), got \(sharedVault.files.count). Proceeding with available files.")
-                    }
-
-                    result = (vaultData, pending.shareVaultId, pending.policy, pending.shareVaultVersion)
+                    shareVaultId = pending.shareVaultId
+                    policy = pending.policy
+                    version = pending.shareVaultVersion
                     self.setTargetProgress(95, message: "Resuming import...")
                 } else {
                     // Fresh download or download was interrupted
@@ -193,13 +191,17 @@ final class ShareImportManager {
                         Self.logger.info("[import] Resuming interrupted download for vault \(pending.shareVaultId)")
                     }
 
-                    // Derive share key for decrypting after download
                     shareKey = ShareKey(try KeyDerivation.deriveShareKey(from: capturedPhrase))
 
-                    // Attempt download with retry logic
+                    // Download directly to file — no in-memory accumulation
                     var downloadAttempts = 0
                     let maxDownloadAttempts = 3
                     var lastDownloadError: Error?
+                    var downloadResult: (fileURL: URL, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int)!
+
+                    let tempDownloadURL = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString)
+                        .appendingPathExtension("svdf")
 
                     let downloadProgress: @Sendable (Int, Int) -> Void = { [weak self] current, total in
                         let pct = total > 0 ? downloadWeight * current / total : 0
@@ -210,27 +212,26 @@ final class ShareImportManager {
 
                     while downloadAttempts < maxDownloadAttempts {
                         do {
-                            result = try await CloudKitSharingManager.shared.downloadSharedVault(
+                            downloadResult = try await CloudKitSharingManager.shared.downloadSharedVaultToFile(
                                 phrase: capturedPhrase,
+                                outputURL: tempDownloadURL,
                                 markClaimedOnDownload: false,
                                 onProgress: downloadProgress
                             )
                             lastDownloadError = nil
-                            break // Success!
+                            break
                         } catch {
                             downloadAttempts += 1
                             lastDownloadError = error
                             Self.logger.warning("[import] Download attempt \(downloadAttempts)/\(maxDownloadAttempts) failed: \(error.localizedDescription)")
 
                             if downloadAttempts < maxDownloadAttempts {
-                                // Wait before retry (exponential backoff)
                                 let delay = min(Double(downloadAttempts) * 2.0, 10.0)
                                 try? await Task.sleep(for: .seconds(delay))
                             }
                         }
                     }
 
-                    // Check if download ultimately failed
                     if let error = lastDownloadError {
                         Self.logger.error("[import] Download failed after \(maxDownloadAttempts) attempts: \(error.localizedDescription)")
                         throw error
@@ -238,31 +239,45 @@ final class ShareImportManager {
 
                     guard !Task.isCancelled else {
                         Self.logger.info("[import] Download cancelled, will resume on next attempt")
+                        try? FileManager.default.removeItem(at: tempDownloadURL)
                         return
                     }
 
-                    if SVDFSerializer.isSVDF(result.data) {
-                        sharedVault = try SVDFSerializer.deserialize(from: result.data, shareKey: shareKey.rawBytes)
+                    shareVaultId = downloadResult.shareVaultId
+                    policy = downloadResult.policy
+                    version = downloadResult.version
+
+                    // Determine file count from SVDF metadata (no full deserialization)
+                    let totalFiles: Int
+                    if SVDFSerializer.isSVDFFile(tempDownloadURL) {
+                        let (_, manifest, _) = try SVDFSerializer.deserializeStreamingMetadata(
+                            from: tempDownloadURL, shareKey: shareKey.rawBytes
+                        )
+                        totalFiles = manifest.filter { !$0.deleted }.count
                     } else {
-                        sharedVault = try SharedVaultData.decode(from: result.data)
+                        // Legacy non-SVDF: must load into memory (old, small vaults)
+                        let vaultData = try Data(contentsOf: tempDownloadURL)
+                        let sharedVault = try SharedVaultData.decode(from: vaultData)
+                        totalFiles = sharedVault.files.count
                     }
 
-                    // Save pending import state AFTER download completes
-                    // This marks download as complete so we can resume import if interrupted
+                    // Move downloaded file to persistent location (no memory copy)
+                    try Self.savePendingImportFile(from: tempDownloadURL)
+
                     pendingImport = PendingImportState(
-                        shareVaultId: result.shareVaultId,
+                        shareVaultId: shareVaultId,
                         phrase: capturedPhrase,
                         shareKeyData: shareKey.rawBytes,
-                        policy: result.policy,
-                        totalFiles: sharedVault.files.count,
+                        policy: policy,
+                        totalFiles: totalFiles,
                         importedFileIds: [],
-                        shareVaultVersion: result.version,
+                        shareVaultVersion: version,
                         createdAt: Date(),
                         isDownloadComplete: true,
                         downloadError: nil
                     )
-                    try Self.savePendingImport(pendingImport!, vaultData: result.data)
-                    Self.logger.info("[import] Download complete - saved state with \(sharedVault.files.count) files ready to import")
+                    try Self.updatePendingImportState(pendingImport!)
+                    Self.logger.info("[import] Download complete - saved state with \(totalFiles) files ready to import")
                 }
 
                 guard var pendingImportState = pendingImport else {
@@ -274,113 +289,189 @@ final class ShareImportManager {
                 // files already stored will have sharing restrictions enforced.
                 do {
                     var index = try await VaultStorage.shared.loadIndex(with: capturedPatternKey)
-                    let alreadyMarked = (index.isSharedVault == true && index.sharedVaultId == result.shareVaultId)
+                    let alreadyMarked = (index.isSharedVault == true && index.sharedVaultId == shareVaultId)
                     if !alreadyMarked {
                         index.isSharedVault = true
-                        index.sharedVaultId = result.shareVaultId
-                        index.sharePolicy = result.policy
+                        index.sharedVaultId = shareVaultId
+                        index.sharePolicy = policy
                         index.openCount = 0
                         index.shareKeyData = shareKey.rawBytes
-                        index.sharedVaultVersion = result.version
+                        index.sharedVaultVersion = version
                         try await VaultStorage.shared.saveIndex(index, with: capturedPatternKey)
                         Self.logger.info("[import] Pre-marked vault as shared before file import")
                     }
                 } catch {
                     Self.logger.error("[import] Failed to pre-mark vault as shared: \(error.localizedDescription)")
-                    throw error  // Cannot proceed safely without marking
+                    throw error
                 }
 
                 // Mark share as claimed on CloudKit now that the vault is protected locally.
-                // Best-effort: if it fails, the local vault is still protected by the share policy.
                 do {
-                    try await CloudKitSharingManager.shared.markShareClaimed(shareVaultId: result.shareVaultId)
+                    try await CloudKitSharingManager.shared.markShareClaimed(shareVaultId: shareVaultId)
                     Self.logger.info("[import] Share claimed on CloudKit before file import")
                 } catch {
                     Self.logger.warning("[import] Failed to mark share claimed before import: \(error.localizedDescription)")
                 }
 
-                let fileCount = sharedVault.files.count
                 let alreadyImportedIds = Set(pendingImportState.importedFileIds)
 
-                // Filter out already imported files
-                let filesToImport = sharedVault.files.filter { !alreadyImportedIds.contains($0.id.uuidString) }
+                // Streaming SVDF import: parse from file without loading content into memory
+                if SVDFSerializer.isSVDFFile(Self.importDataURL) {
+                    let (header, manifest, _) = try SVDFSerializer.deserializeStreamingMetadata(
+                        from: Self.importDataURL, shareKey: shareKey.rawBytes
+                    )
 
-                Self.logger.info("[import] Importing \(filesToImport.count) remaining files (\(alreadyImportedIds.count) already done)")
+                    let activeEntries = manifest.filter { !$0.deleted }
+                    let entriesToImport = activeEntries.filter { !alreadyImportedIds.contains($0.id) }
+                    let fileCount = activeEntries.count
 
-                for (_, file) in filesToImport.enumerated() {
-                    guard !Task.isCancelled else {
-                        // Save progress before returning so we can resume
-                        // Use updatePendingImportState to avoid rewriting vault data
-                        try Self.updatePendingImportState(pendingImportState)
-                        Self.logger.info("[import] Import interrupted after \(pendingImportState.importedFileIds.count) files - saved state for resume")
-                        return
-                    }
+                    Self.logger.info("[import] Streaming import: \(entriesToImport.count) remaining files (\(alreadyImportedIds.count) already done)")
 
-                    do {
-                        let (decrypted, thumbnailData) = try autoreleasepool {
-                            let decrypted = try CryptoEngine.decryptStaged(file.encryptedContent, with: shareKey.rawBytes)
-                            let thumbnailData = Self.resolveThumbnail(
-                                encryptedThumbnail: file.encryptedThumbnail,
-                                mimeType: file.mimeType,
-                                decryptedData: decrypted,
+                    for entry in entriesToImport {
+                        guard !Task.isCancelled else {
+                            try Self.updatePendingImportState(pendingImportState)
+                            Self.logger.info("[import] Import interrupted after \(pendingImportState.importedFileIds.count) files - saved state for resume")
+                            return
+                        }
+
+                        do {
+                            // Extract entry metadata (~1KB) — no content loaded
+                            let entryMeta = try SVDFSerializer.extractFileEntryMetadata(
+                                from: Self.importDataURL, at: entry.offset, size: entry.size, version: header.version
+                            )
+
+                            // Stream encrypted content to temp file (256KB chunks)
+                            let encryptedTempURL = try SVDFSerializer.extractFileContentToTempURL(
+                                from: Self.importDataURL, entry: entryMeta
+                            )
+                            defer { try? FileManager.default.removeItem(at: encryptedTempURL) }
+
+                            // Streaming decrypt to another temp file
+                            let decryptedTempURL = FileManager.default.temporaryDirectory
+                                .appendingPathComponent(UUID().uuidString)
+                                .appendingPathExtension("dec")
+                            defer { try? FileManager.default.removeItem(at: decryptedTempURL) }
+
+                            try CryptoEngine.decryptStagedFileToURL(
+                                from: encryptedTempURL, to: decryptedTempURL, with: shareKey.rawBytes
+                            )
+
+                            // Resolve thumbnail from file URL (memory-efficient)
+                            let thumbnailData = Self.resolveThumbnailFromFile(
+                                encryptedThumbnail: entryMeta.encryptedThumbnail,
+                                mimeType: entryMeta.mimeType,
+                                decryptedFileURL: decryptedTempURL,
                                 shareKey: shareKey.rawBytes
                             )
-                            return (decrypted, thumbnailData)
-                        }
 
-                        _ = try await VaultStorage.shared.storeFile(
-                            data: decrypted,
-                            filename: file.filename,
-                            mimeType: file.mimeType,
-                            with: capturedPatternKey,
-                            thumbnailData: thumbnailData,
-                            duration: file.duration,
-                            fileId: file.id  // <- Preserve original file ID from shared vault
-                        )
+                            // Store from decrypted temp file (streaming encryption into vault blob)
+                            _ = try await VaultStorage.shared.storeFileFromURL(
+                                decryptedTempURL,
+                                filename: entryMeta.filename,
+                                mimeType: entryMeta.mimeType,
+                                with: capturedPatternKey,
+                                options: FileStoreOptions(
+                                    thumbnailData: thumbnailData,
+                                    duration: entryMeta.duration,
+                                    fileId: entryMeta.id,
+                                    originalDate: entryMeta.createdAt
+                                )
+                            )
 
-                        // Track successful import
-                        pendingImportState.importedFileIds.append(file.id.uuidString)
+                            pendingImportState.importedFileIds.append(entryMeta.id.uuidString)
+                            try Self.updatePendingImportState(pendingImportState)
 
-                        // Save progress after EVERY file for crash recovery
-                        // Use updatePendingImportState to avoid rewriting vault data (already saved after download)
-                        try Self.updatePendingImportState(pendingImportState)
+                            let totalImported = pendingImportState.importedFileIds.count
+                            let pct = downloadWeight + (fileCount > 0 ? importWeight * totalImported / fileCount : importWeight)
+                            self.setTargetProgress(pct, message: "Importing files... (\(totalImported)/\(fileCount))")
+                            await Task.yield()
+                        } catch {
+                            let fileIdString = entry.id
+                            Self.logger.error("[import] Failed to import file \(fileIdString): \(error.localizedDescription)")
 
-                        let totalImported = pendingImportState.importedFileIds.count
-                        let pct = downloadWeight + (fileCount > 0 ? importWeight * totalImported / fileCount : importWeight)
-                        self.setTargetProgress(pct, message: "Importing files... (\(totalImported)/\(fileCount))")
-                        await Task.yield()
-                    } catch {
-                        // Individual file import failed - log and continue with next file
-                        // Don't let one corrupted file stop the entire import
-                        let fileIdString = file.id.uuidString
-                        Self.logger.error("[import] Failed to import file \(fileIdString): \(error.localizedDescription)")
+                            guard !fileIdString.isEmpty else {
+                                Self.logger.error("[import] Skipping file with empty ID")
+                                continue
+                            }
 
-                        // Validate file ID before appending
-                        guard !fileIdString.isEmpty else {
-                            Self.logger.error("[import] Skipping file with empty ID")
+                            let nsError = error as NSError
+                            let isCriticalError = (nsError.domain == NSPOSIXErrorDomain && nsError.code == ENOSPC) ||
+                                                (nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileWriteOutOfSpaceError)
+
+                            if isCriticalError {
+                                Self.logger.error("[import] Critical error (disk full) - stopping import: \(error.localizedDescription)")
+                                try? Self.updatePendingImportState(pendingImportState)
+                                throw error
+                            }
+
+                            pendingImportState.importedFileIds.append(fileIdString)
+                            pendingImportState.downloadError = "Failed to import file: \(error.localizedDescription)"
+                            try? Self.updatePendingImportState(pendingImportState)
                             continue
                         }
+                    }
+                } else {
+                    // Legacy non-SVDF fallback: in-memory path for old, small vaults
+                    let vaultData = try Data(contentsOf: Self.importDataURL)
+                    let sharedVault = try SharedVaultData.decode(from: vaultData)
+                    let fileCount = sharedVault.files.count
+                    let filesToImport = sharedVault.files.filter { !alreadyImportedIds.contains($0.id.uuidString) }
 
-                        // Check if this is a critical error (out of disk space, etc)
-                        let nsError = error as NSError
-                        let isCriticalError = (nsError.domain == NSPOSIXErrorDomain && nsError.code == ENOSPC) ||
-                                            (nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileWriteOutOfSpaceError)
+                    Self.logger.info("[import] Legacy import: \(filesToImport.count) remaining files (\(alreadyImportedIds.count) already done)")
 
-                        if isCriticalError {
-                            Self.logger.error("[import] Critical error (disk full) - stopping import: \(error.localizedDescription)")
-                            // Save current progress before throwing
-                            try? Self.updatePendingImportState(pendingImportState)
-                            throw error // Re-throw critical errors
+                    for file in filesToImport {
+                        guard !Task.isCancelled else {
+                            try Self.updatePendingImportState(pendingImportState)
+                            return
                         }
 
-                        // Still mark this file as "imported" so we skip it on resume
-                        // (otherwise we'd get stuck in an infinite retry loop)
-                        pendingImportState.importedFileIds.append(fileIdString)
-                        pendingImportState.downloadError = "Failed to import \(file.filename): \(error.localizedDescription)"
-                        try? Self.updatePendingImportState(pendingImportState)
+                        do {
+                            let (decrypted, thumbnailData) = try autoreleasepool {
+                                let decrypted = try CryptoEngine.decryptStaged(file.encryptedContent, with: shareKey.rawBytes)
+                                let thumbnailData = Self.resolveThumbnail(
+                                    encryptedThumbnail: file.encryptedThumbnail,
+                                    mimeType: file.mimeType,
+                                    decryptedData: decrypted,
+                                    shareKey: shareKey.rawBytes
+                                )
+                                return (decrypted, thumbnailData)
+                            }
 
-                        // Continue with next file
-                        continue
+                            _ = try await VaultStorage.shared.storeFile(
+                                data: decrypted,
+                                filename: file.filename,
+                                mimeType: file.mimeType,
+                                with: capturedPatternKey,
+                                thumbnailData: thumbnailData,
+                                duration: file.duration,
+                                fileId: file.id
+                            )
+
+                            pendingImportState.importedFileIds.append(file.id.uuidString)
+                            try Self.updatePendingImportState(pendingImportState)
+
+                            let totalImported = pendingImportState.importedFileIds.count
+                            let pct = downloadWeight + (fileCount > 0 ? importWeight * totalImported / fileCount : importWeight)
+                            self.setTargetProgress(pct, message: "Importing files... (\(totalImported)/\(fileCount))")
+                            await Task.yield()
+                        } catch {
+                            let fileIdString = file.id.uuidString
+                            Self.logger.error("[import] Failed to import file \(fileIdString): \(error.localizedDescription)")
+
+                            let nsError = error as NSError
+                            let isCriticalError = (nsError.domain == NSPOSIXErrorDomain && nsError.code == ENOSPC) ||
+                                                (nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileWriteOutOfSpaceError)
+
+                            if isCriticalError {
+                                try? Self.updatePendingImportState(pendingImportState)
+                                throw error
+                            }
+
+                            pendingImportState.importedFileIds.append(fileIdString)
+                            pendingImportState.downloadError = "Failed to import \(file.filename): \(error.localizedDescription)"
+                            try? Self.updatePendingImportState(pendingImportState)
+                            continue
+                        }
                     }
                 }
 
@@ -389,7 +480,7 @@ final class ShareImportManager {
                 // Sharing metadata was pre-marked before file import.
                 // Just ensure version is current and clear pending state.
                 var index = try await VaultStorage.shared.loadIndex(with: capturedPatternKey)
-                index.sharedVaultVersion = result.version
+                index.sharedVaultVersion = version
                 try await VaultStorage.shared.saveIndex(index, with: capturedPatternKey)
 
                 // Clear pending import since we're done
@@ -403,13 +494,11 @@ final class ShareImportManager {
                 EmbraceManager.shared.captureError(error)
 
                 // CRITICAL: Save partial progress if we have any imported files
-                // This allows user to resume from where it failed
                 if let pending = pendingImport, !pending.importedFileIds.isEmpty {
                     var pendingWithError = pending
                     pendingWithError.downloadError = error.localizedDescription
                     Self.logger.info("[import] Saving partial progress with \(pendingWithError.importedFileIds.count) files imported before error")
                     do {
-                        // Only update the state file, don't rewrite the vault data
                         try Self.updatePendingImportState(pendingWithError)
                     } catch {
                         Self.logger.error("[import] Failed to save partial progress: \(error.localizedDescription)")
@@ -497,6 +586,47 @@ final class ShareImportManager {
             // Silently fail - thumbnail generation is best-effort
         }
 
+        return nil
+    }
+
+    /// Resolves a thumbnail from a decrypted file URL instead of in-memory Data.
+    /// Uses memory-efficient ImageIO downsampling for images, AVAsset for videos.
+    nonisolated private static func resolveThumbnailFromFile(
+        encryptedThumbnail: Data?,
+        mimeType: String,
+        decryptedFileURL: URL,
+        shareKey: Data
+    ) -> Data? {
+        // Decrypt encrypted thumbnail if available (small, ~5-30KB)
+        if let encThumb = encryptedThumbnail {
+            return try? CryptoEngine.decrypt(encThumb, with: shareKey)
+        }
+
+        // For images, use memory-efficient ImageIO downsampling
+        if mimeType.hasPrefix("image/") {
+            return FileUtilities.generateThumbnail(fromFileURL: decryptedFileURL)
+        }
+
+        // For videos, use AVAsset directly from file URL (no Data→tempFile round-trip)
+        if mimeType.hasPrefix("video/") {
+            return generateVideoThumbnailFromFile(url: decryptedFileURL)
+        }
+
+        return nil
+    }
+
+    /// Generates a thumbnail from a video file URL without loading data into memory.
+    nonisolated private static func generateVideoThumbnailFromFile(url: URL) -> Data? {
+        let asset = AVAsset(url: url)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 400, height: 400)
+
+        let time = CMTime(seconds: 0.5, preferredTimescale: 600)
+        if let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) {
+            let uiImage = UIImage(cgImage: cgImage)
+            return uiImage.jpegData(compressionQuality: 0.7)
+        }
         return nil
     }
 

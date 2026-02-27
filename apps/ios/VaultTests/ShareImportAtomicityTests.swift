@@ -7,7 +7,7 @@ import XCTest
 /// - Vault is pre-marked as shared BEFORE any files are imported
 /// - Sharing metadata persists through index save/load cycles
 /// - PendingImportState serialization, TTL, and persistence work correctly
-/// - Retroactive fix detects and repairs unprotected shared vaults
+/// - Incorrect shared-vault marking is repaired via file-ID overlap check
 /// - Pre-marking is idempotent on resume
 /// - openCount is correctly initialized to 0
 final class ShareImportAtomicityTests: XCTestCase {
@@ -437,28 +437,38 @@ final class ShareImportAtomicityTests: XCTestCase {
                        "Fresh vault should not be considered already marked")
     }
 
-    // MARK: - Retroactive Fix Logic
+    // MARK: - Incorrect Shared-Vault Repair Logic
 
-    /// Tests the retroactive fix: an unprotected vault with a pending import state
-    /// that has imported files should get sharing restrictions applied.
-    func testRetroactiveFixAppliesSharingToUnprotectedVault() async throws {
-        // Setup: vault with files but NOT marked as shared (simulates pre-fix crash)
+    /// A vault incorrectly marked as shared (files don't overlap with pending import)
+    /// should have its shared flag cleared.
+    func testRepairClearsIncorrectlyMarkedVault() async throws {
         let freshIndex = try await storage.loadIndex(with: testKey)
         try await storage.saveIndex(freshIndex, with: testKey)
 
+        // Store a local file (NOT from a share import)
         _ = try await storage.storeFile(
-            data: Data("orphan file".utf8), filename: "orphan.txt",
+            data: Data("my private file".utf8), filename: "private.txt",
             mimeType: "text/plain", with: testKey
         )
 
-        // Create pending import state (simulates crash recovery)
+        // Incorrectly mark vault as shared (simulates the old retroactive fix bug)
+        var index = try await storage.loadIndex(with: testKey)
+        index.isSharedVault = true
+        index.sharedVaultId = testShareVaultId
+        index.sharePolicy = testPolicy
+        index.openCount = 0
+        index.shareKeyData = testShareKeyData
+        index.sharedVaultVersion = 2
+        try await storage.saveIndex(index, with: testKey)
+
+        // Pending import exists with different file IDs (from the real shared vault)
         let pendingState = ShareImportManager.PendingImportState(
             shareVaultId: testShareVaultId,
-            phrase: "recovery phrase",
+            phrase: "phrase",
             shareKeyData: testShareKeyData,
             policy: testPolicy,
             totalFiles: 3,
-            importedFileIds: ["file-1"], // At least one file imported
+            importedFileIds: ["shared-file-1", "shared-file-2"],
             shareVaultVersion: 2,
             createdAt: Date(),
             isDownloadComplete: true,
@@ -466,98 +476,47 @@ final class ShareImportAtomicityTests: XCTestCase {
         )
         try ShareImportManager.savePendingImport(pendingState, vaultData: Data(repeating: 0, count: 64))
 
-        // Simulate the retroactive fix (mirrors VaultViewModel.checkSharedVaultStatus lines 840-851)
-        var index = try await storage.loadIndex(with: testKey)
-        XCTAssertTrue(index.isSharedVault != true, "Vault should NOT be shared initially")
+        // Run repair (mirrors checkSharedVaultStatus)
+        index = try await storage.loadIndex(with: testKey)
+        if index.isSharedVault == true,
+           let pending = ShareImportManager.loadPendingImportState() {
+            let importedIds = Set(pending.importedFileIds)
+            let vaultFileIds = Set(index.files.filter { !$0.isDeleted }.map { $0.fileId.uuidString })
+            let hasImportedFiles = !importedIds.intersection(vaultFileIds).isEmpty
 
-        let pending = ShareImportManager.loadPendingImportState()
-        XCTAssertNotNil(pending)
-        XCTAssertFalse(pending!.importedFileIds.isEmpty)
-
-        // Apply the retroactive fix
-        if index.isSharedVault != true,
-           let pending = ShareImportManager.loadPendingImportState(),
-           !pending.importedFileIds.isEmpty {
-            index.isSharedVault = true
-            index.sharedVaultId = pending.shareVaultId
-            index.sharePolicy = pending.policy
-            index.openCount = 0
-            index.shareKeyData = pending.shareKeyData
-            index.sharedVaultVersion = pending.shareVaultVersion
-            try await storage.saveIndex(index, with: testKey)
+            if !hasImportedFiles && !vaultFileIds.isEmpty {
+                index.isSharedVault = nil
+                index.sharedVaultId = nil
+                index.sharePolicy = nil
+                index.openCount = nil
+                index.shareKeyData = nil
+                index.sharedVaultVersion = nil
+                try await storage.saveIndex(index, with: testKey)
+            }
         }
 
-        // Verify sharing restrictions now applied
-        let fixed = try await storage.loadIndex(with: testKey)
-        XCTAssertTrue(fixed.isSharedVault ?? false, "Retroactive fix must mark vault as shared")
-        XCTAssertEqual(fixed.sharedVaultId, testShareVaultId)
-        XCTAssertEqual(fixed.sharePolicy?.maxOpens, 5)
-        XCTAssertNotNil(fixed.sharePolicy?.expiresAt)
-        if let fixedExpiry = fixed.sharePolicy?.expiresAt, let originalExpiry = testPolicy.expiresAt {
-            XCTAssertEqual(fixedExpiry.timeIntervalSinceReferenceDate,
-                           originalExpiry.timeIntervalSinceReferenceDate,
-                           accuracy: 0.001)
-        }
-        XCTAssertEqual(fixed.openCount, 0)
-        XCTAssertEqual(fixed.shareKeyData, testShareKeyData)
-        XCTAssertEqual(fixed.sharedVaultVersion, 2)
+        let repaired = try await storage.loadIndex(with: testKey)
+        XCTAssertNil(repaired.isSharedVault, "Repair must clear incorrect shared flag")
+        XCTAssertNil(repaired.sharedVaultId)
+        XCTAssertNil(repaired.sharePolicy)
+        XCTAssertNil(repaired.shareKeyData)
+        XCTAssertEqual(repaired.files.count, 1, "Local files must be preserved")
     }
 
-    /// Retroactive fix should NOT trigger on normal (non-shared) vaults.
-    func testRetroactiveFixNoFalsePositiveOnNormalVault() async throws {
+    /// A legitimately shared vault (files overlap with pending import) should keep its flag.
+    func testRepairKeepsLegitimateSharedVault() async throws {
         let freshIndex = try await storage.loadIndex(with: testKey)
         try await storage.saveIndex(freshIndex, with: testKey)
 
-        // No pending import state exists
-        ShareImportManager.clearPendingImport()
-
-        let index = try await storage.loadIndex(with: testKey)
-        let pending = ShareImportManager.loadPendingImportState()
-
-        // Condition from retroactive fix should NOT match
-        let shouldFix = index.isSharedVault != true
-            && pending != nil
-            && !(pending?.importedFileIds.isEmpty ?? true)
-        XCTAssertFalse(shouldFix, "Retroactive fix must not trigger on normal vault without pending import")
-    }
-
-    /// Retroactive fix should NOT trigger when pending import has empty importedFileIds.
-    func testRetroactiveFixSkipsEmptyImportedFiles() async throws {
-        let freshIndex = try await storage.loadIndex(with: testKey)
-        try await storage.saveIndex(freshIndex, with: testKey)
-
-        // Create pending import with NO imported files (download complete but import never started)
-        let pendingState = ShareImportManager.PendingImportState(
-            shareVaultId: testShareVaultId,
-            phrase: "phrase",
-            shareKeyData: testShareKeyData,
-            policy: testPolicy,
-            totalFiles: 5,
-            importedFileIds: [], // Empty — no files actually stored
-            shareVaultVersion: 1,
-            createdAt: Date(),
-            isDownloadComplete: true,
-            downloadError: nil
+        // Store a file, then mark vault shared with that file's ID in pending import
+        _ = try await storage.storeFile(
+            data: Data("shared content".utf8), filename: "shared.txt",
+            mimeType: "text/plain", with: testKey
         )
-        try ShareImportManager.savePendingImport(pendingState, vaultData: Data(repeating: 0, count: 64))
 
-        let index = try await storage.loadIndex(with: testKey)
-        let pending = ShareImportManager.loadPendingImportState()
-
-        let shouldFix = index.isSharedVault != true
-            && pending != nil
-            && !(pending?.importedFileIds.isEmpty ?? true)
-        XCTAssertFalse(shouldFix,
-                       "Retroactive fix must not trigger when no files were actually imported")
-    }
-
-    /// Retroactive fix should NOT trigger on vaults already marked as shared.
-    func testRetroactiveFixSkipsAlreadySharedVault() async throws {
-        let freshIndex = try await storage.loadIndex(with: testKey)
-        try await storage.saveIndex(freshIndex, with: testKey)
-
-        // Pre-mark vault as shared
         var index = try await storage.loadIndex(with: testKey)
+        let importedFileId = index.files.first!.fileId.uuidString
+
         index.isSharedVault = true
         index.sharedVaultId = testShareVaultId
         index.sharePolicy = testPolicy
@@ -566,14 +525,14 @@ final class ShareImportAtomicityTests: XCTestCase {
         index.sharedVaultVersion = 1
         try await storage.saveIndex(index, with: testKey)
 
-        // Create pending import state (simulates normal resume scenario)
+        // Pending import includes this vault's file ID (legitimate import)
         let pendingState = ShareImportManager.PendingImportState(
             shareVaultId: testShareVaultId,
             phrase: "phrase",
             shareKeyData: testShareKeyData,
             policy: testPolicy,
-            totalFiles: 5,
-            importedFileIds: ["f1", "f2"],
+            totalFiles: 1,
+            importedFileIds: [importedFileId],
             shareVaultVersion: 1,
             createdAt: Date(),
             isDownloadComplete: true,
@@ -581,11 +540,610 @@ final class ShareImportAtomicityTests: XCTestCase {
         )
         try ShareImportManager.savePendingImport(pendingState, vaultData: Data(repeating: 0, count: 64))
 
-        let reloaded = try await storage.loadIndex(with: testKey)
-        let shouldFix = reloaded.isSharedVault != true
+        // Run repair
+        index = try await storage.loadIndex(with: testKey)
+        if index.isSharedVault == true,
+           let pending = ShareImportManager.loadPendingImportState() {
+            let importedIds = Set(pending.importedFileIds)
+            let vaultFileIds = Set(index.files.filter { !$0.isDeleted }.map { $0.fileId.uuidString })
+            let hasImportedFiles = !importedIds.intersection(vaultFileIds).isEmpty
 
-        XCTAssertFalse(shouldFix,
-                       "Retroactive fix must not trigger on vault already marked as shared")
+            if !hasImportedFiles && !vaultFileIds.isEmpty {
+                index.isSharedVault = nil
+                try await storage.saveIndex(index, with: testKey)
+            }
+        }
+
+        let kept = try await storage.loadIndex(with: testKey)
+        XCTAssertTrue(kept.isSharedVault ?? false,
+                      "Repair must NOT clear flag on legitimately shared vault")
+        XCTAssertEqual(kept.sharedVaultId, testShareVaultId)
+    }
+
+    /// Repair should not trigger when no pending import exists.
+    func testRepairNoOpWithoutPendingImport() async throws {
+        let freshIndex = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(freshIndex, with: testKey)
+
+        ShareImportManager.clearPendingImport()
+
+        var index = try await storage.loadIndex(with: testKey)
+        index.isSharedVault = true
+        index.sharedVaultId = testShareVaultId
+        try await storage.saveIndex(index, with: testKey)
+
+        // Run repair — no pending import, so no repair possible
+        index = try await storage.loadIndex(with: testKey)
+        let pending = ShareImportManager.loadPendingImportState()
+        XCTAssertNil(pending, "No pending import should exist")
+        // Repair condition requires pending != nil, so nothing happens
+        XCTAssertTrue(index.isSharedVault ?? false,
+                      "Without pending import, repair cannot determine correctness — flag stays")
+    }
+
+    /// Repair should not clear flag on empty shared vault (pre-mark, no files yet).
+    func testRepairKeepsEmptySharedVault() async throws {
+        let freshIndex = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(freshIndex, with: testKey)
+
+        // Mark vault shared (pre-mark before import starts)
+        var index = try await storage.loadIndex(with: testKey)
+        index.isSharedVault = true
+        index.sharedVaultId = testShareVaultId
+        try await storage.saveIndex(index, with: testKey)
+
+        // Pending import exists but no files imported yet
+        let pendingState = ShareImportManager.PendingImportState(
+            shareVaultId: testShareVaultId,
+            phrase: "phrase",
+            shareKeyData: testShareKeyData,
+            policy: testPolicy,
+            totalFiles: 5,
+            importedFileIds: [],
+            shareVaultVersion: 1,
+            createdAt: Date(),
+            isDownloadComplete: true,
+            downloadError: nil
+        )
+        try ShareImportManager.savePendingImport(pendingState, vaultData: Data(repeating: 0, count: 64))
+
+        // Run repair
+        index = try await storage.loadIndex(with: testKey)
+        if index.isSharedVault == true,
+           let pending = ShareImportManager.loadPendingImportState() {
+            let importedIds = Set(pending.importedFileIds)
+            let vaultFileIds = Set(index.files.filter { !$0.isDeleted }.map { $0.fileId.uuidString })
+            let hasImportedFiles = !importedIds.intersection(vaultFileIds).isEmpty
+
+            if !hasImportedFiles && !vaultFileIds.isEmpty {
+                index.isSharedVault = nil
+                try await storage.saveIndex(index, with: testKey)
+            }
+        }
+
+        let kept = try await storage.loadIndex(with: testKey)
+        XCTAssertTrue(kept.isSharedVault ?? false,
+                      "Repair must NOT clear flag on empty shared vault awaiting import")
+    }
+
+    // MARK: - Repair Helper (mirrors VaultViewModel.checkSharedVaultStatus)
+
+    /// Runs the same repair logic as checkSharedVaultStatus and returns
+    /// (didRepair, updatedIndex) for verification.
+    private func runRepair(with key: VaultKey) async throws -> (didRepair: Bool, index: VaultStorage.VaultIndex) {
+        var index = try await storage.loadIndex(with: key)
+        var didRepair = false
+
+        if index.isSharedVault == true,
+           let pending = ShareImportManager.loadPendingImportState() {
+            let importedIds = Set(pending.importedFileIds)
+            let vaultFileIds = Set(index.files.filter { !$0.isDeleted }.map { $0.fileId.uuidString })
+            let hasImportedFiles = !importedIds.intersection(vaultFileIds).isEmpty
+
+            if !hasImportedFiles && !vaultFileIds.isEmpty {
+                index.isSharedVault = nil
+                index.sharedVaultId = nil
+                index.sharePolicy = nil
+                index.openCount = nil
+                index.shareKeyData = nil
+                index.sharedVaultVersion = nil
+                try await storage.saveIndex(index, with: key)
+                didRepair = true
+            }
+        }
+
+        return (didRepair, index)
+    }
+
+    // MARK: - Comprehensive Repair Tests
+
+    /// Repair must prevent self-destruct by clearing flag BEFORE expiration
+    /// check would run on an incorrectly marked vault with an expired policy.
+    func testRepairPreventsExpiredPolicySelfDestruct() async throws {
+        let freshIndex = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(freshIndex, with: testKey)
+
+        // Store a local file
+        _ = try await storage.storeFile(
+            data: Data("precious file".utf8), filename: "precious.txt",
+            mimeType: "text/plain", with: testKey
+        )
+
+        // Incorrectly mark with an EXPIRED policy
+        let expiredPolicy = VaultStorage.SharePolicy(
+            expiresAt: Date().addingTimeInterval(-3600), // expired 1 hour ago
+            maxOpens: nil,
+            allowScreenshots: false,
+            allowDownloads: true
+        )
+        var index = try await storage.loadIndex(with: testKey)
+        index.isSharedVault = true
+        index.sharedVaultId = testShareVaultId
+        index.sharePolicy = expiredPolicy
+        index.openCount = 0
+        index.shareKeyData = testShareKeyData
+        index.sharedVaultVersion = 1
+        try await storage.saveIndex(index, with: testKey)
+
+        // Pending import with different file IDs
+        let pendingState = ShareImportManager.PendingImportState(
+            shareVaultId: testShareVaultId,
+            phrase: "phrase",
+            shareKeyData: testShareKeyData,
+            policy: expiredPolicy,
+            totalFiles: 2,
+            importedFileIds: ["other-file-1", "other-file-2"],
+            shareVaultVersion: 1,
+            createdAt: Date(),
+            isDownloadComplete: true,
+            downloadError: nil
+        )
+        try ShareImportManager.savePendingImport(pendingState, vaultData: Data(repeating: 0, count: 64))
+
+        let (didRepair, repairedIndex) = try await runRepair(with: testKey)
+
+        XCTAssertTrue(didRepair, "Must repair incorrectly marked vault with expired policy")
+        XCTAssertNil(repairedIndex.isSharedVault,
+                     "Flag must be cleared so expiration check never runs")
+        XCTAssertNil(repairedIndex.sharePolicy,
+                     "Expired policy must be removed")
+
+        // Verify files survived (self-destruct did NOT run)
+        let final_ = try await storage.loadIndex(with: testKey)
+        XCTAssertEqual(final_.files.filter { !$0.isDeleted }.count, 1,
+                       "CRITICAL: Local files must survive — self-destruct must not run")
+    }
+
+    /// Repair must prevent self-destruct from max-opens being exceeded
+    /// on an incorrectly marked vault.
+    func testRepairPreventsMaxOpensSelfDestruct() async throws {
+        let freshIndex = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(freshIndex, with: testKey)
+
+        _ = try await storage.storeFile(
+            data: Data("important data".utf8), filename: "important.txt",
+            mimeType: "text/plain", with: testKey
+        )
+
+        // Incorrectly mark with maxOpens already exceeded
+        let limitPolicy = VaultStorage.SharePolicy(maxOpens: 2)
+        var index = try await storage.loadIndex(with: testKey)
+        index.isSharedVault = true
+        index.sharedVaultId = testShareVaultId
+        index.sharePolicy = limitPolicy
+        index.openCount = 3 // Already exceeded maxOpens of 2
+        index.shareKeyData = testShareKeyData
+        try await storage.saveIndex(index, with: testKey)
+
+        let pendingState = ShareImportManager.PendingImportState(
+            shareVaultId: testShareVaultId,
+            phrase: "phrase",
+            shareKeyData: testShareKeyData,
+            policy: limitPolicy,
+            totalFiles: 1,
+            importedFileIds: ["unrelated-file"],
+            shareVaultVersion: 1,
+            createdAt: Date(),
+            isDownloadComplete: true,
+            downloadError: nil
+        )
+        try ShareImportManager.savePendingImport(pendingState, vaultData: Data(repeating: 0, count: 64))
+
+        let (didRepair, repairedIndex) = try await runRepair(with: testKey)
+
+        XCTAssertTrue(didRepair)
+        XCTAssertNil(repairedIndex.isSharedVault)
+        XCTAssertNil(repairedIndex.openCount, "openCount must be cleared")
+    }
+
+    /// Repair is idempotent — running twice produces the same result.
+    func testRepairIsIdempotent() async throws {
+        let freshIndex = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(freshIndex, with: testKey)
+
+        _ = try await storage.storeFile(
+            data: Data("file".utf8), filename: "f.txt",
+            mimeType: "text/plain", with: testKey
+        )
+
+        var index = try await storage.loadIndex(with: testKey)
+        index.isSharedVault = true
+        index.sharedVaultId = testShareVaultId
+        index.shareKeyData = testShareKeyData
+        try await storage.saveIndex(index, with: testKey)
+
+        let pendingState = ShareImportManager.PendingImportState(
+            shareVaultId: testShareVaultId,
+            phrase: "phrase",
+            shareKeyData: testShareKeyData,
+            policy: VaultStorage.SharePolicy(),
+            totalFiles: 1,
+            importedFileIds: ["no-match"],
+            shareVaultVersion: 1,
+            createdAt: Date(),
+            isDownloadComplete: true,
+            downloadError: nil
+        )
+        try ShareImportManager.savePendingImport(pendingState, vaultData: Data(repeating: 0, count: 64))
+
+        // First repair
+        let (didRepair1, _) = try await runRepair(with: testKey)
+        XCTAssertTrue(didRepair1)
+
+        // Second repair — isSharedVault is now nil, so outer condition fails
+        let (didRepair2, index2) = try await runRepair(with: testKey)
+        XCTAssertFalse(didRepair2, "Second repair should be a no-op")
+        XCTAssertNil(index2.isSharedVault)
+    }
+
+    /// Vault with only deleted files should NOT have its flag cleared
+    /// (empty from an active-file perspective).
+    func testRepairKeepsVaultWithOnlyDeletedFiles() async throws {
+        let freshIndex = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(freshIndex, with: testKey)
+
+        // Store and then "delete" a file
+        let fileId = try await storage.storeFile(
+            data: Data("soon deleted".utf8), filename: "del.txt",
+            mimeType: "text/plain", with: testKey
+        )
+        try await storage.deleteFile(id: fileId, with: testKey)
+
+        var index = try await storage.loadIndex(with: testKey)
+        // Verify the file is marked deleted but still in the index
+        XCTAssertTrue(index.files.contains { $0.fileId == fileId && $0.isDeleted })
+
+        index.isSharedVault = true
+        index.sharedVaultId = testShareVaultId
+        try await storage.saveIndex(index, with: testKey)
+
+        let pendingState = ShareImportManager.PendingImportState(
+            shareVaultId: testShareVaultId,
+            phrase: "phrase",
+            shareKeyData: testShareKeyData,
+            policy: VaultStorage.SharePolicy(),
+            totalFiles: 1,
+            importedFileIds: ["other"],
+            shareVaultVersion: 1,
+            createdAt: Date(),
+            isDownloadComplete: true,
+            downloadError: nil
+        )
+        try ShareImportManager.savePendingImport(pendingState, vaultData: Data(repeating: 0, count: 64))
+
+        let (didRepair, repairedIndex) = try await runRepair(with: testKey)
+
+        // vaultFileIds (non-deleted) is empty, so !vaultFileIds.isEmpty is false
+        XCTAssertFalse(didRepair, "Vault with only deleted files treated as empty — no repair")
+        XCTAssertTrue(repairedIndex.isSharedVault ?? false)
+    }
+
+    /// Repair must work correctly when pending import has no imported files yet
+    /// but vault has its own local files (incorrectly marked before import started).
+    func testRepairClearsVaultWhenPendingHasNoImportedFiles() async throws {
+        let freshIndex = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(freshIndex, with: testKey)
+
+        _ = try await storage.storeFile(
+            data: Data("local file".utf8), filename: "local.txt",
+            mimeType: "text/plain", with: testKey
+        )
+
+        var index = try await storage.loadIndex(with: testKey)
+        index.isSharedVault = true
+        index.sharedVaultId = testShareVaultId
+        index.shareKeyData = testShareKeyData
+        try await storage.saveIndex(index, with: testKey)
+
+        // Pending import exists but NO files imported yet (import just started)
+        let pendingState = ShareImportManager.PendingImportState(
+            shareVaultId: testShareVaultId,
+            phrase: "phrase",
+            shareKeyData: testShareKeyData,
+            policy: VaultStorage.SharePolicy(),
+            totalFiles: 5,
+            importedFileIds: [], // Empty — import hasn't imported any files
+            shareVaultVersion: 1,
+            createdAt: Date(),
+            isDownloadComplete: true,
+            downloadError: nil
+        )
+        try ShareImportManager.savePendingImport(pendingState, vaultData: Data(repeating: 0, count: 64))
+
+        let (didRepair, repairedIndex) = try await runRepair(with: testKey)
+
+        // importedIds is empty → intersection is empty → hasImportedFiles = false
+        // vaultFileIds is non-empty → condition met → clear
+        XCTAssertTrue(didRepair, "Must clear flag: vault has local files, pending has no imported files")
+        XCTAssertNil(repairedIndex.isSharedVault)
+    }
+
+    /// When pending import TTL expires, repair cannot run (no pending data).
+    /// The incorrectly marked vault remains marked until manual intervention.
+    func testRepairCannotRunAfterPendingTTLExpires() async throws {
+        let freshIndex = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(freshIndex, with: testKey)
+
+        _ = try await storage.storeFile(
+            data: Data("file".utf8), filename: "f.txt",
+            mimeType: "text/plain", with: testKey
+        )
+
+        var index = try await storage.loadIndex(with: testKey)
+        index.isSharedVault = true
+        index.sharedVaultId = testShareVaultId
+        try await storage.saveIndex(index, with: testKey)
+
+        // Create an expired pending import (>24h old)
+        let expiredState = ShareImportManager.PendingImportState(
+            shareVaultId: testShareVaultId,
+            phrase: "phrase",
+            shareKeyData: testShareKeyData,
+            policy: VaultStorage.SharePolicy(),
+            totalFiles: 1,
+            importedFileIds: ["no-match"],
+            shareVaultVersion: 1,
+            createdAt: Date().addingTimeInterval(-25 * 60 * 60), // 25 hours ago
+            isDownloadComplete: true,
+            downloadError: nil
+        )
+        try ShareImportManager.savePendingImport(expiredState, vaultData: Data(repeating: 0, count: 64))
+
+        // loadPendingImportState() returns nil for expired states
+        let (didRepair, repairedIndex) = try await runRepair(with: testKey)
+
+        XCTAssertFalse(didRepair, "Cannot repair after TTL — no pending data available")
+        XCTAssertTrue(repairedIndex.isSharedVault ?? false, "Flag persists (known limitation)")
+    }
+
+    /// Two different vaults: repair correctly identifies which to clear.
+    func testRepairDistinguishesMultipleVaults() async throws {
+        let legitimateKey = VaultKey(CryptoEngine.generateRandomBytes(count: 32)!)
+        defer { try? storage.deleteVaultIndex(for: legitimateKey) }
+
+        // Setup legitimate vault — store file, mark shared
+        let freshLegitimate = try await storage.loadIndex(with: legitimateKey)
+        try await storage.saveIndex(freshLegitimate, with: legitimateKey)
+        let sharedFileId = try await storage.storeFile(
+            data: Data("shared content".utf8), filename: "shared.txt",
+            mimeType: "text/plain", with: legitimateKey
+        )
+        var legIndex = try await storage.loadIndex(with: legitimateKey)
+        let sharedFileIdStr = legIndex.files.first!.fileId.uuidString
+        legIndex.isSharedVault = true
+        legIndex.sharedVaultId = testShareVaultId
+        legIndex.sharePolicy = testPolicy
+        legIndex.shareKeyData = testShareKeyData
+        try await storage.saveIndex(legIndex, with: legitimateKey)
+
+        // Setup incorrectly marked vault — local files, same sharedVaultId
+        let freshIncorrect = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(freshIncorrect, with: testKey)
+        _ = try await storage.storeFile(
+            data: Data("my local file".utf8), filename: "mine.txt",
+            mimeType: "text/plain", with: testKey
+        )
+        var incIndex = try await storage.loadIndex(with: testKey)
+        incIndex.isSharedVault = true
+        incIndex.sharedVaultId = testShareVaultId
+        incIndex.sharePolicy = testPolicy
+        incIndex.shareKeyData = testShareKeyData
+        try await storage.saveIndex(incIndex, with: testKey)
+
+        // Pending import references the legitimate vault's file
+        let pendingState = ShareImportManager.PendingImportState(
+            shareVaultId: testShareVaultId,
+            phrase: "phrase",
+            shareKeyData: testShareKeyData,
+            policy: testPolicy,
+            totalFiles: 1,
+            importedFileIds: [sharedFileIdStr],
+            shareVaultVersion: 1,
+            createdAt: Date(),
+            isDownloadComplete: true,
+            downloadError: nil
+        )
+        try ShareImportManager.savePendingImport(pendingState, vaultData: Data(repeating: 0, count: 64))
+
+        // Repair legitimate vault — should keep flag
+        let (didRepairLeg, legResult) = try await runRepair(with: legitimateKey)
+        XCTAssertFalse(didRepairLeg, "Legitimate vault must NOT be repaired")
+        XCTAssertTrue(legResult.isSharedVault ?? false)
+
+        // Repair incorrect vault — should clear flag
+        let (didRepairInc, incResult) = try await runRepair(with: testKey)
+        XCTAssertTrue(didRepairInc, "Incorrect vault must be repaired")
+        XCTAssertNil(incResult.isSharedVault)
+    }
+
+    /// Repair clears ALL sharing metadata fields, not just isSharedVault.
+    func testRepairClearsAllSharingMetadata() async throws {
+        let freshIndex = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(freshIndex, with: testKey)
+
+        _ = try await storage.storeFile(
+            data: Data("file".utf8), filename: "f.txt",
+            mimeType: "text/plain", with: testKey
+        )
+
+        var index = try await storage.loadIndex(with: testKey)
+        index.isSharedVault = true
+        index.sharedVaultId = "some-vault-id"
+        index.sharePolicy = VaultStorage.SharePolicy(
+            expiresAt: Date().addingTimeInterval(3600),
+            maxOpens: 10,
+            allowScreenshots: true,
+            allowDownloads: false
+        )
+        index.openCount = 5
+        index.shareKeyData = Data(repeating: 0xFF, count: 32)
+        index.sharedVaultVersion = 42
+        try await storage.saveIndex(index, with: testKey)
+
+        let pendingState = ShareImportManager.PendingImportState(
+            shareVaultId: "some-vault-id",
+            phrase: "phrase",
+            shareKeyData: testShareKeyData,
+            policy: VaultStorage.SharePolicy(),
+            totalFiles: 1,
+            importedFileIds: ["no-match"],
+            shareVaultVersion: 1,
+            createdAt: Date(),
+            isDownloadComplete: true,
+            downloadError: nil
+        )
+        try ShareImportManager.savePendingImport(pendingState, vaultData: Data(repeating: 0, count: 64))
+
+        let (didRepair, _) = try await runRepair(with: testKey)
+        XCTAssertTrue(didRepair)
+
+        let repaired = try await storage.loadIndex(with: testKey)
+        XCTAssertNil(repaired.isSharedVault, "isSharedVault must be nil")
+        XCTAssertNil(repaired.sharedVaultId, "sharedVaultId must be nil")
+        XCTAssertNil(repaired.sharePolicy, "sharePolicy must be nil")
+        XCTAssertNil(repaired.openCount, "openCount must be nil")
+        XCTAssertNil(repaired.shareKeyData, "shareKeyData must be nil")
+        XCTAssertNil(repaired.sharedVaultVersion, "sharedVaultVersion must be nil")
+
+        // Non-sharing fields must be untouched
+        XCTAssertEqual(repaired.files.filter { !$0.isDeleted }.count, 1, "Files preserved")
+        XCTAssertNotNil(repaired.encryptedMasterKey, "Master key preserved")
+    }
+
+    /// Repair must NOT run on a vault that is not marked as shared.
+    func testRepairSkipsNonSharedVault() async throws {
+        let freshIndex = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(freshIndex, with: testKey)
+
+        _ = try await storage.storeFile(
+            data: Data("file".utf8), filename: "f.txt",
+            mimeType: "text/plain", with: testKey
+        )
+
+        // Pending import exists but vault is NOT shared
+        let pendingState = ShareImportManager.PendingImportState(
+            shareVaultId: testShareVaultId,
+            phrase: "phrase",
+            shareKeyData: testShareKeyData,
+            policy: VaultStorage.SharePolicy(),
+            totalFiles: 1,
+            importedFileIds: ["some-id"],
+            shareVaultVersion: 1,
+            createdAt: Date(),
+            isDownloadComplete: true,
+            downloadError: nil
+        )
+        try ShareImportManager.savePendingImport(pendingState, vaultData: Data(repeating: 0, count: 64))
+
+        let (didRepair, index) = try await runRepair(with: testKey)
+
+        XCTAssertFalse(didRepair, "Must not repair vault that isn't marked as shared")
+        XCTAssertNil(index.isSharedVault)
+    }
+
+    /// Repair preserves the vault's custom name when clearing sharing fields.
+    func testRepairPreservesCustomName() async throws {
+        let freshIndex = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(freshIndex, with: testKey)
+
+        _ = try await storage.storeFile(
+            data: Data("file".utf8), filename: "f.txt",
+            mimeType: "text/plain", with: testKey
+        )
+
+        var index = try await storage.loadIndex(with: testKey)
+        index.isSharedVault = true
+        index.sharedVaultId = testShareVaultId
+        index.shareKeyData = testShareKeyData
+        index.customName = "My Personal Vault"
+        try await storage.saveIndex(index, with: testKey)
+
+        let pendingState = ShareImportManager.PendingImportState(
+            shareVaultId: testShareVaultId,
+            phrase: "phrase",
+            shareKeyData: testShareKeyData,
+            policy: VaultStorage.SharePolicy(),
+            totalFiles: 1,
+            importedFileIds: ["no-match"],
+            shareVaultVersion: 1,
+            createdAt: Date(),
+            isDownloadComplete: true,
+            downloadError: nil
+        )
+        try ShareImportManager.savePendingImport(pendingState, vaultData: Data(repeating: 0, count: 64))
+
+        let (didRepair, _) = try await runRepair(with: testKey)
+        XCTAssertTrue(didRepair)
+
+        let repaired = try await storage.loadIndex(with: testKey)
+        XCTAssertEqual(repaired.customName, "My Personal Vault",
+                       "Custom name must survive repair")
+    }
+
+    /// Repair preserves owner-side activeShares when clearing recipient-side fields.
+    func testRepairPreservesActiveShares() async throws {
+        let freshIndex = try await storage.loadIndex(with: testKey)
+        try await storage.saveIndex(freshIndex, with: testKey)
+
+        _ = try await storage.storeFile(
+            data: Data("file".utf8), filename: "f.txt",
+            mimeType: "text/plain", with: testKey
+        )
+
+        var index = try await storage.loadIndex(with: testKey)
+        // This vault is an OWNER of a different share AND incorrectly marked as shared
+        index.activeShares = [VaultStorage.ShareRecord(
+            id: "owner-share-123",
+            createdAt: Date(),
+            policy: VaultStorage.SharePolicy()
+        )]
+        index.isSharedVault = true
+        index.sharedVaultId = testShareVaultId
+        index.shareKeyData = testShareKeyData
+        try await storage.saveIndex(index, with: testKey)
+
+        let pendingState = ShareImportManager.PendingImportState(
+            shareVaultId: testShareVaultId,
+            phrase: "phrase",
+            shareKeyData: testShareKeyData,
+            policy: VaultStorage.SharePolicy(),
+            totalFiles: 1,
+            importedFileIds: ["no-match"],
+            shareVaultVersion: 1,
+            createdAt: Date(),
+            isDownloadComplete: true,
+            downloadError: nil
+        )
+        try ShareImportManager.savePendingImport(pendingState, vaultData: Data(repeating: 0, count: 64))
+
+        let (didRepair, _) = try await runRepair(with: testKey)
+        XCTAssertTrue(didRepair)
+
+        let repaired = try await storage.loadIndex(with: testKey)
+        XCTAssertNil(repaired.isSharedVault, "Recipient-side flag cleared")
+        XCTAssertEqual(repaired.activeShares?.count, 1,
+                       "Owner-side activeShares must be preserved")
+        XCTAssertEqual(repaired.activeShares?.first?.id, "owner-share-123")
     }
 
     // MARK: - SharePolicy Persistence Through Index
@@ -794,58 +1352,29 @@ final class ShareImportAtomicityTests: XCTestCase {
         XCTAssertEqual(pending?.importedFileIds.count, 2)
     }
 
-    /// Simulates what happened BEFORE the fix: vault NOT pre-marked, crash during import.
-    /// The retroactive fix in checkSharedVaultStatus should repair this.
-    func testSimulatedPreFixCrashRepairedByRetroactiveFix() async throws {
-        // Setup: vault with files but NOT marked as shared (the old buggy behavior)
+    /// Pre-mark now handles atomicity, so the old retroactive fix is removed.
+    /// This test verifies the pre-mark path protects the vault directly.
+    func testPreMarkProtectsVaultDuringImport() async throws {
         let freshIndex = try await storage.loadIndex(with: testKey)
         try await storage.saveIndex(freshIndex, with: testKey)
 
-        _ = try await storage.storeFile(
-            data: Data("unprotected file".utf8), filename: "exposed.txt",
-            mimeType: "text/plain", with: testKey
-        )
-
-        // Pending import exists (crash happened mid-import)
-        let pendingState = ShareImportManager.PendingImportState(
-            shareVaultId: testShareVaultId,
-            phrase: "leaked phrase",
-            shareKeyData: testShareKeyData,
-            policy: testPolicy,
-            totalFiles: 3,
-            importedFileIds: ["leaked-file-1"],
-            shareVaultVersion: 1,
-            createdAt: Date(),
-            isDownloadComplete: true,
-            downloadError: nil
-        )
-        try ShareImportManager.savePendingImport(pendingState, vaultData: Data(repeating: 0, count: 64))
-
-        // Verify vault is NOT protected (the bug)
-        let buggy = try await storage.loadIndex(with: testKey)
-        XCTAssertTrue(buggy.isSharedVault != true, "Pre-fix: vault should NOT be shared")
-        XCTAssertEqual(buggy.files.count, 1, "Files are accessible without restrictions")
-
-        // Run retroactive fix (mirrors checkSharedVaultStatus)
+        // Simulate pre-mark (mirrors ShareImportManager import flow)
         var index = try await storage.loadIndex(with: testKey)
-        if index.isSharedVault != true,
-           let pending = ShareImportManager.loadPendingImportState(),
-           !pending.importedFileIds.isEmpty {
-            index.isSharedVault = true
-            index.sharedVaultId = pending.shareVaultId
-            index.sharePolicy = pending.policy
-            index.openCount = 0
-            index.shareKeyData = pending.shareKeyData
-            index.sharedVaultVersion = pending.shareVaultVersion
-            try await storage.saveIndex(index, with: testKey)
-        }
+        index.isSharedVault = true
+        index.sharedVaultId = testShareVaultId
+        index.sharePolicy = testPolicy
+        index.openCount = 0
+        index.shareKeyData = testShareKeyData
+        index.sharedVaultVersion = 1
+        try await storage.saveIndex(index, with: testKey)
 
-        // Verify vault is now protected
-        let fixed = try await storage.loadIndex(with: testKey)
-        XCTAssertTrue(fixed.isSharedVault ?? false,
-                      "Retroactive fix must protect previously unprotected vault")
-        XCTAssertEqual(fixed.sharedVaultId, testShareVaultId)
-        XCTAssertEqual(fixed.sharePolicy?.maxOpens, testPolicy.maxOpens)
+        // Verify vault is protected BEFORE any files are imported
+        let protected = try await storage.loadIndex(with: testKey)
+        XCTAssertTrue(protected.isSharedVault ?? false,
+                      "Pre-mark must protect vault before file import begins")
+        XCTAssertEqual(protected.sharedVaultId, testShareVaultId)
+        XCTAssertEqual(protected.sharePolicy?.maxOpens, testPolicy.maxOpens)
+        XCTAssertEqual(protected.openCount, 0)
     }
 
     // MARK: - SharePolicy Codable Edge Cases

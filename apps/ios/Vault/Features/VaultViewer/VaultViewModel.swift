@@ -834,20 +834,30 @@ final class VaultViewModel {
             do {
                 var index = try await VaultStorage.shared.loadIndex(with: key)
 
-                // Retroactive fix: if a pending import exists but the vault wasn't
-                // marked as shared (crash during pre-fix import), apply sharing
-                // metadata now to restore sender control over the files.
-                if index.isSharedVault != true,
-                   let pending = ShareImportManager.loadPendingImportState(),
-                   !pending.importedFileIds.isEmpty {
-                    vmLogger.warning("Detected unprotected shared vault files — applying sharing restrictions retroactively")
-                    index.isSharedVault = true
-                    index.sharedVaultId = pending.shareVaultId
-                    index.sharePolicy = pending.policy
-                    index.openCount = 0
-                    index.shareKeyData = pending.shareKeyData
-                    index.sharedVaultVersion = pending.shareVaultVersion
-                    try await VaultStorage.shared.saveIndex(index, with: key)
+                // Repair: undo vaults incorrectly marked as shared by the
+                // removed retroactive fix (which used a global pending-import
+                // file and could mark ANY open vault as shared).
+                //
+                // Detection: if a pending import exists, compare its imported
+                // file IDs with this vault's files.  A legitimately shared
+                // vault contains files from the import; an incorrectly marked
+                // vault has only its own unrelated files.
+                if index.isSharedVault == true,
+                   let pending = ShareImportManager.loadPendingImportState() {
+                    let importedIds = Set(pending.importedFileIds)
+                    let vaultFileIds = Set(index.files.filter { !$0.isDeleted }.map { $0.fileId.uuidString })
+                    let hasImportedFiles = !importedIds.intersection(vaultFileIds).isEmpty
+
+                    if !hasImportedFiles && !vaultFileIds.isEmpty {
+                        vmLogger.warning("Clearing incorrect isSharedVault flag — vault files don't match pending import")
+                        index.isSharedVault = nil
+                        index.sharedVaultId = nil
+                        index.sharePolicy = nil
+                        index.openCount = nil
+                        index.shareKeyData = nil
+                        index.sharedVaultVersion = nil
+                        try await VaultStorage.shared.saveIndex(index, with: key)
+                    }
                 }
 
                 let shared = index.isSharedVault ?? false

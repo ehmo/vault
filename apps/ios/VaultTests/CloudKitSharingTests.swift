@@ -384,6 +384,27 @@ class MockCloudKitSharingClient: CloudKitSharingClient {
     func revokeShare(shareVaultId _: String) async throws {
         // Implementation not needed for current tests
     }
+
+    func downloadSharedVault(phrase _: String, markClaimedOnDownload _: Bool, onProgress _: ((Int, Int) -> Void)?) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
+        return (Data(), "", VaultStorage.SharePolicy(), 1)
+    }
+
+    func checkForUpdates(shareVaultId _: String, currentVersion _: Int) async throws -> Int? { nil }
+
+    func downloadUpdatedVault(shareVaultId _: String, shareKey _: ShareKey, onProgress _: ((Int, Int) -> Void)?) async throws -> Data { Data() }
+
+    func deleteSharedVault(shareVaultId _: String) async throws {}
+    func deleteSharedVault(phrase _: String) async throws {}
+
+    func existingChunkIndices(for _: String) async throws -> Set<Int> { [] }
+
+    func checkiCloudStatus() async -> CKAccountStatus { .available }
+
+    func downloadSharedVaultToFile(phrase _: String, outputURL _: URL, markClaimedOnDownload _: Bool, onProgress _: ((Int, Int) -> Void)?) async throws -> (fileURL: URL, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
+        return (URL(fileURLWithPath: "/dev/null"), "", VaultStorage.SharePolicy(), 1)
+    }
+
+    func downloadUpdatedVaultToFile(shareVaultId _: String, shareKey _: ShareKey, outputURL _: URL, onProgress _: ((Int, Int) -> Void)?) async throws {}
 }
 
 // MARK: - Performance Tests
