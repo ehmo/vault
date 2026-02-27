@@ -202,6 +202,19 @@ final class SubscriptionManager {
         Self.logger.debug("isPremium=\(self.isPremium), products=\(self.purchasedProductIDs.joined(separator: ", "), privacy: .public)")
     }
 
+    // MARK: - Reset
+
+    /// Resets in-memory premium state and re-queries StoreKit entitlements.
+    /// Call after nuclear wipe or full reset so the UI reflects the true subscription state.
+    func resetAfterWipe() async {
+        purchasedProductIDs = []
+        isPremium = false
+        // Clear app group so Share Extension also sees the reset
+        UserDefaults(suiteName: VaultCoreConstants.appGroupIdentifier)?
+            .removeObject(forKey: VaultCoreConstants.isPremiumKey)
+        await updatePurchasedProducts()
+    }
+
     // MARK: - Limit Checks
 
     func canCreateVault(currentCount: Int) -> Bool {

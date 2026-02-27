@@ -366,6 +366,7 @@ struct AppSettingsView: View {
     private func performNuclearWipe() {
         Task {
             await DuressHandler.shared.performNuclearWipe()
+            await SubscriptionManager.shared.resetAfterWipe()
             await MainActor.run {
                 // Reset app state to trigger onboarding
                 appState.resetToOnboarding()
@@ -403,12 +404,15 @@ struct AppSettingsView: View {
         // 5. Clear temporary files
         clearTemporaryFiles()
         
-        // 6. Reset app state
+        // 6. Reset subscription state
+        await SubscriptionManager.shared.resetAfterWipe()
+
+        // 7. Reset app state
         await MainActor.run {
             appState.lockVault()
             appState.resetToOnboarding()
         }
-        
+
         settingsLogger.info("Full debug reset complete")
     }
     
