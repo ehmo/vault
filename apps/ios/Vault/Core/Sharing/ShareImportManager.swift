@@ -285,6 +285,8 @@ final class ShareImportManager {
                 }
 
                 // CRITICAL: Pre-mark vault as shared BEFORE importing any files.
+                // This ensures that even if the app crashes during import, any
+                // files already stored will have sharing restrictions enforced.
                 do {
                     var index = try await VaultStorage.shared.loadIndex(with: capturedPatternKey)
                     let alreadyMarked = (index.isSharedVault == true && index.sharedVaultId == shareVaultId)
@@ -303,7 +305,7 @@ final class ShareImportManager {
                     throw error
                 }
 
-                // Mark share as claimed before file import
+                // Mark share as claimed on CloudKit now that the vault is protected locally.
                 do {
                     try await CloudKitSharingManager.shared.markShareClaimed(shareVaultId: shareVaultId)
                     Self.logger.info("[import] Share claimed on CloudKit before file import")
@@ -333,15 +335,18 @@ final class ShareImportManager {
                         }
 
                         do {
+                            // Extract entry metadata (~1KB) — no content loaded
                             let entryMeta = try SVDFSerializer.extractFileEntryMetadata(
                                 from: Self.importDataURL, at: entry.offset, size: entry.size, version: header.version
                             )
 
+                            // Stream encrypted content to temp file (256KB chunks)
                             let encryptedTempURL = try SVDFSerializer.extractFileContentToTempURL(
                                 from: Self.importDataURL, entry: entryMeta
                             )
                             defer { try? FileManager.default.removeItem(at: encryptedTempURL) }
 
+                            // Streaming decrypt to another temp file
                             let decryptedTempURL = FileManager.default.temporaryDirectory
                                 .appendingPathComponent(UUID().uuidString)
                                 .appendingPathExtension("dec")
@@ -351,6 +356,7 @@ final class ShareImportManager {
                                 from: encryptedTempURL, to: decryptedTempURL, with: shareKey.rawBytes
                             )
 
+                            // Resolve thumbnail from file URL (memory-efficient)
                             let thumbnailData = Self.resolveThumbnailFromFile(
                                 encryptedThumbnail: entryMeta.encryptedThumbnail,
                                 mimeType: entryMeta.mimeType,
@@ -358,6 +364,7 @@ final class ShareImportManager {
                                 shareKey: shareKey.rawBytes
                             )
 
+                            // Store from decrypted temp file (streaming encryption into vault blob)
                             _ = try await VaultStorage.shared.storeFileFromURL(
                                 decryptedTempURL,
                                 filename: entryMeta.filename,
@@ -487,13 +494,11 @@ final class ShareImportManager {
                 EmbraceManager.shared.captureError(error)
 
                 // CRITICAL: Save partial progress if we have any imported files
-                // This allows user to resume from where it failed
                 if let pending = pendingImport, !pending.importedFileIds.isEmpty {
                     var pendingWithError = pending
                     pendingWithError.downloadError = error.localizedDescription
                     Self.logger.info("[import] Saving partial progress with \(pendingWithError.importedFileIds.count) files imported before error")
                     do {
-                        // Only update the state file, don't rewrite the vault data
                         try Self.updatePendingImportState(pendingWithError)
                     } catch {
                         Self.logger.error("[import] Failed to save partial progress: \(error.localizedDescription)")
@@ -592,15 +597,21 @@ final class ShareImportManager {
         decryptedFileURL: URL,
         shareKey: Data
     ) -> Data? {
+        // Decrypt encrypted thumbnail if available (small, ~5-30KB)
         if let encThumb = encryptedThumbnail {
             return try? CryptoEngine.decrypt(encThumb, with: shareKey)
         }
+
+        // For images, use memory-efficient ImageIO downsampling
         if mimeType.hasPrefix("image/") {
             return FileUtilities.generateThumbnail(fromFileURL: decryptedFileURL)
         }
+
+        // For videos, use AVAsset directly from file URL (no Data→tempFile round-trip)
         if mimeType.hasPrefix("video/") {
             return generateVideoThumbnailFromFile(url: decryptedFileURL)
         }
+
         return nil
     }
 
@@ -610,9 +621,11 @@ final class ShareImportManager {
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = CGSize(width: 400, height: 400)
+
         let time = CMTime(seconds: 0.5, preferredTimescale: 600)
         if let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) {
-            return UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.7)
+            let uiImage = UIImage(cgImage: cgImage)
+            return uiImage.jpegData(compressionQuality: 0.7)
         }
         return nil
     }

@@ -386,7 +386,7 @@ class MockCloudKitSharingClient: CloudKitSharingClient {
     }
 
     func downloadSharedVault(phrase _: String, markClaimedOnDownload _: Bool, onProgress _: (@Sendable (Int, Int) -> Void)?) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
-        (Data(), "", VaultStorage.SharePolicy(), 1)
+        return (Data(), "", VaultStorage.SharePolicy(), 1)
     }
 
     func checkForUpdates(shareVaultId _: String, currentVersion _: Int) async throws -> Int? { nil }
@@ -394,7 +394,7 @@ class MockCloudKitSharingClient: CloudKitSharingClient {
     func downloadUpdatedVault(shareVaultId _: String, shareKey _: ShareKey, onProgress _: (@Sendable (Int, Int) -> Void)?) async throws -> Data { Data() }
 
     func downloadSharedVaultToFile(phrase _: String, outputURL: URL, markClaimedOnDownload _: Bool, onProgress _: (@Sendable (Int, Int) -> Void)?) async throws -> (fileURL: URL, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
-        (outputURL, "", VaultStorage.SharePolicy(), 1)
+        return (outputURL, "", VaultStorage.SharePolicy(), 1)
     }
 
     func downloadUpdatedVaultToFile(shareVaultId _: String, shareKey _: ShareKey, outputURL _: URL, onProgress _: (@Sendable (Int, Int) -> Void)?) async throws {}

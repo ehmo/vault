@@ -254,6 +254,8 @@ struct PatternSetupView: View {
             }
             .font(.subheadline)
             .foregroundStyle(.vaultSecondaryText)
+            .lineLimit(nil)
+            .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal)
     }

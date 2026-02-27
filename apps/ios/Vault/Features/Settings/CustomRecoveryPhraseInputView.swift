@@ -66,6 +66,8 @@ struct CustomRecoveryPhraseInputView: View {
                         .font(.subheadline)
                         .foregroundStyle(.vaultSecondaryText)
                         .multilineTextAlignment(.center)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.horizontal)
 
@@ -103,6 +105,8 @@ struct CustomRecoveryPhraseInputView: View {
                             .foregroundStyle(validation.isAcceptable ? .green : .orange)
                         Text(validation.message)
                             .font(.subheadline)
+                            .lineLimit(nil)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -118,6 +122,8 @@ struct CustomRecoveryPhraseInputView: View {
                             .foregroundStyle(.vaultHighlight)
                         Text(error)
                             .font(.subheadline)
+                            .lineLimit(nil)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding()
                     .background(Color.vaultHighlight.opacity(0.1))
@@ -158,6 +164,8 @@ struct CustomRecoveryPhraseInputView: View {
                 .font(.subheadline)
                 .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal)
 
             PhraseDisplayCard(phrase: customPhrase.trimmingCharacters(in: .whitespacesAndNewlines))

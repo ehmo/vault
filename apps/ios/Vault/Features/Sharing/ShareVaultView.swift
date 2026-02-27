@@ -566,7 +566,8 @@ struct ShareVaultView: View {
                     Text(error)
                         .font(.caption)
                         .foregroundStyle(.vaultHighlight)
-                        .lineLimit(2)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.trailing)
                 }
             }

@@ -27,6 +27,8 @@ struct RecoveryPhraseView: View {
                         .font(.subheadline)
                         .foregroundStyle(.vaultSecondaryText)
                         .multilineTextAlignment(.center)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 // Error banner (only on error)
@@ -37,6 +39,8 @@ struct RecoveryPhraseView: View {
                         Text(errorMessage)
                             .font(.subheadline)
                             .fontWeight(.medium)
+                            .lineLimit(nil)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding()
                     .background(Color.vaultHighlight.opacity(0.1))
@@ -61,6 +65,8 @@ struct RecoveryPhraseView: View {
                 }
                 .font(.subheadline)
                 .foregroundStyle(.vaultSecondaryText)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
 
                 Spacer()
 

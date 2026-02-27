@@ -96,7 +96,7 @@ private struct PatternEncryptionPage: View {
                     .font(.title2)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
-                    .lineLimit(1)
+                    .lineLimit(nil)
                     .minimumScaleFactor(0.8)
 
                 Text("Draw a pattern. It becomes an encryption key. Different pattern, different vault.")
@@ -241,7 +241,7 @@ private struct PlausibleDeniabilityPage: View {
                     .font(.title2)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
-                    .lineLimit(1)
+                    .lineLimit(nil)
                     .minimumScaleFactor(0.8)
 
                 Text("Without your pattern, there's no trace\nthat hidden vaults even exist.")
@@ -255,6 +255,8 @@ private struct PlausibleDeniabilityPage: View {
                     .font(.caption)
                     .foregroundStyle(.vaultSecondaryText.opacity(0.6))
                     .multilineTextAlignment(.center)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(height: 120, alignment: .top)
         }
@@ -329,7 +331,7 @@ private struct DuressVaultPage: View {
                     .font(.title2)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
-                    .lineLimit(1)
+                    .lineLimit(nil)
                     .minimumScaleFactor(0.7)
 
                 Text("If forced to unlock, the duress pattern silently wipes your real vaults.")
@@ -508,7 +510,7 @@ private struct EncryptedSharingPage: View {
                     .font(.title2)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
-                    .lineLimit(1)
+                    .lineLimit(nil)
                     .minimumScaleFactor(0.8)
 
                 Text("Send encrypted vaults to anyone.\nNo accounts, no identity, no metadata trail.")
@@ -666,7 +668,7 @@ private struct EncryptedBackupPage: View {
                     .font(.title2)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
-                    .lineLimit(1)
+                    .lineLimit(nil)
                     .minimumScaleFactor(0.8)
 
                 Text("Encrypted on-device before it touches iCloud. Only your pattern can unlock it.")
@@ -784,7 +786,7 @@ private struct HardwareSecurityPage: View {
                     .font(.title2)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
-                    .lineLimit(1)
+                    .lineLimit(nil)
                     .minimumScaleFactor(0.8)
 
                 Text("Encryption keys live in Apple's Secure Enclave. They can't be extracted — even by us.")

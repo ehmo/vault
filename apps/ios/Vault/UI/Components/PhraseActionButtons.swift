@@ -6,15 +6,53 @@ import UIKit
 struct PhraseDisplayCard: View {
     let phrase: String
 
+    @State private var copied = false
+
     var body: some View {
-        Text(phrase)
-            .font(.title3)
-            .fontWeight(.medium)
-            .multilineTextAlignment(.center)
-            .lineLimit(nil)
-            .padding()
-            .frame(maxWidth: .infinity)
-            .vaultGlassBackground(cornerRadius: 12)
+        ZStack {
+            Text(phrase)
+                .font(.title3)
+                .fontWeight(.medium)
+                .multilineTextAlignment(.center)
+                .lineLimit(nil)
+                .opacity(copied ? 0.3 : 1)
+
+            if copied {
+                Label("Copied", systemImage: "checkmark.circle.fill")
+                    .font(.headline)
+                    .foregroundStyle(.green)
+                    .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: copied)
+        .padding()
+        .frame(maxWidth: .infinity)
+        .vaultGlassBackground(cornerRadius: 12)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            copyPhrase()
+        }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Tap to copy phrase")
+    }
+
+    private func copyPhrase() {
+        UIPasteboard.general.string = phrase
+        copied = true
+
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            await MainActor.run { copied = false }
+        }
+
+        // Auto-clear clipboard after 60s
+        let phraseCopy = phrase
+        Task {
+            try? await Task.sleep(for: .seconds(60))
+            if UIPasteboard.general.string == phraseCopy {
+                UIPasteboard.general.string = ""
+            }
+        }
     }
 }
 

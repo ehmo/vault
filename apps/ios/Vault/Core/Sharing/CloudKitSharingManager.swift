@@ -1012,6 +1012,207 @@ final class CloudKitSharingManager: @unchecked Sendable {
         }
     }
 
+    // MARK: - Download to File (Streaming)
+
+    /// Downloads chunk records in parallel and writes each chunk to the output file
+    /// at its correct offset. Peak memory: ~2MB (one chunk) instead of entire vault.
+    private func downloadChunksToFile(
+        shareVaultId: String,
+        chunkCount: Int,
+        outputURL: URL,
+        onProgress: (@Sendable (Int, Int) -> Void)? = nil
+    ) async throws {
+        guard chunkCount > 0 else {
+            FileManager.default.createFile(atPath: outputURL.path, contents: nil)
+            return
+        }
+
+        // Pre-allocate the file by writing an empty first chunk to establish it
+        FileManager.default.createFile(atPath: outputURL.path, contents: nil)
+        let outHandle = try FileHandle(forWritingTo: outputURL)
+        defer { try? outHandle.close() }
+
+        // We need to track completed chunks and write each at its correct offset.
+        // Since chunks may complete out of order, we collect offset+data pairs.
+        try await withThrowingTaskGroup(of: (Int, Data).self) { group in
+            var completed = 0
+            var inFlight = 0
+
+            for i in 0..<chunkCount {
+                if inFlight >= Self.maxConcurrentChunkOps {
+                    let (index, data) = try await group.next()!
+                    outHandle.seek(toFileOffset: UInt64(index * self.chunkSize))
+                    outHandle.write(data)
+                    completed += 1
+                    inFlight -= 1
+                    onProgress?(completed, chunkCount)
+                }
+
+                group.addTask {
+                    let chunkRecordId = CKRecord.ID(recordName: "\(shareVaultId)_chunk_\(i)")
+                    let chunkRecord: CKRecord
+                    do {
+                        chunkRecord = try await self.publicDatabase.record(for: chunkRecordId)
+                    } catch {
+                        throw CloudKitSharingError.downloadFailed(error)
+                    }
+
+                    guard let chunkAsset = chunkRecord["chunkData"] as? CKAsset,
+                          let chunkURL = chunkAsset.fileURL else {
+                        throw CloudKitSharingError.invalidData
+                    }
+
+                    let chunkBytes = try Data(contentsOf: chunkURL)
+                    return (i, chunkBytes)
+                }
+                inFlight += 1
+            }
+
+            // Drain remaining in-flight downloads
+            for try await (index, data) in group {
+                outHandle.seek(toFileOffset: UInt64(index * self.chunkSize))
+                outHandle.write(data)
+                completed += 1
+                onProgress?(completed, chunkCount)
+            }
+        }
+    }
+
+    /// Downloads a shared vault directly to a file on disk, using a share phrase.
+    /// Same manifest/policy/claim logic as `downloadSharedVault`, but chunks are written
+    /// to disk instead of accumulated in memory.
+    func downloadSharedVaultToFile(
+        phrase: String,
+        outputURL: URL,
+        markClaimedOnDownload: Bool = true,
+        onProgress: (@Sendable (Int, Int) -> Void)? = nil
+    ) async throws -> (fileURL: URL, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
+        let phraseVaultId = Self.vaultId(from: phrase)
+
+        // Try v2 (per-phrase salt) key first, fall back to v1 (fixed salt) for existing shares
+        let shareKeyV2 = ShareKey(try KeyDerivation.deriveShareKey(from: phrase))
+        var shareKey = shareKeyV2
+        let shareKeyV1: ShareKey? = (try? KeyDerivation.deriveShareKeyLegacy(from: phrase)).map { ShareKey($0) }
+
+        // Fetch manifest
+        let manifestRecordId = CKRecord.ID(recordName: phraseVaultId)
+        let manifest: CKRecord
+        do {
+            manifest = try await publicDatabase.record(for: manifestRecordId)
+        } catch let error as CKError where error.code == .unknownItem {
+            throw CloudKitSharingError.vaultNotFound
+        } catch {
+            throw CloudKitSharingError.downloadFailed(error)
+        }
+
+        // Check if already claimed
+        if let claimed = manifest["claimed"] as? Bool, claimed {
+            throw CloudKitSharingError.alreadyClaimed
+        }
+
+        // Check if revoked
+        if let revoked = manifest["revoked"] as? Bool, revoked {
+            throw CloudKitSharingError.revoked
+        }
+
+        guard let shareVaultId = manifest["shareVaultId"] as? String,
+              let chunkCount = manifest["chunkCount"] as? Int else {
+            throw CloudKitSharingError.invalidData
+        }
+
+        // Decrypt policy — try v2 key first, fall back to v1 for legacy shares
+        var policy = VaultStorage.SharePolicy()
+        if let policyAsset = manifest["policy"] as? CKAsset,
+           let policyURL = policyAsset.fileURL {
+            let encryptedPolicy = try Data(contentsOf: policyURL)
+            if let decryptedPolicy = try? CryptoEngine.decrypt(encryptedPolicy, with: shareKeyV2.rawBytes),
+               let decoded = try? JSONDecoder().decode(VaultStorage.SharePolicy.self, from: decryptedPolicy) {
+                policy = decoded
+            } else if let v1Key = shareKeyV1,
+                      let decryptedPolicy = try? CryptoEngine.decrypt(encryptedPolicy, with: v1Key.rawBytes),
+                      let decoded = try? JSONDecoder().decode(VaultStorage.SharePolicy.self, from: decryptedPolicy) {
+                shareKey = v1Key
+                policy = decoded
+            } else {
+                throw CloudKitSharingError.decryptionFailed
+            }
+        }
+
+        // Download chunks directly to file
+        try await downloadChunksToFile(
+            shareVaultId: shareVaultId,
+            chunkCount: chunkCount,
+            outputURL: outputURL,
+            onProgress: onProgress
+        )
+
+        let remoteVersion = manifest["version"] as? Int ?? 1
+
+        // v1: outer encryption layer present — decrypt in memory (rare, legacy only)
+        if remoteVersion < 2 {
+            let encryptedData = try Data(contentsOf: outputURL)
+            do {
+                let decryptedData = try CryptoEngine.decrypt(encryptedData, with: shareKey.rawBytes)
+                try decryptedData.write(to: outputURL, options: .atomic)
+            } catch {
+                throw CloudKitSharingError.decryptionFailed
+            }
+        }
+
+        if markClaimedOnDownload {
+            manifest["claimed"] = true
+            try await publicDatabase.saveWithRetry(manifest)
+        }
+
+        return (outputURL, shareVaultId, policy, remoteVersion)
+    }
+
+    /// Downloads updated vault data directly to a file (for recipients, no claim check).
+    func downloadUpdatedVaultToFile(
+        shareVaultId: String,
+        shareKey: ShareKey,
+        outputURL: URL,
+        onProgress: (@Sendable (Int, Int) -> Void)? = nil
+    ) async throws {
+        let predicate = NSPredicate(format: "shareVaultId == %@", shareVaultId)
+        let query = CKQuery(recordType: manifestRecordType, predicate: predicate)
+        let results = try await publicDatabase.records(matching: query)
+
+        var chunkCount = 0
+        var remoteVersion = 1
+        for (_, result) in results.matchResults {
+            if let record = try? result.get() {
+                if let revoked = record["revoked"] as? Bool, revoked {
+                    throw CloudKitSharingError.revoked
+                }
+                chunkCount = (record["chunkCount"] as? Int) ?? 0
+                remoteVersion = (record["version"] as? Int) ?? 1
+            }
+        }
+
+        guard chunkCount > 0 else {
+            throw CloudKitSharingError.vaultNotFound
+        }
+
+        try await downloadChunksToFile(
+            shareVaultId: shareVaultId,
+            chunkCount: chunkCount,
+            outputURL: outputURL,
+            onProgress: onProgress
+        )
+
+        // v1: outer encryption layer — decrypt in memory (legacy only)
+        if remoteVersion < 2 {
+            let rawData = try Data(contentsOf: outputURL)
+            do {
+                let decrypted = try CryptoEngine.decrypt(rawData, with: shareKey.rawBytes)
+                try decrypted.write(to: outputURL, options: .atomic)
+            } catch {
+                throw CloudKitSharingError.decryptionFailed
+            }
+        }
+    }
+
     // MARK: - Manifest
 
     /// Saves (or updates) the SharedVault manifest record in CloudKit.

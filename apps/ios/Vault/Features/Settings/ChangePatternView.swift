@@ -128,7 +128,7 @@ struct ChangePatternView: View {
                         Text("You unlocked with your recovery phrase, so pattern verification is not required.")
                             .font(.caption)
                             .foregroundStyle(.vaultSecondaryText)
-                            .lineLimit(2)
+                            .lineLimit(nil)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(12)
@@ -274,6 +274,8 @@ struct ChangePatternView: View {
                 .font(.subheadline)
                 .foregroundStyle(.vaultSecondaryText)
                 .multilineTextAlignment(.center)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal)
 
             // Recovery phrase display with actions
@@ -289,6 +291,8 @@ struct ChangePatternView: View {
                 .font(.caption)
                 .foregroundStyle(.vaultHighlight)
                 .multilineTextAlignment(.center)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal)
         }
     }
