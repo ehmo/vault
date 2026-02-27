@@ -239,6 +239,7 @@
 		F9A1D754BD8E31A3160F796A /* VaultFileItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CA42624D77D48E8B942AEA2 /* VaultFileItemTests.swift */; };
 		FB39FBEAE7E9D6C73869319B /* ImportIngestor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30BCD9D46ABE1ADFE0841FE /* ImportIngestor.swift */; };
 		FCB88982E1518D90801BFC90 /* SharedVaultBannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DA341AFB069522AFD583558 /* SharedVaultBannerTests.swift */; };
+		FCC1A7B3D2E4F506BD982143 /* ShareImportAtomicityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DA8E6F3A2B1C5D9A410E752 /* ShareImportAtomicityTests.swift */; };
 		FCCD1BBE243FCDD92F85B96C /* ThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7C091E8525A2CC8E6C1B9B /* ThumbnailCache.swift */; };
 		FD0C4F922A9DBBC539F342A8 /* VaultFullChainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C4D247821836F5F973B35D1 /* VaultFullChainTests.swift */; };
 		FE601D63629A863BCD27CCAA /* PixelAnimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54767AA91F6BF00F93229755 /* PixelAnimation.swift */; };
@@ -420,6 +421,7 @@
 		4CA42624D77D48E8B942AEA2 /* VaultFileItemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFileItemTests.swift; sourceTree = "<group>"; };
 		4D450C3B9152D217A0311083 /* SettingsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsUITests.swift; sourceTree = "<group>"; };
 		4DA341AFB069522AFD583558 /* SharedVaultBannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedVaultBannerTests.swift; sourceTree = "<group>"; };
+		4DA8E6F3A2B1C5D9A410E752 /* ShareImportAtomicityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareImportAtomicityTests.swift; sourceTree = "<group>"; };
 		4DC8B6455E78497818D712E1 /* SharedVaultInviteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedVaultInviteView.swift; sourceTree = "<group>"; };
 		4E5ED74CCFA94DCC80728091 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		4F47ECCE2DA9F1EDF2609078 /* SecureBytes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureBytes.swift; sourceTree = "<group>"; };
@@ -976,6 +978,7 @@
 				69EB259ECA64BF13415B798A /* SecureBytesTests.swift */,
 				FD9ED75062A7FA3026698408 /* SecureDeleteTests.swift */,
 				801413CF0962D28BDE9CAD0B /* SecureEnclaveManagerTests.swift */,
+				4DA8E6F3A2B1C5D9A410E752 /* ShareImportAtomicityTests.swift */,
 				4DA341AFB069522AFD583558 /* SharedVaultBannerTests.swift */,
 				2591C9576600A63E59D657CE /* SharedVaultDataTests.swift */,
 				B8194F5900E726714BF464CA /* ShareExtensionIntegrationTests.swift */,
@@ -1437,6 +1440,7 @@
 				21E5CB37ECEC473C4D1FD572 /* ShareUploadDebounceTests.swift in Sources */,
 				1E1E6F641F43E6EE6AD49531 /* ShareUploadManagerTests.swift in Sources */,
 				686673FAABB2B7D0237390B6 /* ShareVaultViewModeTests.swift in Sources */,
+				FCC1A7B3D2E4F506BD982143 /* ShareImportAtomicityTests.swift in Sources */,
 				FCB88982E1518D90801BFC90 /* SharedVaultBannerTests.swift in Sources */,
 				98D1F3D8CBFA52A6D382E548 /* SharedVaultDataTests.swift in Sources */,
 				7ED421976109FA718103F4EC /* SonarQubeRulesTests.swift in Sources */,
