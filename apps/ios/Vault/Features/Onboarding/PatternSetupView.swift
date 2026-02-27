@@ -195,53 +195,59 @@ struct PatternSetupView: View {
             .padding(.horizontal)
             .accessibilityIdentifier("recovery_picker")
 
-            // Fixed-height phrase area — prevents layout shift between modes
-            VStack(spacing: 12) {
+            // Phrase area — fixed height so picker and action buttons stay
+            // at stable positions on both tabs.
+            // Height = text input (116) + spacing (12) + error area (52) = 180pt
+            ZStack(alignment: .top) {
                 if useCustomPhrase {
-                    ZStack(alignment: .topLeading) {
-                        TextEditor(text: $customPhrase)
-                            .scrollContentBackground(.hidden)
-                            .autocorrectionDisabled()
-                            .accessibilityIdentifier("recovery_custom_phrase_input")
-                            .onChange(of: customPhrase) { _, newValue in
-                                validateCustomPhrase(newValue)
+                    // Custom: text input at top, errors below
+                    VStack(spacing: 12) {
+                        ZStack(alignment: .topLeading) {
+                            TextEditor(text: $customPhrase)
+                                .scrollContentBackground(.hidden)
+                                .autocorrectionDisabled()
+                                .accessibilityIdentifier("recovery_custom_phrase_input")
+                                .onChange(of: customPhrase) { _, newValue in
+                                    validateCustomPhrase(newValue)
+                                }
+
+                            if customPhrase.isEmpty {
+                                Text("Type a memorable phrase with 6-9 words...")
+                                    .foregroundStyle(.vaultSecondaryText.opacity(0.6))
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 8)
+                                    .allowsHitTesting(false)
                             }
-
-                        if customPhrase.isEmpty {
-                            Text("Type a memorable phrase with 6-9 words...")
-                                .foregroundStyle(.vaultSecondaryText.opacity(0.6))
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 8)
-                                .allowsHitTesting(false)
                         }
-                    }
-                    .frame(height: 100)
-                    .padding(8)
-                    .background(Color.vaultSurface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.vaultSecondaryText.opacity(0.3), lineWidth: 1)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .frame(height: 100)
+                        .padding(8)
+                        .background(Color.vaultSurface)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.vaultSecondaryText.opacity(0.3), lineWidth: 1)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
 
-                    if let validation = customPhraseValidation {
-                        HStack(spacing: 8) {
-                            Image(systemName: validation.isAcceptable ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .foregroundStyle(validation.isAcceptable ? .green : .orange)
-                            Text(validation.message)
-                                .font(.caption)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .lineLimit(nil)
+                        if let validation = customPhraseValidation {
+                            HStack(spacing: 8) {
+                                Image(systemName: validation.isAcceptable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundStyle(validation.isAcceptable ? .green : .orange)
+                                Text(validation.message)
+                                    .font(.caption)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .lineLimit(nil)
+                            }
+                            .padding(.horizontal)
+                            .padding(.vertical, 4)
                         }
-                        .padding(.horizontal)
-                        .padding(.vertical, 4)
                     }
                 } else {
+                    // Auto-generated: card fills the entire fixed area
                     PhraseDisplayCard(phrase: generatedPhrase)
-                        .frame(minHeight: 148)
+                        .frame(maxHeight: .infinity)
                 }
             }
-            .frame(minHeight: 190, alignment: .top)
+            .frame(height: 180, alignment: .top)
             .padding(.horizontal)
 
             PhraseActionButtons(phrase: useCustomPhrase ? customPhrase.trimmingCharacters(in: .whitespacesAndNewlines) : generatedPhrase)

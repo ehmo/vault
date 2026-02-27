@@ -9,12 +9,13 @@ struct PhraseDisplayCard: View {
     @State private var copied = false
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             Text(phrase)
                 .font(.title3)
                 .fontWeight(.medium)
                 .multilineTextAlignment(.center)
                 .lineLimit(nil)
+                .frame(maxWidth: .infinity, alignment: .top)
                 .opacity(copied ? 0.3 : 1)
 
             if copied {
@@ -26,7 +27,7 @@ struct PhraseDisplayCard: View {
         }
         .animation(.easeInOut(duration: 0.2), value: copied)
         .padding()
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .vaultGlassBackground(cornerRadius: 12)
         .contentShape(Rectangle())
         .onTapGesture {

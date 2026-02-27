@@ -70,7 +70,7 @@ extension VaultView {
                 .allowsHitTesting(!showingSettings)
 
             VStack(spacing: 8) {
-                if !viewModel.files.isEmpty {
+                if !viewModel.files.isEmpty || viewModel.isSharedVault {
                     // Always render with fixed height, use opacity to hide
                     HStack(spacing: 8) {
                         if viewModel.isEditing {
@@ -99,7 +99,7 @@ extension VaultView {
                 }
             }
         }
-        .padding(.bottom, !viewModel.files.isEmpty ? 6 : 0) // Keep padding constant based on files, not settings
+        .padding(.bottom, (!viewModel.files.isEmpty || viewModel.isSharedVault) ? 6 : 0)
         .background(Color.vaultBackground)
     }
 

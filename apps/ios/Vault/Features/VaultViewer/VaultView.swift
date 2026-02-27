@@ -146,6 +146,12 @@ struct VaultView: View {
     private func mainContentView(visible: VisibleFiles) -> some View {
         if viewModel.isLoading {
             skeletonGridContent
+        } else if viewModel.files.isEmpty && viewModel.isSharedVault {
+            ContentUnavailableView {
+                Label("Waiting for files", systemImage: "person.2.fill")
+            } description: {
+                Text("The vault owner hasn't added any files yet")
+            }
         } else if viewModel.files.isEmpty {
             emptyStateContent
         } else {
