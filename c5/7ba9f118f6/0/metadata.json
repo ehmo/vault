@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "c57ba9f118f6",
+  "session_id": "7e5088e4-4d78-4afc-9b1c-4cf9cadfe67b",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-27T00:20:50.149439Z",
+  "branch": "worktree-remote-control",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/seo-publishing-strategy.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "95f554ed-9f4d-433d-8dd9-b962f61de440",
+  "token_usage": {
+    "input_tokens": 148,
+    "cache_creation_tokens": 127738,
+    "cache_read_tokens": 1282790,
+    "output_tokens": 10344,
+    "api_call_count": 26
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-27T00:20:50.045756Z",
+    "agent_lines": 0,
+    "human_added": 60,
+    "human_modified": 254,
+    "human_removed": 0,
+    "total_committed": 314,
+    "agent_percentage": 0
+  }
+}
