@@ -1,0 +1,16 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+We have changed the share vault page. Currently we should phrase and copy link and share below it on the main page if there is a shared vault. I would like the phrase copy on tap, with visual cue that it happened.
+
+### Prompt 2
+
+Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior.
+
+### Prompt 3
+
+Commit to main
+
