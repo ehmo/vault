@@ -61,9 +61,12 @@ final class ShareImportAtomicityTests: XCTestCase {
         XCTAssertEqual(decoded.shareVaultId, "round-trip-test")
         XCTAssertEqual(decoded.phrase, "test phrase words")
         XCTAssertEqual(decoded.shareKeyData, testShareKeyData)
-        XCTAssertEqual(decoded.policy.expiresAt?.timeIntervalSinceReferenceDate,
-                       testPolicy.expiresAt?.timeIntervalSinceReferenceDate,
-                       accuracy: 0.001)
+        XCTAssertNotNil(decoded.policy.expiresAt)
+        if let decodedExpiry = decoded.policy.expiresAt, let originalExpiry = testPolicy.expiresAt {
+            XCTAssertEqual(decodedExpiry.timeIntervalSinceReferenceDate,
+                           originalExpiry.timeIntervalSinceReferenceDate,
+                           accuracy: 0.001)
+        }
         XCTAssertEqual(decoded.policy.maxOpens, 5)
         XCTAssertEqual(decoded.policy.allowScreenshots, false)
         XCTAssertEqual(decoded.policy.allowDownloads, true)
@@ -489,9 +492,12 @@ final class ShareImportAtomicityTests: XCTestCase {
         XCTAssertTrue(fixed.isSharedVault ?? false, "Retroactive fix must mark vault as shared")
         XCTAssertEqual(fixed.sharedVaultId, testShareVaultId)
         XCTAssertEqual(fixed.sharePolicy?.maxOpens, 5)
-        XCTAssertEqual(fixed.sharePolicy?.expiresAt?.timeIntervalSinceReferenceDate,
-                       testPolicy.expiresAt?.timeIntervalSinceReferenceDate,
-                       accuracy: 0.001)
+        XCTAssertNotNil(fixed.sharePolicy?.expiresAt)
+        if let fixedExpiry = fixed.sharePolicy?.expiresAt, let originalExpiry = testPolicy.expiresAt {
+            XCTAssertEqual(fixedExpiry.timeIntervalSinceReferenceDate,
+                           originalExpiry.timeIntervalSinceReferenceDate,
+                           accuracy: 0.001)
+        }
         XCTAssertEqual(fixed.openCount, 0)
         XCTAssertEqual(fixed.shareKeyData, testShareKeyData)
         XCTAssertEqual(fixed.sharedVaultVersion, 2)
