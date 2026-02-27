@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "1adfefefcfbd",
+  "strategy": "manual-commit",
+  "branch": "worktree-sequential-brewing-patterson",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/VaultTests/CloudKitSharingTests.swift",
+    "apps/ios/VaultTests/PatternBoardConsistencyTests.swift",
+    "apps/ios/VaultTests/SVDFStreamingTests.swift",
+    "apps/ios/VaultTests/ShareUploadDebounceTests.swift",
+    "apps/ios/VaultTests/ShareUploadManagerTests.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/1a/dfefefcfbd/0/metadata.json",
+      "transcript": "/1a/dfefefcfbd/0/full.jsonl",
+      "context": "/1a/dfefefcfbd/0/context.md",
+      "content_hash": "/1a/dfefefcfbd/0/content_hash.txt",
+      "prompt": "/1a/dfefefcfbd/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 72,
+    "cache_creation_tokens": 257463,
+    "cache_read_tokens": 7732535,
+    "output_tokens": 1925,
+    "api_call_count": 68
+  }
+}

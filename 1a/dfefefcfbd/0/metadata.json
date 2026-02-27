@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "1adfefefcfbd",
+  "session_id": "9f672d62-c809-4e7e-b756-6f758851fa2b",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-27T18:39:00.713634Z",
+  "branch": "worktree-sequential-brewing-patterson",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/VaultTests/CloudKitSharingTests.swift",
+    "apps/ios/VaultTests/PatternBoardConsistencyTests.swift",
+    "apps/ios/VaultTests/SVDFStreamingTests.swift",
+    "apps/ios/VaultTests/ShareUploadDebounceTests.swift",
+    "apps/ios/VaultTests/ShareUploadManagerTests.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "68b5abd2-c94e-4f3e-a942-657652871721",
+  "checkpoint_transcript_start": 4244,
+  "transcript_lines_at_start": 4244,
+  "token_usage": {
+    "input_tokens": 72,
+    "cache_creation_tokens": 257463,
+    "cache_read_tokens": 7732535,
+    "output_tokens": 1925,
+    "api_call_count": 68
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-27T18:39:00.076334Z",
+    "agent_lines": 53,
+    "human_added": 2946,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2999,
+    "agent_percentage": 1.7672557519173058
+  }
+}
