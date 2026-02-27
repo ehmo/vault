@@ -3,7 +3,7 @@ import ProjectDescription
 // MARK: - Constants
 
 let version = "1.0.2"
-let buildNumber = "156"
+let buildNumber = "158"
 let teamId = "UFV835UGV6"
 let baseBundleId = "app.vaultaire.ios"
 
