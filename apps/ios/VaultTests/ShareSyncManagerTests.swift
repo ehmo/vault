@@ -168,6 +168,14 @@ private final class MockSyncCloudKitSharing: CloudKitSharingClient {
         fatalError("Not used in ShareSyncManager tests")
     }
 
+    func downloadSharedVaultToFile(phrase _: String, outputURL _: URL, markClaimedOnDownload _: Bool, onProgress _: ((Int, Int) -> Void)?) async throws -> (fileURL: URL, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
+        fatalError("Not used in ShareSyncManager tests")
+    }
+
+    func downloadUpdatedVaultToFile(shareVaultId _: String, shareKey _: ShareKey, outputURL _: URL, onProgress _: ((Int, Int) -> Void)?) async throws {
+        fatalError("Not used in ShareSyncManager tests")
+    }
+
     func revokeShare(shareVaultId _: String) async throws {
         fatalError("Not used in ShareSyncManager tests")
     }

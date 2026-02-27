@@ -141,21 +141,30 @@ extension VaultView {
             }
 
             let shareKey = ShareKey(shareKeyData)
-            let data = try await CloudKitSharingManager.shared.downloadUpdatedVault(
+
+            // Download directly to a temp file — no in-memory accumulation
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension("svdf")
+            defer { try? FileManager.default.removeItem(at: tempURL) }
+
+            try await CloudKitSharingManager.shared.downloadUpdatedVaultToFile(
                 shareVaultId: vaultId,
                 shareKey: shareKey,
+                outputURL: tempURL,
                 onProgress: { @Sendable [weak viewModel] completed, total in
                     Task { @MainActor in
-                        // Map download progress to 0→70% range
                         let pct = total > 0 ? Int(Double(completed) / Double(total) * 70) : 0
                         viewModel?.sharedVaultUpdateProgress = (completed: pct, total: 100, message: "Downloading update...")
                     }
                 }
             )
 
-            if SVDFSerializer.isSVDF(data) {
-                try await importSVDFDelta(data: data, shareKey: shareKeyData, vaultKey: key, index: index)
+            if SVDFSerializer.isSVDFFile(tempURL) {
+                try await importSVDFDeltaFromFile(fileURL: tempURL, shareKey: shareKeyData, vaultKey: key, index: index)
             } else {
+                // Legacy fallback: load into memory (old, small vaults)
+                let data = try Data(contentsOf: tempURL)
                 try await importLegacyFull(data: data, shareKey: shareKeyData, vaultKey: key, index: index)
             }
 
@@ -254,7 +263,109 @@ extension VaultView {
         print("📦 [VaultView] SVDF delta: \(newIds.count) new, \(removedIds.count) removed, \(localFileIds.intersection(remoteFileIds).count) unchanged")
         #endif
     }
-    
+
+    /// SVDF v4/v5 streaming delta import: reads from a file URL without loading content into memory.
+    func importSVDFDeltaFromFile(fileURL: URL, shareKey: Data, vaultKey: VaultKey, index: VaultStorage.VaultIndex) async throws {
+        let header = try SVDFSerializer.parseHeaderFromFile(fileURL)
+        let manifest = try SVDFSerializer.parseManifestFromFile(fileURL, shareKey: shareKey)
+        let remoteFileIds = Set(manifest.filter { !$0.deleted }.map { $0.id })
+        let localFileIds = Set(index.files.filter { !$0.isDeleted }.map { $0.fileId.uuidString })
+
+        #if DEBUG
+        print("🔐 [importSVDFDelta] Local files: \(localFileIds.count), Remote files: \(remoteFileIds.count)")
+        #endif
+
+        // Delete files that were removed remotely
+        let removedIds = localFileIds.subtracting(remoteFileIds)
+        if !removedIds.isEmpty {
+            if removedIds.count == localFileIds.count && !remoteFileIds.isEmpty {
+                #if DEBUG
+                print("⚠️ [importSVDFDelta] SAFETY: Skipping deletion of all files - manifest mismatch detected")
+                #endif
+            } else {
+                #if DEBUG
+                print("🗑️ [importSVDFDelta] Deleting \(removedIds.count) files: \(removedIds)")
+                #endif
+                for removedId in removedIds {
+                    if let uuid = UUID(uuidString: removedId) {
+                        try? await VaultStorage.shared.deleteFile(id: uuid, with: vaultKey)
+                    }
+                }
+            }
+        }
+
+        // Import only new files
+        let newIds = remoteFileIds.subtracting(localFileIds)
+        let newEntries = manifest.filter { newIds.contains($0.id) && !$0.deleted }
+        #if DEBUG
+        print("📥 [importSVDFDelta] Importing \(newEntries.count) new files (streaming)")
+        #endif
+        for (idx, entry) in newEntries.enumerated() {
+            let entryMeta = try SVDFSerializer.extractFileEntryMetadata(
+                from: fileURL, at: entry.offset, size: entry.size, version: header.version
+            )
+
+            let encryptedTempURL = try SVDFSerializer.extractFileContentToTempURL(
+                from: fileURL, entry: entryMeta
+            )
+            defer { try? FileManager.default.removeItem(at: encryptedTempURL) }
+
+            let decryptedTempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension("dec")
+            defer { try? FileManager.default.removeItem(at: decryptedTempURL) }
+
+            try CryptoEngine.decryptStagedFileToURL(
+                from: encryptedTempURL, to: decryptedTempURL, with: shareKey
+            )
+
+            var thumbnailData: Data? = nil
+            if let encryptedThumb = entryMeta.encryptedThumbnail {
+                thumbnailData = try? CryptoEngine.decrypt(encryptedThumb, with: shareKey)
+            }
+            if thumbnailData == nil {
+                if entryMeta.mimeType.hasPrefix("image/") {
+                    thumbnailData = FileUtilities.generateThumbnail(fromFileURL: decryptedTempURL)
+                } else if entryMeta.mimeType.hasPrefix("video/") {
+                    thumbnailData = generateVideoThumbnailFromFile(url: decryptedTempURL)
+                }
+            }
+
+            _ = try await VaultStorage.shared.storeFileFromURL(
+                decryptedTempURL,
+                filename: entryMeta.filename,
+                mimeType: entryMeta.mimeType,
+                with: vaultKey,
+                options: FileStoreOptions(
+                    thumbnailData: thumbnailData,
+                    duration: entryMeta.duration,
+                    fileId: entryMeta.id,
+                    originalDate: entryMeta.createdAt
+                )
+            )
+
+            let pct = newEntries.count > 0 ? 70 + Int(Double(idx + 1) / Double(newEntries.count) * 30) : 100
+            viewModel.sharedVaultUpdateProgress = (completed: pct, total: 100, message: "Importing \(idx + 1) of \(newEntries.count)...")
+        }
+
+        #if DEBUG
+        print("📦 [VaultView] SVDF delta: \(newIds.count) new, \(removedIds.count) removed, \(localFileIds.intersection(remoteFileIds).count) unchanged")
+        #endif
+    }
+
+    /// Generates a thumbnail from a video file URL without loading data into memory.
+    private func generateVideoThumbnailFromFile(url: URL) -> Data? {
+        let asset = AVAsset(url: url)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 400, height: 400)
+        let time = CMTime(seconds: 0.5, preferredTimescale: 600)
+        if let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) {
+            return UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.7)
+        }
+        return nil
+    }
+
     /// Generates a thumbnail from video data.
     private func generateVideoThumbnail(from data: Data) async -> Data? {
         let tempURL = FileManager.default.temporaryDirectory

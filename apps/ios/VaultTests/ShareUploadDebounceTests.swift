@@ -165,6 +165,8 @@ private final class MockDebounceCloudKitSharing: CloudKitSharingClient {
     func downloadSharedVault(phrase _: String, markClaimedOnDownload _: Bool, onProgress _: ((Int, Int) -> Void)?) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) { (Data(), "mock", VaultStorage.SharePolicy(), 1) }
     func checkForUpdates(shareVaultId _: String, currentVersion _: Int) async throws -> Int? { nil }
     func downloadUpdatedVault(shareVaultId _: String, shareKey _: ShareKey, onProgress _: ((Int, Int) -> Void)?) async throws -> Data { Data() }
+    func downloadSharedVaultToFile(phrase _: String, outputURL: URL, markClaimedOnDownload _: Bool, onProgress _: ((Int, Int) -> Void)?) async throws -> (fileURL: URL, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) { (outputURL, "", VaultStorage.SharePolicy(), 1) }
+    func downloadUpdatedVaultToFile(shareVaultId _: String, shareKey _: ShareKey, outputURL _: URL, onProgress _: ((Int, Int) -> Void)?) async throws {}
     func revokeShare(shareVaultId _: String) async throws { /* No-op for mock */ }
     func deleteSharedVault(shareVaultId _: String) async throws { /* No-op for mock */ }
     func deleteSharedVault(phrase _: String) async throws { /* No-op for mock */ }
