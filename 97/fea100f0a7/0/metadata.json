@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "97fea100f0a7",
+  "session_id": "87a2880d-b66f-4dde-8f0b-00ae2fc24a52",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-27T00:30:16.996981Z",
+  "branch": "worktree-remote-control",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Features/Onboarding/ConceptExplainerView.swift",
+    "apps/ios/Vault/Features/Onboarding/PatternSetupView.swift",
+    "apps/ios/Vault/Features/Settings/ChangePatternView.swift",
+    "apps/ios/Vault/Features/Settings/CustomRecoveryPhraseInputView.swift",
+    "apps/ios/Vault/Features/Settings/RecoveryPhraseView.swift",
+    "apps/ios/Vault/Features/Sharing/ShareVaultView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Toolbar.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "110864b4-fccc-42bf-807a-d01c8bdd615c",
+  "token_usage": {
+    "input_tokens": 4228,
+    "cache_creation_tokens": 82438,
+    "cache_read_tokens": 3411882,
+    "output_tokens": 12738,
+    "api_call_count": 39
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-27T00:30:16.850698Z",
+    "agent_lines": 33,
+    "human_added": 3105,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3138,
+    "agent_percentage": 1.0516252390057361
+  }
+}

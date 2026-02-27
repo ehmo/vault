@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "97fea100f0a7",
+  "strategy": "manual-commit",
+  "branch": "worktree-remote-control",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/Features/Onboarding/ConceptExplainerView.swift",
+    "apps/ios/Vault/Features/Onboarding/PatternSetupView.swift",
+    "apps/ios/Vault/Features/Settings/ChangePatternView.swift",
+    "apps/ios/Vault/Features/Settings/CustomRecoveryPhraseInputView.swift",
+    "apps/ios/Vault/Features/Settings/RecoveryPhraseView.swift",
+    "apps/ios/Vault/Features/Sharing/ShareVaultView.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+Toolbar.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/97/fea100f0a7/0/metadata.json",
+      "transcript": "/97/fea100f0a7/0/full.jsonl",
+      "context": "/97/fea100f0a7/0/context.md",
+      "content_hash": "/97/fea100f0a7/0/content_hash.txt",
+      "prompt": "/97/fea100f0a7/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4228,
+    "cache_creation_tokens": 82438,
+    "cache_read_tokens": 3411882,
+    "output_tokens": 12738,
+    "api_call_count": 39
+  }
+}
