@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "82469f9fa9d1",
+  "strategy": "manual-commit",
+  "branch": "worktree-sequential-brewing-patterson",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/ios/Vault.xcodeproj/project.pbxproj",
+    "apps/ios/Vault/Core/Sharing/CloudKitSharingClient.swift",
+    "apps/ios/Vault/Core/Sharing/CloudKitSharingManager.swift",
+    "apps/ios/Vault/Core/Sharing/SVDFSerializer.swift",
+    "apps/ios/Vault/Core/Sharing/ShareImportManager.swift",
+    "apps/ios/Vault/Features/VaultViewer/VaultView+SharedVault.swift",
+    "apps/ios/VaultTests/CloudKitSharingTests.swift",
+    "apps/ios/VaultTests/SVDFStreamingTests.swift",
+    "apps/ios/VaultTests/ShareSyncManagerTests.swift",
+    "apps/ios/VaultTests/ShareUploadDebounceTests.swift",
+    "apps/ios/VaultTests/ShareUploadManagerTests.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/82/469f9fa9d1/0/metadata.json",
+      "transcript": "/82/469f9fa9d1/0/full.jsonl",
+      "context": "/82/469f9fa9d1/0/context.md",
+      "content_hash": "/82/469f9fa9d1/0/content_hash.txt",
+      "prompt": "/82/469f9fa9d1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 226,
+    "cache_creation_tokens": 403961,
+    "cache_read_tokens": 28881118,
+    "output_tokens": 11984,
+    "api_call_count": 218
+  }
+}
