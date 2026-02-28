@@ -143,6 +143,8 @@ final class iCloudBackupManager: @unchecked Sendable {
         var vaultFingerprint: String?
         /// Record names of old blobs to delete after successful upload
         var recordsToDelete: [String] = []
+        /// BackupId of evicted version (when >3 versions exist) — cleaned up after upload
+        var evictedBackupId: String?
 
         var totalFiles: Int { dataChunkCount + 1 + decoyCount } // +1 for VDIR
     }
@@ -436,6 +438,13 @@ final class iCloudBackupManager: @unchecked Sendable {
         }
     }
 
+    /// Returns the locally cached version index for instant display, or nil if no cache exists.
+    func getCachedVersionIndex(backupKey: Data) -> BackupVersionIndex? {
+        guard let fp = Self.deriveFingerprint(backupKey: backupKey) else { return nil }
+        let index = loadLocalVersionIndex(fingerprint: fp)
+        return index.versions.isEmpty ? nil : index
+    }
+
     // MARK: - Vault Fingerprint
 
     static func vaultFingerprint(from backupKey: Data) -> String {
@@ -492,7 +501,7 @@ final class iCloudBackupManager: @unchecked Sendable {
         })
 
         onProgress(.uploading)
-        try await uploadStagedBackup(onUploadProgress: onUploadProgress)
+        try await uploadStagedBackup(backupKey: backupKey, onUploadProgress: onUploadProgress)
         onProgress(.complete)
         Self.logger.info("[backup] Complete (\(state.dataChunkCount) data + \(state.decoyCount) decoy chunks)")
     }
@@ -589,10 +598,10 @@ final class iCloudBackupManager: @unchecked Sendable {
             try writeChunkFile(decoyBlob, tag: decoyTag, name: "decoy_\(i)", dir: stagingDir)
         }
 
-        // Determine old records to delete (evicted version + old VDIR)
-        let recordsToDelete: [String] = []
+        // Track evicted version for cleanup after upload
+        var evictedBackupId: String?
         if let evictedVersion = evicted {
-            // We'll scan for these records during upload if possible, or track locally
+            evictedBackupId = evictedVersion.backupId
             Self.logger.info("[staging] Version evicted: \(evictedVersion.backupId.prefix(8))...")
         }
 
@@ -606,7 +615,7 @@ final class iCloudBackupManager: @unchecked Sendable {
             fileCount: index.files.count,
             vaultTotalSize: index.totalSize,
             vaultFingerprint: fingerprint,
-            recordsToDelete: recordsToDelete
+            evictedBackupId: evictedBackupId
         )
         savePendingBackupState(state)
 
@@ -645,6 +654,7 @@ final class iCloudBackupManager: @unchecked Sendable {
     // MARK: - Phase 2: Upload Staged Backup
 
     func uploadStagedBackup(
+        backupKey: Data? = nil,
         onUploadProgress: ((Double) -> Void)? = nil
     ) async throws {
         let alreadyRunning = await MainActor.run {
@@ -688,6 +698,8 @@ final class iCloudBackupManager: @unchecked Sendable {
                 var inFlight = 0
 
                 for name in binFiles {
+                    try Task.checkCancellation()
+
                     if inFlight >= Self.maxConcurrent {
                         let done = try await group.next()!
                         completed += 1
@@ -739,6 +751,37 @@ final class iCloudBackupManager: @unchecked Sendable {
         // Delete old records if any
         if !state.recordsToDelete.isEmpty {
             await deleteRecords(named: state.recordsToDelete)
+        }
+
+        // Clean up evicted version records and stale VDIRs
+        if let evictedId = state.evictedBackupId, let backupKey = backupKey {
+            do {
+                let scan = try await scanAllTags(backupKey: backupKey)
+                var idsToDelete: [CKRecord.ID] = []
+
+                // Delete VDAT chunks for evicted version
+                for chunk in scan.dataChunks where chunk.backupId == evictedId {
+                    idsToDelete.append(chunk.recordID)
+                }
+                // Delete decoys for evicted version
+                for decoy in scan.decoyChunks where decoy.groupId == evictedId {
+                    idsToDelete.append(decoy.recordID)
+                }
+
+                // Keep only the newest VDIR (sorted by creation date via scan order), delete the rest
+                if scan.dirChunks.count > 1 {
+                    for staleDir in scan.dirChunks.dropFirst() {
+                        idsToDelete.append(staleDir.recordID)
+                    }
+                }
+
+                if !idsToDelete.isEmpty {
+                    Self.logger.info("[cleanup] Deleting \(idsToDelete.count) records for evicted version \(evictedId.prefix(8))... and stale VDIRs")
+                    await deleteRecordIDs(idsToDelete)
+                }
+            } catch {
+                Self.logger.warning("[cleanup] Failed to clean up evicted version: \(error)")
+            }
         }
 
         // Update timestamps
@@ -870,7 +913,8 @@ final class iCloudBackupManager: @unchecked Sendable {
 
         guard matchingChunks.count == version.chunkCount else {
             Self.logger.error("[restore] Expected \(version.chunkCount) chunks, found \(matchingChunks.count)")
-            throw iCloudError.downloadFailed
+            // No matching chunks = wrong key (wrong pattern). Some but not all = actual download issue.
+            throw matchingChunks.isEmpty ? iCloudError.checksumMismatch : iCloudError.downloadFailed
         }
 
         // Download and decrypt chunks in parallel

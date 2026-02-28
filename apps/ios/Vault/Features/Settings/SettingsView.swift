@@ -759,6 +759,8 @@ struct iCloudBackupSettingsView: View {
                     backupTask = nil
                     isBackingUp = false
                     backupStage = nil
+                    // Clear staged files so auto-resume doesn't restart the cancelled backup
+                    backupManager.clearStagingDirectory(fingerprint: vaultFingerprint)
                     IdleTimerManager.shared.enable()
                 }
                 .font(.subheadline)
@@ -856,16 +858,8 @@ struct iCloudBackupSettingsView: View {
                 UserDefaults.standard.set(false, forKey: enabledKey)
             }
 
-            // Check for interrupted backup that needs to be resumed
-            if available && backupManager.hasPendingBackup {
-                // Auto-resume pending backup immediately without requiring user action
-                resumePendingBackup()
-            }
-
-            // Auto-backup if enabled and overdue (only if no pending backup)
-            else if isBackupEnabled && available && isBackupOverdue {
-                performBackup()
-            }
+            // Settings view is read-only — auto-backup runs from ContentView on vault unlock
+            // and resumeBackupUploadIfNeeded on app resume. Only "Backup Now" triggers here.
         }
     }
 
@@ -1024,6 +1018,17 @@ struct iCloudBackupSettingsView: View {
         Task {
             do {
                 let backupKey = try KeyDerivation.deriveBackupKey(from: pattern, gridSize: 5)
+
+                // Load from local cache first for instant display
+                if let cached = backupManager.getCachedVersionIndex(backupKey: backupKey) {
+                    let cachedSize = cached.versions.reduce(0) { $0 + Int64($1.size) }
+                    await MainActor.run {
+                        versionCount = cached.versions.count
+                        totalBackupStorage = cachedSize
+                    }
+                }
+
+                // Refresh from CloudKit in background
                 let versionIndex = try await backupManager.scanForVersions(backupKey: backupKey)
                 let totalSize = versionIndex.versions.reduce(0) { $0 + Int64($1.size) }
                 await MainActor.run {
@@ -1357,23 +1362,36 @@ struct RestoreFromBackupView: View {
 
     private func loadVersions() async {
         isLoading = true
-        defer { Task { @MainActor in isLoading = false } }
 
         guard appState.currentVaultKey != nil, let pattern = appState.currentPattern else {
-            await MainActor.run { noBackupFound = true }
+            await MainActor.run { isLoading = false; noBackupFound = true }
             return
         }
 
         do {
             let backupKey = try KeyDerivation.deriveBackupKey(from: pattern, gridSize: 5)
+
+            // Load from local cache first for instant display
+            if let cached = backupManager.getCachedVersionIndex(backupKey: backupKey) {
+                let cachedVersions = cached.versions.sorted { $0.timestamp > $1.timestamp }
+                await MainActor.run {
+                    versions = cachedVersions
+                    noBackupFound = cachedVersions.isEmpty
+                    isLoading = !cachedVersions.isEmpty // Keep loading if cache was empty
+                }
+            }
+
+            // Refresh from CloudKit
             let versionIndex = try await backupManager.scanForVersions(backupKey: backupKey)
 
             await MainActor.run {
                 versions = versionIndex.versions.sorted { $0.timestamp > $1.timestamp }
                 noBackupFound = versions.isEmpty
+                isLoading = false
             }
         } catch {
             await MainActor.run {
+                isLoading = false
                 noBackupFound = true
                 errorMessage = "Failed to check iCloud: \(error.localizedDescription)"
             }
