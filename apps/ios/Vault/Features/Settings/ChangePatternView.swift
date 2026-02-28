@@ -584,10 +584,25 @@ struct ChangePatternView: View {
                 }
 
                 // Force iCloud backup with new key so backup matches new pattern
-                if UserDefaults.standard.bool(forKey: "iCloudBackupEnabled") {
-                    UserDefaults.standard.set(0, forKey: "lastBackupTimestamp")
+                // Migrate per-vault backup setting from old fingerprint to new
+                let oldFP = KeyDerivation.keyFingerprint(from: currentKey.rawBytes)
+                let newFP = KeyDerivation.keyFingerprint(from: newKey)
+                let defaults = UserDefaults.standard
+                let wasEnabled = defaults.bool(forKey: "iCloudBackupEnabled_\(oldFP)")
+                    || defaults.bool(forKey: "iCloudBackupEnabled") // legacy global key
+                if wasEnabled {
+                    defaults.set(true, forKey: "iCloudBackupEnabled_\(newFP)")
+                    defaults.set(0, forKey: "lastBackupTimestamp_\(newFP)")
+                    // Clean up old per-vault keys
+                    defaults.removeObject(forKey: "iCloudBackupEnabled_\(oldFP)")
+                    defaults.removeObject(forKey: "lastBackupTimestamp_\(oldFP)")
                     await MainActor.run {
-                        iCloudBackupManager.shared.performBackupIfNeeded(with: newKey)
+                        iCloudBackupManager.shared.performBackupIfNeeded(
+                            with: newKey,
+                            pattern: flow.newPattern,
+                            gridSize: patternState.gridSize,
+                            vaultFingerprint: newFP
+                        )
                     }
                     changePatternLogger.info("Triggered iCloud backup after pattern change")
                 }

@@ -248,7 +248,7 @@ final class iCloudBackupManager: @unchecked Sendable {
     }
 
     /// Two-phase manual backup: stage encrypted chunks to disk, then upload.
-    func performBackup(with key: Data, onProgress: @escaping (BackupStage) -> Void, onUploadProgress: @escaping (Double) -> Void = { _ in
+    func performBackup(with key: Data, pattern: [Int]? = nil, gridSize: Int = 5, onProgress: @escaping (BackupStage) -> Void, onUploadProgress: @escaping (Double) -> Void = { _ in
         // No-op: default ignores progress
     }) async throws {
         guard CloudKitSharingManager.canProceedWithNetwork() else {
@@ -260,7 +260,7 @@ final class iCloudBackupManager: @unchecked Sendable {
         // Phase 1: Stage
         onProgress(.readingVault)
         try Task.checkCancellation()
-        let state = try await stageBackupToDisk(with: key, onProgress: { stage in
+        let state = try await stageBackupToDisk(with: key, pattern: pattern, gridSize: gridSize, onProgress: { stage in
             onProgress(stage)
         })
 
@@ -1141,9 +1141,14 @@ final class iCloudBackupManager: @unchecked Sendable {
     /// Two-phase: stage encrypted chunks to disk, then upload independently.
     /// If a staged backup already exists on disk, skips straight to upload.
     @MainActor
-    func performBackupIfNeeded(with key: Data) {
+    func performBackupIfNeeded(with key: Data, pattern: [Int]? = nil, gridSize: Int = 5, vaultFingerprint: String? = nil) {
         let defaults = UserDefaults.standard
-        guard defaults.bool(forKey: "iCloudBackupEnabled") else { return }
+
+        // Check per-vault enabled key first, fall back to global for migration
+        let enabledKey = vaultFingerprint.map { "iCloudBackupEnabled_\($0)" }
+        let isEnabled = enabledKey.map { defaults.bool(forKey: $0) } ?? defaults.bool(forKey: "iCloudBackupEnabled")
+        guard isEnabled else { return }
+
         guard CloudKitSharingManager.canProceedWithNetwork() else {
             Self.logger.info("[auto-backup] Skipping: waiting for Wi-Fi (user preference)")
             return
@@ -1166,7 +1171,8 @@ final class iCloudBackupManager: @unchecked Sendable {
             return
         }
 
-        let lastTimestamp = defaults.double(forKey: "lastBackupTimestamp")
+        let timestampKey = vaultFingerprint.map { "lastBackupTimestamp_\($0)" } ?? "lastBackupTimestamp"
+        let lastTimestamp = defaults.double(forKey: timestampKey)
         if lastTimestamp > 0 {
             let nextDue = Date(timeIntervalSince1970: lastTimestamp)
                 .addingTimeInterval(Self.autoBackupInterval)
@@ -1179,6 +1185,9 @@ final class iCloudBackupManager: @unchecked Sendable {
         Self.logger.info("[auto-backup] Starting two-phase background backup")
 
         let capturedKey = key
+        let capturedPattern = pattern
+        let capturedGridSize = gridSize
+        let capturedTimestampKey = timestampKey
         var detachedTask: Task<Void, Never>?
         nonisolated(unsafe) var bgTaskId: UIBackgroundTaskIdentifier = .invalid
 
@@ -1206,10 +1215,11 @@ final class iCloudBackupManager: @unchecked Sendable {
             }
             do {
                 // Phase 1: Stage to disk (requires key)
-                try await self.stageBackupToDisk(with: capturedKey)
+                try await self.stageBackupToDisk(with: capturedKey, pattern: capturedPattern, gridSize: capturedGridSize)
                 // Phase 2: Upload (no key needed)
                 try await self.uploadStagedBackup()
                 Self.logger.info("[auto-backup] Two-phase backup completed successfully")
+                UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: capturedTimestampKey)
                 self.sendBackupCompleteNotification(success: true)
             } catch let error as iCloudError where error == .backupSkipped {
                 Self.logger.info("[auto-backup] Backup skipped (empty or shared vault)")

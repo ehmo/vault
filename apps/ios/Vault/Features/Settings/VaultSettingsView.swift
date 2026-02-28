@@ -84,6 +84,38 @@ struct VaultSettingsView: View {
                 .accessibilityIdentifier("settings_custom_phrase")
             }
 
+            // iCloud Backup (hidden for shared vaults)
+            if !isSharedVault {
+                Section {
+                    if subscriptionManager.canSyncWithICloud() {
+                        if let key = appState.currentVaultKey {
+                            NavigationLink("iCloud Backup") {
+                                iCloudBackupSettingsView(
+                                    vaultFingerprint: KeyDerivation.keyFingerprint(from: key.rawBytes)
+                                )
+                            }
+                            .accessibilityIdentifier("settings_icloud_backup")
+                        }
+                    } else {
+                        Button(action: { showingPaywall = true }) {
+                            HStack {
+                                Text("iCloud Backup")
+                                Spacer()
+                                Image(systemName: "crown.fill")
+                                    .foregroundStyle(.vaultHighlight)
+                                    .font(.caption)
+                            }
+                        }
+                        .foregroundStyle(.primary)
+                        .accessibilityIdentifier("settings_icloud_backup")
+                    }
+                } header: {
+                    Text("Backup")
+                } footer: {
+                    Text("Encrypted vault backup to your iCloud account. Only you can decrypt it with your pattern.")
+                }
+            }
+
             // Sharing
             Section {
                 if isSharedVault {

@@ -97,7 +97,12 @@ struct ContentView: View {
 
             // Trigger silent background backup if enabled and overdue
             if let key = appState.currentVaultKey {
-                iCloudBackupManager.shared.performBackupIfNeeded(with: key.rawBytes)
+                let fingerprint = KeyDerivation.keyFingerprint(from: key.rawBytes)
+                iCloudBackupManager.shared.performBackupIfNeeded(
+                    with: key.rawBytes,
+                    pattern: appState.currentPattern,
+                    vaultFingerprint: fingerprint
+                )
             }
 
             if UIScreen.main.isCaptured {

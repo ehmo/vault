@@ -125,38 +125,20 @@ struct AppSettingsView: View {
                 Text("Appearance")
             }
 
-            // Storage & Backup
+            // Storage
             Section {
                 Picker("Import Quality", selection: $fileOptimization) {
                     Text("Optimized").tag("optimized")
                     Text("Original").tag("original")
                 }
                 .accessibilityIdentifier("app_file_optimization")
-
-                if subscriptionManager.canSyncWithICloud() {
-                    NavigationLink("iCloud Backup") {
-                        iCloudBackupSettingsView()
-                    }
-                    .accessibilityIdentifier("app_icloud_backup")
-                } else {
-                    Button(action: { showingPaywall = true }) {
-                        HStack {
-                            Text("iCloud Backup")
-                            Spacer()
-                            Image(systemName: "crown.fill")
-                                .foregroundStyle(.vaultHighlight)
-                                .font(.caption)
-                        }
-                    }
-                    .foregroundStyle(.primary)
-                }
             } header: {
-                Text("Storage & Backup")
+                Text("Storage")
             } footer: {
                 if fileOptimization == "optimized" {
-                    Text("Reduces file sizes by up to 85%. iCloud backup keeps an encrypted copy of your vault in your iCloud account.")
+                    Text("Reduces file sizes by up to 85%.")
                 } else {
-                    Text("Keeps files at original size and format. iCloud backup keeps an encrypted copy of your vault in your iCloud account.")
+                    Text("Keeps files at original size and format.")
                 }
             }
 
@@ -485,8 +467,11 @@ struct SettingsView: View {
 
 struct iCloudBackupSettingsView: View {
     @Environment(AppState.self) private var appState
-    @AppStorage("iCloudBackupEnabled") private var isBackupEnabled = false
-    @AppStorage("lastBackupTimestamp") private var lastBackupTimestamp: Double = 0
+
+    let vaultFingerprint: String
+
+    @State private var isBackupEnabled = false
+    @State private var lastBackupTimestamp: Double = 0
     @State private var isBackingUp = false
     @State private var backupStage: iCloudBackupManager.BackupStage?
     @State private var uploadProgress: Double = 0
@@ -499,6 +484,9 @@ struct iCloudBackupSettingsView: View {
     private static let backupInterval: TimeInterval = 24 * 60 * 60
 
     private let backupManager = iCloudBackupManager.shared
+
+    private var enabledKey: String { "iCloudBackupEnabled_\(vaultFingerprint)" }
+    private var timestampKey: String { "lastBackupTimestamp_\(vaultFingerprint)" }
 
     private var lastBackupDate: Date? {
         lastBackupTimestamp > 0 ? Date(timeIntervalSince1970: lastBackupTimestamp) : nil
@@ -685,19 +673,24 @@ struct iCloudBackupSettingsView: View {
     }
 
     private func onAppear() {
+        // Load per-vault settings from UserDefaults
+        isBackupEnabled = UserDefaults.standard.bool(forKey: enabledKey)
+        lastBackupTimestamp = UserDefaults.standard.double(forKey: timestampKey)
+
         Task { @MainActor in
             let available = await checkiCloudAvailable()
             iCloudAvailable = available
             if !available && isBackupEnabled {
                 isBackupEnabled = false
+                UserDefaults.standard.set(false, forKey: enabledKey)
             }
-            
+
             // Check for interrupted backup that needs to be resumed
             if available && backupManager.hasPendingBackup {
                 // Auto-resume pending backup immediately without requiring user action
                 resumePendingBackup()
             }
-            
+
             // Auto-backup if enabled and overdue (only if no pending backup)
             else if isBackupEnabled && available && isBackupOverdue {
                 performBackup()
@@ -706,6 +699,8 @@ struct iCloudBackupSettingsView: View {
     }
 
     private func handleToggleChange(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: enabledKey)
+
         guard enabled else {
             backupTask?.cancel()
             backupTask = nil
@@ -720,6 +715,7 @@ struct iCloudBackupSettingsView: View {
             let available = await checkiCloudAvailable()
             guard available else {
                 isBackupEnabled = false
+                UserDefaults.standard.set(false, forKey: enabledKey)
                 iCloudAvailable = false
                 return
             }
@@ -755,17 +751,25 @@ struct iCloudBackupSettingsView: View {
                 }
             }
             do {
-                try await backupManager.performBackup(with: key.rawBytes, onProgress: { @Sendable stage in
-                    Task { @MainActor in
-                        backupStage = stage
+                try await backupManager.performBackup(
+                    with: key.rawBytes,
+                    pattern: appState.currentPattern,
+                    gridSize: 5,
+                    onProgress: { @Sendable stage in
+                        Task { @MainActor in
+                            backupStage = stage
+                        }
+                    },
+                    onUploadProgress: { @Sendable progress in
+                        Task { @MainActor in
+                            uploadProgress = progress
+                        }
                     }
-                }, onUploadProgress: { @Sendable progress in
-                    Task { @MainActor in
-                        uploadProgress = progress
-                    }
-                })
+                )
                 await MainActor.run {
-                    lastBackupTimestamp = Date().timeIntervalSince1970
+                    let now = Date().timeIntervalSince1970
+                    lastBackupTimestamp = now
+                    UserDefaults.standard.set(now, forKey: timestampKey)
                     uploadProgress = 1.0 // Show 100% briefly before hiding
                     isBackingUp = false
                     backupStage = nil
@@ -838,7 +842,9 @@ struct iCloudBackupSettingsView: View {
                     }
                 })
                 await MainActor.run {
-                    lastBackupTimestamp = Date().timeIntervalSince1970
+                    let now = Date().timeIntervalSince1970
+                    lastBackupTimestamp = now
+                    UserDefaults.standard.set(now, forKey: timestampKey)
                     uploadProgress = 1.0 // Show 100% briefly before hiding
                     isBackingUp = false
                     backupStage = nil
