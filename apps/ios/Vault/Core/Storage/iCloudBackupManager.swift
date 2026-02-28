@@ -738,65 +738,54 @@ final class iCloudBackupManager: @unchecked Sendable {
 
     /// Scans all BackupBlob tags and decrypts with the backup key.
     /// Returns categorized results: data chunks, directory chunks, decoys.
+    ///
+    /// Uses zone-change fetching instead of CKQuery because the BackupBlob
+    /// record type has no queryable indexes in CloudKit Dashboard. Zone changes
+    /// enumerate all records without requiring any indexes.
     func scanAllTags(backupKey: Data) async throws -> ScanResult {
         try await waitForAvailableAccount()
 
         var result = ScanResult()
-        // Use creationDate predicate instead of TRUEPREDICATE — CloudKit requires
-        // recordName to be marked queryable for NSPredicate(value: true), but
-        // creationDate is a system-indexed field that works without Dashboard config.
-        let predicate = NSPredicate(format: "creationDate > %@", NSDate(timeIntervalSince1970: 0))
-        let query = CKQuery(recordType: recordType, predicate: predicate)
-        query.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        let zoneID = CKRecordZone.default().zoneID
+        var changeToken: CKServerChangeToken? = nil
+        var moreComing = true
 
-        var cursor: CKQueryOperation.Cursor?
-
-        let (results, nextCursor) = try await privateDatabase.records(
-            matching: query,
-            desiredKeys: ["tag"],
-            resultsLimit: 200
-        )
-        processTagResults(results, key: backupKey, into: &result)
-        cursor = nextCursor
-
-        while let currentCursor = cursor {
-            let (moreResults, nextCursor) = try await privateDatabase.records(
-                continuingMatchFrom: currentCursor,
-                resultsLimit: 200
+        while moreComing {
+            let changes = try await privateDatabase.recordZoneChanges(
+                inZoneWith: zoneID, since: changeToken
             )
-            processTagResults(moreResults, key: backupKey, into: &result)
-            cursor = nextCursor
+
+            for modification in changes.modificationResultsByID {
+                let (recordID, modResult) = modification
+                guard case .success(let info) = modResult else { continue }
+                let record = info.record
+                guard record.recordType == recordType else { continue }
+
+                result.totalScanned += 1
+                guard let tagData = record["tag"] as? Data,
+                      let plaintext = Self.decryptTag(tagData, key: backupKey),
+                      let parsed = Self.parseTag(plaintext) else {
+                    continue
+                }
+
+                switch parsed.magic {
+                case Self.vdatMagic:
+                    result.dataChunks.append(.init(recordID: recordID, backupId: parsed.backupId, chunkIndex: parsed.chunkIndex))
+                case Self.vdirMagic:
+                    result.dirChunks.append(.init(recordID: recordID, backupId: parsed.backupId))
+                case Self.vdcyMagic:
+                    result.decoyChunks.append(.init(recordID: recordID, groupId: parsed.backupId))
+                default:
+                    break
+                }
+            }
+
+            changeToken = changes.changeToken
+            moreComing = changes.moreComing
         }
 
         Self.logger.info("[scan] Scanned \(result.totalScanned) blobs: \(result.dataChunks.count) data, \(result.dirChunks.count) dir, \(result.decoyChunks.count) decoy")
         return result
-    }
-
-    private func processTagResults(
-        _ results: [(CKRecord.ID, Result<CKRecord, Error>)],
-        key: Data,
-        into result: inout ScanResult
-    ) {
-        for (recordID, recordResult) in results {
-            result.totalScanned += 1
-            guard let record = try? recordResult.get(),
-                  let tagData = record["tag"] as? Data,
-                  let plaintext = Self.decryptTag(tagData, key: key),
-                  let parsed = Self.parseTag(plaintext) else {
-                continue // Not ours or corrupted — skip
-            }
-
-            switch parsed.magic {
-            case Self.vdatMagic:
-                result.dataChunks.append(.init(recordID: recordID, backupId: parsed.backupId, chunkIndex: parsed.chunkIndex))
-            case Self.vdirMagic:
-                result.dirChunks.append(.init(recordID: recordID, backupId: parsed.backupId))
-            case Self.vdcyMagic:
-                result.decoyChunks.append(.init(recordID: recordID, groupId: parsed.backupId))
-            default:
-                break
-            }
-        }
     }
 
     /// Scans tags and returns the merged version index from all VDIR chunks.
