@@ -742,7 +742,10 @@ final class iCloudBackupManager: @unchecked Sendable {
         try await waitForAvailableAccount()
 
         var result = ScanResult()
-        let predicate = NSPredicate(value: true)
+        // Use creationDate predicate instead of TRUEPREDICATE — CloudKit requires
+        // recordName to be marked queryable for NSPredicate(value: true), but
+        // creationDate is a system-indexed field that works without Dashboard config.
+        let predicate = NSPredicate(format: "creationDate > %@", NSDate(timeIntervalSince1970: 0))
         let query = CKQuery(recordType: recordType, predicate: predicate)
         query.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
 
