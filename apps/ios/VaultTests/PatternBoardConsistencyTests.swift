@@ -8,11 +8,6 @@ import ViewInspector
 @MainActor
 final class PatternBoardConsistencyTests: XCTestCase {
 
-    // MARK: - Test Constants
-
-    /// Standard pattern grid size expected across all screens
-    private let expectedGridSize: CGFloat = 280
-
     // MARK: - PatternSetupView Tests (ViewInspector)
 
     func testPatternSetupViewContainsPatternGrid() throws {
@@ -76,48 +71,4 @@ final class PatternBoardConsistencyTests: XCTestCase {
                       "skipVerification should be true with recovery phrase")
     }
 
-    // MARK: - Pattern Grid Consistency Tests
-
-    func testAllPatternScreensContainPatternGrid() throws {
-        let appState = AppState()
-        appState.isUnlocked = true
-
-        // Test PatternSetupView via ViewInspector
-        let setupView = PatternSetupView(onComplete: { /* Test completion handler */ })
-            .environment(appState)
-        let setupInspect = try setupView.inspect()
-        let setupGrid = try? setupInspect.find(PatternGridView.self)
-        XCTAssertNotNil(setupGrid, "PatternSetupView should contain a PatternGridView")
-
-        // Verify ChangePatternView starts on a pattern-grid-displaying step
-        let flow = ChangePatternFlowState()
-        let patternSteps: [ChangePatternStep] = [.verifyCurrent, .createNew, .confirmNew]
-        XCTAssertTrue(patternSteps.contains(flow.step),
-                      "ChangePatternView should start on a step that shows PatternGridView")
-    }
-
-    func testAllPatternScreensHaveFeedbackArea() throws {
-        let appState = AppState()
-        appState.isUnlocked = true
-
-        // PatternValidationFeedbackView is conditional (only shown after pattern drawn).
-        // Verify PatternSetupView has the pattern grid via ViewInspector
-        let setupView = PatternSetupView(onComplete: { /* Test completion handler */ })
-            .environment(appState)
-        let setupInspect = try setupView.inspect()
-        let setupGrid = try? setupInspect.find(PatternGridView.self)
-        XCTAssertNotNil(setupGrid, "PatternSetupView should have pattern grid with feedback area")
-
-        // Verify ChangePatternView has validation/error feedback properties in its flow state
-        var flow = ChangePatternFlowState()
-        XCTAssertNil(flow.validationResult, "Flow should start with no validation")
-        XCTAssertNil(flow.errorMessage, "Flow should start with no error")
-
-        // Verify feedback can be set and cleared
-        flow.showError("test error")
-        XCTAssertNotNil(flow.errorMessage, "Flow should support error feedback")
-
-        flow.clearFeedback()
-        XCTAssertNil(flow.errorMessage, "Flow should support clearing feedback")
-    }
 }

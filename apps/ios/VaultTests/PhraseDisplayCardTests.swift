@@ -4,16 +4,14 @@ import SwiftUI
 import ViewInspector
 import UIKit
 
-/// Tests for PhraseDisplayCard tap-to-copy behavior and PhraseActionButtons.
+/// Tests for PhraseDisplayCard structure and PhraseActionButtons.
 ///
 /// Verifies:
-/// - PhraseDisplayCard renders phrase text and has tap-to-copy with visual feedback
-/// - Clipboard receives phrase on tap and auto-clears after timeout
-/// - "Copied" overlay appears/disappears correctly
+/// - PhraseDisplayCard renders phrase text with correct layout
+/// - "Copied" overlay is hidden in initial state
 /// - Layout stability: no height changes when copied state toggles
 /// - Accessibility traits are correct
-/// - PhraseActionButtons Copy and Download buttons still function
-/// - All usage sites (ShareVaultView, RecoveryPhraseView, etc.) continue to render
+/// - PhraseActionButtons Copy and Download buttons render correctly
 @MainActor
 final class PhraseDisplayCardTests: XCTestCase {
 
@@ -71,55 +69,6 @@ final class PhraseDisplayCardTests: XCTestCase {
         // and the overall structure doesn't crash
         let found = try? inspect.find(ViewType.ZStack.self)
         XCTAssertNotNil(found, "PhraseDisplayCard should use ZStack for overlay layout")
-    }
-
-    // MARK: - Clipboard Behavior
-
-    func testCopyPhraseSetsClipboard() throws {
-        // Directly test clipboard behavior by simulating what copyPhrase does
-        UIPasteboard.general.string = ""
-
-        UIPasteboard.general.string = testPhrase
-
-        XCTAssertEqual(
-            UIPasteboard.general.string, testPhrase,
-            "Clipboard should contain the phrase after copy"
-        )
-    }
-
-    func testCopyPhraseAutoClears() async throws {
-        // Verify the auto-clear pattern: set clipboard, verify it clears
-        // when the comparison matches
-        let phrase = "test-auto-clear-phrase"
-        UIPasteboard.general.string = phrase
-
-        // Simulate the auto-clear check
-        if UIPasteboard.general.string == phrase {
-            UIPasteboard.general.string = ""
-        }
-
-        XCTAssertEqual(
-            UIPasteboard.general.string, "",
-            "Auto-clear should remove phrase from clipboard when it matches"
-        )
-    }
-
-    func testAutoClearDoesNotRemoveDifferentContent() async throws {
-        // If user copies something else before auto-clear fires, clipboard should be preserved
-        let phrase = "original-phrase"
-        let userContent = "user typed something else"
-
-        UIPasteboard.general.string = userContent
-
-        // Simulate the auto-clear check with original phrase
-        if UIPasteboard.general.string == phrase {
-            UIPasteboard.general.string = ""
-        }
-
-        XCTAssertEqual(
-            UIPasteboard.general.string, userContent,
-            "Auto-clear should not remove clipboard content that doesn't match the phrase"
-        )
     }
 
     // MARK: - PhraseActionButtons Structure
@@ -184,85 +133,4 @@ final class PhraseDisplayCardTests: XCTestCase {
         XCTAssertNotNil(text, "Long phrases must render without truncation")
     }
 
-    // MARK: - Dual Copy Mechanism Consistency
-
-    func testBothCopyMechanismsProduceSameClipboardContent() {
-        // PhraseDisplayCard.copyPhrase and PhraseActionButtons.copyToClipboard
-        // should both copy the exact same phrase string
-        let phrase = "test consistency phrase"
-
-        // Simulate PhraseDisplayCard copy
-        UIPasteboard.general.string = phrase
-        let cardCopy = UIPasteboard.general.string
-
-        // Simulate PhraseActionButtons copy
-        UIPasteboard.general.string = phrase
-        let buttonCopy = UIPasteboard.general.string
-
-        XCTAssertEqual(cardCopy, buttonCopy,
-                       "Both copy mechanisms must produce identical clipboard content")
-        XCTAssertEqual(cardCopy, phrase,
-                       "Clipboard content must exactly match the phrase")
-    }
-
-    func testClipboardContentIsExactPhrase() {
-        // Ensure no whitespace trimming, appending, or transformation
-        let phrases = [
-            "simple phrase",
-            "  leading spaces",
-            "trailing spaces  ",
-            "MiXeD CaSe PhRaSe",
-            "phrase-with-dashes",
-            "phrase.with.dots",
-            "unicode: résumé café",
-        ]
-
-        for phrase in phrases {
-            UIPasteboard.general.string = phrase
-            XCTAssertEqual(
-                UIPasteboard.general.string, phrase,
-                "Clipboard must contain exact phrase without transformation: '\(phrase)'"
-            )
-        }
-    }
-
-    // MARK: - Rapid Tap Resilience
-
-    func testRapidCopiesDoNotCorruptClipboard() {
-        // Simulate rapid taps: each should overwrite with the same phrase
-        let phrase = "rapid tap test"
-
-        for _ in 0..<10 {
-            UIPasteboard.general.string = phrase
-        }
-
-        XCTAssertEqual(
-            UIPasteboard.general.string, phrase,
-            "Rapid copy should leave clipboard with the correct phrase"
-        )
-    }
-
-    func testSequentialDifferentPhrasesKeepLatest() {
-        // If user views different phrase sheets, latest copy wins
-        let phrase1 = "first phrase"
-        let phrase2 = "second phrase"
-
-        UIPasteboard.general.string = phrase1
-        UIPasteboard.general.string = phrase2
-
-        XCTAssertEqual(
-            UIPasteboard.general.string, phrase2,
-            "Latest copy should be on clipboard"
-        )
-
-        // Auto-clear for phrase1 should not clear phrase2
-        if UIPasteboard.general.string == phrase1 {
-            UIPasteboard.general.string = ""
-        }
-
-        XCTAssertEqual(
-            UIPasteboard.general.string, phrase2,
-            "Auto-clear for old phrase should not affect new clipboard content"
-        )
-    }
 }

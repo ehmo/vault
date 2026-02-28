@@ -2,150 +2,17 @@ import CloudKit
 import XCTest
 @testable import Vault
 
-// MARK: - Mock Implementations
-
-private final class MockUploadVaultStorage: VaultStorageProtocol, @unchecked Sendable {
-    var indexToReturn = VaultStorage.VaultIndex(files: [], nextOffset: 0, totalSize: 0)
-    var savedIndexes: [(VaultStorage.VaultIndex, VaultKey)] = []
-    var shouldThrowOnLoad = false
-    var shouldThrowOnSave = false
-
-    func loadIndex(with _: VaultKey) async throws -> VaultStorage.VaultIndex {
-        if shouldThrowOnLoad { throw VaultStorageError.corruptedData }
-        return indexToReturn
-    }
-
-    func saveIndex(_ index: VaultStorage.VaultIndex, with key: VaultKey) async throws {
-        if shouldThrowOnSave { throw VaultStorageError.corruptedData }
-        savedIndexes.append((index, key))
-        indexToReturn = index
-    }
-
-    func storeFile(data _: Data, filename _: String, mimeType _: String, with _: VaultKey, thumbnailData _: Data?, duration _: TimeInterval?, fileId _: UUID?) async throws -> UUID { UUID() }
-    func storeFileFromURL(_: URL, filename _: String, mimeType _: String, with _: VaultKey, options _: FileStoreOptions) async throws -> UUID { UUID() }
-    func retrieveFile(id _: UUID, with _: VaultKey) async throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
-        throw VaultStorageError.corruptedData
-    }
-    func retrieveFileContent(entry _: VaultStorage.VaultIndex.VaultFileEntry, index _: VaultStorage.VaultIndex, masterKey _: MasterKey) throws -> (header: CryptoEngine.EncryptedFileHeader, content: Data) {
-        throw VaultStorageError.corruptedData
-    }
-    func retrieveFileToTempURL(id _: UUID, with _: VaultKey) async throws -> (header: CryptoEngine.EncryptedFileHeader, tempURL: URL) {
-        throw VaultStorageError.corruptedData
-    }
-    func deleteFile(id _: UUID, with _: VaultKey) async throws {
-        // No-op: test stub
-    }
-    func deleteFiles(ids _: Set<UUID>, with _: VaultKey, onProgress _: (@Sendable (Int) -> Void)?) async throws {
-        // No-op: test stub
-    }
-    func listFiles(with _: VaultKey) async throws -> [VaultStorage.VaultFileEntry] { [] }
-    func listFilesLightweight(with _: VaultKey) async throws -> (masterKey: MasterKey, files: [VaultStorage.LightweightFileEntry]) {
-        (MasterKey(Data(repeating: 0, count: 32)), [])
-    }
-    func vaultExists(for _: VaultKey) -> Bool { true }
-    func vaultHasFiles(for _: VaultKey) async -> Bool { false }
-    func deleteVaultIndex(for _: VaultKey) throws {
-        // No-op: test stub
-    }
-    func destroyAllIndexesExcept(_: VaultKey) {
-        // No-op: test stub
-    }
-}
-
-private final class MockUploadCloudKitSharing: CloudKitSharingClient {
-    var phraseAvailable = true
-    var uploadCalls: [String] = []
-    var deleteCalls: [String] = []
-
-    func checkPhraseAvailability(phrase _: String) async -> Result<Void, CloudKitSharingError> {
-        phraseAvailable ? .success(()) : .failure(.notAvailable)
-    }
-
-    func consumedStatusByShareVaultIds(_ shareVaultIds: [String]) async throws -> [String: Bool] {
-        Dictionary(uniqueKeysWithValues: shareVaultIds.map { ($0, false) })
-    }
-
-    func claimedStatusByShareVaultIds(_ shareVaultIds: [String]) async throws -> [String: Bool] {
-        Dictionary(uniqueKeysWithValues: shareVaultIds.map { ($0, false) })
-    }
-
-    func markShareClaimed(shareVaultId _: String) async throws {
-        // No-op: test stub
-    }
-    func markShareConsumed(shareVaultId _: String) async throws {
-        // No-op: test stub
-    }
-    func isShareConsumed(shareVaultId _: String) async throws -> Bool { false }
-
-    func uploadSharedVault(shareVaultId: String, phrase _: String, vaultData _: Data, shareKey _: ShareKey, policy _: VaultStorage.SharePolicy, ownerFingerprint _: String, onProgress _: ((Int, Int) -> Void)?) async throws {
-        uploadCalls.append(shareVaultId)
-    }
-
-    func syncSharedVault(shareVaultId _: String, vaultData _: Data, shareKey _: ShareKey, currentVersion _: Int, onProgress _: ((Int, Int) -> Void)?) async throws {
-        // No-op: test stub
-    }
-
-    func syncSharedVaultIncremental(shareVaultId _: String, svdfData _: Data, newChunkHashes _: [String], previousChunkHashes _: [String], onProgress _: ((Int, Int) -> Void)?) async throws {
-        // No-op: test stub
-    }
-
-    func syncSharedVaultIncrementalFromFile(shareVaultId _: String, svdfFileURL _: URL, newChunkHashes _: [String], previousChunkHashes _: [String], onProgress _: ((Int, Int) -> Void)?) async throws {
-        // No-op: test stub
-    }
-
-    func uploadChunksParallel(shareVaultId _: String, chunks _: [(Int, Data)], onProgress _: ((Int, Int) -> Void)?) async throws {
-        // No-op: test stub
-    }
-
-    func uploadChunksFromFile(shareVaultId: String, fileURL _: URL, chunkIndices _: [Int], onProgress _: ((Int, Int) -> Void)?) async throws {
-        uploadCalls.append(shareVaultId)
-    }
-
-    func saveManifest(shareVaultId _: String, phraseVaultId _: String, shareKey _: ShareKey, policy _: VaultStorage.SharePolicy, ownerFingerprint _: String, totalChunks _: Int) async throws {
-        // No-op: test stub
-    }
-
-    func downloadSharedVault(phrase _: String, markClaimedOnDownload _: Bool, onProgress _: ((Int, Int) -> Void)?) async throws -> (data: Data, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) {
-        (Data(), "mock-id", VaultStorage.SharePolicy(), 1)
-    }
-
-    func checkForUpdates(shareVaultId _: String, currentVersion _: Int) async throws -> Int? { nil }
-
-    func downloadUpdatedVault(shareVaultId _: String, shareKey _: ShareKey, onProgress _: ((Int, Int) -> Void)?) async throws -> Data { Data() }
-
-    func downloadSharedVaultToFile(phrase _: String, outputURL: URL, markClaimedOnDownload _: Bool, onProgress _: ((Int, Int) -> Void)?) async throws -> (fileURL: URL, shareVaultId: String, policy: VaultStorage.SharePolicy, version: Int) { (outputURL, "", VaultStorage.SharePolicy(), 1) }
-    func downloadUpdatedVaultToFile(shareVaultId _: String, shareKey _: ShareKey, outputURL _: URL, onProgress _: ((Int, Int) -> Void)?) async throws { /* No-op for mock */ }
-
-    func revokeShare(shareVaultId _: String) async throws {
-        // No-op: test stub
-    }
-
-    func deleteSharedVault(shareVaultId: String) async throws {
-        deleteCalls.append(shareVaultId)
-    }
-
-    func deleteSharedVault(phrase _: String) async throws {
-        // No-op: test stub
-    }
-
-    func existingChunkIndices(for _: String) async throws -> Set<Int> { [] }
-
-    func checkiCloudStatus() async -> CKAccountStatus { .available }
-}
-
-// MARK: - Tests
-
 @MainActor
 final class ShareUploadManagerTests: XCTestCase {
 
-    private var mockStorage: MockUploadVaultStorage!
-    private var mockCloudKit: MockUploadCloudKitSharing!
+    private var mockStorage: MockVaultStorage!
+    private var mockCloudKit: MockCloudKitSharing!
     private var sut: ShareUploadManager!
 
     override func setUp() {
         super.setUp()
-        mockStorage = MockUploadVaultStorage()
-        mockCloudKit = MockUploadCloudKitSharing()
+        mockStorage = MockVaultStorage(defaultIndex: VaultStorage.VaultIndex(files: [], nextOffset: 0, totalSize: 0))
+        mockCloudKit = MockCloudKitSharing()
         sut = ShareUploadManager.createForTesting(
             storage: mockStorage,
             cloudKit: mockCloudKit
@@ -274,7 +141,7 @@ final class ShareUploadManagerTests: XCTestCase {
         let jobShareVaultId = sut.jobs[0].shareVaultId
 
         // Add a record matching the job's shareVaultId to the index
-        var updatedIndex = mockStorage.indexToReturn
+        var updatedIndex = mockStorage.indexToReturn!
         updatedIndex.activeShares?.append(VaultStorage.ShareRecord(
             id: jobShareVaultId,
             createdAt: Date(),
@@ -307,7 +174,7 @@ final class ShareUploadManagerTests: XCTestCase {
         let index = VaultStorage.VaultIndex(files: [], nextOffset: 0, totalSize: 0)
         mockStorage.indexToReturn = index
 
-        XCTAssertNil(mockStorage.indexToReturn.activeShares)
+        XCTAssertNil(mockStorage.indexToReturn?.activeShares)
 
         // Exercise the same pattern as appendShareRecord (private) uses
         var mutableIndex = try await mockStorage.loadIndex(with: vaultKey)

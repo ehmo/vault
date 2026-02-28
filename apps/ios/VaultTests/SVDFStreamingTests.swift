@@ -670,50 +670,6 @@ final class SVDFStreamingTests: XCTestCase {
         }
     }
 
-    // MARK: - SavePendingImportFile
-
-    func testSavePendingImportFileMovesTempFile() throws {
-        let sourceContent = Data("test import data".utf8)
-        let tempURL = tempDir.appendingPathComponent("temp-import.bin")
-        try sourceContent.write(to: tempURL)
-
-        // Create a fake target directory matching ShareImportManager's structure
-        let targetDir = tempDir.appendingPathComponent("pending_upload", isDirectory: true)
-        try FileManager.default.createDirectory(at: targetDir, withIntermediateDirectories: true)
-        let targetURL = targetDir.appendingPathComponent("import_data.bin")
-
-        // Move file
-        try FileManager.default.moveItem(at: tempURL, to: targetURL)
-
-        // Source should be gone
-        XCTAssertFalse(FileManager.default.fileExists(atPath: tempURL.path))
-        // Target should exist with correct content
-        XCTAssertTrue(FileManager.default.fileExists(atPath: targetURL.path))
-        let movedContent = try Data(contentsOf: targetURL)
-        XCTAssertEqual(movedContent, sourceContent)
-    }
-
-    func testSavePendingImportFileReplacesExisting() throws {
-        let targetDir = tempDir.appendingPathComponent("pending_upload", isDirectory: true)
-        try FileManager.default.createDirectory(at: targetDir, withIntermediateDirectories: true)
-        let targetURL = targetDir.appendingPathComponent("import_data.bin")
-
-        // Write initial data
-        try Data("old data".utf8).write(to: targetURL)
-
-        // Write new temp file
-        let tempURL = tempDir.appendingPathComponent("new-import.bin")
-        let newContent = Data("new data".utf8)
-        try newContent.write(to: tempURL)
-
-        // Replace: remove old, move new
-        try FileManager.default.removeItem(at: targetURL)
-        try FileManager.default.moveItem(at: tempURL, to: targetURL)
-
-        let finalContent = try Data(contentsOf: targetURL)
-        XCTAssertEqual(finalContent, newContent)
-    }
-
     // MARK: - Edge Cases
 
     /// Verify Unicode filenames are handled correctly.

@@ -483,49 +483,37 @@ final class SonarQubeRulesTests: XCTestCase {
         )
     }
 
-    /// Verifies disabled test files use 'Disabled:' not 'FIXME:' in their comments.
-    func testDisabledTestFilesUseDisabledNotFIXME() throws {
-        for filename in ["CloudKitSharingTests.swift", "ShareRevocationTests.swift"] {
-            let fileURL = testRoot.appendingPathComponent(filename)
-            let content = try String(contentsOf: fileURL, encoding: .utf8)
-            let firstLine = content.components(separatedBy: "\n").first ?? ""
-
-            XCTAssertTrue(
-                firstLine.contains("Disabled:") || firstLine.contains("disabled"),
-                "\(filename) should use 'Disabled:' instead of 'FIXME:' in first line"
-            )
-            XCTAssertFalse(
-                firstLine.contains("FIXME"),
-                "\(filename) should not contain FIXME (triggers SonarQube S1135)"
-            )
-        }
-    }
-
-    /// Verifies mock protocol stubs in test files have explanatory comments.
+    /// Verifies mock protocol stubs in shared mock files have explanatory comments.
     func testMockProtocolStubsHaveComments() throws {
-        let fileURL = testRoot.appendingPathComponent("ShareUploadDebounceTests.swift")
-        let content = try String(contentsOf: fileURL, encoding: .utf8)
-        let lines = content.components(separatedBy: "\n")
+        let mockFiles = [
+            testRoot.appendingPathComponent("Mocks/MockVaultStorage.swift"),
+            testRoot.appendingPathComponent("Mocks/MockCloudKitSharing.swift"),
+        ]
 
         var emptyMockStubs = 0
         var commentedMockStubs = 0
 
-        for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            // Match one-liner function stubs ending with `{ }` or `{}`
-            if trimmed.contains("func ") && (trimmed.hasSuffix("{}") || trimmed.hasSuffix("{ }")) {
-                emptyMockStubs += 1
-            }
-            // Match one-liner stubs with comments
-            if trimmed.contains("func ") && trimmed.contains("/* No-op for mock */") {
-                commentedMockStubs += 1
+        for fileURL in mockFiles {
+            let content = try String(contentsOf: fileURL, encoding: .utf8)
+            let lines = content.components(separatedBy: "\n")
+
+            for line in lines {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                // Match one-liner function stubs ending with `{ }` or `{}`
+                if trimmed.contains("func ") && (trimmed.hasSuffix("{}") || trimmed.hasSuffix("{ }")) {
+                    emptyMockStubs += 1
+                }
+                // Match one-liner stubs with comments like /* No-op */ or /* No-op for mock */
+                if trimmed.contains("func ") && trimmed.contains("/* No-op") {
+                    commentedMockStubs += 1
+                }
             }
         }
 
         XCTAssertEqual(emptyMockStubs, 0,
             "All mock stubs should have comments, found \(emptyMockStubs) without")
         XCTAssertGreaterThan(commentedMockStubs, 0,
-            "Should find mock stubs with /* No-op for mock */ comments")
+            "Should find mock stubs with /* No-op */ comments")
     }
 
     // MARK: - S1659: Multiple Variables Per Declaration

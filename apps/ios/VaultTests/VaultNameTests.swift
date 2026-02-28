@@ -127,15 +127,6 @@ final class VaultNameTests: XCTestCase {
 
     // MARK: - Custom Name Validation
 
-    /// Custom names are capped at 30 characters.
-    func testCustomNameMaxLength30() {
-        let longName = String(repeating: "A", count: 50)
-        let trimmed = String(longName.prefix(30))
-
-        XCTAssertEqual(trimmed.count, 30,
-            "Custom name should be capped at 30 characters")
-    }
-
     /// Empty custom name resets to auto-generated (customName = nil).
     func testCustomNameEmptyResetsToAuto() {
         let input = ""
@@ -163,16 +154,4 @@ final class VaultNameTests: XCTestCase {
             "Custom name should be trimmed of surrounding whitespace")
     }
 
-    /// Auto-generated display name "Vault XXXX" is at most 10 chars; custom names at most 30.
-    func testDisplayNameMaxTotalLength() {
-        // Auto-generated: "Vault " (6) + maxNameLetters (4) = 10
-        let maxAutoLength = 6 + GridLetterManager.maxNameLetters
-        XCTAssertLessThanOrEqual(maxAutoLength, 10,
-            "Auto-generated display name should be at most 10 characters")
-
-        // Custom: 30 max
-        let maxCustomLength = 30
-        XCTAssertEqual(maxCustomLength, 30,
-            "Custom name max length should be 30")
-    }
 }

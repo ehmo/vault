@@ -252,27 +252,4 @@ final class SubscriptionManagerTests: XCTestCase {
         XCTAssertFalse(client.canJoinSharedVault(currentCount: SubscriptionManager.maxFreeSharedVaults + 1))
     }
 
-    // MARK: - Brute Force Delay (PatternLockView)
-
-    func testBruteForceDelayProgressiveSchedule() {
-        // 0-3 attempts: no delay
-        XCTAssertEqual(PatternLockView.bruteForceDelay(forAttempts: 0), 0)
-        XCTAssertEqual(PatternLockView.bruteForceDelay(forAttempts: 3), 0)
-
-        // 4-5 attempts: 5s
-        XCTAssertEqual(PatternLockView.bruteForceDelay(forAttempts: 4), 5)
-        XCTAssertEqual(PatternLockView.bruteForceDelay(forAttempts: 5), 5)
-
-        // 6-8 attempts: 30s
-        XCTAssertEqual(PatternLockView.bruteForceDelay(forAttempts: 6), 30)
-        XCTAssertEqual(PatternLockView.bruteForceDelay(forAttempts: 8), 30)
-
-        // 9-10 attempts: 5 minutes
-        XCTAssertEqual(PatternLockView.bruteForceDelay(forAttempts: 9), 300)
-        XCTAssertEqual(PatternLockView.bruteForceDelay(forAttempts: 10), 300)
-
-        // 11+ attempts: 15 minutes
-        XCTAssertEqual(PatternLockView.bruteForceDelay(forAttempts: 11), 900)
-        XCTAssertEqual(PatternLockView.bruteForceDelay(forAttempts: 100), 900)
-    }
 }

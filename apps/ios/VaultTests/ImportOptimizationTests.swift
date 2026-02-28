@@ -235,9 +235,6 @@ final class ImportOptimizationTests: XCTestCase {
         }
         await workerTask.value
 
-        let start = ContinuousClockInstant.now
-        _ = start // suppress warning
-
         let peakConcurrency = await monitor.peak
         XCTAssertEqual(count, 8)
         XCTAssertGreaterThanOrEqual(peakConcurrency, 4, "All 4 workers should be used for images-only (peak was \(peakConcurrency))")

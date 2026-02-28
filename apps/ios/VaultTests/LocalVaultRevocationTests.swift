@@ -162,31 +162,6 @@ final class LocalVaultRevocationTests: XCTestCase {
         _ = try? await CKContainer.default().publicCloudDatabase.deleteRecord(withID: manifestRecordId)
     }
     
-    func testVaultStatusCheckMaxOpensExceededTriggersSelfDestruct() async throws {
-        // Test that max opens exceeded also triggers self-destruct
-        let shareKey = try ShareKey(Data(repeating: 0x43, count: 32))
-        let policy = VaultStorage.SharePolicy(expiresAt: nil, maxOpens: 5, allowScreenshots: false, allowDownloads: true)
-        let phraseVaultId = CloudKitSharingManager.vaultId(from: testPhrase)
-        
-        try await CloudKitSharingManager.shared.saveManifest(
-            shareVaultId: testShareVaultId,
-            phraseVaultId: phraseVaultId,
-            shareKey: shareKey,
-            policy: policy,
-            ownerFingerprint: testOwnerFingerprint,
-            totalChunks: 1
-        )
-        
-        // Simulate that openCount already exceeded maxOpens
-        // In real app, this is tracked in VaultIndex.openCount
-        // When opening the vault, checkSharedVaultStatus() checks:
-        // if currentOpens > maxOpens { show self-destruct alert }
-        
-        // Cleanup
-        let manifestRecordId = CKRecord.ID(recordName: phraseVaultId)
-        _ = try? await CKContainer.default().publicCloudDatabase.deleteRecord(withID: manifestRecordId)
-    }
-    
     // MARK: - Integration Tests
     
     func testFullLocalRevocationFlow() async throws {
@@ -245,40 +220,3 @@ final class LocalVaultRevocationTests: XCTestCase {
     }
 }
 
-// MARK: - Vault Status Check Verification
-
-@MainActor
-final class VaultStatusCheckVerificationTests: XCTestCase {
-    
-    func testCheckSharedVaultStatusDetectsRevocation() async throws {
-        // This test verifies the actual implementation in VaultViewModel
-        // The checkSharedVaultStatus() method should:
-        // 1. Load the vault index
-        // 2. Check if it's a shared vault
-        // 3. Check expiration
-        // 4. Check max opens
-        // 5. Check for updates (which detects revocation)
-        // 6. If revoked, show self-destruct alert
-        
-        // The implementation exists at VaultViewModel.swift:815-820:
-        // } catch CloudKitSharingError.revoked {
-        //     await MainActor.run {
-        //         selfDestructMessage = "The vault owner has revoked your access..."
-        //         showSelfDestructAlert = true
-        //     }
-        // }
-        
-        // This test passes if the code review confirms this logic exists
-        XCTAssertTrue(true, "Code review confirms revocation check exists in VaultViewModel.checkSharedVaultStatus()")
-    }
-    
-    func testSelfDestructDeletesAllLocalFiles() async throws {
-        // Verifies selfDestruct() implementation at VaultViewModel.swift:834-859:
-        // 1. Marks share as consumed
-        // 2. Deletes all files from vault
-        // 3. Deletes vault index
-        // 4. Returns to home screen
-        
-        XCTAssertTrue(true, "Code review confirms selfDestruct() properly deletes all local files")
-    }
-}

@@ -124,22 +124,6 @@ final class PatternValidationStateTests: XCTestCase {
         XCTAssertGreaterThan(result.metrics.directionChanges, 0)
     }
 
-    // MARK: - Pattern Matching
-
-    func testPatternMatchingSamePatternsMatch() {
-        let pattern1 = [1, 2, 3, 4, 5, 6]
-        let pattern2 = [1, 2, 3, 4, 5, 6]
-
-        XCTAssertEqual(pattern1, pattern2)
-    }
-
-    func testPatternMatchingDifferentPatternsDontMatch() {
-        let pattern1 = [1, 2, 3, 4, 5, 6]
-        let pattern2 = [1, 2, 3, 4, 5, 7]
-
-        XCTAssertNotEqual(pattern1, pattern2)
-    }
-
     // MARK: - State Reset
 
     func testResetClearsAllState() {

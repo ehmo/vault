@@ -21,11 +21,8 @@ final class BackgroundTaskTests: XCTestCase {
 
     /// Tests that beginBackgroundTask creates a valid task ID.
     func testBeginBackgroundTaskCreatesValidTask() {
-        let expectation = XCTestExpectation(description: "Background task created")
-
         bgTaskId = UIApplication.shared.beginBackgroundTask(withName: "TestTask") {
             // Expiration handler
-            expectation.fulfill()
         }
 
         XCTAssertNotEqual(bgTaskId, .invalid, "Should create valid background task")
@@ -150,12 +147,8 @@ final class BackgroundTaskTests: XCTestCase {
             // No-op: expiration handler not tested
         }
 
-        // Simulate error
-        let shouldFail = true
-        if shouldFail {
-            // Even on error, task should be ended
-            UIApplication.shared.endBackgroundTask(taskId)
-        }
+        // Even on error, task should be ended
+        UIApplication.shared.endBackgroundTask(taskId)
 
         // Should not crash and task should be ended
         XCTAssertNotEqual(taskId, .invalid)

@@ -19,21 +19,6 @@ final class ImportStreamingTests: XCTestCase {
         }
     }
 
-    /// Thread-safe event log for verifying streaming order and timing.
-    private actor EventLog {
-        struct Entry {
-            let event: ParallelImporter.ImportEvent
-            let timestamp: UInt64
-        }
-        private(set) var entries: [Entry] = []
-
-        func append(_ event: ParallelImporter.ImportEvent) {
-            entries.append(Entry(event: event, timestamp: clock_gettime_nsec_np(CLOCK_UPTIME_RAW)))
-        }
-
-        var count: Int { entries.count }
-    }
-
     // MARK: - One-by-One Streaming
 
     /// Critical regression test: events must stream individually, not accumulate in batches.

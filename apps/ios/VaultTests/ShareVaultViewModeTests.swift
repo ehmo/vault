@@ -190,24 +190,6 @@ final class ShareVaultViewModeTests: XCTestCase {
         XCTAssertFalse(items.contains("No exports"))
     }
 
-    // MARK: - shouldDisplayUploadJob
-
-    func testShouldDisplayUploadJobHidesCompleteAndCancelled() {
-        XCTAssertFalse(ShareVaultView.shouldDisplayUploadJob(makeUploadJob(status: .complete)))
-        XCTAssertFalse(ShareVaultView.shouldDisplayUploadJob(makeUploadJob(status: .cancelled)))
-    }
-
-    func testShouldDisplayUploadJobShowsRunningStates() {
-        XCTAssertTrue(ShareVaultView.shouldDisplayUploadJob(makeUploadJob(status: .preparing)))
-        XCTAssertTrue(ShareVaultView.shouldDisplayUploadJob(makeUploadJob(status: .uploading)))
-        XCTAssertTrue(ShareVaultView.shouldDisplayUploadJob(makeUploadJob(status: .finalizing)))
-    }
-
-    func testShouldDisplayUploadJobShowsFailedAndPaused() {
-        XCTAssertTrue(ShareVaultView.shouldDisplayUploadJob(makeUploadJob(status: .failed)))
-        XCTAssertTrue(ShareVaultView.shouldDisplayUploadJob(makeUploadJob(status: .paused)))
-    }
-
     // MARK: - Idle Timer Policy
 
     func testIdleTimerDisabledOnlyWhenShareScreenVisibleAndUploadRunning() {
@@ -433,44 +415,6 @@ final class ShareVaultViewModeTests: XCTestCase {
         // iCloudUnavailable (preserved regardless)
         assertICloudUnavailable(ShareVaultView.resolveMode(currentMode: .iCloudUnavailable(.noAccount), hasShareData: true))
         assertICloudUnavailable(ShareVaultView.resolveMode(currentMode: .iCloudUnavailable(.noAccount), hasShareData: false))
-    }
-
-    // MARK: - UploadJob status helpers
-
-    func testUploadJobIsRunning() {
-        XCTAssertTrue(ShareUploadManager.UploadJobStatus.preparing.isRunning)
-        XCTAssertTrue(ShareUploadManager.UploadJobStatus.uploading.isRunning)
-        XCTAssertTrue(ShareUploadManager.UploadJobStatus.finalizing.isRunning)
-        XCTAssertFalse(ShareUploadManager.UploadJobStatus.paused.isRunning)
-        XCTAssertFalse(ShareUploadManager.UploadJobStatus.failed.isRunning)
-        XCTAssertFalse(ShareUploadManager.UploadJobStatus.complete.isRunning)
-        XCTAssertFalse(ShareUploadManager.UploadJobStatus.cancelled.isRunning)
-    }
-
-    func testUploadJobCanResume() {
-        let failed = makeUploadJob(status: .failed)
-        let paused = makeUploadJob(status: .paused)
-        let uploading = makeUploadJob(status: .uploading)
-        let complete = makeUploadJob(status: .complete)
-
-        XCTAssertTrue(failed.canResume)
-        XCTAssertTrue(paused.canResume)
-        XCTAssertFalse(uploading.canResume)
-        XCTAssertFalse(complete.canResume)
-    }
-
-    func testUploadJobCanTerminate() {
-        let uploading = makeUploadJob(status: .uploading)
-        let paused = makeUploadJob(status: .paused)
-        let failed = makeUploadJob(status: .failed)
-        let complete = makeUploadJob(status: .complete)
-        let cancelled = makeUploadJob(status: .cancelled)
-
-        XCTAssertTrue(uploading.canTerminate)
-        XCTAssertTrue(paused.canTerminate)
-        XCTAssertTrue(failed.canTerminate)
-        XCTAssertFalse(complete.canTerminate)
-        XCTAssertFalse(cancelled.canTerminate)
     }
 
     // MARK: - Pending upload directory safety

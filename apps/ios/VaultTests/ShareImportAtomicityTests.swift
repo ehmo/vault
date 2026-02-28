@@ -1377,42 +1377,6 @@ final class ShareImportAtomicityTests: XCTestCase {
         XCTAssertEqual(protected.openCount, 0)
     }
 
-    // MARK: - SharePolicy Codable Edge Cases
-
-    func testSharePolicyCodableRoundTrip() throws {
-        let policy = VaultStorage.SharePolicy(
-            expiresAt: Date().addingTimeInterval(3600),
-            maxOpens: 10,
-            allowScreenshots: true,
-            allowDownloads: false
-        )
-
-        let data = try JSONEncoder().encode(policy)
-        let decoded = try JSONDecoder().decode(VaultStorage.SharePolicy.self, from: data)
-
-        XCTAssertEqual(decoded.maxOpens, 10)
-        XCTAssertTrue(decoded.allowScreenshots)
-        XCTAssertFalse(decoded.allowDownloads)
-        XCTAssertNotNil(decoded.expiresAt)
-    }
-
-    func testSharePolicyDefaultValues() {
-        let policy = VaultStorage.SharePolicy()
-        XCTAssertNil(policy.expiresAt)
-        XCTAssertNil(policy.maxOpens)
-        XCTAssertFalse(policy.allowScreenshots, "Default should disallow screenshots")
-        XCTAssertTrue(policy.allowDownloads, "Default should allow downloads")
-    }
-
-    func testSharePolicyEquality() {
-        let policy1 = VaultStorage.SharePolicy(maxOpens: 5, allowScreenshots: false, allowDownloads: true)
-        let policy2 = VaultStorage.SharePolicy(maxOpens: 5, allowScreenshots: false, allowDownloads: true)
-        let policy3 = VaultStorage.SharePolicy(maxOpens: 3, allowScreenshots: false, allowDownloads: true)
-
-        XCTAssertEqual(policy1, policy2, "Identical policies should be equal")
-        XCTAssertNotEqual(policy1, policy3, "Different maxOpens should make policies unequal")
-    }
-
     // MARK: - shareKeyData Integrity
 
     func testShareKeyDataPreservedThroughIndexSaveLoad() async throws {

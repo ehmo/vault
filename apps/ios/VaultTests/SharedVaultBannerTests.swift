@@ -4,10 +4,10 @@ import XCTest
 /// Tests for shared vault banner policy display logic.
 ///
 /// Verifies that the banner correctly computes:
-/// - Opens remaining from maxOpens and openCount
 /// - Export permission from allowDownloads
 /// - Expiration visibility from expiresAt
 /// - Whether policy details should be shown at all
+/// - SharePolicy Codable backward compatibility
 final class SharedVaultBannerTests: XCTestCase {
 
     // MARK: - Policy Detail Visibility
@@ -75,36 +75,6 @@ final class SharedVaultBannerTests: XCTestCase {
 
         XCTAssertTrue(hasPolicyDetails(policy),
             "Should show policy details when all restrictions are set")
-    }
-
-    // MARK: - Opens Remaining
-
-    /// Remaining opens = maxOpens - openCount.
-    func testOpensRemainingBasicCalculation() {
-        let maxOpens = 5
-        let openCount = 2
-        let remaining = max(maxOpens - openCount, 0)
-
-        XCTAssertEqual(remaining, 3)
-    }
-
-    /// Remaining opens never goes below zero.
-    func testOpensRemainingNeverNegative() {
-        let maxOpens = 3
-        let openCount = 5
-        let remaining = max(maxOpens - openCount, 0)
-
-        XCTAssertEqual(remaining, 0,
-            "Remaining opens should floor at 0")
-    }
-
-    /// Zero opens used shows full count remaining.
-    func testOpensRemainingZeroUsed() {
-        let maxOpens = 10
-        let openCount = 0
-        let remaining = max(maxOpens - openCount, 0)
-
-        XCTAssertEqual(remaining, 10)
     }
 
     // MARK: - Export Permission
