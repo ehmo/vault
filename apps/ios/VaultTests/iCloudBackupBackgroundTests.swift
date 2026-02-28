@@ -1138,7 +1138,7 @@ final class ICloudBackupBackgroundTests: XCTestCase {
         var index = iCloudBackupManager.BackupVersionIndex()
         let entry = iCloudBackupManager.BackupVersionEntry(
             backupId: "test-1", timestamp: Date(), size: 1024,
-            verificationToken: nil, chunkCount: 2
+            verificationToken: nil, chunkCount: 2, checksum: nil
         )
         let evicted = index.addVersion(entry)
         XCTAssertNil(evicted, "First entry should not evict anything")
@@ -1151,14 +1151,14 @@ final class ICloudBackupBackgroundTests: XCTestCase {
         for i in 1...3 {
             index.addVersion(iCloudBackupManager.BackupVersionEntry(
                 backupId: "v\(i)", timestamp: Date(), size: 1024,
-                verificationToken: nil, chunkCount: 2
+                verificationToken: nil, chunkCount: 2, checksum: nil
             ))
         }
         XCTAssertEqual(index.versions.count, 3)
 
         let evicted = index.addVersion(iCloudBackupManager.BackupVersionEntry(
             backupId: "v4", timestamp: Date(), size: 1024,
-            verificationToken: nil, chunkCount: 2
+            verificationToken: nil, chunkCount: 2, checksum: nil
         ))
         XCTAssertEqual(evicted?.backupId, "v1", "Oldest entry (v1) should be evicted")
         XCTAssertEqual(index.versions.count, 3, "Should stay at 3 max")
@@ -1169,7 +1169,7 @@ final class ICloudBackupBackgroundTests: XCTestCase {
         var index = iCloudBackupManager.BackupVersionIndex()
         index.addVersion(iCloudBackupManager.BackupVersionEntry(
             backupId: "test-rt", timestamp: Date(), size: 2048,
-            verificationToken: Data([0xAB, 0xCD]), chunkCount: 5
+            verificationToken: Data([0xAB, 0xCD]), chunkCount: 5, checksum: nil
         ))
 
         let data = try JSONEncoder().encode(index)

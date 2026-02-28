@@ -400,7 +400,11 @@ struct ChangePatternView: View {
     private var errorMessage: String? { flow.errorMessage }
 
     private var isBackupEnabled: Bool {
-        UserDefaults.standard.bool(forKey: "iCloudBackupEnabled")
+        if let key = appState.currentVaultKey {
+            let fp = KeyDerivation.keyFingerprint(from: key.rawBytes)
+            return UserDefaults.standard.bool(forKey: "iCloudBackupEnabled_\(fp)")
+        }
+        return UserDefaults.standard.bool(forKey: "iCloudBackupEnabled")
     }
 
     private var isMaestroHookEnabled: Bool {

@@ -496,7 +496,8 @@ final class iCloudBackupManager: @unchecked Sendable {
                 timestamp: metadata.timestamp,
                 size: state.encryptedSize,
                 verificationToken: state.verificationToken,
-                chunkCount: state.totalChunks
+                chunkCount: state.totalChunks,
+                checksum: state.checksum
             )
 
             // Fetch current index, detect pattern change, add version
@@ -1405,7 +1406,7 @@ final class iCloudBackupManager: @unchecked Sendable {
         let metadata = BackupMetadata(
             timestamp: version.timestamp,
             size: version.size,
-            checksum: Data(), // Not used for v2 restore path
+            checksum: version.checksum ?? Data(),
             formatVersion: 2,
             chunkCount: version.chunkCount,
             backupId: version.backupId,
@@ -1482,10 +1483,12 @@ final class iCloudBackupManager: @unchecked Sendable {
             onProgress: onProgress
         )
 
-        // Verify checksum
-        let computedChecksum = CryptoEngine.computeHMAC(for: encryptedPayload, with: key)
-        guard computedChecksum == metadata.checksum else {
-            throw iCloudError.checksumMismatch
+        // Verify checksum (skip if empty — backward compat with entries saved before checksum field)
+        if !metadata.checksum.isEmpty {
+            let computedChecksum = CryptoEngine.computeHMAC(for: encryptedPayload, with: key)
+            guard computedChecksum == metadata.checksum else {
+                throw iCloudError.checksumMismatch
+            }
         }
 
         // Decrypt
@@ -1585,6 +1588,7 @@ final class iCloudBackupManager: @unchecked Sendable {
         let size: Int
         let verificationToken: Data?
         let chunkCount: Int
+        let checksum: Data?  // HMAC of encrypted payload; nil for entries created before this field
     }
 
     /// Tracks up to 3 backup versions per vault, stored in CloudKit as a JSON record.
@@ -1686,7 +1690,8 @@ final class iCloudBackupManager: @unchecked Sendable {
             timestamp: metadata.timestamp,
             size: metadata.size,
             verificationToken: metadata.verificationToken,
-            chunkCount: metadata.chunkCount ?? 1
+            chunkCount: metadata.chunkCount ?? 1,
+            checksum: metadata.checksum
         )
 
         var versionIndex = BackupVersionIndex()
