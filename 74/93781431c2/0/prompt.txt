@@ -1,0 +1,575 @@
+Continue on phase 2 implementing based on outstanding beads
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial Request**: User said "Continue on phase 2 implementing based on outstanding beads" after a `/clear` command. This means continue implementing Phase 2 of the iCloud Backup Overhaul based on outstanding beads issues.
+
+2. **Discovery Phase**: 
+   - Checked `bd ready` - found VAULT-f55 (epic) and VAULT-7l4 (Dynamic Island) as ready
+   - Checked `bd list --status=open` - found many issues blocked by VAULT-f55 epic
+   - Read the plan file (not found) and scratch pad
+   - Checked git log - found Phase 1 was already committed (e921c91e, 8a826657)
+
+3. **Epic Closure + Phase 1 Cleanup**:
+   - Closed VAULT-f55 epic (Phase 1 complete)
+   - Closed VAULT-ag4, VAULT-lf4, VAULT-r8s, VAULT-s65 (all implemented in Phase 1 commit)
+   - This unblocked VAULT-p8g, VAULT-bfi, and downstream issues
+
+4. **VAULT-p8g (Skip backup for empty vaults)**:
+   - Added `backupSkipped` case to `iCloudError` enum
+   - Added guard in `stageBackupToDisk` for empty/shared vaults
+   - Handled `backupSkipped` silently in auto-backup, background task, and manual flows
+   - Added catch in SettingsView for user-facing message
+
+5. **VAULT-bfi (Cross-device backup key derivation)**:
+   - Added `deriveBackupKey(from:gridSize:)` in KeyDerivation.swift
+   - Uses deterministic salt: SHA256("vault-backup-v1-" + patternHex)
+   - Same PBKDF2, 600K iterations, 32-byte key
+   - No Secure Enclave (device-independent)
+   - Added 6 tests
+
+6. **VAULT-9pm (Per-vault CloudKit records + BackupVersionIndex)**:
+   - Added `BackupVersionEntry` and `BackupVersionIndex` types
+   - Added `vaultFingerprint(from:)` - SHA256(backupKey).prefix(16) hex
+   - Added `versionIndexRecordName`, `manifestRecordName` helpers
+   - Added `fetchVersionIndex`, `saveVersionIndex` CloudKit helpers
+   - Updated `uploadStagedBackup` to save per-vault manifest + update version index
+   - Added `deleteBackupChunks(forBackupId:)` for targeted eviction
+   - Added `vaultFingerprint` field to `PendingBackupState` (with `= nil` default for backward compat)
+   - Added pattern/gridSize params to `stageBackupToDisk`
+   - Added 9 tests for version index, fingerprint, record naming
+   - First commit: d4028d57
+
+7. **VAULT-plk (3-version rotation)** - Closed as already implemented in VAULT-9pm
+
+8. **VAULT-qsu (Per-vault PendingBackupState + staging dirs)**:
+   - Changed staging dir from `pending_backup/` to `pending_backup_{fingerprint}/`
+   - Added `stagingDir(fingerprint:)` static method
+   - Updated `chunkFileURL`, `stateURL` to accept fingerprint
+   - Updated `loadPendingBackupState` to scan all `pending_backup*` dirs
+   - Updated `savePendingBackupState` to use fingerprint from state
+   - Updated `clearStagingDirectory` to accept fingerprint
+
+9. **VAULT-6hg (Auto-detect pattern change on backup)**:
+   - Added pattern change detection in `uploadStagedBackup` during version index update
+   - If all existing tokens differ from new token, purge old versions and start fresh
+   - Second commit: d0a5a796
+
+10. **VAULT-abp (Fix packBackupPayload to be vault-scoped)**:
+    - Updated `packBackupPayload` to accept `vaultFingerprint` parameter
+    - When fingerprint provided, only packs `vault_index_{fp}.bin`
+    - When nil (legacy), packs all `vault_index_*.bin` files
+    - Passed fingerprint through `packBackupPayloadOffMain`
+
+11. **VAULT-koj (Legacy backup migration)**:
+    - Added `migrateLegacyBackupIfNeeded(fingerprint:)` method
+    - Detects existing `current_backup` record
+    - Creates BackupVersionIndex entry from legacy metadata
+    - Copies manifest to per-vault record
+    - Migrates global UserDefaults keys to per-vault keys
+
+12. **Test isolation fix**:
+    - Tests were failing due to `loadPendingBackupState` scanning all dirs
+    - Fixed by adding `clearAllStagingDirs()` helper in test setUp/tearDown
+    - Tests pass consistently after fix
+
+**Errors encountered**:
+- Build failed with `iPhone 16 Pro` simulator - needed to use `iPhone 17 Pro` with UUID
+- Build failed with `-project` flag - needed `-workspace` for Tuist-managed SPM deps
+- SPM dependencies not resolving in worktree - resolved by using workspace build
+- `PendingBackupState` init missing `vaultFingerprint` param in tests - fixed with `var ... = nil` default
+- JSON decode test for legacy state failed - Date encoding format mismatch, fixed by encoding with JSONEncoder then stripping field
+- Test isolation failure (flaky) - `loadPendingBackupState` scanning all dirs picked up leftover state, fixed with `clearAllStagingDirs()`
+
+**Current state**: 
+- Two commits made (d4028d57, d0a5a796)
+- VAULT-abp and VAULT-koj changes are staged but NOT committed yet
+- Tests pass
+- Git has NOT been pushed yet
+
+Summary:
+1. Primary Request and Intent:
+   The user requested: "Continue on phase 2 implementing based on outstanding beads" — meaning continue implementing Phase 2 of the iCloud Backup Overhaul epic (VAULT-f55) by working through the dependency chain of outstanding beads issues. The work involves transitioning from a single global backup system to per-vault versioned CloudKit backup records with cross-device key derivation.
+
+2. Key Technical Concepts:
+   - **iCloud Backup Overhaul**: Three-phase project — Phase 1 (UX fixes, done), Phase 2 (per-vault versioned backup + cross-device), Phase 3 (obfuscation layer)
+   - **Cross-device backup key derivation**: Deterministic key from pattern using fixed salt (no Secure Enclave), enabling same-pattern-same-key across devices
+   - **Per-vault CloudKit records**: Replace singleton `current_backup` with `vb_{fingerprint}_index` and `vb_{fingerprint}_v{N}` records
+   - **BackupVersionIndex**: Manages up to 3 backup versions per vault with oldest-first eviction
+   - **Vault fingerprint**: SHA256(backupKey).prefix(16) as hex — stable opaque identifier for CloudKit records
+   - **Per-vault staging directories**: `pending_backup_{fingerprint}/` instead of global `pending_backup/`
+   - **Pattern change detection**: Compare verification tokens during upload to detect pattern changes and purge stale versions
+   - **Legacy backup migration**: Detect `current_backup` and migrate to per-vault version index
+   - **Beads issue tracking**: `bd` commands for issue management with dependency chains
+   - **Tuist-managed Xcode project**: Uses workspace build (not project) for SPM dependency resolution
+
+3. Files and Code Sections:
+
+   - **`apps/ios/Vault/Core/Crypto/KeyDerivation.swift`**
+     - Core crypto file for all key derivation methods
+     - Added `deriveBackupKey(from:gridSize:)` — the cross-device backup key derivation method
+     ```swift
+     static nonisolated func deriveBackupKey(from pattern: [Int], gridSize: Int = 5) throws -> Data {
+         guard pattern.count >= 6 else {
+             throw KeyDerivationError.invalidPattern
+         }
+         let patternData = PatternSerializer.serialize(pattern, gridSize: gridSize)
+         let patternHex = patternData.map { String(format: "%02x", $0) }.joined()
+         let saltString = "vault-backup-v1-\(patternHex)"
+         let salt = Data(SHA256.hash(data: Data(saltString.utf8)))
+         return try deriveKeyPBKDF2(
+             password: patternData,
+             salt: salt,
+             iterations: 600_000,
+             keyLength: 32
+         )
+     }
+     ```
+
+   - **`apps/ios/Vault/Core/Storage/iCloudBackupManager.swift`**
+     - Primary file for all iCloud backup logic — extensively modified
+     - **iCloudError enum** (line ~24): Added `backupSkipped` case with nil errorDescription
+     - **PendingBackupState** (line ~104): Added `var vaultFingerprint: String? = nil` field
+     - **stageBackupToDisk** (line ~252): Added `pattern: [Int]? = nil, gridSize: Int = 5` params, empty/shared vault guards, fingerprint computation before packing, per-vault staging dirs
+     - **Staging directory helpers** (line ~131): Refactored to per-vault dirs:
+       ```swift
+       private nonisolated static func stagingDir(fingerprint: String?) -> URL {
+           let dirName = fingerprint.map { "pending_backup_\($0)" } ?? "pending_backup"
+           let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+               .appendingPathComponent(dirName, isDirectory: true)
+           try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+           return dir
+       }
+       ```
+     - **loadPendingBackupState** (line ~146): Now scans all `pending_backup*` directories
+     - **uploadStagedBackup** (line ~363): Updated to save per-vault manifest + version index, detect pattern changes, targeted chunk deletion
+     - **BackupVersionEntry/BackupVersionIndex** (line ~1530): New types for version rotation
+       ```swift
+       struct BackupVersionEntry: Codable {
+           let backupId: String
+           let timestamp: Date
+           let size: Int
+           let verificationToken: Data?
+           let chunkCount: Int
+       }
+       struct BackupVersionIndex: Codable {
+           var versions: [BackupVersionEntry]
+           @discardableResult
+           mutating func addVersion(_ entry: BackupVersionEntry) -> BackupVersionEntry? {
+               let maxVersions = 3
+               var evicted: BackupVersionEntry?
+               if versions.count >= maxVersions { evicted = versions.removeFirst() }
+               versions.append(entry)
+               return evicted
+           }
+       }
+       ```
+     - **Fingerprint/record name helpers** (line ~1562): `vaultFingerprint(from:)`, `versionIndexRecordName(fingerprint:)`, `manifestRecordName(fingerprint:version:)`
+     - **fetchVersionIndex/saveVersionIndex** (line ~1580): CloudKit helpers for version index CRUD
+     - **Pattern change detection** in uploadStagedBackup:
+       ```swift
+       if !versionIndex.versions.isEmpty, let newToken = state.verificationToken {
+           let allDiffer = versionIndex.versions.allSatisfy { entry in
+               guard let existingToken = entry.verificationToken else { return true }
+               return existingToken != newToken
+           }
+           if allDiffer {
+               for oldVersion in versionIndex.versions {
+                   try await deleteBackupChunks(forBackupId: oldVersion.backupId)
+               }
+               versionIndex = BackupVersionIndex()
+           }
+       }
+       ```
+     - **deleteBackupChunks(forBackupId:)** (line ~1015): Targeted chunk deletion for evicted versions
+     - **migrateLegacyBackupIfNeeded(fingerprint:)** (line ~1615): Legacy migration
+     - **packBackupPayload** (line ~749): Updated to scope index files by fingerprint
+       ```swift
+       if let fp = vaultFingerprint {
+           let targetName = "vault_index_\(fp).bin"
+           indexFiles = files.filter { $0.lastPathComponent == targetName }
+       } else {
+           indexFiles = files.filter { $0.lastPathComponent.hasPrefix("vault_index_") && $0.pathExtension == "bin" }
+       }
+       ```
+
+   - **`apps/ios/Vault/Features/Settings/SettingsView.swift`**
+     - Added `catch iCloudError.backupSkipped` handler in `performBackup()` showing "Nothing to back up. Add some files first."
+
+   - **`apps/ios/VaultTests/KeyDerivationTests.swift`**
+     - Added 6 tests for `deriveBackupKey`: determinism, 32-byte output, different patterns/grid sizes produce different keys, short pattern rejection, device independence
+
+   - **`apps/ios/VaultTests/iCloudBackupBackgroundTests.swift`**
+     - Added `clearAllStagingDirs()` helper for test isolation
+     - Added tests for: BackupVersionIndex rotation (add, evict at capacity, codable round-trip), vault fingerprint determinism and format, record name formats, PendingBackupState backward compat without vaultFingerprint, backupSkipped error
+
+   - **`apps/ios/Vault/Core/Crypto/PatternSerializer.swift`** — Read only, provides `serialize(_:gridSize:)` returning SHA256 hash of pattern data
+
+4. Errors and Fixes:
+   - **Simulator name not found**: `iPhone 16 Pro` doesn't exist; switched to `iPhone 17 Pro` with explicit UUID `1E2BEFBC-2FBC-49D2-84B5-5DE55338CF79`
+   - **SPM module dependency errors**: Using `-project` flag didn't resolve Tuist-managed SPM packages; fixed by using `-workspace apps/ios/Vault.xcworkspace` instead
+   - **Missing `vaultFingerprint` parameter in test inits**: Auto-synthesized memberwise init required new field; fixed by changing to `var vaultFingerprint: String? = nil` (default value makes param optional in init)
+   - **JSON decode test failure for legacy PendingBackupState**: Hand-crafted JSON had wrong Date encoding format; fixed by encoding a real struct, stripping the field via JSONSerialization, then re-decoding
+   - **Test isolation flakiness**: `loadPendingBackupState()` scanning all `pending_backup*` dirs picked up leftover state from prior tests; fixed by adding `clearAllStagingDirs()` in setUp/tearDown that removes all matching directories
+   - **SourceKit false positives**: Cross-file "Cannot find X in scope" diagnostics are expected per scratch-pad; trusted xcodebuild results over editor diagnostics
+
+5. Problem Solving:
+   - **Dependency chain unblocking**: Closed the VAULT-f55 epic first to unblock Phase 1 issues, then closed those to unblock Phase 2 chain
+   - **Backward compatibility**: `PendingBackupState.vaultFingerprint` uses `var ... = nil` default so old serialized states decode correctly, and callers without pattern info still work
+   - **Legacy + new coexistence**: `uploadStagedBackup` saves to BOTH legacy `current_backup` record AND per-vault versioned records, ensuring older app versions can still restore
+   - **Test isolation**: Comprehensive cleanup of all staging directories prevents cross-test contamination
+
+6. All User Messages:
+   - "Continue on phase 2 implementing based on outstanding beads"
+
+7. Pending Tasks:
+   - **VAULT-abp** (in_progress): Fix packBackupPayload to be vault-scoped — code is WRITTEN but NOT YET COMMITTED
+   - **VAULT-koj** (in_progress): Legacy backup migration — code is WRITTEN but NOT YET COMMITTED
+   - **VAULT-jkf** (open): Move backup settings to VaultSettingsView — blocks VAULT-50g and VAULT-xgl
+   - **VAULT-50g** (open, blocked): Restore version list UI
+   - **VAULT-xgl** (open, blocked): Global backup toggle with inheritance
+   - **VAULT-rkh** (open, blocked): Storage display + delete backup versions
+   - **VAULT-vw0** (open): Opaque chunk pool — Phase 3 item
+   - **VAULT-7l4** (open): Dynamic Island Live Activity — unrelated P3
+
+8. Current Work:
+   Immediately before this summary, I had just finished implementing VAULT-abp (vault-scoped packBackupPayload) and VAULT-koj (legacy backup migration), and fixed a test isolation issue. The code changes for these two issues are in the working tree but **NOT yet committed**. The last action was running tests twice to confirm stability:
+   ```
+   ** TEST SUCCEEDED **
+   ```
+   
+   Two prior commits exist on the branch:
+   - `d4028d57` — "iCloud backup Phase 2: cross-device key derivation, per-vault versioned records" (VAULT-p8g, VAULT-bfi, VAULT-9pm)
+   - `d0a5a796` — "Per-vault staging dirs + auto-detect pattern change on backup" (VAULT-qsu, VAULT-6hg)
+   
+   Uncommitted changes span: `iCloudBackupManager.swift` (packBackupPayload scoping + migration method), `iCloudBackupBackgroundTests.swift` (clearAllStagingDirs fix)
+
+   Beads status: VAULT-abp and VAULT-koj are marked `in_progress`. Six issues were closed this session: VAULT-f55, VAULT-ag4, VAULT-lf4, VAULT-r8s, VAULT-s65, VAULT-p8g, VAULT-bfi, VAULT-9pm, VAULT-plk, VAULT-qsu, VAULT-6hg.
+
+   **Git has NOT been pushed to remote yet.** The session close protocol requires: commit remaining changes, push to remote.
+
+9. Optional Next Step:
+   The immediate next step is to **commit the uncommitted VAULT-abp and VAULT-koj changes, close those beads issues, and continue with remaining Phase 2 issues** (VAULT-jkf being the next high-value target as it blocks two other issues). The user's request was "Continue on phase 2 implementing based on outstanding beads" — there are still 3 P2 issues ready to work (VAULT-koj needs closing, VAULT-abp needs closing, VAULT-jkf is next).
+
+   Specifically: commit the current working tree changes, `bd close VAULT-abp VAULT-koj`, then proceed to VAULT-jkf (Move backup settings to VaultSettingsView).
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Session Start Context**: This session is a continuation from a previous conversation that ran out of context. The summary from the previous session provides extensive context about Phase 2 iCloud Backup Overhaul implementation. Key state at session start:
+   - Two prior commits existed (d4028d57, d0a5a796)
+   - VAULT-abp and VAULT-koj had code written but NOT committed
+   - Tests were passing
+   - Git had NOT been pushed to remote
+
+2. **First Action - Commit uncommitted work**: The assistant checked git status, found uncommitted changes in `iCloudBackupManager.swift` and `iCloudBackupBackgroundTests.swift`, committed them as `79131edd`, and closed VAULT-abp and VAULT-koj beads issues.
+
+3. **VAULT-jkf - Move backup settings to VaultSettingsView**: 
+   - Read VaultSettingsView.swift and SettingsView.swift
+   - Changed `iCloudBackupSettingsView` to accept `vaultFingerprint: String` parameter
+   - Replaced `@AppStorage` with manual `UserDefaults` using per-vault keys
+   - Updated `onAppear`, `handleToggleChange`, `performBackup`, `resumePendingBackup` to use per-vault keys
+   - Updated `performBackup` in iCloudBackupManager to accept `pattern` and `gridSize` params
+   - Updated `performBackupIfNeeded` to accept per-vault fingerprint and pattern params
+   - Updated ContentView caller to pass fingerprint and pattern
+   - Updated ChangePatternView to migrate per-vault backup settings on pattern change
+   - Added iCloud Backup section to VaultSettingsView between Recovery and Sharing (hidden for shared vaults, premium-gated)
+   - Removed iCloud backup NavigationLink from AppSettingsView
+   - Committed as `7964b3ec`
+
+4. **VAULT-xgl - Global backup toggle with inheritance**:
+   - Added `@AppStorage("iCloudBackupDefault")` toggle in AppSettingsView
+   - Added inheritance logic in `performPostUnlockSetup` in VaultApp.swift
+   - Uses `iCloudBackupInitialized_{fp}` to track one-time inheritance
+   - Committed as `fb46ee6c`
+
+5. **VAULT-50g - Restore version list UI**:
+   - Completely rewrote `RestoreFromBackupView` to show version list
+   - Added `restoreBackupVersion` and `deleteBackupVersion` methods to iCloudBackupManager
+   - New flow: load versions → show list → tap to select → draw pattern → restore
+   - Swipe-to-delete for individual versions
+   - Legacy backup shown separately
+   - Committed as `ba004740`
+
+6. **VAULT-rkh - Storage display + delete backup versions**:
+   - Added `totalBackupStorage`, `versionCount`, `showingDeleteAllConfirmation` state vars
+   - Added storage section showing version count and total backup storage
+   - Added confirmation dialog when disabling backup that deletes all versions
+   - Added `confirmDisableBackup`, `deleteAllVersions`, `loadVersionInfo` methods
+   - Committed as `78fb0a9e`
+
+7. **Push to remote**: Successfully pushed all 7 commits to `worktree-remote-control` branch.
+
+8. **User's second message**: "Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior."
+
+9. **Review started**: The assistant began reading through all modified files systematically, reading:
+   - iCloudBackupManager.swift (performBackup, performBackupIfNeeded, restoreBackupVersion, deleteBackupVersion)
+   - SettingsView.swift (iCloudBackupSettingsView with per-vault keys, handleToggleChange, confirmDisableBackup, deleteAllVersions, loadVersionInfo, RestoreFromBackupView with version list)
+   
+   The review was IN PROGRESS when the summary was requested - the assistant had read most of the code but had NOT yet:
+   - Completed the full review
+   - Identified any bugs
+   - Written any tests
+
+Let me identify potential bugs I noticed while reviewing:
+
+**Bug 1**: In `deleteAllVersions()`, it calls `deleteBackupVersion` in a loop, but each call fetches and saves the version index. This means N fetches and N saves for N versions, and each save removes one version. This works but is inefficient - could be a single fetch, local removal, single save.
+
+**Bug 2**: In `handleToggleChange` when disabling, if `versionCount > 0` it shows confirmation. But `versionCount` is only loaded on `onAppear` via `loadVersionInfo()`. If the view has been open for a while and versions changed, it could be stale. Minor issue.
+
+**Bug 3**: In `restoreBackupVersion`, the `checksum` is set to `Data()` (empty). The `restoreV2` method might try to verify the checksum. Let me check... Looking at the code, `restoreV2` does verify checksum: `guard computedChecksum == metadata.checksum`. With an empty Data() checksum, this would always fail! This is a **critical bug**.
+
+Wait, let me re-read. The `restoreV2` code at line ~1447-1448:
+```swift
+let computedChecksum = CryptoEngine.computeHMAC(for: encryptedPayload, with: key)
+guard computedChecksum == metadata.checksum else {
+```
+Yes, this would fail because `metadata.checksum` is `Data()` but the computed checksum would be a real HMAC. This is a **real bug** in `restoreBackupVersion`.
+
+**Bug 4**: The `BackupVersionEntry` doesn't store the checksum. We need to either add it or skip checksum verification for version-based restores.
+
+**Bug 5**: In `onChange(of: isBackupEnabled)` - when the delete confirmation is shown and user cancels, the cancel handler sets `isBackupEnabled = true`. But this triggers `onChange` again with `enabled = true`, which would call `handleToggleChange(true)` which saves to UserDefaults and tries to run a backup. This is a **re-entrant toggle bug** - cancelling the delete dialog would trigger a backup.
+
+**Bug 6**: The `restoreLegacyBackup` function creates a synthetic `BackupVersionEntry` with `backupId: info.backupId ?? "legacy"`. But then `performVersionRestore` calls `restoreBackupVersion` which creates a `BackupMetadata` with `checksum: Data()`. For a legacy backup that might be v1 format, this would use the v2 restore path, which would fail. Legacy backups should use the original `restoreBackup(with:onProgress:)` method.
+
+Now the files that were read/modified:
+
+Files modified this session:
+1. `apps/ios/Vault/Core/Storage/iCloudBackupManager.swift` - performBackup signature, performBackupIfNeeded per-vault, restoreBackupVersion, deleteBackupVersion
+2. `apps/ios/Vault/Features/Settings/SettingsView.swift` - iCloudBackupSettingsView per-vault, RestoreFromBackupView version list, AppSettingsView global toggle
+3. `apps/ios/Vault/Features/Settings/VaultSettingsView.swift` - Added iCloud Backup section
+4. `apps/ios/Vault/App/ContentView.swift` - Updated performBackupIfNeeded call
+5. `apps/ios/Vault/Features/Settings/ChangePatternView.swift` - Backup setting migration on pattern change
+6. `apps/ios/Vault/App/VaultApp.swift` - Backup default inheritance
+
+Commits made:
+1. `79131edd` - Vault-scoped backup packing + legacy migration + test isolation fix (from previous session's uncommitted work)
+2. `7964b3ec` - Move iCloud backup settings to per-vault VaultSettingsView
+3. `fb46ee6c` - Add global backup default toggle with per-vault inheritance
+4. `ba004740` - Redesign RestoreFromBackupView with version list UI
+5. `78fb0a9e` - Add backup storage display and delete-all confirmation
+
+All pushed to remote on branch `worktree-remote-control`.
+
+Issues closed this session: VAULT-abp, VAULT-koj, VAULT-jkf, VAULT-xgl, VAULT-50g, VAULT-rkh
+
+Remaining open issues (all P3): VAULT-vw0, VAULT-vjs, VAULT-0mx, VAULT-9f2, VAULT-x1x, VAULT-7l4
+
+Summary:
+1. Primary Request and Intent:
+   The session began as a continuation from a previous conversation. The initial implicit request was "Continue on phase 2 implementing based on outstanding beads" (from previous session). The assistant committed previously-uncommitted work, then worked through the Phase 2 iCloud Backup Overhaul dependency chain closing 6 beads issues (VAULT-abp, VAULT-koj, VAULT-jkf, VAULT-xgl, VAULT-50g, VAULT-rkh).
+
+   The user's **explicit second request** was: "Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior."
+
+2. Key Technical Concepts:
+   - **Per-vault UserDefaults keys**: `iCloudBackupEnabled_{fingerprint}`, `lastBackupTimestamp_{fingerprint}`, `iCloudBackupInitialized_{fingerprint}` replacing global singleton keys
+   - **Vault fingerprint**: `KeyDerivation.keyFingerprint(from: key.rawBytes)` — SHA256(key).prefix(8) as hex — stable per-vault identifier for UserDefaults keys
+   - **Backup vault fingerprint**: `iCloudBackupManager.vaultFingerprint(from: backupKey)` — used for CloudKit record names (different from vault key fingerprint)
+   - **BackupVersionIndex / BackupVersionEntry**: Per-vault version tracking in CloudKit (up to 3 versions), stored as JSON in `vb_{fingerprint}_index` records
+   - **Global backup default inheritance**: New vaults inherit `iCloudBackupDefault` AppStorage value on first unlock, tracked by `iCloudBackupInitialized_{fp}` flag
+   - **Pattern/gridSize passthrough**: `performBackup` and `performBackupIfNeeded` now accept pattern data for per-vault staging directory selection
+   - **Version-aware restore**: RestoreFromBackupView redesigned to fetch version index, show list, allow selection, then pattern entry
+   - **Beads issue tracking**: `bd` commands for dependency-aware issue management
+   - **Tuist-managed Xcode workspace**: Must use `-workspace apps/ios/Vault.xcworkspace` for builds, not `-project`
+   - **Simulator**: `iPhone 17 Pro` with UUID `1E2BEFBC-2FBC-49D2-84B5-5DE55338CF79`
+
+3. Files and Code Sections:
+
+   - **`apps/ios/Vault/Core/Storage/iCloudBackupManager.swift`**
+     - Central backup manager — extensively modified across both sessions
+     - `performBackup` signature changed to accept `pattern: [Int]? = nil, gridSize: Int = 5`:
+       ```swift
+       func performBackup(with key: Data, pattern: [Int]? = nil, gridSize: Int = 5, onProgress: @escaping (BackupStage) -> Void, onUploadProgress: @escaping (Double) -> Void = { _ in ...}) async throws
+       ```
+     - `performBackupIfNeeded` updated for per-vault keys:
+       ```swift
+       func performBackupIfNeeded(with key: Data, pattern: [Int]? = nil, gridSize: Int = 5, vaultFingerprint: String? = nil) {
+           let enabledKey = vaultFingerprint.map { "iCloudBackupEnabled_\($0)" }
+           let isEnabled = enabledKey.map { defaults.bool(forKey: $0) } ?? defaults.bool(forKey: "iCloudBackupEnabled")
+           ...
+           let timestampKey = vaultFingerprint.map { "lastBackupTimestamp_\($0)" } ?? "lastBackupTimestamp"
+       ```
+     - New `restoreBackupVersion` method (has a **checksum bug** — passes `Data()` as checksum which will fail HMAC verification in `restoreV2`):
+       ```swift
+       func restoreBackupVersion(_ version: BackupVersionEntry, with key: Data, onProgress: ((Int, Int) -> Void)? = nil) async throws {
+           let metadata = BackupMetadata(
+               timestamp: version.timestamp, size: version.size,
+               checksum: Data(), // BUG: Not used for v2 restore path — but restoreV2 DOES verify checksum
+               formatVersion: 2, chunkCount: version.chunkCount,
+               backupId: version.backupId, verificationToken: version.verificationToken
+           )
+           let dummyRecord = CKRecord(recordType: recordType)
+           try await restoreV2(record: dummyRecord, metadata: metadata, key: key, onProgress: onProgress)
+       }
+       ```
+     - New `deleteBackupVersion` method:
+       ```swift
+       func deleteBackupVersion(_ version: BackupVersionEntry, fingerprint: String) async throws {
+           try await waitForAvailableAccount()
+           try await deleteBackupChunks(forBackupId: version.backupId)
+           var versionIndex = try await fetchVersionIndex(fingerprint: fingerprint)
+           versionIndex.versions.removeAll { $0.backupId == version.backupId }
+           try await saveVersionIndex(versionIndex, fingerprint: fingerprint)
+       }
+       ```
+     - Auto-backup task now saves per-vault timestamp:
+       ```swift
+       UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: capturedTimestampKey)
+       ```
+
+   - **`apps/ios/Vault/Features/Settings/SettingsView.swift`**
+     - **iCloudBackupSettingsView**: Now accepts `vaultFingerprint: String`, uses manual UserDefaults instead of `@AppStorage`
+     - Per-vault key helpers:
+       ```swift
+       private var enabledKey: String { "iCloudBackupEnabled_\(vaultFingerprint)" }
+       private var timestampKey: String { "lastBackupTimestamp_\(vaultFingerprint)" }
+       ```
+     - `onAppear` loads from per-vault UserDefaults and calls `loadVersionInfo()`
+     - `handleToggleChange` when disabling shows delete confirmation if versions exist (**potential re-entrant bug** — cancel handler sets `isBackupEnabled = true` which triggers onChange again)
+     - New methods: `confirmDisableBackup()`, `deleteAllVersions()`, `loadVersionInfo()`
+     - New storage section showing version count and total backup storage
+     - **RestoreFromBackupView**: Completely rewritten with version list UI
+       - Loads versions from `fetchVersionIndex(fingerprint:)` 
+       - Shows sorted version list with date/size/chunks
+       - Swipe-to-delete via `onDelete(perform: deleteVersions)`
+       - Tap selects version → shows pattern grid → calls `performVersionRestore`
+       - `restoreLegacyBackup()` creates synthetic `BackupVersionEntry` (**potential bug** — legacy v1 backups would be routed through v2 restore path)
+       - Back button returns from pattern entry to version list
+     - **AppSettingsView**: iCloud backup link removed, replaced with:
+       - `@AppStorage("iCloudBackupDefault") private var iCloudBackupDefault = true`
+       - Toggle visible only for premium users
+       - Storage section renamed from "Storage & Backup" to "Storage & Backup" with conditional footer
+
+   - **`apps/ios/Vault/Features/Settings/VaultSettingsView.swift`**
+     - Added "iCloud Backup" section between Recovery and Sharing:
+       ```swift
+       if !isSharedVault {
+           Section {
+               if subscriptionManager.canSyncWithICloud() {
+                   if let key = appState.currentVaultKey {
+                       NavigationLink("iCloud Backup") {
+                           iCloudBackupSettingsView(
+                               vaultFingerprint: KeyDerivation.keyFingerprint(from: key.rawBytes)
+                           )
+                       }
+                   }
+               } else { /* premium crown button */ }
+           } header: { Text("Backup") }
+       }
+       ```
+
+   - **`apps/ios/Vault/App/ContentView.swift`**
+     - Updated auto-backup call:
+       ```swift
+       if let key = appState.currentVaultKey {
+           let fingerprint = KeyDerivation.keyFingerprint(from: key.rawBytes)
+           iCloudBackupManager.shared.performBackupIfNeeded(
+               with: key.rawBytes, pattern: appState.currentPattern, vaultFingerprint: fingerprint
+           )
+       }
+       ```
+
+   - **`apps/ios/Vault/Features/Settings/ChangePatternView.swift`**
+     - Migrates per-vault backup settings from old to new fingerprint on pattern change:
+       ```swift
+       let oldFP = KeyDerivation.keyFingerprint(from: currentKey.rawBytes)
+       let newFP = KeyDerivation.keyFingerprint(from: newKey)
+       let wasEnabled = defaults.bool(forKey: "iCloudBackupEnabled_\(oldFP)")
+           || defaults.bool(forKey: "iCloudBackupEnabled") // legacy global key
+       if wasEnabled {
+           defaults.set(true, forKey: "iCloudBackupEnabled_\(newFP)")
+           defaults.set(0, forKey: "lastBackupTimestamp_\(newFP)")
+           defaults.removeObject(forKey: "iCloudBackupEnabled_\(oldFP)")
+           defaults.removeObject(forKey: "lastBackupTimestamp_\(oldFP)")
+           // trigger backup with new fingerprint...
+       }
+       ```
+
+   - **`apps/ios/Vault/App/VaultApp.swift`**
+     - Added backup default inheritance in `performPostUnlockSetup`:
+       ```swift
+       let backupEnabledKey = "iCloudBackupEnabled_\(fingerprint)"
+       let backupInitializedKey = "iCloudBackupInitialized_\(fingerprint)"
+       if !UserDefaults.standard.bool(forKey: backupInitializedKey) {
+           let globalDefault = UserDefaults.standard.bool(forKey: "iCloudBackupDefault")
+           UserDefaults.standard.set(globalDefault, forKey: backupEnabledKey)
+           UserDefaults.standard.set(true, forKey: backupInitializedKey)
+       }
+       ```
+
+4. Errors and fixes:
+   - **No build errors this session**: All builds succeeded on first try. SourceKit diagnostics were all false positives (cross-file resolution issues, known from scratch-pad).
+   - **Test failures in unrelated suites**: ShareSyncManagerTests, LocalVaultRevocationTests, DuressVaultSharingTests, DuressSharingIntegrationTests all failed due to simulator launch issues (`FBSOpenApplicationServiceErrorDomain Code=1`), NOT related to code changes. Backup-specific tests all passed consistently.
+   - **Potential bugs identified during review** (not yet fixed):
+     - `restoreBackupVersion` passes `checksum: Data()` but `restoreV2` verifies checksum with HMAC — this will cause restoration to fail
+     - `handleToggleChange` cancel path sets `isBackupEnabled = true` which re-triggers onChange, potentially causing unexpected backup trigger
+     - `restoreLegacyBackup` routes legacy v1 backups through v2 path via synthetic BackupVersionEntry
+     - `deleteAllVersions` makes N individual CloudKit round-trips instead of batch
+
+5. Problem Solving:
+   - Successfully transitioned from global singleton backup to per-vault backup with full backward compatibility
+   - Handled pattern change migration (old fingerprint → new fingerprint UserDefaults key migration)
+   - Designed inheritance model for global backup default with one-time initialization tracking
+   - **Code review was IN PROGRESS when summary was requested** — the assistant had read through most modified files but had not yet completed the full review, identified bugs to fix, or written tests
+
+6. All user messages:
+   - "Continue on phase 2 implementing based on outstanding beads" (from previous session, carried forward via summary)
+   - "Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior."
+
+7. Pending Tasks:
+   - **Complete the code review** for all Phase 2 changes (was in progress)
+   - **Fix any bugs found** during the review
+   - **Write comprehensive tests** covering all Phase 2 behavior (per-vault keys, version index, restore flow, pattern change migration, global default inheritance, delete confirmation)
+   - Remaining P3 beads (not requested): VAULT-vw0, VAULT-vjs, VAULT-0mx, VAULT-9f2, VAULT-x1x (Phase 3 chain), VAULT-7l4 (Dynamic Island)
+
+8. Current Work:
+   The assistant was **in the middle of reviewing all code for bugs** as explicitly requested by the user. The assistant had read through:
+   - `iCloudBackupManager.swift`: performBackup (line 251), performBackupIfNeeded (line 1144), restoreBackupVersion/deleteBackupVersion (line 1369), BackupVersionIndex/BackupVersionEntry (line 1540)
+   - `SettingsView.swift`: iCloudBackupSettingsView (line 482), handleToggleChange/confirmDisableBackup/deleteAllVersions (line 690-912), RestoreFromBackupView (line 976-1175+)
+   
+   The assistant had NOT yet:
+   - Finished reading the rest of RestoreFromBackupView (the `performVersionRestore`, `restoreLegacyBackup`, `deleteVersions`, `loadVersions` methods)
+   - Re-read VaultSettingsView.swift, ContentView.swift, ChangePatternView.swift, VaultApp.swift during the review
+   - Documented any bugs found
+   - Written any tests
+   
+   Git state: All code pushed to remote. Branch `worktree-remote-control` is 7 commits ahead of `origin/main`. Working tree is clean except for untracked `docs/seo-publishing-strategy.md`.
+
+   Commits on branch (oldest to newest):
+   - `d4028d57` - iCloud backup Phase 2: cross-device key derivation, per-vault versioned records
+   - `d0a5a796` - Per-vault staging dirs + auto-detect pattern change on backup
+   - `79131edd` - Vault-scoped backup packing + legacy migration + test isolation fix
+   - `7964b3ec` - Move iCloud backup settings to per-vault VaultSettingsView
+   - `fb46ee6c` - Add global backup default toggle with per-vault inheritance
+   - `ba004740` - Redesign RestoreFromBackupView with version list UI
+   - `78fb0a9e` - Add backup storage display and delete-all confirmation
+
+9. Optional Next Step:
+   Continue and complete the code review, then write comprehensive tests. The user explicitly said: "Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior."
+
+   The assistant was mid-review, reading through SettingsView.swift RestoreFromBackupView at line 1175. Key bugs to investigate and fix:
+   1. `restoreBackupVersion` passes `checksum: Data()` — `restoreV2` will fail HMAC verification
+   2. `handleToggleChange` cancel dialog re-triggers onChange when setting `isBackupEnabled = true`
+   3. `restoreLegacyBackup` creates synthetic BackupVersionEntry routing legacy v1 through v2 path
+   4. `BackupVersionEntry` missing `checksum` field needed for restore verification
+   
+   After fixing bugs, write comprehensive tests in `apps/ios/VaultTests/iCloudBackupBackgroundTests.swift` covering per-vault UserDefaults keys, version index operations, restore version flow, pattern change migration, global default inheritance, and delete confirmation behavior.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
