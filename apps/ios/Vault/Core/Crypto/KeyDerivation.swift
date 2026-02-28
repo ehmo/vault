@@ -64,6 +64,33 @@ final class KeyDerivation {
         }
     }
 
+    // MARK: - Cross-Device Backup Key Derivation
+
+    /// Derives a deterministic backup key from a pattern that works across devices.
+    /// Uses a fixed salt derived from the serialized pattern (no Secure Enclave),
+    /// so the same pattern on any device produces the same backup key.
+    static nonisolated func deriveBackupKey(from pattern: [Int], gridSize: Int = 5) throws -> Data {
+        guard pattern.count >= 6 else {
+            throw KeyDerivationError.invalidPattern
+        }
+
+        // Serialize the pattern (produces a SHA256 hash of pattern+grid data)
+        let patternData = PatternSerializer.serialize(pattern, gridSize: gridSize)
+
+        // Deterministic salt: SHA256("vault-backup-v1-" + patternHex)
+        // No device-bound component — same pattern = same key on any device
+        let patternHex = patternData.map { String(format: "%02x", $0) }.joined()
+        let saltString = "vault-backup-v1-\(patternHex)"
+        let salt = Data(SHA256.hash(data: Data(saltString.utf8)))
+
+        return try deriveKeyPBKDF2(
+            password: patternData,
+            salt: salt,
+            iterations: 600_000,
+            keyLength: 32
+        )
+    }
+
     // MARK: - Key Derivation from Recovery Phrase
 
     #if !EXTENSION

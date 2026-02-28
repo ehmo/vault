@@ -793,6 +793,12 @@ struct iCloudBackupSettingsView: View {
                     isBackingUp = false
                     backupStage = nil
                 }
+            } catch iCloudError.backupSkipped {
+                await MainActor.run {
+                    errorMessage = "Nothing to back up. Add some files first."
+                    isBackingUp = false
+                    backupStage = nil
+                }
             } catch {
                 EmbraceManager.shared.captureError(
                     error,

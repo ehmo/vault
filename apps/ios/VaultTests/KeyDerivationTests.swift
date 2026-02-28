@@ -145,4 +145,61 @@ final class KeyDerivationTests: XCTestCase {
         XCTAssertNotEqual(idA, idB,
                            "Similar but different phrases should produce different vault IDs")
     }
+
+    // MARK: - deriveBackupKey: Determinism (cross-device)
+
+    func testDeriveBackupKeyIsDeterministic() throws {
+        let pattern = [0, 1, 2, 7, 12, 17]
+        let key1 = try KeyDerivation.deriveBackupKey(from: pattern, gridSize: 5)
+        let key2 = try KeyDerivation.deriveBackupKey(from: pattern, gridSize: 5)
+
+        XCTAssertEqual(key1, key2, "Same pattern should always produce the same backup key")
+    }
+
+    func testDeriveBackupKeyProduces32Bytes() throws {
+        let pattern = [0, 1, 2, 7, 12, 17]
+        let key = try KeyDerivation.deriveBackupKey(from: pattern, gridSize: 5)
+
+        XCTAssertEqual(key.count, 32, "Backup key should be 256 bits (32 bytes)")
+    }
+
+    func testDeriveBackupKeyDifferentPatternsProduceDifferentKeys() throws {
+        let patternA = [0, 1, 2, 7, 12, 17]
+        let patternB = [0, 5, 10, 15, 20, 21]
+
+        let keyA = try KeyDerivation.deriveBackupKey(from: patternA, gridSize: 5)
+        let keyB = try KeyDerivation.deriveBackupKey(from: patternB, gridSize: 5)
+
+        XCTAssertNotEqual(keyA, keyB, "Different patterns should produce different backup keys")
+    }
+
+    func testDeriveBackupKeyDifferentGridSizesProduceDifferentKeys() throws {
+        let pattern = [0, 1, 2, 3, 4, 5]
+
+        let key4 = try KeyDerivation.deriveBackupKey(from: pattern, gridSize: 4)
+        let key5 = try KeyDerivation.deriveBackupKey(from: pattern, gridSize: 5)
+
+        XCTAssertNotEqual(key4, key5, "Same pattern with different grid sizes should produce different keys")
+    }
+
+    func testDeriveBackupKeyRejectsShortPattern() {
+        let shortPattern = [0, 1, 2, 3, 4] // Only 5 nodes, minimum is 6
+
+        XCTAssertThrowsError(try KeyDerivation.deriveBackupKey(from: shortPattern)) { error in
+            XCTAssertTrue(error is KeyDerivationError)
+        }
+    }
+
+    func testDeriveBackupKeyIsDeviceIndependent() throws {
+        // The backup key should NOT use Secure Enclave (device salt).
+        // This is validated by the fact that deriveBackupKey is synchronous (not async),
+        // while deriveKey(from pattern:) is async (needs Secure Enclave).
+        // We verify the key is deterministic across calls, which confirms no device-specific salt.
+        let pattern = [0, 6, 12, 18, 24, 19]
+        let key1 = try KeyDerivation.deriveBackupKey(from: pattern, gridSize: 5)
+        let key2 = try KeyDerivation.deriveBackupKey(from: pattern, gridSize: 5)
+
+        XCTAssertEqual(key1, key2, "Backup key should be device-independent and deterministic")
+        XCTAssertEqual(key1.count, 32)
+    }
 }

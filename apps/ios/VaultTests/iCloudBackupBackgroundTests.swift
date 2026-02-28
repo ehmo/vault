@@ -1114,4 +1114,133 @@ final class ICloudBackupBackgroundTests: XCTestCase {
 
         // No progress expected since we fail before downloading, but signature works
     }
+
+    // MARK: - backupSkipped Error
+
+    func testBackupSkippedErrorHasNilDescription() {
+        let error = iCloudError.backupSkipped
+        XCTAssertNil(error.errorDescription, "backupSkipped should have nil errorDescription (silent)")
+    }
+
+    // MARK: - BackupVersionIndex
+
+    func testBackupVersionIndexAddVersionAppendsEntry() {
+        var index = iCloudBackupManager.BackupVersionIndex()
+        let entry = iCloudBackupManager.BackupVersionEntry(
+            backupId: "test-1", timestamp: Date(), size: 1024,
+            verificationToken: nil, chunkCount: 2
+        )
+        let evicted = index.addVersion(entry)
+        XCTAssertNil(evicted, "First entry should not evict anything")
+        XCTAssertEqual(index.versions.count, 1)
+        XCTAssertEqual(index.versions[0].backupId, "test-1")
+    }
+
+    func testBackupVersionIndexEvictsOldestAtCapacity() {
+        var index = iCloudBackupManager.BackupVersionIndex()
+        for i in 1...3 {
+            index.addVersion(iCloudBackupManager.BackupVersionEntry(
+                backupId: "v\(i)", timestamp: Date(), size: 1024,
+                verificationToken: nil, chunkCount: 2
+            ))
+        }
+        XCTAssertEqual(index.versions.count, 3)
+
+        let evicted = index.addVersion(iCloudBackupManager.BackupVersionEntry(
+            backupId: "v4", timestamp: Date(), size: 1024,
+            verificationToken: nil, chunkCount: 2
+        ))
+        XCTAssertEqual(evicted?.backupId, "v1", "Oldest entry (v1) should be evicted")
+        XCTAssertEqual(index.versions.count, 3, "Should stay at 3 max")
+        XCTAssertEqual(index.versions.map(\.backupId), ["v2", "v3", "v4"])
+    }
+
+    func testBackupVersionIndexCodableRoundTrip() throws {
+        var index = iCloudBackupManager.BackupVersionIndex()
+        index.addVersion(iCloudBackupManager.BackupVersionEntry(
+            backupId: "test-rt", timestamp: Date(), size: 2048,
+            verificationToken: Data([0xAB, 0xCD]), chunkCount: 5
+        ))
+
+        let data = try JSONEncoder().encode(index)
+        let decoded = try JSONDecoder().decode(iCloudBackupManager.BackupVersionIndex.self, from: data)
+
+        XCTAssertEqual(decoded.versions.count, 1)
+        XCTAssertEqual(decoded.versions[0].backupId, "test-rt")
+        XCTAssertEqual(decoded.versions[0].size, 2048)
+        XCTAssertEqual(decoded.versions[0].chunkCount, 5)
+        XCTAssertEqual(decoded.versions[0].verificationToken, Data([0xAB, 0xCD]))
+    }
+
+    // MARK: - Vault Fingerprint
+
+    func testVaultFingerprintIsDeterministic() {
+        let key = Data(repeating: 0x42, count: 32)
+        let fp1 = iCloudBackupManager.vaultFingerprint(from: key)
+        let fp2 = iCloudBackupManager.vaultFingerprint(from: key)
+        XCTAssertEqual(fp1, fp2)
+    }
+
+    func testVaultFingerprintIs16HexChars() {
+        let key = Data(repeating: 0xAA, count: 32)
+        let fp = iCloudBackupManager.vaultFingerprint(from: key)
+        XCTAssertEqual(fp.count, 16)
+        let hexSet = CharacterSet(charactersIn: "0123456789abcdef")
+        for c in fp.unicodeScalars {
+            XCTAssertTrue(hexSet.contains(c))
+        }
+    }
+
+    func testVersionIndexRecordNameFormat() {
+        let name = iCloudBackupManager.versionIndexRecordName(fingerprint: "abcdef1234567890")
+        XCTAssertEqual(name, "vb_abcdef1234567890_index")
+    }
+
+    func testManifestRecordNameFormat() {
+        let name = iCloudBackupManager.manifestRecordName(fingerprint: "abcdef1234567890", version: 2)
+        XCTAssertEqual(name, "vb_abcdef1234567890_v2")
+    }
+
+    func testPendingBackupStateDecodesWithoutVaultFingerprint() throws {
+        // Encode a state with fingerprint, then strip the field and re-decode
+        let state = iCloudBackupManager.PendingBackupState(
+            backupId: "legacy-id",
+            totalChunks: 3,
+            checksum: Data([0x01]),
+            encryptedSize: 3072,
+            createdAt: Date(),
+            uploadFinished: false,
+            manifestSaved: false,
+            retryCount: 0,
+            fileCount: 5,
+            vaultTotalSize: 10000,
+            verificationToken: nil,
+            vaultFingerprint: "test_fp"
+        )
+        let encoded = try JSONEncoder().encode(state)
+        var dict = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
+        dict.removeValue(forKey: "vaultFingerprint")
+        let strippedData = try JSONSerialization.data(withJSONObject: dict)
+
+        let decoded = try JSONDecoder().decode(
+            iCloudBackupManager.PendingBackupState.self,
+            from: strippedData
+        )
+        XCTAssertNil(decoded.vaultFingerprint, "Legacy state without fingerprint should decode as nil")
+        XCTAssertEqual(decoded.backupId, "legacy-id")
+    }
+
+    func testBackupSkippedIsDistinctFromOtherErrors() {
+        let errors: [iCloudError] = [
+            .notAvailable, .containerNotFound, .uploadFailed,
+            .downloadFailed, .fileNotFound, .checksumMismatch, .wifiRequired
+        ]
+        for otherError in errors {
+            XCTAssertNotEqual(
+                String(describing: otherError),
+                String(describing: iCloudError.backupSkipped),
+                "backupSkipped should be distinct from \(otherError)"
+            )
+        }
+    }
 }

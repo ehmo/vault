@@ -29,6 +29,7 @@ enum iCloudError: Error, LocalizedError {
     case fileNotFound
     case checksumMismatch
     case wifiRequired
+    case backupSkipped
 
     var errorDescription: String? {
         switch self {
@@ -46,6 +47,8 @@ enum iCloudError: Error, LocalizedError {
             return "Wrong pattern. The pattern doesn't match the one used for this backup."
         case .wifiRequired:
             return "Wi-Fi required. Change in Settings → Network to allow cellular."
+        case .backupSkipped:
+            return nil // Silent skip, not a user-facing error
         }
     }
 }
@@ -115,6 +118,8 @@ final class iCloudBackupManager: @unchecked Sendable {
         var wasTerminated: Bool = false
         /// HMAC verification token for instant pattern check (nil for old staged backups)
         let verificationToken: Data?
+        /// Per-vault fingerprint for versioned CloudKit records (nil for legacy backups)
+        var vaultFingerprint: String? = nil
     }
 
     /// Sentinel used for HMAC verification token — enables instant wrong-pattern detection
@@ -247,11 +252,23 @@ final class iCloudBackupManager: @unchecked Sendable {
     @discardableResult
     func stageBackupToDisk(
         with key: Data,
+        pattern: [Int]? = nil,
+        gridSize: Int = 5,
         onProgress: ((BackupStage) -> Void)? = nil
     ) async throws -> PendingBackupState {
         onProgress?(.readingVault)
         try Task.checkCancellation()
         let index = try await VaultStorage.shared.loadIndex(with: VaultKey(key))
+
+        // Skip backup for empty vaults and shared (received) vaults
+        if index.files.isEmpty {
+            Self.logger.info("[staging] Skipping backup — vault is empty")
+            throw iCloudError.backupSkipped
+        }
+        if index.isSharedVault == true {
+            Self.logger.info("[staging] Skipping backup — shared vault")
+            throw iCloudError.backupSkipped
+        }
 
         let payload = try await packBackupPayloadOffMain(index: index, key: key)
         Self.logger.info("[staging] Payload packed: \(payload.count) bytes")
@@ -283,6 +300,14 @@ final class iCloudBackupManager: @unchecked Sendable {
         // Compute verification token for instant pattern check on restore
         let verificationToken = CryptoEngine.computeHMAC(for: Self.verificationSentinel, with: key)
 
+        // Compute vault fingerprint for per-vault CloudKit records
+        var fingerprint: String?
+        if let pattern = pattern {
+            if let backupKey = try? KeyDerivation.deriveBackupKey(from: pattern, gridSize: gridSize) {
+                fingerprint = Self.vaultFingerprint(from: backupKey)
+            }
+        }
+
         let state = PendingBackupState(
             backupId: backupId,
             totalChunks: chunks.count,
@@ -294,7 +319,8 @@ final class iCloudBackupManager: @unchecked Sendable {
             retryCount: 0,
             fileCount: index.files.count,
             vaultTotalSize: index.totalSize,
-            verificationToken: verificationToken
+            verificationToken: verificationToken,
+            vaultFingerprint: fingerprint
         )
         savePendingBackupState(state)
 
@@ -415,6 +441,7 @@ final class iCloudBackupManager: @unchecked Sendable {
         )
         let metadataJson = try JSONEncoder().encode(metadata)
 
+        // Save to legacy singleton record (backward compat)
         let recordID = CKRecord.ID(recordName: backupRecordName)
         let record: CKRecord
         do {
@@ -432,10 +459,51 @@ final class iCloudBackupManager: @unchecked Sendable {
 
         try await privateDatabase.saveWithRetry(record)
 
+        // Save per-vault versioned manifest + update version index
+        var evictedBackupId: String?
+        if let fingerprint = state.vaultFingerprint {
+            let versionEntry = BackupVersionEntry(
+                backupId: state.backupId,
+                timestamp: metadata.timestamp,
+                size: state.encryptedSize,
+                verificationToken: state.verificationToken,
+                chunkCount: state.totalChunks
+            )
+
+            // Fetch current index, add version, save index
+            var versionIndex = try await fetchVersionIndex(fingerprint: fingerprint)
+            let evicted = versionIndex.addVersion(versionEntry)
+            evictedBackupId = evicted?.backupId
+            try await saveVersionIndex(versionIndex, fingerprint: fingerprint)
+
+            // Save per-vault manifest record
+            let versionSlot = versionIndex.versions.count
+            let manifestRecordName = Self.manifestRecordName(fingerprint: fingerprint, version: versionSlot)
+            let manifestRecordID = CKRecord.ID(recordName: manifestRecordName)
+            let manifestRecord: CKRecord
+            do {
+                manifestRecord = try await privateDatabase.record(for: manifestRecordID)
+            } catch {
+                manifestRecord = CKRecord(recordType: recordType, recordID: manifestRecordID)
+            }
+            manifestRecord["metadata"] = metadataJson as CKRecordValue
+            manifestRecord["timestamp"] = metadata.timestamp as CKRecordValue
+            manifestRecord["formatVersion"] = 2 as CKRecordValue
+            manifestRecord["chunkCount"] = state.totalChunks as CKRecordValue
+            manifestRecord["backupId"] = state.backupId as CKRecordValue
+            manifestRecord["fingerprint"] = fingerprint as CKRecordValue
+
+            try await privateDatabase.saveWithRetry(manifestRecord)
+            Self.logger.info("[upload] Saved per-vault manifest vb_\(fingerprint)_v\(versionSlot)")
+        }
+
         state.manifestSaved = true
         savePendingBackupState(state)
 
-        // Delete old backup chunks
+        // Delete old backup chunks (evicted version + any orphans)
+        if let evictedId = evictedBackupId {
+            try await deleteBackupChunks(forBackupId: evictedId)
+        }
         try await deleteOldBackupChunks(excludingBackupId: state.backupId)
 
         // Update last backup timestamp
@@ -945,6 +1013,35 @@ final class iCloudBackupManager: @unchecked Sendable {
         }
     }
 
+    /// Delete all backup chunks for a specific backup ID (used when evicting old versions).
+    private func deleteBackupChunks(forBackupId backupId: String) async throws {
+        let predicate = NSPredicate(format: "backupId == %@", backupId)
+        let query = CKQuery(recordType: chunkRecordType, predicate: predicate)
+
+        var recordIDs: [CKRecord.ID] = []
+        let (results, _) = try await privateDatabase.records(matching: query, desiredKeys: [], resultsLimit: 200)
+        for (id, _) in results {
+            recordIDs.append(id)
+        }
+
+        if !recordIDs.isEmpty {
+            Self.logger.info("[backup] Deleting \(recordIDs.count) chunks for evicted backup \(backupId.prefix(8))...")
+            let operation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDs)
+            operation.savePolicy = .changedKeys
+            operation.qualityOfService = .utility
+
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                operation.modifyRecordsResultBlock = { result in
+                    if case .failure(let error) = result {
+                        Self.logger.warning("[backup] Failed to delete evicted chunks: \(error)")
+                    }
+                    continuation.resume()
+                }
+                self.privateDatabase.add(operation)
+            }
+        }
+    }
+
     /// Saves a record using CKModifyRecordsOperation to get per-record upload progress.
     private func saveWithProgress(record: CKRecord, onUploadProgress: @escaping (Double) -> Void) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -1061,6 +1158,9 @@ final class iCloudBackupManager: @unchecked Sendable {
                 try await self.uploadStagedBackup()
                 Self.logger.info("[auto-backup] Two-phase backup completed successfully")
                 self.sendBackupCompleteNotification(success: true)
+            } catch let error as iCloudError where error == .backupSkipped {
+                Self.logger.info("[auto-backup] Backup skipped (empty or shared vault)")
+                return
             } catch {
                 if Task.isCancelled {
                     Self.logger.warning("[auto-backup] Backup cancelled")
@@ -1374,6 +1474,91 @@ final class iCloudBackupManager: @unchecked Sendable {
         }
     }
     
+    // MARK: - Per-Vault Backup Version Index
+
+    /// A single backup version entry within a vault's version index.
+    struct BackupVersionEntry: Codable {
+        let backupId: String
+        let timestamp: Date
+        let size: Int
+        let verificationToken: Data?
+        let chunkCount: Int
+    }
+
+    /// Tracks up to 3 backup versions per vault, stored in CloudKit as a JSON record.
+    struct BackupVersionIndex: Codable {
+        var versions: [BackupVersionEntry]
+
+        init(versions: [BackupVersionEntry] = []) {
+            self.versions = versions
+        }
+
+        /// Adds a new version, evicting the oldest if at capacity (3 max).
+        /// Returns the evicted entry (if any) so its chunks can be deleted.
+        @discardableResult
+        mutating func addVersion(_ entry: BackupVersionEntry) -> BackupVersionEntry? {
+            let maxVersions = 3
+            var evicted: BackupVersionEntry?
+            if versions.count >= maxVersions {
+                // Evict oldest (first)
+                evicted = versions.removeFirst()
+            }
+            versions.append(entry)
+            return evicted
+        }
+    }
+
+    /// Computes the vault fingerprint from a backup key: SHA256(key).prefix(16) as hex.
+    /// Used as a stable, opaque identifier for per-vault CloudKit records.
+    static func vaultFingerprint(from backupKey: Data) -> String {
+        KeyDerivation.keyFingerprint(from: backupKey)
+    }
+
+    /// CloudKit record name for a vault's version index.
+    static func versionIndexRecordName(fingerprint: String) -> String {
+        "vb_\(fingerprint)_index"
+    }
+
+    /// CloudKit record name for a specific vault backup manifest version.
+    static func manifestRecordName(fingerprint: String, version: Int) -> String {
+        "vb_\(fingerprint)_v\(version)"
+    }
+
+    /// Fetches the version index for a vault from CloudKit.
+    func fetchVersionIndex(fingerprint: String) async throws -> BackupVersionIndex {
+        let recordName = Self.versionIndexRecordName(fingerprint: fingerprint)
+        let recordID = CKRecord.ID(recordName: recordName)
+
+        do {
+            let record = try await privateDatabase.record(for: recordID)
+            guard let data = record["indexData"] as? Data else {
+                return BackupVersionIndex()
+            }
+            return try JSONDecoder().decode(BackupVersionIndex.self, from: data)
+        } catch let ckError as CKError where ckError.code == .unknownItem {
+            return BackupVersionIndex()
+        }
+    }
+
+    /// Saves the version index for a vault to CloudKit.
+    func saveVersionIndex(_ index: BackupVersionIndex, fingerprint: String) async throws {
+        let recordName = Self.versionIndexRecordName(fingerprint: fingerprint)
+        let recordID = CKRecord.ID(recordName: recordName)
+
+        let record: CKRecord
+        do {
+            record = try await privateDatabase.record(for: recordID)
+        } catch {
+            record = CKRecord(recordType: recordType, recordID: recordID)
+        }
+
+        let data = try JSONEncoder().encode(index)
+        record["indexData"] = data as CKRecordValue
+        record["fingerprint"] = fingerprint as CKRecordValue
+
+        try await privateDatabase.saveWithRetry(record)
+    }
+
     // MARK: - Pattern Verification
 
     /// Checks if a key matches the backup's verification token without downloading.
@@ -1531,6 +1716,9 @@ final class iCloudBackupManager: @unchecked Sendable {
                     succeeded = true
                     Self.logger.info("[bg-task] Full backup completed")
                     self.sendBackupCompleteNotification(success: true)
+                } catch let error as iCloudError where error == .backupSkipped {
+                    succeeded = true // Not a failure — just nothing to back up
+                    Self.logger.info("[bg-task] Backup skipped (empty or shared vault)")
                 } catch {
                     Self.logger.error("[bg-task] Full backup failed: \(error)")
                     self.scheduleBackgroundResumeTask(earliestIn: 300)
