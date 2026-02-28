@@ -31,9 +31,22 @@ enum iCloudError: Error, LocalizedError {
     case wifiRequired
 
     var errorDescription: String? {
-        if case .notAvailable = self { return "iCloud is not available" }
-        if case .wifiRequired = self { return "Wi-Fi required. Change in Settings → Network to allow cellular." }
-        return nil
+        switch self {
+        case .notAvailable:
+            return "iCloud is not available."
+        case .containerNotFound:
+            return "iCloud container not found."
+        case .uploadFailed:
+            return "Upload failed. Check your connection and try again."
+        case .downloadFailed:
+            return "Download failed. The backup data may be corrupted."
+        case .fileNotFound:
+            return "No backup found."
+        case .checksumMismatch:
+            return "Wrong pattern. The pattern doesn't match the one used for this backup."
+        case .wifiRequired:
+            return "Wi-Fi required. Change in Settings → Network to allow cellular."
+        }
     }
 }
 
@@ -100,7 +113,12 @@ final class iCloudBackupManager: @unchecked Sendable {
         let vaultTotalSize: Int
         /// True if iOS terminated the app during backup - triggers priority resume
         var wasTerminated: Bool = false
+        /// HMAC verification token for instant pattern check (nil for old staged backups)
+        let verificationToken: Data?
     }
+
+    /// Sentinel used for HMAC verification token — enables instant wrong-pattern detection
+    private nonisolated static let verificationSentinel = "vault-backup-verify".data(using: .utf8)!
 
     /// 48-hour TTL for staged backups
     private nonisolated static let pendingTTL: TimeInterval = 48 * 60 * 60
@@ -262,6 +280,9 @@ final class iCloudBackupManager: @unchecked Sendable {
             )
         }
 
+        // Compute verification token for instant pattern check on restore
+        let verificationToken = CryptoEngine.computeHMAC(for: Self.verificationSentinel, with: key)
+
         let state = PendingBackupState(
             backupId: backupId,
             totalChunks: chunks.count,
@@ -272,7 +293,8 @@ final class iCloudBackupManager: @unchecked Sendable {
             manifestSaved: false,
             retryCount: 0,
             fileCount: index.files.count,
-            vaultTotalSize: index.totalSize
+            vaultTotalSize: index.totalSize,
+            verificationToken: verificationToken
         )
         savePendingBackupState(state)
 
@@ -388,7 +410,8 @@ final class iCloudBackupManager: @unchecked Sendable {
             formatVersion: 2,
             chunkCount: state.totalChunks,
             backupId: state.backupId,
-            vaultStats: (state.fileCount, state.vaultTotalSize)
+            vaultStats: (state.fileCount, state.vaultTotalSize),
+            verificationToken: state.verificationToken
         )
         let metadataJson = try JSONEncoder().encode(metadata)
 
@@ -1120,7 +1143,8 @@ final class iCloudBackupManager: @unchecked Sendable {
                 formatVersion: 2,
                 chunkCount: pendingState.totalChunks,
                 backupId: pendingState.backupId,
-                vaultStats: (pendingState.fileCount, pendingState.vaultTotalSize)
+                vaultStats: (pendingState.fileCount, pendingState.vaultTotalSize),
+                verificationToken: pendingState.verificationToken
             )
             return .found(metadata, isStale: true)
         }
@@ -1179,7 +1203,10 @@ final class iCloudBackupManager: @unchecked Sendable {
         }
     }
 
-    func restoreBackup(with key: Data) async throws {
+    func restoreBackup(
+        with key: Data,
+        onProgress: ((Int, Int) -> Void)? = nil
+    ) async throws {
         try await waitForAvailableAccount()
 
         let recordID = CKRecord.ID(recordName: backupRecordName)
@@ -1198,7 +1225,7 @@ final class iCloudBackupManager: @unchecked Sendable {
 
         // Check format version for v1 vs v2 restore path
         if let formatVersion = metadata.formatVersion, formatVersion >= 2 {
-            try await restoreV2(record: record, metadata: metadata, key: key)
+            try await restoreV2(record: record, metadata: metadata, key: key, onProgress: onProgress)
         } else {
             try await restoreV1(record: record, metadata: metadata, key: key)
         }
@@ -1233,7 +1260,12 @@ final class iCloudBackupManager: @unchecked Sendable {
     // MARK: - v2 Chunked Restore
 
     /// Restores a v2 backup (chunked payload with all blobs + index files).
-    private func restoreV2(record _: CKRecord, metadata: BackupMetadata, key: Data) async throws {
+    private func restoreV2(
+        record _: CKRecord,
+        metadata: BackupMetadata,
+        key: Data,
+        onProgress: ((Int, Int) -> Void)? = nil
+    ) async throws {
         guard let backupId = metadata.backupId,
               let chunkCount = metadata.chunkCount, chunkCount > 0 else {
             throw iCloudError.downloadFailed
@@ -1244,7 +1276,8 @@ final class iCloudBackupManager: @unchecked Sendable {
         // Download all chunks in parallel
         let encryptedPayload = try await downloadBackupChunksParallel(
             backupId: backupId,
-            chunkCount: chunkCount
+            chunkCount: chunkCount,
+            onProgress: onProgress
         )
 
         // Verify checksum
@@ -1311,9 +1344,12 @@ final class iCloudBackupManager: @unchecked Sendable {
         let backupId: String?
         let fileCount: Int?       // Number of files in vault at backup time
         let vaultTotalSize: Int?  // Total vault size at backup time
+        let verificationToken: Data?  // HMAC of sentinel for instant pattern check
 
         init(timestamp: Date, size: Int, checksum: Data, formatVersion: Int? = nil,
-             chunkCount: Int? = nil, backupId: String? = nil, vaultStats: (fileCount: Int?, totalSize: Int?) = (nil, nil)) {
+             chunkCount: Int? = nil, backupId: String? = nil,
+             vaultStats: (fileCount: Int?, totalSize: Int?) = (nil, nil),
+             verificationToken: Data? = nil) {
             self.timestamp = timestamp
             self.size = size
             self.checksum = checksum
@@ -1322,6 +1358,7 @@ final class iCloudBackupManager: @unchecked Sendable {
             self.backupId = backupId
             self.fileCount = vaultStats.fileCount
             self.vaultTotalSize = vaultStats.totalSize
+            self.verificationToken = verificationToken
         }
 
         var formattedDate: String {
@@ -1337,8 +1374,21 @@ final class iCloudBackupManager: @unchecked Sendable {
         }
     }
     
+    // MARK: - Pattern Verification
+
+    /// Checks if a key matches the backup's verification token without downloading.
+    /// Returns `true` if the pattern is correct (or if no token exists for old backups).
+    func verifyPatternBeforeDownload(key: Data, metadata: BackupMetadata) -> Bool {
+        guard let storedToken = metadata.verificationToken else {
+            // Old backup without verification token — must fall through to download + HMAC check
+            return true
+        }
+        let computedToken = CryptoEngine.computeHMAC(for: Self.verificationSentinel, with: key)
+        return computedToken == storedToken
+    }
+
     // MARK: - Background Processing Task Support
-    
+
     /// Registers the background processing task for iCloud backup resume
     func registerBackgroundProcessingTask() {
         BackgroundTaskCoordinator.register(

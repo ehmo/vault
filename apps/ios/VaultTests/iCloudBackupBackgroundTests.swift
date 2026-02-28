@@ -50,7 +50,8 @@ final class ICloudBackupBackgroundTests: XCTestCase {
             manifestSaved: params.manifestSaved,
             retryCount: params.retryCount,
             fileCount: params.fileCount,
-            vaultTotalSize: params.vaultTotalSize
+            vaultTotalSize: params.vaultTotalSize,
+            verificationToken: nil
         )
         try fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
         let data = try JSONEncoder().encode(state)
@@ -229,7 +230,8 @@ final class ICloudBackupBackgroundTests: XCTestCase {
             manifestSaved: false,
             retryCount: 3,
             fileCount: 42,
-            vaultTotalSize: 10_485_760
+            vaultTotalSize: 10_485_760,
+            verificationToken: Data([0xAA, 0xBB])
         )
 
         let data = try JSONEncoder().encode(state)
@@ -255,7 +257,8 @@ final class ICloudBackupBackgroundTests: XCTestCase {
             manifestSaved: true,
             retryCount: 0,
             fileCount: 10,
-            vaultTotalSize: 25_165_824
+            vaultTotalSize: 25_165_824,
+            verificationToken: nil
         )
 
         let data = try JSONEncoder().encode(state)
@@ -278,7 +281,8 @@ final class ICloudBackupBackgroundTests: XCTestCase {
             manifestSaved: false,
             retryCount: 0,
             fileCount: 1,
-            vaultTotalSize: 100
+            vaultTotalSize: 100,
+            verificationToken: nil
         )
 
         let data = try JSONEncoder().encode(state)
@@ -303,7 +307,8 @@ final class ICloudBackupBackgroundTests: XCTestCase {
             manifestSaved: false,
             retryCount: 0,
             fileCount: 1,
-            vaultTotalSize: 100
+            vaultTotalSize: 100,
+            verificationToken: nil
         )
 
         let data = try JSONEncoder().encode(state)

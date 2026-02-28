@@ -874,6 +874,7 @@ struct RestoreFromBackupView: View {
     @State private var noBackupFound = false
     @State private var isRestoring = false
     @State private var restoreStage: String?
+    @State private var downloadProgress: (downloaded: Int, total: Int)?
     @State private var errorMessage: String?
     @State private var restoreSuccess = false
 
@@ -998,7 +999,17 @@ struct RestoreFromBackupView: View {
 
             if isRestoring {
                 VStack(spacing: 12) {
-                    ProgressView()
+                    if let progress = downloadProgress {
+                        ProgressView(value: Double(progress.downloaded), total: Double(progress.total))
+                            .tint(Color.accentColor)
+                            .frame(width: 200)
+                        Text("Downloading \(progress.downloaded) of \(progress.total)")
+                            .font(.caption)
+                            .foregroundStyle(.vaultSecondaryText)
+                            .monospacedDigit()
+                    } else {
+                        ProgressView()
+                    }
                     Text(restoreStage ?? "Restoring...")
                         .font(.subheadline)
                         .foregroundStyle(.vaultSecondaryText)
@@ -1017,28 +1028,30 @@ struct RestoreFromBackupView: View {
 
             Spacer(minLength: 0)
 
-            if let errorMessage {
-                VStack(spacing: 8) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Label("Restore Failed", systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red)
-                            .font(.subheadline.weight(.medium))
-                        Text(errorMessage)
-                            .foregroundStyle(.vaultSecondaryText)
-                            .font(.caption)
-                            .textSelection(.enabled)
+            Group {
+                if let errorMessage {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.vaultHighlight)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(errorMessage)
+                                .font(.caption)
+                                .lineLimit(nil)
+                            Button("Try Again") {
+                                resetForRetry()
+                            }
+                            .font(.caption.weight(.medium))
+                        }
                     }
+                    .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-
-                    Button("Try Again") {
-                        resetForRetry()
-                    }
-                    .font(.subheadline)
+                    .vaultGlassBackground(cornerRadius: 12)
+                    .transition(.scale.combined(with: .opacity))
+                } else {
+                    Color.clear
                 }
-            } else {
-                Color.clear
-                    .frame(minHeight: 80)
             }
+            .frame(height: 80)
         }
         .padding(.horizontal)
         .padding(.top, 8)
@@ -1079,35 +1092,63 @@ struct RestoreFromBackupView: View {
 
         isRestoring = true
         errorMessage = nil
+        downloadProgress = nil
         restoreStage = "Deriving encryption key..."
 
         Task {
             do {
                 let key = try await KeyDerivation.deriveKey(from: pattern, gridSize: patternState.gridSize)
 
-                await MainActor.run { restoreStage = "Downloading from iCloud..." }
-                try await backupManager.restoreBackup(with: key)
+                // Early pattern verification — check HMAC token before downloading
+                if let info = backupInfo {
+                    let patternValid = backupManager.verifyPatternBeforeDownload(key: key, metadata: info)
+                    if !patternValid {
+                        throw iCloudError.checksumMismatch
+                    }
+                }
+
+                await MainActor.run { restoreStage = "Downloading..." }
+                try await backupManager.restoreBackup(with: key) { downloaded, total in
+                    Task { @MainActor in
+                        downloadProgress = (downloaded, total)
+                    }
+                }
+
+                await MainActor.run {
+                    restoreStage = "Restoring files..."
+                    downloadProgress = nil
+                }
 
                 await MainActor.run {
                     isRestoring = false
                     restoreSuccess = true
                 }
+            } catch iCloudError.checksumMismatch {
+                await MainActor.run {
+                    errorMessage = "Wrong pattern. The pattern doesn't match the one used for this backup."
+                    isRestoring = false
+                    downloadProgress = nil
+                    patternState.reset()
+                }
             } catch iCloudError.notAvailable {
                 await MainActor.run {
                     errorMessage = "iCloud is not available. Check your connection and try again."
                     isRestoring = false
+                    downloadProgress = nil
                     patternState.reset()
                 }
             } catch iCloudError.downloadFailed {
                 await MainActor.run {
-                    errorMessage = "Decryption failed. This usually means the pattern doesn't match the one used to create the backup."
+                    errorMessage = "Download failed. The backup data may be corrupted."
                     isRestoring = false
+                    downloadProgress = nil
                     patternState.reset()
                 }
             } catch {
                 await MainActor.run {
-                    errorMessage = "\(error.localizedDescription)\n\nDetails: \(error)"
+                    errorMessage = error.localizedDescription
                     isRestoring = false
+                    downloadProgress = nil
                     patternState.reset()
                 }
             }
