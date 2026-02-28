@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "41af6d0e3285",
+  "session_id": "aa7d3963-4af7-4052-b6b1-460da8d1afcb",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-28T05:22:06.016631Z",
+  "branch": "worktree-remote-control",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "figma-capture.html"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "652919b8-4d45-4733-89af-28f36160d899",
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 63762,
+    "cache_read_tokens": 857974,
+    "output_tokens": 6788,
+    "api_call_count": 16
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-28T05:22:05.918727Z",
+    "agent_lines": 0,
+    "human_added": 3105,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3105,
+    "agent_percentage": 0
+  }
+}
