@@ -128,49 +128,76 @@ final class iCloudBackupManager: @unchecked Sendable {
     /// 48-hour TTL for staged backups
     private nonisolated static let pendingTTL: TimeInterval = 48 * 60 * 60
 
+    /// Legacy staging directory (no fingerprint)
     private nonisolated static var backupStagingDir: URL {
+        stagingDir(fingerprint: nil)
+    }
+
+    /// Per-vault staging directory: pending_backup_{fingerprint}/ or pending_backup/ (legacy)
+    private nonisolated static func stagingDir(fingerprint: String?) -> URL {
+        let dirName = fingerprint.map { "pending_backup_\($0)" } ?? "pending_backup"
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("pending_backup", isDirectory: true)
+            .appendingPathComponent(dirName, isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
 
-    private nonisolated static func chunkFileURL(index: Int) -> URL {
-        backupStagingDir.appendingPathComponent("chunk_\(index).bin")
+    private nonisolated static func chunkFileURL(index: Int, fingerprint: String? = nil) -> URL {
+        stagingDir(fingerprint: fingerprint).appendingPathComponent("chunk_\(index).bin")
     }
 
-    private nonisolated static var stateURL: URL {
-        backupStagingDir.appendingPathComponent("state.json")
+    private nonisolated static func stateURL(fingerprint: String? = nil) -> URL {
+        stagingDir(fingerprint: fingerprint).appendingPathComponent("state.json")
     }
 
+    /// Loads pending backup state. Checks per-vault dirs first, then legacy dir.
     nonisolated func loadPendingBackupState() -> PendingBackupState? {
-        guard let data = try? Data(contentsOf: Self.stateURL),
-              let state = try? JSONDecoder().decode(PendingBackupState.self, from: data) else {
-            return nil
+        // Scan all pending_backup_* dirs plus legacy pending_backup
+        let docsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let candidates: [URL]
+        if let contents = try? FileManager.default.contentsOfDirectory(
+            at: docsDir, includingPropertiesForKeys: nil
+        ) {
+            candidates = contents.filter {
+                $0.lastPathComponent.hasPrefix("pending_backup")
+                && $0.hasDirectoryPath
+            }
+        } else {
+            candidates = [Self.backupStagingDir]
         }
-        guard Date().timeIntervalSince(state.createdAt) < Self.pendingTTL else {
-            clearStagingDirectory()
-            return nil
+
+        for dir in candidates {
+            let url = dir.appendingPathComponent("state.json")
+            guard let data = try? Data(contentsOf: url),
+                  let state = try? JSONDecoder().decode(PendingBackupState.self, from: data) else {
+                continue
+            }
+            guard Date().timeIntervalSince(state.createdAt) < Self.pendingTTL else {
+                try? FileManager.default.removeItem(at: dir)
+                continue
+            }
+            return state
         }
-        return state
+        return nil
     }
 
     private nonisolated func savePendingBackupState(_ state: PendingBackupState) {
+        let url = Self.stateURL(fingerprint: state.vaultFingerprint)
         do {
             let data = try JSONEncoder().encode(state)
-            try data.write(to: Self.stateURL, options: .atomic)
-            // Set file protection so it's readable after first unlock
+            try data.write(to: url, options: .atomic)
             try FileManager.default.setAttributes(
                 [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
-                ofItemAtPath: Self.stateURL.path
+                ofItemAtPath: url.path
             )
         } catch {
             Self.logger.error("[staging] Failed to save pending state: \(error.localizedDescription)")
         }
     }
 
-    nonisolated func clearStagingDirectory() {
-        try? FileManager.default.removeItem(at: Self.backupStagingDir)
+    /// Clears staging directory for a specific fingerprint or the legacy dir.
+    nonisolated func clearStagingDirectory(fingerprint: String? = nil) {
+        try? FileManager.default.removeItem(at: Self.stagingDir(fingerprint: fingerprint))
     }
 
     var hasPendingBackup: Bool {
@@ -278,25 +305,6 @@ final class iCloudBackupManager: @unchecked Sendable {
         let (checksum, encryptedSize, chunks) = try await encryptAndPrepareChunksOffMain(payload, key: key)
         let backupId = UUID().uuidString
 
-        // Clear any stale staging data before writing new chunks
-        clearStagingDirectory()
-
-        // Ensure staging dir exists
-        try FileManager.default.createDirectory(
-            at: Self.backupStagingDir,
-            withIntermediateDirectories: true
-        )
-
-        // Write each chunk to disk with relaxed file protection
-        for (index, data) in chunks {
-            let chunkURL = Self.chunkFileURL(index: index)
-            try data.write(to: chunkURL, options: .atomic)
-            try FileManager.default.setAttributes(
-                [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
-                ofItemAtPath: chunkURL.path
-            )
-        }
-
         // Compute verification token for instant pattern check on restore
         let verificationToken = CryptoEngine.computeHMAC(for: Self.verificationSentinel, with: key)
 
@@ -306,6 +314,26 @@ final class iCloudBackupManager: @unchecked Sendable {
             if let backupKey = try? KeyDerivation.deriveBackupKey(from: pattern, gridSize: gridSize) {
                 fingerprint = Self.vaultFingerprint(from: backupKey)
             }
+        }
+
+        // Clear any stale staging data before writing new chunks
+        clearStagingDirectory(fingerprint: fingerprint)
+
+        // Ensure staging dir exists
+        let stagingDir = Self.stagingDir(fingerprint: fingerprint)
+        try FileManager.default.createDirectory(
+            at: stagingDir,
+            withIntermediateDirectories: true
+        )
+
+        // Write each chunk to disk with relaxed file protection
+        for (index, data) in chunks {
+            let chunkURL = Self.chunkFileURL(index: index, fingerprint: fingerprint)
+            try data.write(to: chunkURL, options: .atomic)
+            try FileManager.default.setAttributes(
+                [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+                ofItemAtPath: chunkURL.path
+            )
         }
 
         let state = PendingBackupState(
@@ -385,8 +413,9 @@ final class iCloudBackupManager: @unchecked Sendable {
                     }
 
                     let backupId = state.backupId
+                    let fp = state.vaultFingerprint
                     group.addTask {
-                        let chunkURL = Self.chunkFileURL(index: chunkIndex)
+                        let chunkURL = Self.chunkFileURL(index: chunkIndex, fingerprint: fp)
                         let chunkData = try Data(contentsOf: chunkURL)
 
                         let recordName = "\(backupId)_bchunk_\(chunkIndex)"
@@ -470,8 +499,25 @@ final class iCloudBackupManager: @unchecked Sendable {
                 chunkCount: state.totalChunks
             )
 
-            // Fetch current index, add version, save index
+            // Fetch current index, detect pattern change, add version
             var versionIndex = try await fetchVersionIndex(fingerprint: fingerprint)
+
+            // Auto-detect pattern change: if all existing tokens differ, purge old versions
+            if !versionIndex.versions.isEmpty,
+               let newToken = state.verificationToken {
+                let allDiffer = versionIndex.versions.allSatisfy { entry in
+                    guard let existingToken = entry.verificationToken else { return true }
+                    return existingToken != newToken
+                }
+                if allDiffer {
+                    Self.logger.info("[upload] Pattern change detected — purging \(versionIndex.versions.count) old versions")
+                    for oldVersion in versionIndex.versions {
+                        try await deleteBackupChunks(forBackupId: oldVersion.backupId)
+                    }
+                    versionIndex = BackupVersionIndex() // Start fresh
+                }
+            }
+
             let evicted = versionIndex.addVersion(versionEntry)
             evictedBackupId = evicted?.backupId
             try await saveVersionIndex(versionIndex, fingerprint: fingerprint)
@@ -512,8 +558,8 @@ final class iCloudBackupManager: @unchecked Sendable {
         // Reset retry count and locked attempt tracking on success
         UserDefaults.standard.removeObject(forKey: "lastLockedBackupAttempt")
 
-        // Clear staging directory
-        clearStagingDirectory()
+        // Clear staging directory (per-vault or legacy)
+        clearStagingDirectory(fingerprint: state.vaultFingerprint)
 
         Self.logger.info("[upload] Backup upload complete")
     }
