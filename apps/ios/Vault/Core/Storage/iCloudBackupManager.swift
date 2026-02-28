@@ -72,6 +72,12 @@ final class iCloudBackupManager: @unchecked Sendable {
     private let privateDatabase: CKDatabase
     private let fileManager = FileManager.default
 
+    /// Custom zone for backup records — required for recordZoneChanges scanning.
+    /// The default zone doesn't support change tracking or TRUEPREDICATE queries
+    /// without manually-configured indexes in CloudKit Dashboard.
+    private let backupZoneID = CKRecordZone.ID(zoneName: "BackupZone", ownerName: CKCurrentUserDefaultName)
+    private var zoneCreated = false
+
     // MARK: - Constants
 
     /// Single opaque record type — all records look identical
@@ -207,6 +213,16 @@ final class iCloudBackupManager: @unchecked Sendable {
     private init() {
         container = CKContainer(identifier: "iCloud.app.vaultaire.shared")
         privateDatabase = container.privateCloudDatabase
+    }
+
+    /// Ensures the custom BackupZone exists, creating it if needed.
+    /// Called before any upload or scan operation. Idempotent — saving an
+    /// existing zone is a no-op in CloudKit.
+    private func ensureBackupZoneExists() async throws {
+        guard !zoneCreated else { return }
+        let zone = CKRecordZone(zoneID: backupZoneID)
+        _ = try await privateDatabase.save(zone)
+        zoneCreated = true
     }
 
     // MARK: - Tag Encryption
@@ -648,6 +664,7 @@ final class iCloudBackupManager: @unchecked Sendable {
         }
 
         try await waitForAvailableAccount()
+        try await ensureBackupZoneExists()
 
         let stagingDir = Self.stagingDir(fingerprint: state.vaultFingerprint)
 
@@ -686,7 +703,7 @@ final class iCloudBackupManager: @unchecked Sendable {
                         let tagData = try Data(contentsOf: tagURL)
 
                         let recordName = UUID().uuidString
-                        let recordID = CKRecord.ID(recordName: recordName)
+                        let recordID = CKRecord.ID(recordName: recordName, zoneID: self.backupZoneID)
                         let record = CKRecord(recordType: self.recordType, recordID: recordID)
 
                         // Write bin to temp file for CKAsset
@@ -746,13 +763,13 @@ final class iCloudBackupManager: @unchecked Sendable {
         try await waitForAvailableAccount()
 
         var result = ScanResult()
-        let zoneID = CKRecordZone.default().zoneID
+        try await ensureBackupZoneExists()
         var changeToken: CKServerChangeToken? = nil
         var moreComing = true
 
         while moreComing {
             let changes = try await privateDatabase.recordZoneChanges(
-                inZoneWith: zoneID, since: changeToken
+                inZoneWith: backupZoneID, since: changeToken
             )
 
             for modification in changes.modificationResultsByID {
@@ -1034,7 +1051,7 @@ final class iCloudBackupManager: @unchecked Sendable {
         let tag = try Self.encryptTag(Self.buildVDIRTagPlaintext(backupId: latestBackupId), key: backupKey)
 
         let recordName = UUID().uuidString
-        let recordID = CKRecord.ID(recordName: recordName)
+        let recordID = CKRecord.ID(recordName: recordName, zoneID: backupZoneID)
         let record = CKRecord(recordType: recordType, recordID: recordID)
 
         let tempURL = fileManager.temporaryDirectory.appendingPathComponent("\(recordName).bin")
@@ -1055,7 +1072,7 @@ final class iCloudBackupManager: @unchecked Sendable {
     // MARK: - Batch Delete Helpers
 
     private func deleteRecords(named recordNames: [String]) async {
-        let ids = recordNames.map { CKRecord.ID(recordName: $0) }
+        let ids = recordNames.map { CKRecord.ID(recordName: $0, zoneID: backupZoneID) }
         await deleteRecordIDs(ids)
     }
 
