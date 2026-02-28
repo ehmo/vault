@@ -493,6 +493,9 @@ struct iCloudBackupSettingsView: View {
     @State private var showingRestore = false
     @State private var iCloudAvailable = true
     @State private var errorMessage: String?
+    @State private var totalBackupStorage: Int64 = 0
+    @State private var versionCount = 0
+    @State private var showingDeleteAllConfirmation = false
 
     /// Backups run automatically every 24 hours when enabled.
     private static let backupInterval: TimeInterval = 24 * 60 * 60
@@ -529,6 +532,7 @@ struct iCloudBackupSettingsView: View {
 
                         if isBackupEnabled {
                             statusSection
+                            storageSection
                             restoreSection
                         }
                     }
@@ -552,6 +556,18 @@ struct iCloudBackupSettingsView: View {
         }
         .fullScreenCover(isPresented: $showingRestore) {
             RestoreFromBackupView()
+        }
+        .alert("Delete All Backups?", isPresented: $showingDeleteAllConfirmation) {
+            Button("Cancel", role: .cancel) {
+                // Revert toggle
+                isBackupEnabled = true
+            }
+            Button("Delete All", role: .destructive) {
+                confirmDisableBackup()
+                deleteAllVersions()
+            }
+        } message: {
+            Text("Disabling backup will delete all \(versionCount) backup version\(versionCount == 1 ? "" : "s") from iCloud. This cannot be undone.")
         }
     }
 
@@ -670,6 +686,26 @@ struct iCloudBackupSettingsView: View {
         }
     }
 
+    private var storageSection: some View {
+        Section {
+            HStack {
+                Text("Backup versions")
+                Spacer()
+                Text("\(versionCount)")
+                    .foregroundStyle(.vaultSecondaryText)
+            }
+
+            HStack {
+                Text("Total backup storage")
+                Spacer()
+                Text(ByteCountFormatter.string(fromByteCount: totalBackupStorage, countStyle: .file))
+                    .foregroundStyle(.vaultSecondaryText)
+            }
+        } header: {
+            Text("Storage")
+        }
+    }
+
     private var restoreSection: some View {
         Section("Restore") {
             Button("Restore from Backup") {
@@ -690,6 +726,7 @@ struct iCloudBackupSettingsView: View {
         // Load per-vault settings from UserDefaults
         isBackupEnabled = UserDefaults.standard.bool(forKey: enabledKey)
         lastBackupTimestamp = UserDefaults.standard.double(forKey: timestampKey)
+        loadVersionInfo()
 
         Task { @MainActor in
             let available = await checkiCloudAvailable()
@@ -713,16 +750,17 @@ struct iCloudBackupSettingsView: View {
     }
 
     private func handleToggleChange(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: enabledKey)
-
         guard enabled else {
-            backupTask?.cancel()
-            backupTask = nil
-            isBackingUp = false
-            backupStage = nil
-            IdleTimerManager.shared.enable()
+            // Show confirmation to delete all backup versions
+            if versionCount > 0 {
+                showingDeleteAllConfirmation = true
+            } else {
+                confirmDisableBackup()
+            }
             return
         }
+
+        UserDefaults.standard.set(true, forKey: enabledKey)
 
         // Check iCloud via CloudKit account status before allowing enable
         Task { @MainActor in
@@ -832,6 +870,47 @@ struct iCloudBackupSettingsView: View {
     }
     
     /// Resumes an interrupted backup from staged data
+    private func confirmDisableBackup() {
+        UserDefaults.standard.set(false, forKey: enabledKey)
+        backupTask?.cancel()
+        backupTask = nil
+        isBackingUp = false
+        backupStage = nil
+        IdleTimerManager.shared.enable()
+    }
+
+    private func deleteAllVersions() {
+        Task {
+            do {
+                let versionIndex = try await backupManager.fetchVersionIndex(fingerprint: vaultFingerprint)
+                for version in versionIndex.versions {
+                    try await backupManager.deleteBackupVersion(version, fingerprint: vaultFingerprint)
+                }
+                await MainActor.run {
+                    versionCount = 0
+                    totalBackupStorage = 0
+                }
+            } catch {
+                EmbraceManager.shared.captureError(error, context: ["action": "deleteAllBackupVersions"])
+            }
+        }
+    }
+
+    private func loadVersionInfo() {
+        Task {
+            do {
+                let versionIndex = try await backupManager.fetchVersionIndex(fingerprint: vaultFingerprint)
+                let totalSize = versionIndex.versions.reduce(0) { $0 + Int64($1.size) }
+                await MainActor.run {
+                    versionCount = versionIndex.versions.count
+                    totalBackupStorage = totalSize
+                }
+            } catch {
+                // Silently fail — storage display is informational
+            }
+        }
+    }
+
     private func resumePendingBackup() {
         isBackingUp = true
         backupStage = .uploading
