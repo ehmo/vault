@@ -193,6 +193,7 @@ final class iCloudBackupManager: @unchecked Sendable {
         }
         struct DecoyChunk {
             let recordID: CKRecord.ID
+            let groupId: String
         }
 
         var dataChunks: [DataChunk] = []
@@ -562,12 +563,14 @@ final class iCloudBackupManager: @unchecked Sendable {
         let vdirTag = try Self.encryptTag(Self.buildVDIRTagPlaintext(backupId: backupId), key: backupKey)
         try writeChunkFile(vdirBlob, tag: vdirTag, name: "vdir", dir: stagingDir)
 
-        // Generate decoy chunks
+        // Generate decoy chunks — encrypt random data so blob structure matches real chunks
         for i in 0..<decoyCount {
             try Task.checkCancellation()
-            let decoyData = CryptoEngine.generateRandomBytes(count: Self.blobSize) ?? Data(count: Self.blobSize)
+            let randomPayloadSize = Int.random(in: 1024...(Self.maxPayloadPerChunk))
+            let randomPayload = CryptoEngine.generateRandomBytes(count: randomPayloadSize) ?? Data(count: randomPayloadSize)
+            let decoyBlob = try Self.encryptBlob(randomPayload, key: backupKey)
             let decoyTag = try Self.encryptTag(Self.buildVDCYTagPlaintext(groupId: backupId), key: backupKey)
-            try writeChunkFile(decoyData, tag: decoyTag, name: "decoy_\(i)", dir: stagingDir)
+            try writeChunkFile(decoyBlob, tag: decoyTag, name: "decoy_\(i)", dir: stagingDir)
         }
 
         // Determine old records to delete (evicted version + old VDIR)
@@ -786,7 +789,7 @@ final class iCloudBackupManager: @unchecked Sendable {
             case Self.vdirMagic:
                 result.dirChunks.append(.init(recordID: recordID, backupId: parsed.backupId))
             case Self.vdcyMagic:
-                result.decoyChunks.append(.init(recordID: recordID))
+                result.decoyChunks.append(.init(recordID: recordID, groupId: parsed.backupId))
             default:
                 break
             }
@@ -982,8 +985,8 @@ final class iCloudBackupManager: @unchecked Sendable {
         for chunk in scan.dataChunks where chunk.backupId == version.backupId {
             idsToDelete.append(chunk.recordID)
         }
-        // Delete decoys associated with this backup's group
-        for decoy in scan.decoyChunks {
+        // Delete decoys associated with this backup's group only
+        for decoy in scan.decoyChunks where decoy.groupId == version.backupId {
             idsToDelete.append(decoy.recordID)
         }
 

@@ -990,7 +990,6 @@ struct RestoreFromBackupView: View {
     @State private var downloadProgress: (downloaded: Int, total: Int)?
     @State private var errorMessage: String?
     @State private var restoreSuccess = false
-    @State private var vaultFingerprint: String?
 
     private let backupManager = iCloudBackupManager.shared
 
@@ -1242,18 +1241,16 @@ struct RestoreFromBackupView: View {
         isLoading = true
         defer { Task { @MainActor in isLoading = false } }
 
-        guard let key = appState.currentVaultKey else {
+        guard appState.currentVaultKey != nil, let pattern = appState.currentPattern else {
             await MainActor.run { noBackupFound = true }
             return
         }
 
         do {
-            let backupKey = try KeyDerivation.deriveBackupKey(from: appState.currentPattern ?? [], gridSize: 5)
+            let backupKey = try KeyDerivation.deriveBackupKey(from: pattern, gridSize: 5)
             let versionIndex = try await backupManager.scanForVersions(backupKey: backupKey)
 
             await MainActor.run {
-                let fp = KeyDerivation.keyFingerprint(from: key.rawBytes)
-                vaultFingerprint = fp
                 versions = versionIndex.versions.sorted { $0.timestamp > $1.timestamp }
                 noBackupFound = versions.isEmpty
             }
@@ -1278,8 +1275,10 @@ struct RestoreFromBackupView: View {
                     EmbraceManager.shared.captureError(error, context: ["action": "deleteBackupVersion"])
                 }
             }
-            if versions.isEmpty {
-                await MainActor.run { noBackupFound = true }
+            await MainActor.run {
+                if versions.isEmpty {
+                    noBackupFound = true
+                }
             }
         }
     }
