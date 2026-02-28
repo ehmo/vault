@@ -1394,6 +1394,45 @@ final class iCloudBackupManager: @unchecked Sendable {
         }
     }
 
+    /// Restores a specific backup version identified by its version entry.
+    func restoreBackupVersion(
+        _ version: BackupVersionEntry,
+        with key: Data,
+        onProgress: ((Int, Int) -> Void)? = nil
+    ) async throws {
+        try await waitForAvailableAccount()
+
+        let metadata = BackupMetadata(
+            timestamp: version.timestamp,
+            size: version.size,
+            checksum: Data(), // Not used for v2 restore path
+            formatVersion: 2,
+            chunkCount: version.chunkCount,
+            backupId: version.backupId,
+            verificationToken: version.verificationToken
+        )
+
+        // Create a dummy record - restoreV2 doesn't actually use the record for chunked backups
+        let dummyRecord = CKRecord(recordType: recordType)
+        try await restoreV2(record: dummyRecord, metadata: metadata, key: key, onProgress: onProgress)
+    }
+
+    /// Deletes a specific backup version's chunks and removes it from the version index.
+    func deleteBackupVersion(
+        _ version: BackupVersionEntry,
+        fingerprint: String
+    ) async throws {
+        try await waitForAvailableAccount()
+
+        // Delete the chunks
+        try await deleteBackupChunks(forBackupId: version.backupId)
+
+        // Update the version index
+        var versionIndex = try await fetchVersionIndex(fingerprint: fingerprint)
+        versionIndex.versions.removeAll { $0.backupId == version.backupId }
+        try await saveVersionIndex(versionIndex, fingerprint: fingerprint)
+    }
+
     // MARK: - v1 Legacy Restore
 
     /// Restores a v1 backup (single CKAsset containing the entire primary blob).
