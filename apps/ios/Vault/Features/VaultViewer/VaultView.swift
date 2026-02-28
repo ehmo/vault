@@ -52,7 +52,7 @@ private enum DateGroupFormatters {
         return f
     }()
 
-    static let isoFormatter = ISO8601DateFormatter()
+    nonisolated(unsafe) static let isoFormatter = ISO8601DateFormatter()
 }
 
 func groupFilesByDate(_ items: [VaultFileItem], newestFirst: Bool = true, dateKeyPath: KeyPath<VaultFileItem, Date?> = \.createdAt) -> [DateGroup] {
