@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "831dacd37f6b",
+  "session_id": "49d30618-7930-4ad0-8cc8-46e45f9d0152",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-28T08:28:42.457941Z",
+  "branch": "worktree-sequential-brewing-patterson",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/VaultTests/Mocks/MockCloudKitSharing.swift",
+    "apps/ios/VaultTests/Mocks/MockVaultStorage.swift",
+    "apps/ios/VaultTests/ShareSyncManagerTests.swift",
+    "apps/ios/VaultTests/ShareUploadDebounceTests.swift",
+    "apps/ios/VaultTests/ShareUploadManagerTests.swift",
+    "apps/ios/VaultTests/SonarQubeRulesTests.swift",
+    "apps/ios/VaultTests/iCloudBackupBackgroundTests.swift"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "9043cf4f-aa80-46b0-b267-ee71cbd0d9de",
+  "token_usage": {
+    "input_tokens": 11167,
+    "cache_creation_tokens": 282399,
+    "cache_read_tokens": 12610709,
+    "output_tokens": 10732,
+    "api_call_count": 104
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-28T08:28:42.084762Z",
+    "agent_lines": 288,
+    "human_added": 2946,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3234,
+    "agent_percentage": 8.905380333951761
+  }
+}
