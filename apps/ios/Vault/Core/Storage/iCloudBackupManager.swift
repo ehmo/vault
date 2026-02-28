@@ -574,7 +574,7 @@ final class iCloudBackupManager: @unchecked Sendable {
         }
 
         // Determine old records to delete (evicted version + old VDIR)
-        var recordsToDelete: [String] = []
+        let recordsToDelete: [String] = []
         if let evictedVersion = evicted {
             // We'll scan for these records during upload if possible, or track locally
             Self.logger.info("[staging] Version evicted: \(evictedVersion.backupId.prefix(8))...")
@@ -847,7 +847,7 @@ final class iCloudBackupManager: @unchecked Sendable {
     func restoreBackupVersion(
         _ version: BackupVersionEntry,
         backupKey: Data,
-        onProgress: ((Int, Int) -> Void)? = nil
+        onProgress: (@Sendable (Int, Int) -> Void)? = nil
     ) async throws {
         try await waitForAvailableAccount()
 
@@ -917,7 +917,7 @@ final class iCloudBackupManager: @unchecked Sendable {
     private func downloadAndDecryptChunks(
         _ chunks: [(recordID: CKRecord.ID, chunkIndex: Int)],
         backupKey: Data,
-        onProgress: ((Int, Int) -> Void)? = nil
+        onProgress: (@Sendable (Int, Int) -> Void)? = nil
     ) async throws -> Data {
         let total = chunks.count
         guard total > 0 else { return Data() }
@@ -1514,15 +1514,10 @@ final class iCloudBackupManager: @unchecked Sendable {
                         self?.completeBackgroundProcessingTask(success: taskSucceeded)
                     }
                 }
-                do {
-                    // Background task needs pattern — not available without vault unlock
-                    // Only upload staged backups in background; full backup requires foreground
-                    Self.logger.info("[bg-task] Vault key available but no pattern for staging")
-                    succeeded = true
-                } catch {
-                    Self.logger.error("[bg-task] Backup failed: \(error)")
-                    self.scheduleBackgroundResumeTask(earliestIn: 300)
-                }
+                // Background task needs pattern — not available without vault unlock
+                // Only upload staged backups in background; full backup requires foreground
+                Self.logger.info("[bg-task] Vault key available but no pattern for staging")
+                succeeded = true
                 _ = capturedKey // suppress unused warning
             }
             autoBackupTask = bgTask

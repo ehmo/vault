@@ -526,8 +526,9 @@ struct AppSettingsView: View {
                     return
                 }
 
-                settingsLogger.info("[nuke] [\(recordType)] Found \(allIds.count) records to delete")
-                await MainActor.run { iCloudNukeResult = "Deleting \(allIds.count) \(recordType) records..." }
+                let totalCount = allIds.count
+                settingsLogger.info("[nuke] [\(recordType)] Found \(totalCount) records to delete")
+                await MainActor.run { iCloudNukeResult = "Deleting \(totalCount) \(recordType) records..." }
 
                 // Delete in non-atomic batches of 100 using CKModifyRecordsOperation
                 for batch in stride(from: 0, to: allIds.count, by: 100) {
@@ -1421,7 +1422,7 @@ struct RestoreFromBackupView: View {
                 let backupKey = try KeyDerivation.deriveBackupKey(from: pattern, gridSize: patternState.gridSize)
 
                 await MainActor.run { restoreStage = "Downloading..." }
-                try await backupManager.restoreBackupVersion(version, backupKey: backupKey) { downloaded, total in
+                try await backupManager.restoreBackupVersion(version, backupKey: backupKey) { @Sendable downloaded, total in
                     Task { @MainActor in
                         downloadProgress = (downloaded, total)
                     }

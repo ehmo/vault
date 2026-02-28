@@ -122,7 +122,7 @@ final class MediaOptimizer: Sendable {
 
     /// Images below this size skip HEIC conversion — the CPU cost of decode+encode
     /// outweighs the negligible space savings on small files.
-    static var imageOptimizationThreshold: Int64 = 500_000  // 500 KB
+    static let imageOptimizationThreshold: Int64 = 500_000  // 500 KB
 
     private func optimizeImage(fileURL: URL, mimeType: String) throws -> Result {
         // Skip if already HEIC

@@ -45,14 +45,14 @@ struct DateGroup: Identifiable, Equatable {
 }
 
 private enum DateGroupFormatters {
-    nonisolated(unsafe) static let dayFormatter: DateFormatter = {
+    static let dayFormatter: DateFormatter = {
         let f = DateFormatter()
         f.doesRelativeDateFormatting = false
         f.dateFormat = "EEEE, MMMM d"
         return f
     }()
 
-    nonisolated(unsafe) static let isoFormatter = ISO8601DateFormatter()
+    static let isoFormatter = ISO8601DateFormatter()
 }
 
 func groupFilesByDate(_ items: [VaultFileItem], newestFirst: Bool = true, dateKeyPath: KeyPath<VaultFileItem, Date?> = \.createdAt) -> [DateGroup] {
