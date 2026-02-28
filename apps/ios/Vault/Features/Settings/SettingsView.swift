@@ -1059,6 +1059,7 @@ struct RestoreFromBackupView: View {
 
     private func resetForRetry() {
         errorMessage = nil
+        downloadProgress = nil
         patternState.reset()
     }
 
@@ -1115,11 +1116,7 @@ struct RestoreFromBackupView: View {
                 }
 
                 await MainActor.run {
-                    restoreStage = "Restoring files..."
                     downloadProgress = nil
-                }
-
-                await MainActor.run {
                     isRestoring = false
                     restoreSuccess = true
                 }

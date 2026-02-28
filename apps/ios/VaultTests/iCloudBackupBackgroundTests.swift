@@ -705,4 +705,413 @@ final class ICloudBackupBackgroundTests: XCTestCase {
         XCTAssertFalse(manager.isUploadRunning,
                        "isUploadRunning must be cleared even when upload throws")
     }
+
+    // MARK: - iCloudError Error Descriptions (Phase 1)
+
+    func testAllICloudErrorCasesHaveDescriptions() {
+        let allCases: [iCloudError] = [
+            .notAvailable, .containerNotFound, .uploadFailed,
+            .downloadFailed, .fileNotFound, .checksumMismatch, .wifiRequired
+        ]
+        for error in allCases {
+            XCTAssertNotNil(error.errorDescription,
+                            "\(error) should have a non-nil errorDescription")
+            XCTAssertFalse(error.errorDescription!.isEmpty,
+                           "\(error) should have a non-empty errorDescription")
+        }
+    }
+
+    func testICloudErrorDescriptionContent() {
+        // Verify each case returns the expected human-readable message
+        XCTAssertEqual(iCloudError.notAvailable.errorDescription, "iCloud is not available.")
+        XCTAssertEqual(iCloudError.containerNotFound.errorDescription, "iCloud container not found.")
+        XCTAssertEqual(iCloudError.uploadFailed.errorDescription, "Upload failed. Check your connection and try again.")
+        XCTAssertEqual(iCloudError.downloadFailed.errorDescription, "Download failed. The backup data may be corrupted.")
+        XCTAssertEqual(iCloudError.fileNotFound.errorDescription, "No backup found.")
+        XCTAssertTrue(iCloudError.checksumMismatch.errorDescription!.contains("Wrong pattern"))
+        XCTAssertTrue(iCloudError.wifiRequired.errorDescription!.contains("Wi-Fi"))
+    }
+
+    func testICloudErrorLocalizedDescriptionUsesErrorDescription() {
+        // LocalizedError's localizedDescription should use errorDescription
+        let error: Error = iCloudError.checksumMismatch
+        XCTAssertEqual(
+            error.localizedDescription,
+            "Wrong pattern. The pattern doesn't match the one used for this backup.",
+            "localizedDescription should match errorDescription for LocalizedError conformance"
+        )
+    }
+
+    func testICloudErrorDescriptionsDoNotContainSwiftErrorType() {
+        // The original bug: errors displayed as "Vault.iCloudError error 5."
+        let allCases: [iCloudError] = [
+            .notAvailable, .containerNotFound, .uploadFailed,
+            .downloadFailed, .fileNotFound, .checksumMismatch, .wifiRequired
+        ]
+        for error in allCases {
+            let description = error.errorDescription ?? ""
+            XCTAssertFalse(description.contains("iCloudError"),
+                           "\(error).errorDescription should not contain raw Swift type name")
+            XCTAssertFalse(description.contains("error "),
+                           "\(error).errorDescription should not contain raw error number")
+        }
+    }
+
+    // MARK: - Verification Token in BackupMetadata (Phase 1)
+
+    func testBackupMetadataVerificationTokenDefaultsToNil() {
+        let metadata = iCloudBackupManager.BackupMetadata(
+            timestamp: Date(),
+            size: 1024,
+            checksum: Data()
+        )
+        XCTAssertNil(metadata.verificationToken,
+                     "verificationToken should default to nil for backward compat")
+    }
+
+    func testBackupMetadataWithVerificationToken() {
+        let token = Data([0xDE, 0xAD, 0xBE, 0xEF])
+        let metadata = iCloudBackupManager.BackupMetadata(
+            timestamp: Date(),
+            size: 1024,
+            checksum: Data(),
+            verificationToken: token
+        )
+        XCTAssertEqual(metadata.verificationToken, token)
+    }
+
+    func testBackupMetadataCodableRoundTripWithVerificationToken() throws {
+        let token = Data(repeating: 0xAB, count: 32)
+        let metadata = iCloudBackupManager.BackupMetadata(
+            timestamp: Date(timeIntervalSince1970: 1700000000),
+            size: 5_242_880,
+            checksum: Data([0xDE, 0xAD]),
+            formatVersion: 2,
+            chunkCount: 3,
+            backupId: "token-test",
+            verificationToken: token
+        )
+
+        let data = try JSONEncoder().encode(metadata)
+        let decoded = try JSONDecoder().decode(iCloudBackupManager.BackupMetadata.self, from: data)
+
+        XCTAssertEqual(decoded.verificationToken, token)
+        XCTAssertEqual(decoded.verificationToken?.count, 32)
+        XCTAssertEqual(decoded.backupId, "token-test")
+    }
+
+    func testBackupMetadataCodableRoundTripWithNilVerificationToken() throws {
+        let metadata = iCloudBackupManager.BackupMetadata(
+            timestamp: Date(),
+            size: 1024,
+            checksum: Data(),
+            formatVersion: 2,
+            verificationToken: nil
+        )
+
+        let data = try JSONEncoder().encode(metadata)
+        let decoded = try JSONDecoder().decode(iCloudBackupManager.BackupMetadata.self, from: data)
+
+        XCTAssertNil(decoded.verificationToken,
+                     "nil verificationToken should survive Codable round-trip")
+    }
+
+    func testBackupMetadataDecodesOldFormatWithoutVerificationToken() throws {
+        // Simulate JSON from a pre-Phase-1 backup (no verificationToken key)
+        let json = """
+        {
+            "timestamp": 1700000000,
+            "size": 1024,
+            "checksum": "AAAA",
+            "formatVersion": 2,
+            "chunkCount": 3,
+            "backupId": "old-backup"
+        }
+        """.data(using: .utf8)!
+
+        let decoder = JSONDecoder()
+        let decoded = try decoder.decode(iCloudBackupManager.BackupMetadata.self, from: json)
+
+        XCTAssertNil(decoded.verificationToken,
+                     "Old metadata without verificationToken key should decode with nil token")
+        XCTAssertEqual(decoded.backupId, "old-backup")
+        XCTAssertEqual(decoded.formatVersion, 2)
+    }
+
+    // MARK: - Verification Token in PendingBackupState (Phase 1)
+
+    func testPendingBackupStateCodableRoundTripWithVerificationToken() throws {
+        let token = Data(repeating: 0xCC, count: 32)
+        let state = iCloudBackupManager.PendingBackupState(
+            backupId: "token-state-test",
+            totalChunks: 5,
+            checksum: Data([0x01]),
+            encryptedSize: 10_000,
+            createdAt: Date(),
+            uploadFinished: false,
+            manifestSaved: false,
+            retryCount: 0,
+            fileCount: 10,
+            vaultTotalSize: 50_000,
+            verificationToken: token
+        )
+
+        let data = try JSONEncoder().encode(state)
+        let decoded = try JSONDecoder().decode(iCloudBackupManager.PendingBackupState.self, from: data)
+
+        XCTAssertEqual(decoded.verificationToken, token)
+        XCTAssertEqual(decoded.verificationToken?.count, 32)
+    }
+
+    func testPendingBackupStateCodableWithNilVerificationToken() throws {
+        let state = iCloudBackupManager.PendingBackupState(
+            backupId: "nil-token-test",
+            totalChunks: 3,
+            checksum: Data(),
+            encryptedSize: 5000,
+            createdAt: Date(),
+            uploadFinished: false,
+            manifestSaved: false,
+            retryCount: 0,
+            fileCount: 5,
+            vaultTotalSize: 10_000,
+            verificationToken: nil
+        )
+
+        let data = try JSONEncoder().encode(state)
+        let decoded = try JSONDecoder().decode(iCloudBackupManager.PendingBackupState.self, from: data)
+
+        XCTAssertNil(decoded.verificationToken)
+    }
+
+    func testPendingBackupStateDecodesOldFormatWithoutVerificationToken() throws {
+        // Simulate a staged backup written by a pre-Phase-1 version
+        let oldState = """
+        {
+            "backupId": "old-staged",
+            "totalChunks": 3,
+            "checksum": "AQID",
+            "encryptedSize": 3072,
+            "createdAt": 1700000000,
+            "uploadFinished": false,
+            "manifestSaved": false,
+            "retryCount": 0,
+            "fileCount": 10,
+            "vaultTotalSize": 102400,
+            "wasTerminated": false
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(iCloudBackupManager.PendingBackupState.self, from: oldState)
+
+        XCTAssertNil(decoded.verificationToken,
+                     "Old PendingBackupState without verificationToken should decode with nil")
+        XCTAssertEqual(decoded.backupId, "old-staged")
+        XCTAssertEqual(decoded.totalChunks, 3)
+    }
+
+    // MARK: - verifyPatternBeforeDownload (Phase 1)
+
+    func testVerifyPatternBeforeDownloadCorrectKey() {
+        let key = Data(repeating: 0xAA, count: 32)
+        let sentinel = "vault-backup-verify".data(using: .utf8)!
+        let token = CryptoEngine.computeHMAC(for: sentinel, with: key)
+
+        let metadata = iCloudBackupManager.BackupMetadata(
+            timestamp: Date(),
+            size: 1024,
+            checksum: Data(),
+            verificationToken: token
+        )
+
+        XCTAssertTrue(
+            manager.verifyPatternBeforeDownload(key: key, metadata: metadata),
+            "Correct key should verify successfully"
+        )
+    }
+
+    func testVerifyPatternBeforeDownloadWrongKey() {
+        let correctKey = Data(repeating: 0xAA, count: 32)
+        let wrongKey = Data(repeating: 0xBB, count: 32)
+        let sentinel = "vault-backup-verify".data(using: .utf8)!
+        let token = CryptoEngine.computeHMAC(for: sentinel, with: correctKey)
+
+        let metadata = iCloudBackupManager.BackupMetadata(
+            timestamp: Date(),
+            size: 1024,
+            checksum: Data(),
+            verificationToken: token
+        )
+
+        XCTAssertFalse(
+            manager.verifyPatternBeforeDownload(key: wrongKey, metadata: metadata),
+            "Wrong key should fail verification"
+        )
+    }
+
+    func testVerifyPatternBeforeDownloadNilTokenPassesThrough() {
+        let key = Data(repeating: 0xAA, count: 32)
+
+        let metadata = iCloudBackupManager.BackupMetadata(
+            timestamp: Date(),
+            size: 1024,
+            checksum: Data(),
+            verificationToken: nil  // Old backup without token
+        )
+
+        XCTAssertTrue(
+            manager.verifyPatternBeforeDownload(key: key, metadata: metadata),
+            "Nil verificationToken (old backup) should pass through to download+HMAC check"
+        )
+    }
+
+    func testVerifyPatternBeforeDownloadEmptyTokenFailsWithAnyKey() {
+        let key = Data(repeating: 0xAA, count: 32)
+
+        let metadata = iCloudBackupManager.BackupMetadata(
+            timestamp: Date(),
+            size: 1024,
+            checksum: Data(),
+            verificationToken: Data()  // Empty data, not nil
+        )
+
+        XCTAssertFalse(
+            manager.verifyPatternBeforeDownload(key: key, metadata: metadata),
+            "Empty (non-nil) verificationToken should not match any computed HMAC"
+        )
+    }
+
+    func testVerifyPatternBeforeDownloadDeterministic() {
+        let key = Data(repeating: 0xCC, count: 32)
+        let sentinel = "vault-backup-verify".data(using: .utf8)!
+
+        let token1 = CryptoEngine.computeHMAC(for: sentinel, with: key)
+        let token2 = CryptoEngine.computeHMAC(for: sentinel, with: key)
+
+        XCTAssertEqual(token1, token2,
+                       "Verification token computation must be deterministic")
+    }
+
+    func testVerifyPatternBeforeDownloadDifferentKeysProduceDifferentTokens() {
+        let key1 = Data(repeating: 0xAA, count: 32)
+        let key2 = Data(repeating: 0xBB, count: 32)
+        let sentinel = "vault-backup-verify".data(using: .utf8)!
+
+        let token1 = CryptoEngine.computeHMAC(for: sentinel, with: key1)
+        let token2 = CryptoEngine.computeHMAC(for: sentinel, with: key2)
+
+        XCTAssertNotEqual(token1, token2,
+                          "Different keys must produce different verification tokens")
+    }
+
+    func testVerifyPatternBeforeDownloadTokenIsCorrectSize() {
+        let key = Data(repeating: 0xAA, count: 32)
+        let sentinel = "vault-backup-verify".data(using: .utf8)!
+        let token = CryptoEngine.computeHMAC(for: sentinel, with: key)
+
+        // SHA-256 HMAC produces 32 bytes
+        XCTAssertEqual(token.count, 32,
+                       "Verification token should be 32 bytes (SHA-256 HMAC)")
+    }
+
+    // MARK: - Verification Token End-to-End Consistency (Phase 1)
+
+    func testVerificationTokenSentinelIsConsistent() {
+        // The sentinel must match what stageBackupToDisk uses.
+        // This test ensures the constant hasn't been accidentally changed.
+        let sentinel = "vault-backup-verify".data(using: .utf8)!
+        let key = Data(repeating: 0xDD, count: 32)
+
+        // Compute token the same way stageBackupToDisk does
+        let token = CryptoEngine.computeHMAC(for: sentinel, with: key)
+
+        // Verify the same way verifyPatternBeforeDownload does
+        let metadata = iCloudBackupManager.BackupMetadata(
+            timestamp: Date(),
+            size: 1024,
+            checksum: Data(),
+            verificationToken: token
+        )
+
+        XCTAssertTrue(
+            manager.verifyPatternBeforeDownload(key: key, metadata: metadata),
+            "Token computed the same way as stageBackupToDisk should verify correctly"
+        )
+    }
+
+    func testPendingBackupStateWithTokenSurvivesDiskRoundTrip() throws {
+        let token = CryptoEngine.computeHMAC(
+            for: "vault-backup-verify".data(using: .utf8)!,
+            with: Data(repeating: 0xEE, count: 32)
+        )
+
+        try writePendingState(.init(backupId: "disk-roundtrip", totalChunks: 2))
+
+        // Overwrite with a state that has a real verification token
+        let state = iCloudBackupManager.PendingBackupState(
+            backupId: "disk-roundtrip",
+            totalChunks: 2,
+            checksum: Data([0x01, 0x02]),
+            encryptedSize: 2048,
+            createdAt: Date(),
+            uploadFinished: false,
+            manifestSaved: false,
+            retryCount: 0,
+            fileCount: 5,
+            vaultTotalSize: 10_000,
+            verificationToken: token
+        )
+        try fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
+        let data = try JSONEncoder().encode(state)
+        try data.write(to: stagingDir.appendingPathComponent("state.json"))
+
+        let loaded = manager.loadPendingBackupState()
+        XCTAssertNotNil(loaded)
+        XCTAssertEqual(loaded?.verificationToken, token,
+                       "Verification token must survive write → read from disk")
+        XCTAssertEqual(loaded?.verificationToken?.count, 32)
+    }
+
+    func testPendingBackupStateWithNilTokenSurvivesDiskRoundTrip() throws {
+        try writePendingState(.init(backupId: "nil-token-disk"))
+
+        let loaded = manager.loadPendingBackupState()
+        XCTAssertNotNil(loaded)
+        XCTAssertNil(loaded?.verificationToken,
+                     "nil verificationToken must survive write → read from disk")
+    }
+
+    // MARK: - restoreBackup Signature Compatibility (Phase 1)
+
+    func testRestoreBackupAcceptsNilProgressCallback() async {
+        // restoreBackup with default nil onProgress should compile and not crash
+        // (will fail on iCloud, but that's expected)
+        do {
+            try await manager.restoreBackup(with: Data(repeating: 0xAA, count: 32))
+        } catch {
+            // Expected — iCloud isn't available in tests
+        }
+    }
+
+    func testRestoreBackupAcceptsExplicitNilProgressCallback() async {
+        do {
+            try await manager.restoreBackup(with: Data(repeating: 0xAA, count: 32), onProgress: nil)
+        } catch {
+            // Expected
+        }
+    }
+
+    func testRestoreBackupAcceptsProgressClosure() async {
+        var progressCalls: [(Int, Int)] = []
+
+        do {
+            try await manager.restoreBackup(with: Data(repeating: 0xAA, count: 32)) { downloaded, total in
+                progressCalls.append((downloaded, total))
+            }
+        } catch {
+            // Expected — iCloud isn't available
+        }
+
+        // No progress expected since we fail before downloading, but signature works
+    }
 }
