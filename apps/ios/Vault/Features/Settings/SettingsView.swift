@@ -28,6 +28,8 @@ struct AppSettingsView: View {
 
     #if DEBUG
     @State private var showingDebugResetConfirmation = false
+    @State private var isNukingICloud = false
+    @State private var iCloudNukeResult: String?
     #endif
 
     private var appVersion: String {
@@ -260,6 +262,29 @@ struct AppSettingsView: View {
                     }
                 }
                 .accessibilityIdentifier("debug_full_reset")
+
+                Button(action: { nukeAllICloudData() }) {
+                    HStack {
+                        if isNukingICloud {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Nuking iCloud...")
+                        } else {
+                            Image(systemName: "icloud.slash.fill")
+                                .foregroundStyle(.red)
+                            Text("Nuke All iCloud Data")
+                                .foregroundStyle(.red)
+                        }
+                    }
+                }
+                .disabled(isNukingICloud)
+                .accessibilityIdentifier("debug_nuke_icloud")
+
+                if let iCloudNukeResult {
+                    Text(iCloudNukeResult)
+                        .font(.caption)
+                        .foregroundStyle(.vaultSecondaryText)
+                }
             } header: {
                 HStack {
                     Image(systemName: "hammer.fill")
@@ -267,7 +292,7 @@ struct AppSettingsView: View {
                     Text("Debug Tools")
                 }
             } footer: {
-                Text("Development only: Reset onboarding or completely wipe all data including vault files, recovery phrases, settings, and Keychain entries.")
+                Text("Development only: Reset onboarding or completely wipe all data including vault files, recovery phrases, settings, and Keychain entries. Nuke iCloud deletes ALL CloudKit records (shared vaults + backups).")
             }
             #endif
 
@@ -458,15 +483,107 @@ struct AppSettingsView: View {
     private func clearTemporaryFiles() {
         let fileManager = FileManager.default
         let tempURL = fileManager.temporaryDirectory
-        
+
         // Remove all temporary files
         if let contents = try? fileManager.contentsOfDirectory(at: tempURL, includingPropertiesForKeys: nil) {
             for fileURL in contents {
                 try? fileManager.removeItem(at: fileURL)
             }
         }
-        
+
         settingsLogger.debug("Temporary files cleared")
+    }
+
+    private func nukeAllICloudData() {
+        isNukingICloud = true
+        iCloudNukeResult = nil
+        Task {
+            var deleted = 0
+            var errors = 0
+            let container = CKContainer(identifier: "iCloud.app.vaultaire.shared")
+            let publicDB = container.publicCloudDatabase
+            let privateDB = container.privateCloudDatabase
+
+            // Helper: delete all records of a given type from a database using a queryable field
+            func deleteAll(recordType: String, queryableField: String, database: CKDatabase) async {
+                let predicate = NSPredicate(format: "%K BEGINSWITH %@", queryableField, "")
+                let query = CKQuery(recordType: recordType, predicate: predicate)
+
+                // Collect all record IDs first
+                var allIds: [CKRecord.ID] = []
+                do {
+                    let result = try await database.records(matching: query, desiredKeys: [], resultsLimit: 200)
+                    allIds.append(contentsOf: result.matchResults.map { $0.0 })
+                    var cursor = result.queryCursor
+                    while let activeCursor = cursor {
+                        let page = try await database.records(continuingMatchFrom: activeCursor, desiredKeys: [], resultsLimit: 200)
+                        allIds.append(contentsOf: page.matchResults.map { $0.0 })
+                        cursor = page.queryCursor
+                    }
+                } catch {
+                    settingsLogger.error("Query failed for \(recordType) (\(queryableField)): \(error)")
+                    errors += 1
+                    return
+                }
+
+                settingsLogger.info("[nuke] [\(recordType)] Found \(allIds.count) records to delete")
+                await MainActor.run { iCloudNukeResult = "Deleting \(allIds.count) \(recordType) records..." }
+
+                // Delete in non-atomic batches of 100 using CKModifyRecordsOperation
+                for batch in stride(from: 0, to: allIds.count, by: 100) {
+                    let end = min(batch + 100, allIds.count)
+                    let batchIds = Array(allIds[batch..<end])
+
+                    var batchDeleted = 0
+                    var batchErrors = 0
+
+                    await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                        let op = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: batchIds)
+                        op.isAtomic = false
+                        op.perRecordDeleteBlock = { recordId, result in
+                            switch result {
+                            case .success:
+                                batchDeleted += 1
+                            case .failure(let err):
+                                batchErrors += 1
+                                settingsLogger.error("[nuke] \(recordType, privacy: .public) \(recordId.recordName, privacy: .public): \(String(describing: err), privacy: .public)")
+                            }
+                        }
+                        op.modifyRecordsResultBlock = { _ in
+                            continuation.resume()
+                        }
+                        database.add(op)
+                    }
+
+                    deleted += batchDeleted
+                    errors += batchErrors
+                    settingsLogger.info("[nuke] \(recordType) batch: \(batchDeleted) deleted, \(batchErrors) errors")
+                }
+            }
+
+            // Public DB: SharedVault + SharedVaultChunk
+            await deleteAll(recordType: "SharedVault", queryableField: "shareVaultId", database: publicDB)
+            await deleteAll(recordType: "SharedVaultChunk", queryableField: "vaultId", database: publicDB)
+
+            // Private DB: VaultBackupChunk (query by backupId)
+            await deleteAll(recordType: "VaultBackupChunk", queryableField: "backupId", database: privateDB)
+
+            // Private DB: VaultBackup manifest uses fixed recordName "current_backup"
+            do {
+                let backupRecordId = CKRecord.ID(recordName: "current_backup")
+                try await privateDB.deleteRecord(withID: backupRecordId)
+                deleted += 1
+            } catch {
+                // May not exist — that's fine
+                settingsLogger.info("No VaultBackup manifest to delete: \(error.localizedDescription)")
+            }
+
+            await MainActor.run {
+                isNukingICloud = false
+                iCloudNukeResult = "Deleted \(deleted) records. \(errors > 0 ? "\(errors) errors." : "No errors.")"
+                settingsLogger.info("iCloud nuke complete: \(deleted) deleted, \(errors) errors")
+            }
+        }
     }
     #endif
 }

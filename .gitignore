@@ -63,6 +63,8 @@ Thumbs.db
 *.env
 .env.*
 Secrets/
+.secrets/
+*.pem
 
 .sentryclirc
 
