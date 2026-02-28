@@ -14,12 +14,22 @@ final class ICloudBackupBackgroundTests: XCTestCase {
         super.setUp()
         manager = iCloudBackupManager.shared
         documentsDir = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        manager.clearStagingDirectory()
+        clearAllStagingDirs()
     }
 
     override func tearDown() {
-        manager.clearStagingDirectory()
+        clearAllStagingDirs()
         super.tearDown()
+    }
+
+    /// Clears all pending_backup* directories (legacy + per-vault) for test isolation.
+    private func clearAllStagingDirs() {
+        manager.clearStagingDirectory()
+        if let contents = try? fm.contentsOfDirectory(at: documentsDir, includingPropertiesForKeys: nil) {
+            for url in contents where url.lastPathComponent.hasPrefix("pending_backup") {
+                try? fm.removeItem(at: url)
+            }
+        }
     }
 
     // MARK: - Helpers

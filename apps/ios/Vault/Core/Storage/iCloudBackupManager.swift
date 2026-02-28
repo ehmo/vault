@@ -297,7 +297,15 @@ final class iCloudBackupManager: @unchecked Sendable {
             throw iCloudError.backupSkipped
         }
 
-        let payload = try await packBackupPayloadOffMain(index: index, key: key)
+        // Compute vault fingerprint for per-vault CloudKit records (before packing)
+        var fingerprint: String?
+        if let pattern = pattern {
+            if let backupKey = try? KeyDerivation.deriveBackupKey(from: pattern, gridSize: gridSize) {
+                fingerprint = Self.vaultFingerprint(from: backupKey)
+            }
+        }
+
+        let payload = try await packBackupPayloadOffMain(index: index, key: key, vaultFingerprint: fingerprint)
         Self.logger.info("[staging] Payload packed: \(payload.count) bytes")
 
         onProgress?(.encrypting)
@@ -307,14 +315,6 @@ final class iCloudBackupManager: @unchecked Sendable {
 
         // Compute verification token for instant pattern check on restore
         let verificationToken = CryptoEngine.computeHMAC(for: Self.verificationSentinel, with: key)
-
-        // Compute vault fingerprint for per-vault CloudKit records
-        var fingerprint: String?
-        if let pattern = pattern {
-            if let backupKey = try? KeyDerivation.deriveBackupKey(from: pattern, gridSize: gridSize) {
-                fingerprint = Self.vaultFingerprint(from: backupKey)
-            }
-        }
 
         // Clear any stale staging data before writing new chunks
         clearStagingDirectory(fingerprint: fingerprint)
@@ -704,11 +704,11 @@ final class iCloudBackupManager: @unchecked Sendable {
         autoBackupTask = detachedTask
     }
 
-    private func packBackupPayloadOffMain(index: VaultStorage.VaultIndex, key: Data) async throws -> Data {
+    private func packBackupPayloadOffMain(index: VaultStorage.VaultIndex, key: Data, vaultFingerprint: String? = nil) async throws -> Data {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
                 do {
-                    let payload = try self.packBackupPayload(index: index, key: key)
+                    let payload = try self.packBackupPayload(index: index, key: key, vaultFingerprint: vaultFingerprint)
                     continuation.resume(returning: payload)
                 } catch {
                     continuation.resume(throwing: error)
@@ -746,7 +746,7 @@ final class iCloudBackupManager: @unchecked Sendable {
     /// Blobs:   [idLen(2B) | blobId(var) | dataLen(8B) | data(var)] × blobCount
     /// Indexes: [nameLen(2B) | fileName(var) | dataLen(4B) | data(var)] × indexCount
     /// ```
-    private func packBackupPayload(index: VaultStorage.VaultIndex, key _: Data) throws -> Data {
+    private func packBackupPayload(index: VaultStorage.VaultIndex, key _: Data, vaultFingerprint: String? = nil) throws -> Data {
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         var payload = Data()
 
@@ -767,10 +767,17 @@ final class iCloudBackupManager: @unchecked Sendable {
         var blobCount = UInt16(blobs.count)
         payload.append(Data(bytes: &blobCount, count: 2))
 
-        // Collect index files
+        // Collect index files — scoped to this vault's fingerprint when available
         let indexFiles: [URL]
         if let files = try? fileManager.contentsOfDirectory(at: documents, includingPropertiesForKeys: nil) {
-            indexFiles = files.filter { $0.lastPathComponent.hasPrefix("vault_index_") && $0.pathExtension == "bin" }
+            if let fp = vaultFingerprint {
+                // Per-vault: only pack this vault's index file
+                let targetName = "vault_index_\(fp).bin"
+                indexFiles = files.filter { $0.lastPathComponent == targetName }
+            } else {
+                // Legacy: pack all index files
+                indexFiles = files.filter { $0.lastPathComponent.hasPrefix("vault_index_") && $0.pathExtension == "bin" }
+            }
         } else {
             indexFiles = []
         }
@@ -1603,6 +1610,73 @@ final class iCloudBackupManager: @unchecked Sendable {
         record["fingerprint"] = fingerprint as CKRecordValue
 
         try await privateDatabase.saveWithRetry(record)
+    }
+
+    // MARK: - Legacy Backup Migration
+
+    /// Migrates a legacy `current_backup` record to the per-vault version index.
+    /// Called during restore screen loading. No-op if already migrated or no legacy backup exists.
+    func migrateLegacyBackupIfNeeded(fingerprint: String) async {
+        // Check if version index already exists for this vault
+        let existingIndex = try? await fetchVersionIndex(fingerprint: fingerprint)
+        if let existing = existingIndex, !existing.versions.isEmpty {
+            return // Already migrated
+        }
+
+        // Check for legacy `current_backup` record
+        let recordID = CKRecord.ID(recordName: backupRecordName)
+        guard let record = try? await privateDatabase.record(for: recordID),
+              let metadataData = record["metadata"] as? Data,
+              let metadata = try? JSONDecoder().decode(BackupMetadata.self, from: metadataData) else {
+            return // No legacy backup
+        }
+
+        // Create version index entry from legacy metadata
+        let entry = BackupVersionEntry(
+            backupId: metadata.backupId ?? "legacy",
+            timestamp: metadata.timestamp,
+            size: metadata.size,
+            verificationToken: metadata.verificationToken,
+            chunkCount: metadata.chunkCount ?? 1
+        )
+
+        var versionIndex = BackupVersionIndex()
+        versionIndex.addVersion(entry)
+
+        // Save version index
+        do {
+            try await saveVersionIndex(versionIndex, fingerprint: fingerprint)
+
+            // Copy manifest to per-vault record
+            let manifestRecordName = Self.manifestRecordName(fingerprint: fingerprint, version: 1)
+            let manifestRecordID = CKRecord.ID(recordName: manifestRecordName)
+            let manifestRecord = CKRecord(recordType: recordType, recordID: manifestRecordID)
+            manifestRecord["metadata"] = metadataData as CKRecordValue
+            manifestRecord["timestamp"] = metadata.timestamp as CKRecordValue
+            manifestRecord["formatVersion"] = (metadata.formatVersion ?? 1) as CKRecordValue
+            if let chunkCount = metadata.chunkCount {
+                manifestRecord["chunkCount"] = chunkCount as CKRecordValue
+            }
+            if let backupId = metadata.backupId {
+                manifestRecord["backupId"] = backupId as CKRecordValue
+            }
+            manifestRecord["fingerprint"] = fingerprint as CKRecordValue
+
+            try await privateDatabase.saveWithRetry(manifestRecord)
+
+            // Migrate global backup setting to per-vault key
+            let globalEnabled = UserDefaults.standard.bool(forKey: "iCloudBackupEnabled")
+            UserDefaults.standard.set(globalEnabled, forKey: "iCloudBackupEnabled_\(fingerprint)")
+
+            let globalTimestamp = UserDefaults.standard.double(forKey: "lastBackupTimestamp")
+            if globalTimestamp > 0 {
+                UserDefaults.standard.set(globalTimestamp, forKey: "lastBackupTimestamp_\(fingerprint)")
+            }
+
+            Self.logger.info("[migration] Migrated legacy backup to per-vault index for \(fingerprint.prefix(8))...")
+        } catch {
+            Self.logger.error("[migration] Failed to migrate legacy backup: \(error)")
+        }
     }
 
     // MARK: - Pattern Verification
