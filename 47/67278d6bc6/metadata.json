@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "4767278d6bc6",
+  "strategy": "manual-commit",
+  "branch": "worktree-remote-control",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/ios/Vault/App/ContentView.swift",
+    "apps/ios/Vault/App/VaultApp.swift",
+    "apps/ios/Vault/Core/Crypto/KeyDerivation.swift",
+    "apps/ios/Vault/Core/Storage/iCloudBackupManager.swift",
+    "apps/ios/Vault/Features/Settings/ChangePatternView.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift",
+    "apps/ios/Vault/Features/Settings/VaultSettingsView.swift",
+    "apps/ios/VaultTests/KeyDerivationTests.swift",
+    "apps/ios/VaultTests/iCloudBackupBackgroundTests.swift"
+  ],
+  "sessions": [
+    {
+      "metadata": "/47/67278d6bc6/0/metadata.json",
+      "transcript": "/47/67278d6bc6/0/full.jsonl",
+      "context": "/47/67278d6bc6/0/context.md",
+      "content_hash": "/47/67278d6bc6/0/content_hash.txt",
+      "prompt": "/47/67278d6bc6/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 294,
+    "cache_creation_tokens": 245813,
+    "cache_read_tokens": 33196154,
+    "output_tokens": 80909,
+    "api_call_count": 290
+  }
+}
