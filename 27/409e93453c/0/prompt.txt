@@ -1,0 +1,230 @@
+Implement the following plan:
+
+# iCloud Backup Overhaul — Three-Phase Plan
+
+## Context
+
+Current iCloud backup has critical UX and security issues:
+- Single backup slot with no versioning (cancel = potential corruption)
+- Global backup, not per-vault (vault A overwrites vault B)
+- Wrong pattern error only after downloading 130MB+
+- No restore progress bar
+- Raw error display ("Vault.iCloudError error 5.")
+- Device-bound key (can't restore on new device)
+- Per-vault records would reveal vault count to attacker
+
+## Architecture Decisions (approved)
+- **3-version rotation** per vault
+- **Per-vault backup** — settings in VaultSettingsView, shared vaults excluded
+- **Opaque chunk pool** — all CloudKit records are identical 10MB blobs with random names
+- **Cross-device restore** — backup key uses fixed salt (not device-bound)
+- **HMAC verification token** for instant pattern check before download
+- **20-40% decoy chunks** for volume obfuscation
+- **Global toggle** — default ON for premium, new vaults inherit setting
+- **Backup only for vaults with 1+ items**
+- **Users can delete individual backup versions** to save storage
+
+---
+
+## Phase 1: UX Fixes (implement now)
+
+Fix the immediate UX pain points while keeping the current single-backup architecture.
+
+### 1.1 Fix `iCloudError` error display
+**File:** `apps/ios/Vault/Core/Storage/iCloudBackupManager.swift:24-37`
+
+Add `errorDescription` for all cases:
+```swift
+case .checksumMismatch: return "Wrong pattern. The pattern doesn't match the one used for this backup."
+case .downloadFailed: return "Download failed. The backup data may be corrupted."
+case .uploadFailed: return "Upload failed. Check your connection and try again."
+case .containerNotFound: return "iCloud container not found."
+case .fileNotFound: return "No backup found."
+```
+
+### 1.2 Fix error display in `RestoreFromBackupView`
+**File:** `apps/ios/Vault/Features/Settings/SettingsView.swift:1016-1037`
+
+Replace current raw error display (the ugly `"Vault.iCloudError error 5."` from screenshot) with the standard error pattern used elsewhere:
+```swift
+Group {
+    if let errorMessage {
+        HStack {
+            Image(systemName: "xmark.circle.fill")
+                .foregroundStyle(.vaultHighlight)
+            Text(errorMessage)
+                .font(.caption)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .vaultGlassBackground(cornerRadius: 12)
+        .transition(.scale.combined(with: .opacity))
+    } else {
+        Color.clear
+    }
+}
+.frame(height: 80)
+```
+
+Add specific `catch` for `checksumMismatch`:
+```swift
+} catch iCloudError.checksumMismatch {
+    await MainActor.run {
+        errorMessage = "Wrong pattern. The pattern doesn't match the one used for this backup."
+        isRestoring = false
+        patternState.reset()
+    }
+}
+```
+
+### 1.3 Wire restore progress bar
+**File:** `apps/ios/Vault/Core/Storage/iCloudBackupManager.swift` — `restoreV2` (line 1236)
+**File:** `apps/ios/Vault/Features/Settings/SettingsView.swift` — `RestoreFromBackupView`
+
+The infrastructure already exists: `downloadBackupChunksParallel` accepts `onProgress: ((Int, Int) -> Void)?` but the restore flow doesn't pass it.
+
+Changes to `iCloudBackupManager`:
+- Add `onProgress` parameter to `restoreBackup(with:onProgress:)` and `restoreV2`
+- Pass it through to `downloadBackupChunksParallel`
+
+Changes to `RestoreFromBackupView`:
+- Add `@State private var downloadProgress: (downloaded: Int, total: Int)?`
+- Replace indeterminate `ProgressView()` with determinate progress:
+  ```swift
+  if let progress = downloadProgress {
+      ProgressView(value: Double(progress.downloaded), total: Double(progress.total))
+          .tint(Color.accentColor)
+      Text("Downloading \(progress.downloaded) of \(progress.total)")
+          .font(.caption).monospacedDigit()
+  }
+  ```
+- Update restore stages: "Deriving key..." → "Downloading..." (with progress) → "Decrypting..." → "Restoring files..."
+
+### 1.4 Add HMAC verification token to backup metadata
+**File:** `apps/ios/Vault/Core/Storage/iCloudBackupManager.swift`
+
+Add to `BackupMetadata`:
+- `verificationToken: Data?` (optional for backward compat)
+
+During `stageBackupToDisk`, compute and store: `CryptoEngine.computeHMAC(for: "vault-backup-verify".data(using: .utf8)!, with: key)`
+
+During `checkForBackup`, return the token in the metadata.
+
+In `RestoreFromBackupView.performRestore`, before downloading:
+1. Compute HMAC of `"vault-backup-verify"` with drawn pattern's key
+2. Compare to stored `verificationToken`
+3. If mismatch → show "Wrong pattern" immediately, skip download
+4. If token is `nil` (old backup) → fall through to existing download + HMAC check
+
+### Phase 1 Files
+| File | Changes |
+|------|---------|
+| `iCloudBackupManager.swift` | Error descriptions, `verificationToken` in BackupMetadata, progress callback in `restoreV2`, compute verification token in staging |
+| `SettingsView.swift` | Error display pattern, checksumMismatch catch, progress bar, early verification check |
+
+---
+
+## Phase 2: Per-Vault Versioned Backup + Cross-Device (future)
+
+### 2.1 Cross-device backup key derivation
+**File:** `apps/ios/Vault/Core/Crypto/KeyDerivation.swift`
+
+New method:
+```swift
+static func deriveBackupKey(from pattern: [Int], gridSize: Int) -> Data
+```
+- Salt = `SHA256("vault-backup-v1-" + serializedPatternHex)` — deterministic, not device-bound
+- Same PBKDF2 with 600K iterations
+- Same pattern on any device = same backup key
+
+### 2.2 Per-vault CloudKit records
+Replace single `"current_backup"` with per-vault versioned records:
+- Version index: `"vb_{fingerprint}_index"` — tracks up to 3 versions
+- Manifests: `"vb_{fingerprint}_v{1|2|3}"` — per-version metadata
+- Fingerprint = `SHA256(backupKey).prefix(16)` in hex
+
+### 2.3 Version rotation
+`BackupVersionIndex` type with up to 3 `VersionEntry` items. When creating 4th, delete oldest version's chunks.
+
+### 2.4 Move settings to VaultSettingsView
+- Add "iCloud Backup" section to `VaultSettingsView` (between Recovery and Sharing)
+- Hidden for shared vaults, premium-gated
+- Per-vault UserDefaults keys: `"iCloudBackupEnabled_{fingerprint}"`, `"lastBackupTimestamp_{fingerprint}"`
+- Remove from `AppSettingsView`
+
+### 2.5 Global toggle
+- `AppSettingsView` keeps a global default toggle: `"iCloudBackupDefault"`
+- Default ON for premium users
+- New vaults inherit this setting on creation
+- Existing vaults unaffected when user upgrades to premium
+
+### 2.6 Backup only with 1+ items
+Guard in `stageBackupToDisk`: if `index.files.isEmpty`, skip backup.
+
+### 2.7 Auto-detect pattern change
+On backup, compare verification token against existing versions. If mismatch → purge old versions, start fresh.
+
+### 2.8 Per-vault PendingBackupState
+Add `vaultFingerprint`, `targetVersion`, `evictedBackupId` to PendingBackupState. Vault-scoped staging dirs.
+
+### 2.9 `packBackupPayload` fix
+Currently packs ALL `vault_index_*.bin` files (line 636). Change to only pack the current vault's index file.
+
+### 2.10 Restore version list UI
+Show all 3 versions with date/size/file count. User picks one. "Delete" swipe action per version.
+
+### 2.11 Legacy migration
+Detect `"current_backup"` record, copy to new versioned format, preserve for backward compat.
+
+### 2.12 Storage display + delete
+Each backup version shows storage consumed. Swipe-to-delete individual versions. Turning off per-vault backup deletes all versions for that vault.
+
+---
+
+## Phase 3: Obfuscation Layer (future)
+
+### 3.1 Opaque chunk pool
+Replace all CloudKit record types with single `BackupBlob`:
+- Fixed 10MB size, padded with random data
+- Random UUID record names
+- No metadata fields except small encrypted `tag` (64 bytes)
+
+### 3.2 Chunk format
+```
+[12B nonce][16B auth tag][encrypted payload][random padding to 10MB]
+```
+- Data chunks: `[4B "VDAT"][4B chunkIndex][data]`
+- Directory chunks: `[4B "VDIR"][BackupVersionIndex JSON]`
+
+### 3.3 Directory discovery on new device
+- Fetch all `BackupBlob` records' `tag` fields only (small, fast)
+- Try decrypting each 64-byte tag with backup key
+- If decryption succeeds + magic marker "VDIR" → this is the directory for this vault
+- ~50ms per chunk, viable for hundreds of chunks
+
+### 3.4 Decoy chunks
+Add 20-40% random decoy chunks (random content, random tags). Indistinguishable from real chunks.
+
+### 3.5 Remove per-vault fingerprints from record names
+All records become opaque. Chunk-to-vault mapping stored in directory chunks only.
+
+### 3.6 Migrate Phase 2 records to opaque format
+Convert `"vb_{fingerprint}_*"` records to anonymous `BackupBlob` records.
+
+---
+
+## Verification (Phase 1)
+
+1. **Build**: `xcodebuild build` — no compile errors
+2. **Wrong pattern test**: Draw wrong pattern on restore → instant "Wrong pattern" error (no download)
+3. **Correct restore**: Draw correct pattern → progress bar shows chunks downloaded → success
+4. **Old backup compat**: Existing backup without `verificationToken` → falls through to download + HMAC check (old behavior)
+5. **Error display**: All error cases show styled message below pattern board (not raw Swift errors)
+6. **Run tests**: `xcodebuild test` for existing iCloudBackupBackgroundTests
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/nan/.REDACTED.jsonl
+
+---
+
+Review all code you have written for technical, implementation and logical bugs. I want you to pay exceptional attention to all code this code could've altered or impacted. When you are satisfied with the results, write comprehensive not shallow tests that verify this implementation going forward and catch any changes to the behavior.

@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "27409e93453c",
+  "session_id": "0ae880ff-b8cf-45f9-91ef-4b5d74974b2d",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-28T05:40:18.780107Z",
+  "branch": "worktree-remote-control",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/ios/Vault/Core/Storage/iCloudBackupManager.swift",
+    "apps/ios/Vault/Features/Settings/SettingsView.swift",
+    "apps/ios/VaultTests/iCloudBackupBackgroundTests.swift"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 73,
+    "cache_creation_tokens": 151934,
+    "cache_read_tokens": 7745592,
+    "output_tokens": 32968,
+    "api_call_count": 69
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-28T05:40:18.535792Z",
+    "agent_lines": 410,
+    "human_added": 2851,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3261,
+    "agent_percentage": 12.57283042011653
+  }
+}
