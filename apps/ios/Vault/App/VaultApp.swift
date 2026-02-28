@@ -355,6 +355,17 @@ final class AppState {
                 hasPendingImports = true
             }
 
+            // Inherit global backup default for new vaults that haven't been configured yet
+            let backupEnabledKey = "iCloudBackupEnabled_\(fingerprint)"
+            let backupInitializedKey = "iCloudBackupInitialized_\(fingerprint)"
+            if !UserDefaults.standard.bool(forKey: backupInitializedKey) {
+                let globalDefault = UserDefaults.standard.bool(forKey: "iCloudBackupDefault")
+                // Default is true for AppStorage, but only apply if premium
+                // Non-premium users can't use backup, so skip setting the flag
+                UserDefaults.standard.set(globalDefault, forKey: backupEnabledKey)
+                UserDefaults.standard.set(true, forKey: backupInitializedKey)
+            }
+
             ShareUploadManager.shared.resumePendingUploadsIfNeeded(trigger: "vault_unlocked")
             transaction.finish(status: .ok)
         }

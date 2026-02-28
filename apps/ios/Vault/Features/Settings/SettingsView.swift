@@ -16,6 +16,7 @@ struct AppSettingsView: View {
     @AppStorage("analyticsEnabled") private var analyticsEnabled = false
     @AppStorage("fileOptimization") private var fileOptimization = "optimized"
     @AppStorage("networkPreference") private var networkPreference = "wifi"
+    @AppStorage("iCloudBackupDefault") private var iCloudBackupDefault = true
 
     @State private var showingNuclearConfirmation = false
     @State private var showingPaywall = false
@@ -125,20 +126,33 @@ struct AppSettingsView: View {
                 Text("Appearance")
             }
 
-            // Storage
+            // Storage & Backup
             Section {
                 Picker("Import Quality", selection: $fileOptimization) {
                     Text("Optimized").tag("optimized")
                     Text("Original").tag("original")
                 }
                 .accessibilityIdentifier("app_file_optimization")
+
+                if subscriptionManager.isPremium {
+                    Toggle("Auto-enable backup for new vaults", isOn: $iCloudBackupDefault)
+                        .accessibilityIdentifier("app_icloud_backup_default")
+                }
             } header: {
-                Text("Storage")
+                Text("Storage & Backup")
             } footer: {
-                if fileOptimization == "optimized" {
-                    Text("Reduces file sizes by up to 85%.")
+                if subscriptionManager.isPremium {
+                    if fileOptimization == "optimized" {
+                        Text("Reduces file sizes by up to 85%. New vaults will \(iCloudBackupDefault ? "automatically" : "not") have iCloud backup enabled.")
+                    } else {
+                        Text("Keeps files at original size and format. New vaults will \(iCloudBackupDefault ? "automatically" : "not") have iCloud backup enabled.")
+                    }
                 } else {
-                    Text("Keeps files at original size and format.")
+                    if fileOptimization == "optimized" {
+                        Text("Reduces file sizes by up to 85%.")
+                    } else {
+                        Text("Keeps files at original size and format.")
+                    }
                 }
             }
 
