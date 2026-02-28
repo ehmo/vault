@@ -1,8 +1,8 @@
 import XCTest
 @testable import Vault
 
-/// Tests for iCloud Backup Phase 2: per-vault versioning, version index operations,
-/// checksum handling, pattern change migration, and global default inheritance.
+/// Tests for iCloud Backup Phase 3: per-vault versioning, version index operations,
+/// opaque blob architecture, and global default inheritance.
 @MainActor
 final class ICloudBackupPhase2Tests: XCTestCase {
 
@@ -31,15 +31,13 @@ final class ICloudBackupPhase2Tests: XCTestCase {
     // MARK: - BackupVersionEntry
 
     func testBackupVersionEntryCodableRoundTrip() throws {
-        let checksum = Data(repeating: 0xAB, count: 32)
-        let token = Data(repeating: 0xCD, count: 32)
         let entry = iCloudBackupManager.BackupVersionEntry(
             backupId: "test-backup-001",
             timestamp: Date(timeIntervalSince1970: 1700000000),
             size: 5_242_880,
-            verificationToken: token,
             chunkCount: 5,
-            checksum: checksum
+            fileCount: 12,
+            vaultTotalSize: 10_000_000
         )
 
         let data = try JSONEncoder().encode(entry)
@@ -50,8 +48,8 @@ final class ICloudBackupPhase2Tests: XCTestCase {
         XCTAssertEqual(decoded.backupId, "test-backup-001")
         XCTAssertEqual(decoded.size, 5_242_880)
         XCTAssertEqual(decoded.chunkCount, 5)
-        XCTAssertEqual(decoded.checksum, checksum)
-        XCTAssertEqual(decoded.verificationToken, token)
+        XCTAssertEqual(decoded.fileCount, 12)
+        XCTAssertEqual(decoded.vaultTotalSize, 10_000_000)
         XCTAssertEqual(
             decoded.timestamp.timeIntervalSince1970,
             1700000000,
@@ -59,14 +57,14 @@ final class ICloudBackupPhase2Tests: XCTestCase {
         )
     }
 
-    func testBackupVersionEntryWithNilChecksum() throws {
+    func testBackupVersionEntryWithNilOptionalFields() throws {
         let entry = iCloudBackupManager.BackupVersionEntry(
-            backupId: "no-checksum",
+            backupId: "no-optionals",
             timestamp: Date(),
             size: 1024,
-            verificationToken: nil,
             chunkCount: 1,
-            checksum: nil
+            fileCount: nil,
+            vaultTotalSize: nil
         )
 
         let data = try JSONEncoder().encode(entry)
@@ -74,16 +72,17 @@ final class ICloudBackupPhase2Tests: XCTestCase {
             iCloudBackupManager.BackupVersionEntry.self, from: data
         )
 
-        XCTAssertNil(decoded.checksum,
-                     "nil checksum should survive Codable round-trip")
-        XCTAssertNil(decoded.verificationToken)
+        XCTAssertNil(decoded.fileCount,
+                     "nil fileCount should survive Codable round-trip")
+        XCTAssertNil(decoded.vaultTotalSize,
+                     "nil vaultTotalSize should survive Codable round-trip")
     }
 
-    func testBackupVersionEntryDecodesOldFormatWithoutChecksum() throws {
-        // Simulate JSON from before the checksum field was added
+    func testBackupVersionEntryDecodesMinimalJSON() throws {
+        // Simulate JSON with only required fields
         let json = """
         {
-            "backupId": "old-version",
+            "backupId": "minimal-version",
             "timestamp": 1700000000,
             "size": 2048,
             "chunkCount": 2
@@ -94,26 +93,24 @@ final class ICloudBackupPhase2Tests: XCTestCase {
             iCloudBackupManager.BackupVersionEntry.self, from: json
         )
 
-        XCTAssertNil(decoded.checksum,
-                     "Old JSON without checksum field should decode as nil")
-        XCTAssertNil(decoded.verificationToken,
-                     "Old JSON without verificationToken should decode as nil")
-        XCTAssertEqual(decoded.backupId, "old-version")
+        XCTAssertNil(decoded.fileCount,
+                     "JSON without fileCount should decode as nil")
+        XCTAssertNil(decoded.vaultTotalSize,
+                     "JSON without vaultTotalSize should decode as nil")
+        XCTAssertEqual(decoded.backupId, "minimal-version")
         XCTAssertEqual(decoded.chunkCount, 2)
     }
 
     func testBackupVersionEntryAllFieldsPreserved() throws {
-        let checksum = Data([0x01, 0x02, 0x03])
-        let token = Data([0xAA, 0xBB])
         let timestamp = Date(timeIntervalSince1970: 1234567890)
 
         let entry = iCloudBackupManager.BackupVersionEntry(
             backupId: "full-test",
             timestamp: timestamp,
             size: 999_999,
-            verificationToken: token,
             chunkCount: 42,
-            checksum: checksum
+            fileCount: 7,
+            vaultTotalSize: 5_000_000
         )
 
         let data = try JSONEncoder().encode(entry)
@@ -124,8 +121,21 @@ final class ICloudBackupPhase2Tests: XCTestCase {
         XCTAssertEqual(decoded.backupId, entry.backupId)
         XCTAssertEqual(decoded.size, entry.size)
         XCTAssertEqual(decoded.chunkCount, entry.chunkCount)
-        XCTAssertEqual(decoded.checksum, entry.checksum)
-        XCTAssertEqual(decoded.verificationToken, entry.verificationToken)
+        XCTAssertEqual(decoded.fileCount, entry.fileCount)
+        XCTAssertEqual(decoded.vaultTotalSize, entry.vaultTotalSize)
+    }
+
+    func testBackupVersionEntryFormattedSize() {
+        let entry = makeVersionEntry(backupId: "size-test", size: 5_242_880)
+        // ByteCountFormatter output varies by locale, just check it's non-empty
+        XCTAssertFalse(entry.formattedSize.isEmpty,
+                       "formattedSize should produce a non-empty string")
+    }
+
+    func testBackupVersionEntryFormattedDate() {
+        let entry = makeVersionEntry(backupId: "date-test")
+        XCTAssertFalse(entry.formattedDate.isEmpty,
+                       "formattedDate should produce a non-empty string")
     }
 
     // MARK: - BackupVersionIndex
@@ -333,7 +343,7 @@ final class ICloudBackupPhase2Tests: XCTestCase {
         // Global default is true
         defaults.set(true, forKey: "iCloudBackupDefault")
 
-        // Vault A: first unlock → inherits true
+        // Vault A: first unlock -> inherits true
         if !defaults.bool(forKey: "iCloudBackupInitialized_\(fp1)") {
             defaults.set(defaults.bool(forKey: "iCloudBackupDefault"),
                         forKey: "iCloudBackupEnabled_\(fp1)")
@@ -343,7 +353,7 @@ final class ICloudBackupPhase2Tests: XCTestCase {
         // User manually disables vault A
         defaults.set(false, forKey: "iCloudBackupEnabled_\(fp1)")
 
-        // Vault B: first unlock → should still inherit true (independent)
+        // Vault B: first unlock -> should still inherit true (independent)
         if !defaults.bool(forKey: "iCloudBackupInitialized_\(fp2)") {
             defaults.set(defaults.bool(forKey: "iCloudBackupDefault"),
                         forKey: "iCloudBackupEnabled_\(fp2)")
@@ -442,10 +452,10 @@ final class ICloudBackupPhase2Tests: XCTestCase {
     func testPerformBackupIfNeededFallsBackToGlobalKey() {
         let testKey = Data(repeating: 0xBB, count: 32)
 
-        // No fingerprint → uses global key
+        // No fingerprint -> uses global key
         defaults.set(false, forKey: "iCloudBackupEnabled")
         manager.performBackupIfNeeded(with: testKey, vaultFingerprint: nil)
-        // Should not crash — just returns because disabled
+        // Should not crash -- just returns because disabled
     }
 
     func testPerformBackupIfNeededUsesPerVaultTimestamp() {
@@ -454,7 +464,7 @@ final class ICloudBackupPhase2Tests: XCTestCase {
 
         // Enable per-vault backup
         defaults.set(true, forKey: "iCloudBackupEnabled_\(fp)")
-        // Set recent timestamp → not overdue
+        // Set recent timestamp -> not overdue
         defaults.set(Date().timeIntervalSince1970, forKey: "lastBackupTimestamp_\(fp)")
 
         // Should not start backup because timestamp is recent
@@ -500,97 +510,6 @@ final class ICloudBackupPhase2Tests: XCTestCase {
                        "Both methods should compute the same fingerprint")
     }
 
-    // MARK: - Checksum in Restore Path
-
-    func testBackupMetadataWithEmptyChecksumIsValid() {
-        // Empty checksum should be used for backward compat entries
-        let metadata = iCloudBackupManager.BackupMetadata(
-            timestamp: Date(),
-            size: 1024,
-            checksum: Data(),
-            formatVersion: 2,
-            chunkCount: 3,
-            backupId: "empty-checksum"
-        )
-
-        XCTAssertTrue(metadata.checksum.isEmpty,
-                      "Empty checksum should be representable")
-    }
-
-    func testBackupMetadataChecksumPassthrough() {
-        // Verify that checksum from version entry is correctly passed through
-        let checksum = Data(repeating: 0xDE, count: 32)
-        let version = iCloudBackupManager.BackupVersionEntry(
-            backupId: "checksum-test",
-            timestamp: Date(),
-            size: 2048,
-            verificationToken: nil,
-            chunkCount: 2,
-            checksum: checksum
-        )
-
-        let metadata = iCloudBackupManager.BackupMetadata(
-            timestamp: version.timestamp,
-            size: version.size,
-            checksum: version.checksum ?? Data(),
-            formatVersion: 2,
-            chunkCount: version.chunkCount,
-            backupId: version.backupId,
-            verificationToken: version.verificationToken
-        )
-
-        XCTAssertEqual(metadata.checksum, checksum,
-                       "Checksum from version entry should pass through to metadata")
-    }
-
-    func testBackupMetadataChecksumPassthroughNilFallsToEmpty() {
-        let version = iCloudBackupManager.BackupVersionEntry(
-            backupId: "nil-checksum",
-            timestamp: Date(),
-            size: 1024,
-            verificationToken: nil,
-            chunkCount: 1,
-            checksum: nil  // Old entry without checksum
-        )
-
-        let metadata = iCloudBackupManager.BackupMetadata(
-            timestamp: version.timestamp,
-            size: version.size,
-            checksum: version.checksum ?? Data(),
-            formatVersion: 2,
-            chunkCount: version.chunkCount,
-            backupId: version.backupId,
-            verificationToken: version.verificationToken
-        )
-
-        XCTAssertTrue(metadata.checksum.isEmpty,
-                      "nil checksum should fall back to empty Data")
-    }
-
-    // MARK: - Version Index Record Naming
-
-    func testVersionIndexRecordNameContainsFingerprint() {
-        let fp = "deadbeef12345678"
-        let name = iCloudBackupManager.versionIndexRecordName(fingerprint: fp)
-        XCTAssertTrue(name.contains(fp))
-        XCTAssertTrue(name.hasPrefix("vb_"))
-        XCTAssertTrue(name.hasSuffix("_index"))
-    }
-
-    func testManifestRecordNameContainsFingerprintAndVersion() {
-        let fp = "deadbeef12345678"
-        let name = iCloudBackupManager.manifestRecordName(fingerprint: fp, version: 3)
-        XCTAssertTrue(name.contains(fp))
-        XCTAssertTrue(name.hasPrefix("vb_"))
-        XCTAssertTrue(name.hasSuffix("_v3"))
-    }
-
-    func testDifferentFingerprintsProduceDifferentRecordNames() {
-        let name1 = iCloudBackupManager.versionIndexRecordName(fingerprint: "fp_aaa")
-        let name2 = iCloudBackupManager.versionIndexRecordName(fingerprint: "fp_bbb")
-        XCTAssertNotEqual(name1, name2)
-    }
-
     // MARK: - Delete Confirmation Logic
 
     func testToggleDisableWithVersionsShowsConfirmation() {
@@ -607,7 +526,7 @@ final class ICloudBackupPhase2Tests: XCTestCase {
 
         let shouldShowConfirmation = versionCount > 0
         XCTAssertFalse(shouldShowConfirmation,
-                       "No versions → should skip confirmation dialog")
+                       "No versions -> should skip confirmation dialog")
     }
 
     // MARK: - BackupVersionIndex Size Calculations
@@ -646,17 +565,17 @@ final class ICloudBackupPhase2Tests: XCTestCase {
             backupId: "old",
             timestamp: Date(timeIntervalSince1970: 1000),
             size: 100,
-            verificationToken: nil,
             chunkCount: 1,
-            checksum: nil
+            fileCount: nil,
+            vaultTotalSize: nil
         )
         let newer = iCloudBackupManager.BackupVersionEntry(
             backupId: "new",
             timestamp: Date(timeIntervalSince1970: 2000),
             size: 200,
-            verificationToken: nil,
             chunkCount: 2,
-            checksum: nil
+            fileCount: nil,
+            vaultTotalSize: nil
         )
 
         let versions = [older, newer]
@@ -715,10 +634,10 @@ final class ICloudBackupPhase2Tests: XCTestCase {
                           "Different vaults should have different staging directories")
     }
 
-    // MARK: - BackupVersionEntry Checksum Backward Compatibility
+    // MARK: - BackupVersionIndex Backward Compatibility
 
-    func testOldVersionIndexDecodesWithNilChecksums() throws {
-        // Simulate an old version index from CloudKit (no checksum fields)
+    func testOldVersionIndexDecodesWithMinimalEntries() throws {
+        // Simulate an old version index with only required fields
         let json = """
         {
             "versions": [
@@ -732,7 +651,6 @@ final class ICloudBackupPhase2Tests: XCTestCase {
                     "backupId": "old-v2",
                     "timestamp": 1700001000,
                     "size": 2048,
-                    "verificationToken": "AAAA",
                     "chunkCount": 4
                 }
             ]
@@ -744,45 +662,115 @@ final class ICloudBackupPhase2Tests: XCTestCase {
         )
 
         XCTAssertEqual(decoded.versions.count, 2)
-        XCTAssertNil(decoded.versions[0].checksum,
-                     "Old entry without checksum should decode as nil")
-        XCTAssertNil(decoded.versions[1].checksum,
-                     "Old entry without checksum should decode as nil")
-        XCTAssertNil(decoded.versions[0].verificationToken)
-        XCTAssertNotNil(decoded.versions[1].verificationToken)
+        XCTAssertNil(decoded.versions[0].fileCount,
+                     "Entry without fileCount should decode as nil")
+        XCTAssertNil(decoded.versions[0].vaultTotalSize,
+                     "Entry without vaultTotalSize should decode as nil")
+        XCTAssertNil(decoded.versions[1].fileCount)
+        XCTAssertNil(decoded.versions[1].vaultTotalSize)
     }
 
-    func testMixedOldAndNewEntriesInVersionIndex() throws {
-        // One entry has checksum, one doesn't
+    func testMixedMinimalAndFullEntriesInVersionIndex() throws {
+        // One entry has optional fields, one does not
         var index = iCloudBackupManager.BackupVersionIndex()
 
-        let oldEntry = iCloudBackupManager.BackupVersionEntry(
-            backupId: "old",
+        let minimalEntry = iCloudBackupManager.BackupVersionEntry(
+            backupId: "minimal",
             timestamp: Date(),
             size: 1024,
-            verificationToken: nil,
             chunkCount: 1,
-            checksum: nil  // Pre-checksum era
+            fileCount: nil,
+            vaultTotalSize: nil
         )
-        let newEntry = iCloudBackupManager.BackupVersionEntry(
-            backupId: "new",
+        let fullEntry = iCloudBackupManager.BackupVersionEntry(
+            backupId: "full",
             timestamp: Date(),
             size: 2048,
-            verificationToken: Data([0xAA]),
             chunkCount: 2,
-            checksum: Data(repeating: 0xBB, count: 32)
+            fileCount: 15,
+            vaultTotalSize: 8_000_000
         )
 
-        index.addVersion(oldEntry)
-        index.addVersion(newEntry)
+        index.addVersion(minimalEntry)
+        index.addVersion(fullEntry)
 
         let data = try JSONEncoder().encode(index)
         let decoded = try JSONDecoder().decode(
             iCloudBackupManager.BackupVersionIndex.self, from: data
         )
 
-        XCTAssertNil(decoded.versions[0].checksum)
-        XCTAssertEqual(decoded.versions[1].checksum?.count, 32)
+        XCTAssertNil(decoded.versions[0].fileCount)
+        XCTAssertNil(decoded.versions[0].vaultTotalSize)
+        XCTAssertEqual(decoded.versions[1].fileCount, 15)
+        XCTAssertEqual(decoded.versions[1].vaultTotalSize, 8_000_000)
+    }
+
+    // MARK: - PendingBackupState
+
+    func testPendingBackupStateTotalFilesCalculation() {
+        let state = iCloudBackupManager.PendingBackupState(
+            backupId: "pending-test",
+            dataChunkCount: 5,
+            decoyCount: 2,
+            createdAt: Date(),
+            uploadedFiles: [],
+            retryCount: 0,
+            fileCount: 10,
+            vaultTotalSize: 1_000_000
+        )
+
+        // totalFiles = dataChunkCount + 1 (VDIR) + decoyCount = 5 + 1 + 2 = 8
+        XCTAssertEqual(state.totalFiles, 8,
+                       "totalFiles should be dataChunkCount + 1 (VDIR) + decoyCount")
+    }
+
+    func testPendingBackupStateCodableRoundTrip() throws {
+        let state = iCloudBackupManager.PendingBackupState(
+            backupId: "codable-test",
+            dataChunkCount: 3,
+            decoyCount: 1,
+            createdAt: Date(timeIntervalSince1970: 1700000000),
+            uploadedFiles: ["file1", "file2"],
+            retryCount: 2,
+            fileCount: 7,
+            vaultTotalSize: 500_000,
+            wasTerminated: true,
+            vaultFingerprint: "test-fp-abc",
+            recordsToDelete: ["rec1", "rec2"]
+        )
+
+        let data = try JSONEncoder().encode(state)
+        let decoded = try JSONDecoder().decode(
+            iCloudBackupManager.PendingBackupState.self, from: data
+        )
+
+        XCTAssertEqual(decoded.backupId, "codable-test")
+        XCTAssertEqual(decoded.dataChunkCount, 3)
+        XCTAssertEqual(decoded.decoyCount, 1)
+        XCTAssertEqual(decoded.uploadedFiles, ["file1", "file2"])
+        XCTAssertEqual(decoded.retryCount, 2)
+        XCTAssertEqual(decoded.fileCount, 7)
+        XCTAssertEqual(decoded.vaultTotalSize, 500_000)
+        XCTAssertTrue(decoded.wasTerminated)
+        XCTAssertEqual(decoded.vaultFingerprint, "test-fp-abc")
+        XCTAssertEqual(decoded.recordsToDelete, ["rec1", "rec2"])
+    }
+
+    func testPendingBackupStateDefaultValues() {
+        let state = iCloudBackupManager.PendingBackupState(
+            backupId: "defaults-test",
+            dataChunkCount: 1,
+            decoyCount: 0,
+            createdAt: Date(),
+            uploadedFiles: [],
+            retryCount: 0,
+            fileCount: 3,
+            vaultTotalSize: 100
+        )
+
+        XCTAssertFalse(state.wasTerminated, "wasTerminated should default to false")
+        XCTAssertNil(state.vaultFingerprint, "vaultFingerprint should default to nil")
+        XCTAssertTrue(state.recordsToDelete.isEmpty, "recordsToDelete should default to empty")
     }
 
     // MARK: - performBackupIfNeeded Guard Conditions
@@ -803,7 +791,7 @@ final class ICloudBackupPhase2Tests: XCTestCase {
         let key = Data(repeating: 0x22, count: 32)
 
         defaults.set(true, forKey: "iCloudBackupEnabled_\(fp)")
-        // Backed up 1 hour ago → not overdue
+        // Backed up 1 hour ago -> not overdue
         defaults.set(Date().addingTimeInterval(-3600).timeIntervalSince1970,
                     forKey: "lastBackupTimestamp_\(fp)")
 
@@ -817,15 +805,16 @@ final class ICloudBackupPhase2Tests: XCTestCase {
         backupId: String,
         size: Int = 1024,
         chunkCount: Int = 1,
-        checksum: Data? = nil
+        fileCount: Int? = nil,
+        vaultTotalSize: Int? = nil
     ) -> iCloudBackupManager.BackupVersionEntry {
         iCloudBackupManager.BackupVersionEntry(
             backupId: backupId,
             timestamp: Date(),
             size: size,
-            verificationToken: nil,
             chunkCount: chunkCount,
-            checksum: checksum
+            fileCount: fileCount,
+            vaultTotalSize: vaultTotalSize
         )
     }
 }

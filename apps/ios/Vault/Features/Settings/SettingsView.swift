@@ -886,12 +886,11 @@ struct iCloudBackupSettingsView: View {
     }
 
     private func deleteAllVersions() {
+        guard let pattern = appState.currentPattern else { return }
         Task {
             do {
-                let versionIndex = try await backupManager.fetchVersionIndex(fingerprint: vaultFingerprint)
-                for version in versionIndex.versions {
-                    try await backupManager.deleteBackupVersion(version, fingerprint: vaultFingerprint)
-                }
+                let backupKey = try KeyDerivation.deriveBackupKey(from: pattern, gridSize: 5)
+                try await backupManager.deleteAllBackups(backupKey: backupKey)
                 await MainActor.run {
                     versionCount = 0
                     totalBackupStorage = 0
@@ -903,9 +902,11 @@ struct iCloudBackupSettingsView: View {
     }
 
     private func loadVersionInfo() {
+        guard let pattern = appState.currentPattern else { return }
         Task {
             do {
-                let versionIndex = try await backupManager.fetchVersionIndex(fingerprint: vaultFingerprint)
+                let backupKey = try KeyDerivation.deriveBackupKey(from: pattern, gridSize: 5)
+                let versionIndex = try await backupManager.scanForVersions(backupKey: backupKey)
                 let totalSize = versionIndex.versions.reduce(0) { $0 + Int64($1.size) }
                 await MainActor.run {
                     versionCount = versionIndex.versions.count
@@ -981,9 +982,7 @@ struct RestoreFromBackupView: View {
     @State private var patternState = PatternState()
     @State private var showFeedback = true
     @State private var versions: [iCloudBackupManager.BackupVersionEntry] = []
-    @State private var legacyBackupInfo: iCloudBackupManager.BackupMetadata?
     @State private var selectedVersion: iCloudBackupManager.BackupVersionEntry?
-    @State private var isLegacyRestore = false
     @State private var isLoading = true
     @State private var noBackupFound = false
     @State private var isRestoring = false
@@ -1005,7 +1004,7 @@ struct RestoreFromBackupView: View {
                         ProgressView("Checking for backups...")
                     } else if restoreSuccess {
                         successView
-                    } else if selectedVersion != nil || isLegacyRestore {
+                    } else if selectedVersion != nil {
                         restorePatternView
                     } else if noBackupFound {
                         noBackupView
@@ -1015,16 +1014,15 @@ struct RestoreFromBackupView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
-            .navigationTitle((selectedVersion != nil || isLegacyRestore) ? "Enter Pattern" : "Restore from Backup")
+            .navigationTitle(selectedVersion != nil ? "Enter Pattern" : "Restore from Backup")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Color.vaultBackground, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    if (selectedVersion != nil || isLegacyRestore) && !isRestoring {
+                    if selectedVersion != nil && !isRestoring {
                         Button("Back") {
                             selectedVersion = nil
-                            isLegacyRestore = false
                             errorMessage = nil
                             patternState.reset()
                         }
@@ -1081,36 +1079,6 @@ struct RestoreFromBackupView: View {
                 Text("Select a backup version to restore. Draw your pattern to decrypt and restore your vault data.")
             }
 
-            if legacyBackupInfo != nil {
-                Section {
-                    Button {
-                        selectedVersion = nil
-                        restoreLegacyBackup()
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "icloud.fill")
-                                .foregroundStyle(.vaultSecondaryText)
-                                .frame(width: 28)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Legacy Backup")
-                                    .font(.subheadline.weight(.medium))
-                                if let info = legacyBackupInfo {
-                                    Text("\(info.formattedDate) · \(info.formattedSize)")
-                                        .font(.caption)
-                                        .foregroundStyle(.vaultSecondaryText)
-                                }
-                            }
-                            Spacer(minLength: 0)
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(.vaultSecondaryText)
-                        }
-                    }
-                    .foregroundStyle(.primary)
-                } footer: {
-                    Text("A backup from before per-vault versioning was enabled.")
-                }
-            }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
@@ -1194,21 +1162,6 @@ struct RestoreFromBackupView: View {
                         }
                         Spacer(minLength: 0)
                     }
-                } else if let info = legacyBackupInfo {
-                    HStack(spacing: 12) {
-                        Image(systemName: "icloud.fill")
-                            .foregroundStyle(.vaultSecondaryText)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Legacy Backup")
-                                .font(.subheadline.weight(.medium))
-                            Text("\(info.formattedDate) · \(info.formattedSize)")
-                                .font(.caption)
-                                .foregroundStyle(.vaultSecondaryText)
-                        }
-                        Spacer(minLength: 0)
-                    }
-                } else {
-                    Color.clear.frame(height: 34)
                 }
 
                 Text("Draw your pattern to decrypt the backup")
@@ -1289,31 +1242,20 @@ struct RestoreFromBackupView: View {
         isLoading = true
         defer { Task { @MainActor in isLoading = false } }
 
-        // Compute vault fingerprint for version index lookup
         guard let key = appState.currentVaultKey else {
             await MainActor.run { noBackupFound = true }
             return
         }
-        let fp = KeyDerivation.keyFingerprint(from: key.rawBytes)
-        await MainActor.run { vaultFingerprint = fp }
 
         do {
-            let versionIndex = try await backupManager.fetchVersionIndex(fingerprint: fp)
-            // Also check for legacy backup
-            let legacyResult = await backupManager.checkForBackup(vaultKey: key)
+            let backupKey = try KeyDerivation.deriveBackupKey(from: appState.currentPattern ?? [], gridSize: 5)
+            let versionIndex = try await backupManager.scanForVersions(backupKey: backupKey)
 
             await MainActor.run {
+                let fp = KeyDerivation.keyFingerprint(from: key.rawBytes)
+                vaultFingerprint = fp
                 versions = versionIndex.versions.sorted { $0.timestamp > $1.timestamp }
-
-                // Only show legacy backup if no versioned backups exist, or if it's a different backup
-                if case .found(let info, _) = legacyResult {
-                    let isLegacyDuplicate = versions.contains { $0.backupId == info.backupId }
-                    if !isLegacyDuplicate {
-                        legacyBackupInfo = info
-                    }
-                }
-
-                noBackupFound = versions.isEmpty && legacyBackupInfo == nil
+                noBackupFound = versions.isEmpty
             }
         } catch {
             await MainActor.run {
@@ -1327,16 +1269,16 @@ struct RestoreFromBackupView: View {
         let versionsToDelete = offsets.map { versions[$0] }
         versions.remove(atOffsets: offsets)
 
-        guard let fp = vaultFingerprint else { return }
         Task {
+            guard let backupKey = try? KeyDerivation.deriveBackupKey(from: appState.currentPattern ?? [], gridSize: 5) else { return }
             for version in versionsToDelete {
                 do {
-                    try await backupManager.deleteBackupVersion(version, fingerprint: fp)
+                    try await backupManager.deleteBackupVersion(version, backupKey: backupKey)
                 } catch {
                     EmbraceManager.shared.captureError(error, context: ["action": "deleteBackupVersion"])
                 }
             }
-            if versions.isEmpty && legacyBackupInfo == nil {
+            if versions.isEmpty {
                 await MainActor.run { noBackupFound = true }
             }
         }
@@ -1348,8 +1290,7 @@ struct RestoreFromBackupView: View {
             return
         }
 
-        // Must have either a selected version or be doing a legacy restore
-        guard selectedVersion != nil || isLegacyRestore else {
+        guard let version = selectedVersion else {
             patternState.reset()
             return
         }
@@ -1361,48 +1302,12 @@ struct RestoreFromBackupView: View {
 
         Task {
             do {
-                let key = try await KeyDerivation.deriveKey(from: pattern, gridSize: patternState.gridSize)
+                let backupKey = try KeyDerivation.deriveBackupKey(from: pattern, gridSize: patternState.gridSize)
 
-                if isLegacyRestore {
-                    // Legacy backup: verify pattern via verification token if available
-                    if let token = legacyBackupInfo?.verificationToken {
-                        let metadata = iCloudBackupManager.BackupMetadata(
-                            timestamp: legacyBackupInfo!.timestamp,
-                            size: legacyBackupInfo!.size,
-                            checksum: Data(),
-                            verificationToken: token
-                        )
-                        if !backupManager.verifyPatternBeforeDownload(key: key, metadata: metadata) {
-                            throw iCloudError.checksumMismatch
-                        }
-                    }
-
-                    // Use original restoreBackup which handles both v1 and v2 formats
-                    await MainActor.run { restoreStage = "Downloading..." }
-                    try await backupManager.restoreBackup(with: key) { downloaded, total in
-                        Task { @MainActor in
-                            downloadProgress = (downloaded, total)
-                        }
-                    }
-                } else if let version = selectedVersion {
-                    // Versioned backup: verify pattern before downloading
-                    if let token = version.verificationToken {
-                        let metadata = iCloudBackupManager.BackupMetadata(
-                            timestamp: version.timestamp,
-                            size: version.size,
-                            checksum: Data(),
-                            verificationToken: token
-                        )
-                        if !backupManager.verifyPatternBeforeDownload(key: key, metadata: metadata) {
-                            throw iCloudError.checksumMismatch
-                        }
-                    }
-
-                    await MainActor.run { restoreStage = "Downloading..." }
-                    try await backupManager.restoreBackupVersion(version, with: key) { downloaded, total in
-                        Task { @MainActor in
-                            downloadProgress = (downloaded, total)
-                        }
+                await MainActor.run { restoreStage = "Downloading..." }
+                try await backupManager.restoreBackupVersion(version, backupKey: backupKey) { downloaded, total in
+                    Task { @MainActor in
+                        downloadProgress = (downloaded, total)
                     }
                 }
 
@@ -1441,14 +1346,6 @@ struct RestoreFromBackupView: View {
                 }
             }
         }
-    }
-
-    private func restoreLegacyBackup() {
-        guard legacyBackupInfo != nil else { return }
-        selectedVersion = nil
-        isLegacyRestore = true
-        errorMessage = nil
-        patternState.reset()
     }
 
     private func formatSize(_ bytes: Int) -> String {

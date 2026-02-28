@@ -40,10 +40,10 @@ final class ICloudBackupBackgroundTests: XCTestCase {
 
     private struct PendingStateParams {
         var backupId: String = "test-backup"
-        var totalChunks: Int = 3
+        var dataChunkCount: Int = 3
+        var decoyCount: Int = 0
         var createdAt: Date = Date()
-        var uploadFinished: Bool = false
-        var manifestSaved: Bool = false
+        var uploadedFiles: Set<String> = []
         var retryCount: Int = 0
         var fileCount: Int = 10
         var vaultTotalSize: Int = 102400
@@ -52,16 +52,13 @@ final class ICloudBackupBackgroundTests: XCTestCase {
     private func writePendingState(_ params: PendingStateParams = PendingStateParams()) throws {
         let state = iCloudBackupManager.PendingBackupState(
             backupId: params.backupId,
-            totalChunks: params.totalChunks,
-            checksum: Data([0x01, 0x02]),
-            encryptedSize: 1024 * params.totalChunks,
+            dataChunkCount: params.dataChunkCount,
+            decoyCount: params.decoyCount,
             createdAt: params.createdAt,
-            uploadFinished: params.uploadFinished,
-            manifestSaved: params.manifestSaved,
+            uploadedFiles: params.uploadedFiles,
             retryCount: params.retryCount,
             fileCount: params.fileCount,
-            vaultTotalSize: params.vaultTotalSize,
-            verificationToken: nil
+            vaultTotalSize: params.vaultTotalSize
         )
         try fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
         let data = try JSONEncoder().encode(state)
@@ -104,101 +101,6 @@ final class ICloudBackupBackgroundTests: XCTestCase {
         manager.sendBackupCompleteNotification(success: false)
     }
 
-    // MARK: - Backup Metadata
-
-    func testBackupMetadataFormattedDate() {
-        let metadata = iCloudBackupManager.BackupMetadata(
-            timestamp: Date(timeIntervalSince1970: 1700000000),
-            size: 1024 * 1024 * 5,
-            checksum: Data(),
-            formatVersion: 2,
-            chunkCount: 10,
-            backupId: "test-backup-id"
-        )
-
-        XCTAssertFalse(metadata.formattedDate.isEmpty)
-        XCTAssertEqual(metadata.formattedSize, "5.0 MB")
-    }
-
-    func testBackupMetadataFormattedSize() {
-        let metadata1 = iCloudBackupManager.BackupMetadata(
-            timestamp: Date(),
-            size: 1024 * 1024,
-            checksum: Data()
-        )
-        XCTAssertEqual(metadata1.formattedSize, "1.0 MB")
-
-        let metadata2 = iCloudBackupManager.BackupMetadata(
-            timestamp: Date(),
-            size: 512 * 1024,
-            checksum: Data()
-        )
-        XCTAssertEqual(metadata2.formattedSize, "0.5 MB")
-    }
-
-    func testBackupMetadataFormattedSizeSmallValues() {
-        let metadata = iCloudBackupManager.BackupMetadata(
-            timestamp: Date(),
-            size: 1024,
-            checksum: Data()
-        )
-        XCTAssertEqual(metadata.formattedSize, "0.0 MB")
-    }
-
-    func testBackupMetadataFormattedSizeLargeValues() {
-        let metadata = iCloudBackupManager.BackupMetadata(
-            timestamp: Date(),
-            size: 100 * 1024 * 1024,
-            checksum: Data()
-        )
-        XCTAssertEqual(metadata.formattedSize, "100.0 MB")
-    }
-
-    func testBackupMetadataV1Defaults() {
-        let metadata = iCloudBackupManager.BackupMetadata(
-            timestamp: Date(),
-            size: 1024,
-            checksum: Data()
-        )
-        XCTAssertNil(metadata.formatVersion)
-        XCTAssertNil(metadata.chunkCount)
-        XCTAssertNil(metadata.backupId)
-    }
-
-    func testBackupMetadataV2Fields() {
-        let metadata = iCloudBackupManager.BackupMetadata(
-            timestamp: Date(),
-            size: 1024,
-            checksum: Data([0xFF]),
-            formatVersion: 2,
-            chunkCount: 5,
-            backupId: "abc-123"
-        )
-        XCTAssertEqual(metadata.formatVersion, 2)
-        XCTAssertEqual(metadata.chunkCount, 5)
-        XCTAssertEqual(metadata.backupId, "abc-123")
-    }
-
-    func testBackupMetadataCodableRoundTrip() throws {
-        let metadata = iCloudBackupManager.BackupMetadata(
-            timestamp: Date(timeIntervalSince1970: 1700000000),
-            size: 5_242_880,
-            checksum: Data([0xDE, 0xAD]),
-            formatVersion: 2,
-            chunkCount: 3,
-            backupId: "round-trip-id"
-        )
-
-        let data = try JSONEncoder().encode(metadata)
-        let decoded = try JSONDecoder().decode(iCloudBackupManager.BackupMetadata.self, from: data)
-
-        XCTAssertEqual(decoded.size, metadata.size)
-        XCTAssertEqual(decoded.checksum, metadata.checksum)
-        XCTAssertEqual(decoded.formatVersion, metadata.formatVersion)
-        XCTAssertEqual(decoded.chunkCount, metadata.chunkCount)
-        XCTAssertEqual(decoded.backupId, metadata.backupId)
-    }
-
     // MARK: - Backup Stage
 
     func testBackupStageRawValues() {
@@ -232,67 +134,54 @@ final class ICloudBackupBackgroundTests: XCTestCase {
     func testPendingBackupStateCodableRoundTrip() throws {
         let state = iCloudBackupManager.PendingBackupState(
             backupId: "test-backup-123",
-            totalChunks: 5,
-            checksum: Data([0x01, 0x02, 0x03]),
-            encryptedSize: 10_485_760,
+            dataChunkCount: 5,
+            decoyCount: 2,
             createdAt: Date(),
-            uploadFinished: false,
-            manifestSaved: false,
+            uploadedFiles: ["file1.bin", "file2.bin"],
             retryCount: 3,
             fileCount: 42,
-            vaultTotalSize: 10_485_760,
-            verificationToken: Data([0xAA, 0xBB])
+            vaultTotalSize: 10_485_760
         )
 
         let data = try JSONEncoder().encode(state)
         let decoded = try JSONDecoder().decode(iCloudBackupManager.PendingBackupState.self, from: data)
 
         XCTAssertEqual(decoded.backupId, state.backupId)
-        XCTAssertEqual(decoded.totalChunks, state.totalChunks)
-        XCTAssertEqual(decoded.checksum, state.checksum)
-        XCTAssertEqual(decoded.encryptedSize, state.encryptedSize)
-        XCTAssertEqual(decoded.uploadFinished, state.uploadFinished)
-        XCTAssertEqual(decoded.manifestSaved, state.manifestSaved)
+        XCTAssertEqual(decoded.dataChunkCount, state.dataChunkCount)
+        XCTAssertEqual(decoded.decoyCount, state.decoyCount)
+        XCTAssertEqual(decoded.uploadedFiles, state.uploadedFiles)
         XCTAssertEqual(decoded.retryCount, state.retryCount)
+        XCTAssertEqual(decoded.fileCount, state.fileCount)
+        XCTAssertEqual(decoded.vaultTotalSize, state.vaultTotalSize)
     }
 
-    func testPendingBackupStateCodableWithUploadFinished() throws {
+    func testPendingBackupStateTotalFilesComputed() {
         let state = iCloudBackupManager.PendingBackupState(
-            backupId: "test-backup-456",
-            totalChunks: 12,
-            checksum: Data([0xAA, 0xBB]),
-            encryptedSize: 25_165_824,
+            backupId: "total-files-test",
+            dataChunkCount: 5,
+            decoyCount: 3,
             createdAt: Date(),
-            uploadFinished: true,
-            manifestSaved: true,
+            uploadedFiles: [],
             retryCount: 0,
             fileCount: 10,
-            vaultTotalSize: 25_165_824,
-            verificationToken: nil
+            vaultTotalSize: 50_000
         )
 
-        let data = try JSONEncoder().encode(state)
-        let decoded = try JSONDecoder().decode(iCloudBackupManager.PendingBackupState.self, from: data)
-
-        XCTAssertTrue(decoded.uploadFinished)
-        XCTAssertTrue(decoded.manifestSaved)
-        XCTAssertEqual(decoded.retryCount, 0)
+        // totalFiles = dataChunkCount + 1 (VDIR) + decoyCount = 5 + 1 + 3 = 9
+        XCTAssertEqual(state.totalFiles, 9)
     }
 
     func testPendingBackupStateCodablePreservesCreatedAt() throws {
         let createdAt = Date(timeIntervalSince1970: 1700000000)
         let state = iCloudBackupManager.PendingBackupState(
             backupId: "time-test",
-            totalChunks: 1,
-            checksum: Data(),
-            encryptedSize: 100,
+            dataChunkCount: 1,
+            decoyCount: 0,
             createdAt: createdAt,
-            uploadFinished: false,
-            manifestSaved: false,
+            uploadedFiles: [],
             retryCount: 0,
             fileCount: 1,
-            vaultTotalSize: 100,
-            verificationToken: nil
+            vaultTotalSize: 100
         )
 
         let data = try JSONEncoder().encode(state)
@@ -305,27 +194,23 @@ final class ICloudBackupBackgroundTests: XCTestCase {
         )
     }
 
-    func testPendingBackupStateLargeChecksum() throws {
-        let largeChecksum = Data(repeating: 0xAB, count: 64)
+    func testPendingBackupStateCodablePreservesUploadedFiles() throws {
+        let files: Set<String> = ["chunk_0.bin", "chunk_1.bin", "vdir.bin"]
         let state = iCloudBackupManager.PendingBackupState(
-            backupId: "checksum-test",
-            totalChunks: 1,
-            checksum: largeChecksum,
-            encryptedSize: 100,
+            backupId: "uploaded-files-test",
+            dataChunkCount: 2,
+            decoyCount: 0,
             createdAt: Date(),
-            uploadFinished: false,
-            manifestSaved: false,
+            uploadedFiles: files,
             retryCount: 0,
-            fileCount: 1,
-            vaultTotalSize: 100,
-            verificationToken: nil
+            fileCount: 5,
+            vaultTotalSize: 10_000
         )
 
         let data = try JSONEncoder().encode(state)
         let decoded = try JSONDecoder().decode(iCloudBackupManager.PendingBackupState.self, from: data)
 
-        XCTAssertEqual(decoded.checksum, largeChecksum)
-        XCTAssertEqual(decoded.checksum.count, 64)
+        XCTAssertEqual(decoded.uploadedFiles, files)
     }
 
     // MARK: - Staging Directory
@@ -365,7 +250,7 @@ final class ICloudBackupBackgroundTests: XCTestCase {
 
     func testClearStagingDirectoryRemovesMultipleChunks() throws {
         writeDummyChunks(count: 5)
-        try writePendingState(.init(totalChunks: 5))
+        try writePendingState(.init(dataChunkCount: 5))
 
         // Verify files exist
         for i in 0..<5 {
@@ -395,12 +280,12 @@ final class ICloudBackupBackgroundTests: XCTestCase {
     }
 
     func testLoadPendingBackupStateReturnsStateWhenValid() throws {
-        try writePendingState(.init(backupId: "valid-backup", totalChunks: 7))
+        try writePendingState(.init(backupId: "valid-backup", dataChunkCount: 7))
 
         let loaded = manager.loadPendingBackupState()
         XCTAssertNotNil(loaded)
         XCTAssertEqual(loaded?.backupId, "valid-backup")
-        XCTAssertEqual(loaded?.totalChunks, 7)
+        XCTAssertEqual(loaded?.dataChunkCount, 7)
     }
 
     func testLoadPendingBackupStateReturnsStateJustBeforeTTL() throws {
@@ -433,21 +318,25 @@ final class ICloudBackupBackgroundTests: XCTestCase {
         let now = Date()
         try writePendingState(.init(
             backupId: "full-test",
-            totalChunks: 10,
+            dataChunkCount: 10,
+            decoyCount: 2,
             createdAt: now,
-            uploadFinished: true,
-            manifestSaved: true,
-            retryCount: 5
+            uploadedFiles: ["a.bin", "b.bin"],
+            retryCount: 5,
+            fileCount: 20,
+            vaultTotalSize: 50_000
         ))
 
         let loaded = manager.loadPendingBackupState()
         XCTAssertNotNil(loaded)
         XCTAssertEqual(loaded?.backupId, "full-test")
-        XCTAssertEqual(loaded?.totalChunks, 10)
-        XCTAssertEqual(loaded?.uploadFinished, true)
-        XCTAssertEqual(loaded?.manifestSaved, true)
-        XCTAssertEqual(loaded?.encryptedSize, 1024 * 10)
+        XCTAssertEqual(loaded?.dataChunkCount, 10)
+        XCTAssertEqual(loaded?.decoyCount, 2)
+        XCTAssertEqual(loaded?.uploadedFiles, ["a.bin", "b.bin"])
         XCTAssertEqual(loaded?.retryCount, 5)
+        XCTAssertEqual(loaded?.fileCount, 20)
+        XCTAssertEqual(loaded?.vaultTotalSize, 50_000)
+        XCTAssertEqual(loaded?.totalFiles, 13) // 10 + 1 + 2
     }
 
     // MARK: - Vault Key Provider
@@ -540,7 +429,7 @@ final class ICloudBackupBackgroundTests: XCTestCase {
 
     func testPerformBackupIfNeededSkipsWhenUploadRunning() throws {
         UserDefaults.standard.set(true, forKey: "iCloudBackupEnabled")
-        UserDefaults.standard.set(0.0, forKey: "lastBackupTimestamp") // Never backed up → overdue
+        UserDefaults.standard.set(0.0, forKey: "lastBackupTimestamp") // Never backed up -> overdue
 
         // Simulate an ongoing upload
         manager.isUploadRunning = true
@@ -573,7 +462,7 @@ final class ICloudBackupBackgroundTests: XCTestCase {
     }
 
     func testUploadStagedBackupSetsAndClearsFlag() async throws {
-        // No pending state → uploadStagedBackup will return early
+        // No pending state -> uploadStagedBackup will return early
         manager.clearStagingDirectory()
 
         // Before calling, flag should be false
@@ -609,7 +498,7 @@ final class ICloudBackupBackgroundTests: XCTestCase {
     }
 
     func testUploadStagedBackupConcurrentCallsAreIdempotent() async throws {
-        // Both calls with no pending state → both return early
+        // Both calls with no pending state -> both return early
         manager.clearStagingDirectory()
 
         // First call sets the flag and returns (no state)
@@ -705,7 +594,7 @@ final class ICloudBackupBackgroundTests: XCTestCase {
         do {
             try await manager.uploadStagedBackup()
         } catch {
-            // Expected — iCloud isn't available in test environment
+            // Expected -- iCloud isn't available in test environment
         }
 
         // Allow defer Task to run
@@ -716,7 +605,7 @@ final class ICloudBackupBackgroundTests: XCTestCase {
                        "isUploadRunning must be cleared even when upload throws")
     }
 
-    // MARK: - iCloudError Error Descriptions (Phase 1)
+    // MARK: - iCloudError Error Descriptions
 
     func testAllICloudErrorCasesHaveDescriptions() {
         let allCases: [iCloudError] = [
@@ -767,364 +656,6 @@ final class ICloudBackupBackgroundTests: XCTestCase {
         }
     }
 
-    // MARK: - Verification Token in BackupMetadata (Phase 1)
-
-    func testBackupMetadataVerificationTokenDefaultsToNil() {
-        let metadata = iCloudBackupManager.BackupMetadata(
-            timestamp: Date(),
-            size: 1024,
-            checksum: Data()
-        )
-        XCTAssertNil(metadata.verificationToken,
-                     "verificationToken should default to nil for backward compat")
-    }
-
-    func testBackupMetadataWithVerificationToken() {
-        let token = Data([0xDE, 0xAD, 0xBE, 0xEF])
-        let metadata = iCloudBackupManager.BackupMetadata(
-            timestamp: Date(),
-            size: 1024,
-            checksum: Data(),
-            verificationToken: token
-        )
-        XCTAssertEqual(metadata.verificationToken, token)
-    }
-
-    func testBackupMetadataCodableRoundTripWithVerificationToken() throws {
-        let token = Data(repeating: 0xAB, count: 32)
-        let metadata = iCloudBackupManager.BackupMetadata(
-            timestamp: Date(timeIntervalSince1970: 1700000000),
-            size: 5_242_880,
-            checksum: Data([0xDE, 0xAD]),
-            formatVersion: 2,
-            chunkCount: 3,
-            backupId: "token-test",
-            verificationToken: token
-        )
-
-        let data = try JSONEncoder().encode(metadata)
-        let decoded = try JSONDecoder().decode(iCloudBackupManager.BackupMetadata.self, from: data)
-
-        XCTAssertEqual(decoded.verificationToken, token)
-        XCTAssertEqual(decoded.verificationToken?.count, 32)
-        XCTAssertEqual(decoded.backupId, "token-test")
-    }
-
-    func testBackupMetadataCodableRoundTripWithNilVerificationToken() throws {
-        let metadata = iCloudBackupManager.BackupMetadata(
-            timestamp: Date(),
-            size: 1024,
-            checksum: Data(),
-            formatVersion: 2,
-            verificationToken: nil
-        )
-
-        let data = try JSONEncoder().encode(metadata)
-        let decoded = try JSONDecoder().decode(iCloudBackupManager.BackupMetadata.self, from: data)
-
-        XCTAssertNil(decoded.verificationToken,
-                     "nil verificationToken should survive Codable round-trip")
-    }
-
-    func testBackupMetadataDecodesOldFormatWithoutVerificationToken() throws {
-        // Simulate JSON from a pre-Phase-1 backup (no verificationToken key)
-        let json = """
-        {
-            "timestamp": 1700000000,
-            "size": 1024,
-            "checksum": "AAAA",
-            "formatVersion": 2,
-            "chunkCount": 3,
-            "backupId": "old-backup"
-        }
-        """.data(using: .utf8)!
-
-        let decoder = JSONDecoder()
-        let decoded = try decoder.decode(iCloudBackupManager.BackupMetadata.self, from: json)
-
-        XCTAssertNil(decoded.verificationToken,
-                     "Old metadata without verificationToken key should decode with nil token")
-        XCTAssertEqual(decoded.backupId, "old-backup")
-        XCTAssertEqual(decoded.formatVersion, 2)
-    }
-
-    // MARK: - Verification Token in PendingBackupState (Phase 1)
-
-    func testPendingBackupStateCodableRoundTripWithVerificationToken() throws {
-        let token = Data(repeating: 0xCC, count: 32)
-        let state = iCloudBackupManager.PendingBackupState(
-            backupId: "token-state-test",
-            totalChunks: 5,
-            checksum: Data([0x01]),
-            encryptedSize: 10_000,
-            createdAt: Date(),
-            uploadFinished: false,
-            manifestSaved: false,
-            retryCount: 0,
-            fileCount: 10,
-            vaultTotalSize: 50_000,
-            verificationToken: token
-        )
-
-        let data = try JSONEncoder().encode(state)
-        let decoded = try JSONDecoder().decode(iCloudBackupManager.PendingBackupState.self, from: data)
-
-        XCTAssertEqual(decoded.verificationToken, token)
-        XCTAssertEqual(decoded.verificationToken?.count, 32)
-    }
-
-    func testPendingBackupStateCodableWithNilVerificationToken() throws {
-        let state = iCloudBackupManager.PendingBackupState(
-            backupId: "nil-token-test",
-            totalChunks: 3,
-            checksum: Data(),
-            encryptedSize: 5000,
-            createdAt: Date(),
-            uploadFinished: false,
-            manifestSaved: false,
-            retryCount: 0,
-            fileCount: 5,
-            vaultTotalSize: 10_000,
-            verificationToken: nil
-        )
-
-        let data = try JSONEncoder().encode(state)
-        let decoded = try JSONDecoder().decode(iCloudBackupManager.PendingBackupState.self, from: data)
-
-        XCTAssertNil(decoded.verificationToken)
-    }
-
-    func testPendingBackupStateDecodesOldFormatWithoutVerificationToken() throws {
-        // Simulate a staged backup written by a pre-Phase-1 version
-        let oldState = """
-        {
-            "backupId": "old-staged",
-            "totalChunks": 3,
-            "checksum": "AQID",
-            "encryptedSize": 3072,
-            "createdAt": 1700000000,
-            "uploadFinished": false,
-            "manifestSaved": false,
-            "retryCount": 0,
-            "fileCount": 10,
-            "vaultTotalSize": 102400,
-            "wasTerminated": false
-        }
-        """.data(using: .utf8)!
-
-        let decoded = try JSONDecoder().decode(iCloudBackupManager.PendingBackupState.self, from: oldState)
-
-        XCTAssertNil(decoded.verificationToken,
-                     "Old PendingBackupState without verificationToken should decode with nil")
-        XCTAssertEqual(decoded.backupId, "old-staged")
-        XCTAssertEqual(decoded.totalChunks, 3)
-    }
-
-    // MARK: - verifyPatternBeforeDownload (Phase 1)
-
-    func testVerifyPatternBeforeDownloadCorrectKey() {
-        let key = Data(repeating: 0xAA, count: 32)
-        let sentinel = "vault-backup-verify".data(using: .utf8)!
-        let token = CryptoEngine.computeHMAC(for: sentinel, with: key)
-
-        let metadata = iCloudBackupManager.BackupMetadata(
-            timestamp: Date(),
-            size: 1024,
-            checksum: Data(),
-            verificationToken: token
-        )
-
-        XCTAssertTrue(
-            manager.verifyPatternBeforeDownload(key: key, metadata: metadata),
-            "Correct key should verify successfully"
-        )
-    }
-
-    func testVerifyPatternBeforeDownloadWrongKey() {
-        let correctKey = Data(repeating: 0xAA, count: 32)
-        let wrongKey = Data(repeating: 0xBB, count: 32)
-        let sentinel = "vault-backup-verify".data(using: .utf8)!
-        let token = CryptoEngine.computeHMAC(for: sentinel, with: correctKey)
-
-        let metadata = iCloudBackupManager.BackupMetadata(
-            timestamp: Date(),
-            size: 1024,
-            checksum: Data(),
-            verificationToken: token
-        )
-
-        XCTAssertFalse(
-            manager.verifyPatternBeforeDownload(key: wrongKey, metadata: metadata),
-            "Wrong key should fail verification"
-        )
-    }
-
-    func testVerifyPatternBeforeDownloadNilTokenPassesThrough() {
-        let key = Data(repeating: 0xAA, count: 32)
-
-        let metadata = iCloudBackupManager.BackupMetadata(
-            timestamp: Date(),
-            size: 1024,
-            checksum: Data(),
-            verificationToken: nil  // Old backup without token
-        )
-
-        XCTAssertTrue(
-            manager.verifyPatternBeforeDownload(key: key, metadata: metadata),
-            "Nil verificationToken (old backup) should pass through to download+HMAC check"
-        )
-    }
-
-    func testVerifyPatternBeforeDownloadEmptyTokenFailsWithAnyKey() {
-        let key = Data(repeating: 0xAA, count: 32)
-
-        let metadata = iCloudBackupManager.BackupMetadata(
-            timestamp: Date(),
-            size: 1024,
-            checksum: Data(),
-            verificationToken: Data()  // Empty data, not nil
-        )
-
-        XCTAssertFalse(
-            manager.verifyPatternBeforeDownload(key: key, metadata: metadata),
-            "Empty (non-nil) verificationToken should not match any computed HMAC"
-        )
-    }
-
-    func testVerifyPatternBeforeDownloadDeterministic() {
-        let key = Data(repeating: 0xCC, count: 32)
-        let sentinel = "vault-backup-verify".data(using: .utf8)!
-
-        let token1 = CryptoEngine.computeHMAC(for: sentinel, with: key)
-        let token2 = CryptoEngine.computeHMAC(for: sentinel, with: key)
-
-        XCTAssertEqual(token1, token2,
-                       "Verification token computation must be deterministic")
-    }
-
-    func testVerifyPatternBeforeDownloadDifferentKeysProduceDifferentTokens() {
-        let key1 = Data(repeating: 0xAA, count: 32)
-        let key2 = Data(repeating: 0xBB, count: 32)
-        let sentinel = "vault-backup-verify".data(using: .utf8)!
-
-        let token1 = CryptoEngine.computeHMAC(for: sentinel, with: key1)
-        let token2 = CryptoEngine.computeHMAC(for: sentinel, with: key2)
-
-        XCTAssertNotEqual(token1, token2,
-                          "Different keys must produce different verification tokens")
-    }
-
-    func testVerifyPatternBeforeDownloadTokenIsCorrectSize() {
-        let key = Data(repeating: 0xAA, count: 32)
-        let sentinel = "vault-backup-verify".data(using: .utf8)!
-        let token = CryptoEngine.computeHMAC(for: sentinel, with: key)
-
-        // SHA-256 HMAC produces 32 bytes
-        XCTAssertEqual(token.count, 32,
-                       "Verification token should be 32 bytes (SHA-256 HMAC)")
-    }
-
-    // MARK: - Verification Token End-to-End Consistency (Phase 1)
-
-    func testVerificationTokenSentinelIsConsistent() {
-        // The sentinel must match what stageBackupToDisk uses.
-        // This test ensures the constant hasn't been accidentally changed.
-        let sentinel = "vault-backup-verify".data(using: .utf8)!
-        let key = Data(repeating: 0xDD, count: 32)
-
-        // Compute token the same way stageBackupToDisk does
-        let token = CryptoEngine.computeHMAC(for: sentinel, with: key)
-
-        // Verify the same way verifyPatternBeforeDownload does
-        let metadata = iCloudBackupManager.BackupMetadata(
-            timestamp: Date(),
-            size: 1024,
-            checksum: Data(),
-            verificationToken: token
-        )
-
-        XCTAssertTrue(
-            manager.verifyPatternBeforeDownload(key: key, metadata: metadata),
-            "Token computed the same way as stageBackupToDisk should verify correctly"
-        )
-    }
-
-    func testPendingBackupStateWithTokenSurvivesDiskRoundTrip() throws {
-        let token = CryptoEngine.computeHMAC(
-            for: "vault-backup-verify".data(using: .utf8)!,
-            with: Data(repeating: 0xEE, count: 32)
-        )
-
-        try writePendingState(.init(backupId: "disk-roundtrip", totalChunks: 2))
-
-        // Overwrite with a state that has a real verification token
-        let state = iCloudBackupManager.PendingBackupState(
-            backupId: "disk-roundtrip",
-            totalChunks: 2,
-            checksum: Data([0x01, 0x02]),
-            encryptedSize: 2048,
-            createdAt: Date(),
-            uploadFinished: false,
-            manifestSaved: false,
-            retryCount: 0,
-            fileCount: 5,
-            vaultTotalSize: 10_000,
-            verificationToken: token
-        )
-        try fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
-        let data = try JSONEncoder().encode(state)
-        try data.write(to: stagingDir.appendingPathComponent("state.json"))
-
-        let loaded = manager.loadPendingBackupState()
-        XCTAssertNotNil(loaded)
-        XCTAssertEqual(loaded?.verificationToken, token,
-                       "Verification token must survive write → read from disk")
-        XCTAssertEqual(loaded?.verificationToken?.count, 32)
-    }
-
-    func testPendingBackupStateWithNilTokenSurvivesDiskRoundTrip() throws {
-        try writePendingState(.init(backupId: "nil-token-disk"))
-
-        let loaded = manager.loadPendingBackupState()
-        XCTAssertNotNil(loaded)
-        XCTAssertNil(loaded?.verificationToken,
-                     "nil verificationToken must survive write → read from disk")
-    }
-
-    // MARK: - restoreBackup Signature Compatibility (Phase 1)
-
-    func testRestoreBackupAcceptsNilProgressCallback() async {
-        // restoreBackup with default nil onProgress should compile and not crash
-        // (will fail on iCloud, but that's expected)
-        do {
-            try await manager.restoreBackup(with: Data(repeating: 0xAA, count: 32))
-        } catch {
-            // Expected — iCloud isn't available in tests
-        }
-    }
-
-    func testRestoreBackupAcceptsExplicitNilProgressCallback() async {
-        do {
-            try await manager.restoreBackup(with: Data(repeating: 0xAA, count: 32), onProgress: nil)
-        } catch {
-            // Expected
-        }
-    }
-
-    func testRestoreBackupAcceptsProgressClosure() async {
-        var progressCalls: [(Int, Int)] = []
-
-        do {
-            try await manager.restoreBackup(with: Data(repeating: 0xAA, count: 32)) { downloaded, total in
-                progressCalls.append((downloaded, total))
-            }
-        } catch {
-            // Expected — iCloud isn't available
-        }
-
-        // No progress expected since we fail before downloading, but signature works
-    }
-
     // MARK: - backupSkipped Error
 
     func testBackupSkippedErrorHasNilDescription() {
@@ -1138,7 +669,7 @@ final class ICloudBackupBackgroundTests: XCTestCase {
         var index = iCloudBackupManager.BackupVersionIndex()
         let entry = iCloudBackupManager.BackupVersionEntry(
             backupId: "test-1", timestamp: Date(), size: 1024,
-            verificationToken: nil, chunkCount: 2, checksum: nil
+            chunkCount: 2, fileCount: nil, vaultTotalSize: nil
         )
         let evicted = index.addVersion(entry)
         XCTAssertNil(evicted, "First entry should not evict anything")
@@ -1151,14 +682,14 @@ final class ICloudBackupBackgroundTests: XCTestCase {
         for i in 1...3 {
             index.addVersion(iCloudBackupManager.BackupVersionEntry(
                 backupId: "v\(i)", timestamp: Date(), size: 1024,
-                verificationToken: nil, chunkCount: 2, checksum: nil
+                chunkCount: 2, fileCount: nil, vaultTotalSize: nil
             ))
         }
         XCTAssertEqual(index.versions.count, 3)
 
         let evicted = index.addVersion(iCloudBackupManager.BackupVersionEntry(
             backupId: "v4", timestamp: Date(), size: 1024,
-            verificationToken: nil, chunkCount: 2, checksum: nil
+            chunkCount: 2, fileCount: nil, vaultTotalSize: nil
         ))
         XCTAssertEqual(evicted?.backupId, "v1", "Oldest entry (v1) should be evicted")
         XCTAssertEqual(index.versions.count, 3, "Should stay at 3 max")
@@ -1169,7 +700,7 @@ final class ICloudBackupBackgroundTests: XCTestCase {
         var index = iCloudBackupManager.BackupVersionIndex()
         index.addVersion(iCloudBackupManager.BackupVersionEntry(
             backupId: "test-rt", timestamp: Date(), size: 2048,
-            verificationToken: Data([0xAB, 0xCD]), chunkCount: 5, checksum: nil
+            chunkCount: 5, fileCount: nil, vaultTotalSize: nil
         ))
 
         let data = try JSONEncoder().encode(index)
@@ -1179,7 +710,34 @@ final class ICloudBackupBackgroundTests: XCTestCase {
         XCTAssertEqual(decoded.versions[0].backupId, "test-rt")
         XCTAssertEqual(decoded.versions[0].size, 2048)
         XCTAssertEqual(decoded.versions[0].chunkCount, 5)
-        XCTAssertEqual(decoded.versions[0].verificationToken, Data([0xAB, 0xCD]))
+    }
+
+    func testBackupVersionEntryFormattedFields() {
+        let entry = iCloudBackupManager.BackupVersionEntry(
+            backupId: "fmt-test",
+            timestamp: Date(timeIntervalSince1970: 1700000000),
+            size: 5_242_880,
+            chunkCount: 10,
+            fileCount: nil,
+            vaultTotalSize: nil
+        )
+
+        XCTAssertFalse(entry.formattedDate.isEmpty)
+        XCTAssertFalse(entry.formattedSize.isEmpty)
+    }
+
+    func testBackupVersionEntryOptionalFields() {
+        let entry = iCloudBackupManager.BackupVersionEntry(
+            backupId: "opt-test",
+            timestamp: Date(),
+            size: 1024,
+            chunkCount: 1,
+            fileCount: 42,
+            vaultTotalSize: 102400
+        )
+
+        XCTAssertEqual(entry.fileCount, 42)
+        XCTAssertEqual(entry.vaultTotalSize, 102400)
     }
 
     // MARK: - Vault Fingerprint
@@ -1201,30 +759,16 @@ final class ICloudBackupBackgroundTests: XCTestCase {
         }
     }
 
-    func testVersionIndexRecordNameFormat() {
-        let name = iCloudBackupManager.versionIndexRecordName(fingerprint: "abcdef1234567890")
-        XCTAssertEqual(name, "vb_abcdef1234567890_index")
-    }
-
-    func testManifestRecordNameFormat() {
-        let name = iCloudBackupManager.manifestRecordName(fingerprint: "abcdef1234567890", version: 2)
-        XCTAssertEqual(name, "vb_abcdef1234567890_v2")
-    }
-
     func testPendingBackupStateDecodesWithoutVaultFingerprint() throws {
-        // Encode a state with fingerprint, then strip the field and re-decode
         let state = iCloudBackupManager.PendingBackupState(
             backupId: "legacy-id",
-            totalChunks: 3,
-            checksum: Data([0x01]),
-            encryptedSize: 3072,
+            dataChunkCount: 3,
+            decoyCount: 0,
             createdAt: Date(),
-            uploadFinished: false,
-            manifestSaved: false,
+            uploadedFiles: [],
             retryCount: 0,
             fileCount: 5,
             vaultTotalSize: 10000,
-            verificationToken: nil,
             vaultFingerprint: "test_fp"
         )
         let encoded = try JSONEncoder().encode(state)
